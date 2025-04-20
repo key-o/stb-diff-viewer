@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>STB Diff Viewer</title>
+  </head>
+
+  <body>
+    <div id="overlay">
+      <label>モデルA</label>
+      <input type="file" id="fileA" accept=".stb,.xml" />
+      <label>モデルB</label>
+      <input type="file" id="fileB" accept=".stb,.xml" />
+
+      <hr />
+
+      <label>比較/表示する要素</label>
+      <div id="elementSelector">
+        <label>
+          <input type="checkbox" name="elements" value="Node" checked /> 節点
+          (Node)
+          <input
+            type="checkbox"
+            name="labelToggle"
+            value="Node"
+            id="toggleLabel-Node"
+            checked
+          />
+          ID
+        </label>
+        <br />
+        <!-- Optional: Add line breaks for clarity -->
+        <label>
+          <input type="checkbox" name="elements" value="Column" checked /> 柱
+          (Column)
+          <input
+            type="checkbox"
+            name="labelToggle"
+            value="Column"
+            id="toggleLabel-Column"
+            checked
+          />
+          ID
+        </label>
+        <br />
+        <label>
+          <input type="checkbox" name="elements" value="Girder" checked /> 大梁
+          (Girder)
+          <input
+            type="checkbox"
+            name="labelToggle"
+            value="Girder"
+            id="toggleLabel-Girder"
+            checked
+          />
+          ID
+        </label>
+        <br />
+        <label>
+          <input type="checkbox" name="elements" value="Beam" checked /> 小梁
+          (Beam)
+          <input
+            type="checkbox"
+            name="labelToggle"
+            value="Beam"
+            id="toggleLabel-Beam"
+            checked
+          />
+          ID
+        </label>
+        <br />
+        <label>
+          <input type="checkbox" name="elements" value="Slab" checked /> スラブ
+          (Slab)
+          <!-- Slab/Wall don't have IDs in this implementation yet -->
+          <!-- <input type="checkbox" name="labelToggle" value="Slab" id="toggleLabel-Slab" checked /> ID -->
+        </label>
+        <br />
+        <label>
+          <input type="checkbox" name="elements" value="Wall" checked /> 壁
+          (Wall)
+          <!-- <input type="checkbox" name="labelToggle" value="Wall" id="toggleLabel-Wall" checked /> ID -->
+        </label>
+        <!-- 他の要素 (Story, Axis) は現状未対応 -->
+      </div>
+
+      <button onclick="compareModels()">モデルを表示/比較</button>
+
+      <hr />
+
+      <label>階の表示制限</label>
+      <select id="storySelector"></select>
+      <div id="storyButtons">
+        <button onclick="applyStoryClip()">この階の±1mでクリップ</button>
+        <button id="clearClipButton">クリッピング解除</button>
+      </div>
+
+      <hr />
+
+      <button id="toggleLegendBtn">凡例を表示</button>
+      <!-- Add this button -->
+    </div>
+
+    <!-- ここに凡例パネルのHTMLを追加 -->
+    <div id="legendPanel" class="panel" style="display: none">
+      <!-- 初期状態は非表示 -->
+      <div class="panel-header">凡例</div>
+      <div class="legend-content">
+        <div class="legend-item">
+          <span class="legend-color" style="background-color: #00aaff"></span>
+          <span>一致要素</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background-color: #00ff00"></span>
+          <span>モデルAのみ</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-color" style="background-color: #ff0000"></span>
+          <span>モデルBのみ</span>
+        </div>
+      </div>
+    </div>
+    <!-- /凡例パネル -->
+
+    <canvas id="three-canvas"></canvas>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="modules/main.js"></script>
+  </body>
+</html>
