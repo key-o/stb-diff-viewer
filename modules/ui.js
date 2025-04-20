@@ -84,9 +84,9 @@ export function setupUIEventListeners() {
         // 初期テキスト設定 (ボタンが見つかった場合のみ)
         const legendPanel = document.getElementById('legendPanel');
         if (legendPanel && legendPanel.style.display !== 'none') {
-            toggleBtn.textContent = '凡例を非表示';
+            toggleBtn.textContent = '凡例・マウス操作を非表示';
         } else if (legendPanel) {
-            toggleBtn.textContent = '凡例を表示';
+            toggleBtn.textContent = '凡例・マウス操作を表示';
             // legendPanel.style.display = 'none'; // 初期状態はHTML/CSSで設定推奨
         }
     } else {
@@ -132,7 +132,7 @@ export function toggleLegend() {
     legendPanel.style.display = isVisible ? 'none' : 'block';
     const toggleBtn = document.getElementById('toggleLegendBtn');
     if (toggleBtn) {
-      toggleBtn.textContent = isVisible ? '凡例を表示' : '凡例を非表示';
+      toggleBtn.textContent = isVisible ? '凡例・マウス操作を表示' : '凡例・マウス操作を非表示';
     }
   }
 }

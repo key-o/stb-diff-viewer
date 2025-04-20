@@ -11,6 +11,7 @@
       <input type="file" id="fileA" accept=".stb,.xml" />
       <label>モデルB</label>
       <input type="file" id="fileB" accept=".stb,.xml" />
+      <button onclick="compareModels()">モデルを表示/比較</button>
 
       <hr />
 
@@ -84,8 +85,6 @@
         <!-- 他の要素 (Story, Axis) は現状未対応 -->
       </div>
 
-      <button onclick="compareModels()">モデルを表示/比較</button>
-
       <hr />
 
       <label>階の表示制限</label>
@@ -97,7 +96,7 @@
 
       <hr />
 
-      <button id="toggleLegendBtn">凡例を表示</button>
+      <button id="toggleLegendBtn">凡例・マウス操作を表示</button>
       <!-- Add this button -->
     </div>
 
@@ -117,6 +116,19 @@
         <div class="legend-item">
           <span class="legend-color" style="background-color: #ff0000"></span>
           <span>モデルBのみ</span>
+        </div>
+        <hr />
+        <div class="legend-item">
+          <span><b>操作方法:</b></span>
+        </div>
+        <div class="legend-item">
+          <span>回転: 左ドラッグ</span>
+        </div>
+        <div class="legend-item">
+          <span>平行移動: 右ドラッグ</span>
+        </div>
+        <div class="legend-item">
+          <span>ズーム: ホイール</span>
         </div>
       </div>
     </div>
