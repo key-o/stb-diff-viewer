@@ -35,7 +35,7 @@ stb-diff-viewer/
 1. **リポジトリのクローン**
 
     ```bash
-    git clone <repository-url>
+    git clone https://github.com/key-o/stb-diff-viewer/
     cd stb-diff-viewer
     ```
 
