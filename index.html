@@ -3,6 +3,40 @@
   <head>
     <meta charset="UTF-8" />
     <title>STB Diff Viewer</title>
+    <link rel="stylesheet" href="style.css" />
+    <!-- ★★★ 追加: 要素情報パネル用のスタイル ★★★ -->
+    <style>
+      #component-info {
+        position: absolute; /* 絶対位置指定 */
+        top: 10px; /* 下からの距離 */
+        right: 10px; /* 左からの距離 */
+        background-color: rgba(240, 240, 240, 0.85); /* 半透明の背景 */
+        border: 1px solid #ccc;
+        padding: 10px;
+        min-width: 150px; /* 最小幅を追加 */
+        min-height: 100px; /* 最小高さを追加 */
+        max-width: 80vw; /* 最大幅をビューポート基準に */
+        max-height: 80vh; /* 最大高さをビューポート基準に */
+        overflow: auto; /* 内容が多い場合はスクロール (overflow-y から変更) */
+        resize: both; /* ★★★ 追加: リサイズ可能にする ★★★ */
+        z-index: 10; /* 他の要素より手前に表示 */
+        border-radius: 4px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        font-size: 0.9em;
+        color: #333;
+      }
+      #component-info h3 {
+        margin-top: 0;
+        margin-bottom: 8px;
+        font-size: 1.1em;
+        color: #111;
+      }
+      #component-info pre {
+        margin: 0;
+        white-space: pre-wrap; /* 折り返し表示 */
+        word-wrap: break-word;
+      }
+    </style>
   </head>
 
   <body>
@@ -11,35 +45,67 @@
       <input type="file" id="fileA" accept=".stb,.xml" />
       <label>モデルB</label>
       <input type="file" id="fileB" accept=".stb,.xml" />
-      <button onclick="compareModels()">モデルを表示/比較</button>
+      <!-- ★★★ ボタンのテキストを更新 ★★★ -->
+      <button id="compareButton">モデル読み込み・表示</button>
 
       <hr />
 
       <label>比較/表示する要素</label>
       <div id="elementSelector">
         <label>
-          <input type="checkbox" name="elements" value="Node" checked /> 節点
-          (Node)
+          <input
+            type="checkbox"
+            id="toggleModelA"
+            name="modelVisibility"
+            value="A"
+            checked
+          />
+          モデルAを表示
+        </label>
+        <br />
+        <label>
+          <input
+            type="checkbox"
+            id="toggleModelB"
+            name="modelVisibility"
+            value="B"
+            checked
+          />
+          モデルBを表示
+        </label>
+        <hr />
+        <!-- 区切り線を追加 -->
+        <label>比較/表示する要素</label> <br />
+        <!-- 改行を追加 -->
+        <label>
+          <input type="checkbox" name="elements" value="Node" /> 節点 (Node)
+        </label>
+        <label for="toggleLabel-Node">
           <input
             type="checkbox"
             name="labelToggle"
             value="Node"
             id="toggleLabel-Node"
-            checked
           />
           ID
         </label>
         <br />
-        <!-- Optional: Add line breaks for clarity -->
         <label>
           <input type="checkbox" name="elements" value="Column" checked /> 柱
           (Column)
+        </label>
+        <!-- ▼柱表示切替UI追加▼ -->
+        <label for="toggleColumnView" style="margin-left: 8px">
+          <input type="checkbox" id="toggleColumnView" name="columnViewMode" />
+          立体表示
+        </label>
+        <!-- ▲柱表示切替UI追加▲ -->
+        <label for="toggleLabel-Column" style="margin-left: 8px">
           <input
             type="checkbox"
             name="labelToggle"
             value="Column"
             id="toggleLabel-Column"
-            checked
           />
           ID
         </label>
@@ -47,12 +113,13 @@
         <label>
           <input type="checkbox" name="elements" value="Girder" checked /> 大梁
           (Girder)
+        </label>
+        <label for="toggleLabel-Girder" style="margin-left: 8px">
           <input
             type="checkbox"
             name="labelToggle"
             value="Girder"
             id="toggleLabel-Girder"
-            checked
           />
           ID
         </label>
@@ -60,12 +127,13 @@
         <label>
           <input type="checkbox" name="elements" value="Beam" checked /> 小梁
           (Beam)
+        </label>
+        <label for="toggleLabel-Beam">
           <input
             type="checkbox"
             name="labelToggle"
             value="Beam"
             id="toggleLabel-Beam"
-            checked
           />
           ID
         </label>
@@ -73,14 +141,59 @@
         <label>
           <input type="checkbox" name="elements" value="Slab" checked /> スラブ
           (Slab)
-          <!-- Slab/Wall don't have IDs in this implementation yet -->
-          <!-- <input type="checkbox" name="labelToggle" value="Slab" id="toggleLabel-Slab" checked /> ID -->
+        </label>
+        <label for="toggleLabel-Slab">
+          <input
+            type="checkbox"
+            name="labelToggle"
+            value="Slab"
+            id="toggleLabel-Slab"
+          />
+          ID
         </label>
         <br />
         <label>
           <input type="checkbox" name="elements" value="Wall" checked /> 壁
           (Wall)
-          <!-- <input type="checkbox" name="labelToggle" value="Wall" id="toggleLabel-Wall" checked /> ID -->
+        </label>
+        <label for="toggleLabel-Wall">
+          <input
+            type="checkbox"
+            name="labelToggle"
+            value="Wall"
+            id="toggleLabel-Wall"
+          />
+          ID
+        </label>
+        <br />
+        <label>
+          <input type="checkbox" name="elements" value="Axis" checked /> 通り芯
+          (Axis)
+        </label>
+        <label for="toggleLabel-Axis">
+          <input
+            type="checkbox"
+            name="labelToggle"
+            value="Axis"
+            id="toggleLabel-Axis"
+            checked
+          />
+          名称
+        </label>
+        <br />
+        <label>
+          <input type="checkbox" name="elements" value="Story" checked /> 階
+          (Story)
+        </label>
+        <label for="toggleLabel-Story">
+          <input
+            type="checkbox"
+            name="labelToggle"
+            value="Story"
+            id="toggleLabel-Story"
+            checked
+          />
+          名称/高さ
         </label>
         <!-- 他の要素 (Story, Axis) は現状未対応 -->
       </div>
@@ -90,7 +203,19 @@
       <label>階の表示制限</label>
       <select id="storySelector"></select>
       <div id="storyButtons">
-        <button onclick="applyStoryClip()">この階の±1mでクリップ</button>
+        <!-- ★★★ onclick 属性を削除 ★★★ -->
+        <button id="applyStoryClipButton">この階の±1mでクリップ</button>
+        <!-- ★★★ 追加: X軸選択とクリップボタン ★★★ -->
+        <label for="xAxisSelector">X軸選択:</label>
+        <select id="xAxisSelector"></select>
+        <!-- ★★★ onclick 属性を削除し、IDを追加 ★★★ -->
+        <button id="applyXAxisClipButton">X軸でクリップ</button>
+        <!-- ★★★ 追加: Y軸選択とクリップボタン ★★★ -->
+        <label for="yAxisSelector">Y軸選択:</label>
+        <select id="yAxisSelector"></select>
+        <!-- ★★★ onclick 属性を削除し、IDを追加 ★★★ -->
+        <button id="applyYAxisClipButton">Y軸でクリップ</button>
+        <!-- ★★★ 変更: クリッピング解除ボタンのテキストを汎用的に ★★★ -->
         <button id="clearClipButton">クリッピング解除</button>
       </div>
 
@@ -134,8 +259,16 @@
     </div>
     <!-- /凡例パネル -->
 
+    <!-- ★★★ 追加: 要素情報表示パネル ★★★ -->
+    <div id="component-info" class="panel info-panel">
+      要素を選択してください。
+    </div>
+    <!-- /要素情報表示パネル -->
+
     <canvas id="three-canvas"></canvas>
-    <link rel="stylesheet" href="style.css" />
-    <script type="module" src="modules/main.js"></script>
+    <!-- ★★★ パスを js/main.js に変更 ★★★ -->
+    <script type="module" src="js/main.js"></script>
+    <!-- ★★★ 追加: selectComponentInfo.js の script タグは不要 (main.js から import されるため) ★★★ -->
+    <!-- <script type="module" src="selectComponentInfo.js"></script> -->
   </body>
 </html>

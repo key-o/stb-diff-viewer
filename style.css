@@ -128,3 +128,27 @@ canvas {
     border: 1px solid #ccc;
     margin-top: 20px;
 }
+
+.comparison-table td.differs {
+  background-color: #ffeeba; /* 例: 薄い黄色 */
+  font-weight: bold;
+}
+
+.info-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1em;
+}
+.info-table th, .info-table td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.info-table th {
+  background-color: #f2f2f2;
+}
+#component-info h4 {
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+}

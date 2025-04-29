@@ -1,44 +1,61 @@
 # STB Diff Viewer
 
-## Overview
-STB Diff Viewer is a web application designed to compare 3D models stored in STB and XML formats. It allows users to visualize differences and similarities between two models, providing a user-friendly interface for model comparison.
+## 概要
 
-## Project Structure
+STB Diff Viewer は、STB および XML 形式で保存された 3D モデルを比較するために設計された Web アプリケーションです。2 つのモデル間の違いと類似点を視覚化し、モデル比較のためのユーザーフレンドリーなインターフェースを提供します。
+
+## プロジェクト構成
+
+```Folder
+stb-diff-viewer/
+├── js/                      # (旧 modules)
+│   ├── main.js              # アプリケーションエントリーポイント
+│   ├── ui.js                # UI関連
+│   ├── comparator.js        # 比較ロジック
+│   ├── parser/              # STB/XML パース関連
+│   │   ├── stbXmlParser.js      # (旧 stbParser.js) 基本XMLパース、基本情報抽出
+│   │   └── stbStructureReader.js# (旧 stbReader.js) 詳細構造データ抽出
+│   └── viewer/              # Three.js ビューア関連
+│       ├── index.js         # (旧 viewer.js) ビューアモジュールの集約・エクスポート
+│       ├── core.js          # (旧 viewer-core.js) コア要素 (シーン、カメラ等)
+│       ├── elements.js      # (旧 viewer-elements.js) 要素描画
+│       ├── labels.js        # (旧 viewer-labels.js) ラベル管理
+│       ├── layout.js        # (旧 viewer-layout.js) 通り芯・階描画
+│       ├── materials.js     # (旧 viewer-materials.js) マテリアル定義
+│       ├── utils.js         # (旧 viewer-utils.js) ビューアユーティリティ
+│       ├── geometryGenerator.js # (旧 viewer-geometryGenerator.js) 3Dジオメトリ生成
+│       └── elementInfoDisplay.js# (旧 viewer-elementInfoDisplay.js) 要素情報表示
+├── index.html
+├── style.css
+└── README.md
 ```
-stb-diff-viewer
-├── modules
-│   ├── main.js          # Main entry point for the application
-│   ├── ui.js            # Handles user interface components
-│   ├── viewer.js        # Responsible for rendering 3D models
-│   ├── stbParser.js     # Parses STB and XML files
-│   ├── comparator.js     # Compares two models
-│   └── geometryUtils.js  # Utility functions for geometric calculations
-├── index.html           # Main HTML document
-├── style.css            # Styles for the web application
-└── README.md            # Documentation for the project
-```
 
-## Setup Instructions
-1. **Clone the Repository**
-   ```bash
-   git clone <repository-url>
-   cd stb-diff-viewer
-   ```
+## セットアップ手順
 
-2. **Open the Project**
-   Open `index.html` in a web browser to run the application.
+1. **リポジトリのクローン**
 
-3. **File Upload**
-   Use the file input fields to upload two models in STB or XML format for comparison.
+    ```bash
+    git clone <repository-url>
+    cd stb-diff-viewer
+    ```
 
-## Usage Guidelines
-- Select the elements you wish to compare using the checkboxes.
-- Use the "モデルを表示/比較" button to initiate the comparison.
-- Adjust the story clipping using the dropdown and buttons provided.
-- Toggle the legend panel to view the color coding for model differences.
+2. **プロジェクトを開く**
+    Web ブラウザで `index.html` を開いてアプリケーションを実行します。
 
-## Contributing
-Contributions are welcome! Please submit a pull request or open an issue for any enhancements or bug fixes.
+3. **ファイルアップロード**
+    ファイル入力フィールドを使用して、比較する 2 つのモデル (STB または XML 形式) をアップロードします。
 
-## License
-This project is licensed under the MIT License. See the LICENSE file for more details.
+## 利用ガイドライン
+
+- チェックボックスを使用して比較したい要素を選択します。
+- 「モデルを表示/比較」ボタンを使用して比較を開始します。
+- 提供されているドロップダウンとボタンを使用して、階クリッピングや軸クリッピングを調整します。
+- 凡例パネルを切り替えて、モデルの違いの色分けを表示します。
+
+## コントリビューション
+
+貢献を歓迎します！機能強化やバグ修正については、プルリクエストを送信するか、Issue をオープンしてください。
+
+## ライセンス
+
+このプロジェクトは MIT ライセンスの下でライセンスされています。詳細については、LICENSE ファイルを参照してください。
