@@ -6,28 +6,28 @@ STB Diff Viewer は、STB および XML 形式で保存された 3D モデルを
 
 ## プロジェクト構成
 
-```Folder
-stb-diff-viewer/
-├── js/                      # (旧 modules)
-│   ├── main.js              # アプリケーションエントリーポイント
-│   ├── ui.js                # UI関連
-│   ├── comparator.js        # 比較ロジック
-│   ├── parser/              # STB/XML パース関連
-│   │   ├── stbXmlParser.js      # (旧 stbParser.js) 基本XMLパース、基本情報抽出
-│   │   └── stbStructureReader.js# (旧 stbReader.js) 詳細構造データ抽出
-│   └── viewer/              # Three.js ビューア関連
-│       ├── index.js         # (旧 viewer.js) ビューアモジュールの集約・エクスポート
-│       ├── core.js          # (旧 viewer-core.js) コア要素 (シーン、カメラ等)
-│       ├── elements.js      # (旧 viewer-elements.js) 要素描画
-│       ├── labels.js        # (旧 viewer-labels.js) ラベル管理
-│       ├── layout.js        # (旧 viewer-layout.js) 通り芯・階描画
-│       ├── materials.js     # (旧 viewer-materials.js) マテリアル定義
-│       ├── utils.js         # (旧 viewer-utils.js) ビューアユーティリティ
-│       ├── geometryGenerator.js # (旧 viewer-geometryGenerator.js) 3Dジオメトリ生成
-│       └── elementInfoDisplay.js# (旧 viewer-elementInfoDisplay.js) 要素情報表示
-├── index.html
-├── style.css
-└── README.md
+```
+javascr/
+├── js/
+│   ├── main.js              # アプリケーションのエントリーポイント
+│   ├── ui.js                # UI操作と表示の管理
+│   ├── comparator.js        # モデル比較ロジック
+│   ├── parser/              # STB/XMLデータのパース機能
+│   │   ├── stbXmlParser.js      # 基本XMLパース処理
+│   │   └── stbStructureReader.js# 構造データの詳細抽出
+│   └── viewer/              # 3Dビューア機能 (Three.js)
+│       ├── index.js         # ビューアモジュールのエクスポート
+│       ├── core.js          # シーン、カメラなどのコア機能
+│       ├── elements.js      # 構造要素の描画処理
+│       ├── labels.js        # 3D空間内のラベル管理
+│       ├── layout.js        # 通り芯・階の表示機能
+│       ├── materials.js     # マテリアル定義
+│       ├── utils.js         # ビューア用ユーティリティ関数
+│       ├── geometryGenerator.js # 3Dジオメトリ生成
+│       └── elementInfoDisplay.js# 要素情報の表示
+├── index.html               # メインHTMLファイル
+├── style.css                # スタイルシート
+└── README.md                # プロジェクト説明書
 ```
 
 ## セットアップ手順
@@ -35,8 +35,8 @@ stb-diff-viewer/
 1. **リポジトリのクローン**
 
     ```bash
-    git clone https://github.com/key-o/stb-diff-viewer/
-    cd stb-diff-viewer
+    git clone <repository-url>
+    cd javascr
     ```
 
 2. **プロジェクトを開く**
