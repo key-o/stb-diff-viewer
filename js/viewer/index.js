@@ -10,11 +10,16 @@ import {
   elementGroups,
   SUPPORTED_ELEMENTS,
   initRenderer,
-} from "./core.js";
-import { materials } from "./materials.js";
-import { drawLineElements, drawPolyElements, drawNodes } from "./elements.js";
-import { createLabel } from "./labels.js"; // 必要に応じてインポート
-import { drawAxes, drawStories } from "./layout.js";
+} from "./core/core.js"; // パス修正
+import { materials } from "./rendering/materials.js"; // パス修正
+import {
+  drawLineElements,
+  drawPolyElements,
+  drawNodes,
+} from "./rendering/elements.js"; // パス修正
+// ★★★ labels.js のインポートパスを確認・修正 ★★★js/viewer/ui/labels.js
+import { createLabel } from "./ui/labels.js"; // ← このパスが正しいか確認
+import { drawAxes, drawStories } from "./ui/layout.js"; // パス修正
 // ★★★ animate を utils からインポート ★★★
 import {
   clearClippingPlanes,
@@ -25,7 +30,7 @@ import {
   animate, // ★★★ animate を追加 ★★★
   clearSceneContent,
   createOrUpdateGridHelper,
-} from "./utils.js";
+} from "./utils/utils.js"; // パス修正
 
 // ★★★ 必要なものを再エクスポート ★★★
 export {

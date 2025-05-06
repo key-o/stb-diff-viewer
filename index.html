@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <title>STB Diff Viewer</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="/style/style.css" />
     <!-- ★★★ 追加: 要素情報パネル用のスタイル ★★★ -->
     <style>
       #component-info {
         position: absolute; /* 絶対位置指定 */
-        top: 10px; /* 下からの距離 */
-        right: 10px; /* 左からの距離 */
+        top: 10px; /* 上からの距離 */
+        left: 10px; /* 左からの距離 */
         background-color: rgba(240, 240, 240, 0.85); /* 半透明の背景 */
         border: 1px solid #ccc;
         padding: 10px;
@@ -36,6 +36,27 @@
         white-space: pre-wrap; /* 折り返し表示 */
         word-wrap: break-word;
       }
+      /* ★★★ 追加: 凡例パネルのスタイル ★★★ */
+      #legendPanel {
+        position: fixed; /* 画面に対して固定 */
+        bottom: 10px; /* 画面下からの距離 */
+        left: 10px; /* 画面左からの距離 */
+        background-color: rgba(
+          240,
+          240,
+          240,
+          0.85
+        ); /* 背景色 (component-infoと合わせる) */
+        border: 1px solid #ccc; /* 境界線 (component-infoと合わせる) */
+        padding: 10px; /* パディング (component-infoと合わせる) */
+        min-width: 150px; /* 最小幅 */
+        max-width: 300px; /* 最大幅をビューポート基準に */
+        z-index: 10; /* 重なり順序 (component-infoと同じ) */
+        border-radius: 4px; /* 角丸 (component-infoと合わせる) */
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* 影 (component-infoと合わせる) */
+        /* display: none; はHTML要素のstyle属性で制御されるため、ここでは不要 */
+      }
+      /* ★★★ ここまで追加 ★★★ */
     </style>
   </head>
 
@@ -113,6 +134,10 @@
         <label>
           <input type="checkbox" name="elements" value="Girder" checked /> 大梁
           (Girder)
+        </label>
+        <label for="toggleBeamView" style="margin-left: 8px">
+          <input type="checkbox" id="toggleBeamView" name="girderViewMode" />
+          立体表示
         </label>
         <label for="toggleLabel-Girder" style="margin-left: 8px">
           <input

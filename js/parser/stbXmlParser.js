@@ -1,5 +1,16 @@
-// このファイルはSTBおよびXMLファイルをパースするための関数を含みます。
-// ファイルから関連データを抽出し、さらなる処理のために提供します。
+/**
+ * @fileoverview STB XMLパーサーモジュール
+ *
+ * このファイルは、ST-Bridge形式のXMLデータを解析する機能を提供します:
+ * - XMLドキュメントの読み込みと解析
+ * - 節点・柱・梁・床・壁などの構造要素の抽出
+ * - 軸・階情報の抽出
+ * - 座標データの正規化
+ * - 構造要素の基本情報の整理
+ *
+ * このモジュールは、STBファイルからのデータ取得の基盤となり、
+ * 3D表示やモデル比較のための前処理を担当します。
+ */
 
 // --- 定数 ---
 const STB_NAMESPACE = "https://www.building-smart.or.jp/dl";
@@ -167,4 +178,308 @@ export function parseXML(fileContent) {
 export function extractRelevantData(parsedData) {
   // パースデータから関連データを抽出するロジックを実装
   // 抽出データを返す
+}
+
+// --- 鋼材形状データ抽出関数 ---
+/**
+ * 鋼材形状データを抽出する
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Map} 鋼材名をキーとする形状データのマップ
+ */
+export function extractSteelSections(xmlDoc) {
+  const steelSections = new Map();
+  // StbSecSteel 要素を取得 (名前空間は考慮しないquerySelectorを使用)
+  const steelSectionList = xmlDoc.querySelector("StbSecSteel");
+
+  if (steelSectionList) {
+    for (const steelEl of steelSectionList.children) {
+      const name = steelEl.getAttribute("name");
+
+      if (name) {
+        const sectionData = {
+          elementTag: steelEl.tagName,
+          shapeTypeAttr: steelEl.getAttribute("type"),
+          name: name,
+        };
+
+        for (const attr of steelEl.attributes) {
+          if (attr.name !== "type" && attr.name !== "name") {
+            sectionData[attr.name] = attr.value;
+          }
+        }
+
+        steelSections.set(name, sectionData);
+      } else {
+        console.warn(
+          `Skipping steel section due to missing name attribute:`,
+          steelEl
+        );
+      }
+    }
+  } else {
+    console.log("No StbSecSteel element found.");
+  }
+  console.log(`Extracted ${steelSections.size} steel sections.`);
+  return steelSections;
+}
+
+// --- 柱断面データ抽出関数 ---
+/**
+ * 柱断面データを抽出する
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Map} 断面IDをキーとする断面データのマップ
+ */
+export function extractColumnSections(xmlDoc) {
+  const columnSections = new Map();
+  // 柱断面要素を取得 (名前空間は考慮しないquerySelectorAllを使用)
+  const secColumnElements = xmlDoc.querySelectorAll(
+    "StbSecColumn_RC, StbSecColumn_S, StbSecColumn_SRC, StbSecColumn_CFT"
+  );
+
+  for (const secEl of secColumnElements) {
+    const id = secEl.getAttribute("id");
+    if (!id) {
+      console.warn(
+        "Skipping column section due to missing id attribute:",
+        secEl
+      );
+      continue; // IDがない場合はスキップ
+    }
+
+    const sectionType = secEl.tagName;
+    let shapeName = null;
+    let concreteShapeData = null;
+
+    try {
+      // エラーハンドリングを追加
+      if (
+        sectionType === "StbSecColumn_S" ||
+        sectionType === "StbSecColumn_CFT"
+      ) {
+        const figureEl = secEl.querySelector(
+          "StbSecSteelFigureColumn_S, StbSecSteelFigureColumn_CFT"
+        );
+        const shapeEl = figureEl?.querySelector("*[shape]"); // shape属性を持つ要素を探す
+        shapeName = shapeEl?.getAttribute("shape");
+      } else if (sectionType === "StbSecColumn_SRC") {
+        const figureSteelEl = secEl.querySelector(
+          "StbSecSteelFigureColumn_SRC"
+        );
+        const shapeSteelEl = figureSteelEl?.querySelector("*[shape]");
+        shapeName = shapeSteelEl?.getAttribute("shape");
+
+        const figureRcEl = secEl.querySelector("StbSecFigureColumn_SRC");
+        const shapeRcEl = figureRcEl?.firstElementChild; // 最初の要素を取得
+        if (shapeRcEl) {
+          concreteShapeData = { type: shapeRcEl.tagName };
+          for (const attr of shapeRcEl.attributes) {
+            concreteShapeData[attr.name] = attr.value;
+          }
+        }
+      } else if (sectionType === "StbSecColumn_RC") {
+        const figureRcEl = secEl.querySelector("StbSecFigureColumn_RC");
+        const shapeRcEl = figureRcEl?.firstElementChild; // 最初の要素を取得
+        if (shapeRcEl) {
+          concreteShapeData = { type: shapeRcEl.tagName };
+          for (const attr of shapeRcEl.attributes) {
+            concreteShapeData[attr.name] = attr.value;
+          }
+        }
+      }
+
+      columnSections.set(id, {
+        id: id,
+        sectionType: sectionType,
+        shapeName: shapeName, // 鋼材形状名 (S, SRC, CFT の場合)
+        concreteShapeData: concreteShapeData, // コンクリート形状データ (RC, SRC の場合)
+      });
+    } catch (error) {
+      console.error(`Error processing column section id=${id}:`, error, secEl);
+    }
+  }
+  console.log(`Extracted ${columnSections.size} column sections.`);
+  return columnSections;
+}
+
+// --- 柱要素データ抽出関数 ---
+/**
+ * 柱要素データを抽出する
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} 柱要素データの配列
+ */
+export function extractColumnElements(xmlDoc) {
+  const columnElementsData = [];
+  // parseElements を使用して StbColumn 要素を取得 (名前空間考慮済み)
+  const columnElements = parseElements(xmlDoc, "StbColumn");
+
+  for (const colEl of columnElements) {
+    const id = colEl.getAttribute("id");
+    const idNodeBottom = colEl.getAttribute("id_node_bottom");
+    const idNodeTop = colEl.getAttribute("id_node_top");
+    const idSection = colEl.getAttribute("id_section");
+    // 必要に応じて他の属性も取得 (例)
+    // const name = colEl.getAttribute("name");
+    // const kind = colEl.getAttribute("kind"); // 例: KIND_COLUMN
+    // const rotate = colEl.getAttribute("rotate"); // 回転角 (degree)
+    // const offset_x = colEl.getAttribute("offset_x"); // オフセット (mm)
+    // const offset_y = colEl.getAttribute("offset_y"); // オフセット (mm)
+
+    if (id && idNodeBottom && idNodeTop && idSection) {
+      const elementData = {
+        id: id,
+        id_node_bottom: idNodeBottom,
+        id_node_top: idNodeTop,
+        id_section: idSection,
+        // 他の属性もここに追加
+        // name: name,
+        // kind: kind,
+        // rotate: rotate ? parseFloat(rotate) : 0,
+        // offset_x: offset_x ? parseFloat(offset_x) : 0,
+        // offset_y: offset_y ? parseFloat(offset_y) : 0,
+      };
+      columnElementsData.push(elementData);
+    } else {
+      console.warn(
+        `Skipping column element due to missing required attributes: id=${id}`,
+        colEl
+      );
+    }
+  }
+  console.log(`Extracted ${columnElementsData.length} column elements.`);
+  return columnElementsData;
+}
+
+/**
+ * 梁要素データを抽出する
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} 梁要素データの配列
+ */
+export function extractBeamElements(xmlDoc) {
+  const beamElementsData = [];
+  // StbGirder, StbBeam 両方取得
+  const beams = parseElements(xmlDoc, "StbBeam");
+  for (const el of [...beams]) {
+    const id = el.getAttribute("id");
+    const idNodeStart = el.getAttribute("id_node_start");
+    const idNodeEnd = el.getAttribute("id_node_end");
+    const idSection = el.getAttribute("id_section");
+    if (id && idNodeStart && idNodeEnd && idSection) {
+      beamElementsData.push({
+        id: id,
+        id_node_start: idNodeStart,
+        id_node_end: idNodeEnd,
+        id_section: idSection,
+        // 必要に応じて他属性も追加
+      });
+    } else {
+      console.warn(
+        `Skipping beam element due to missing required attributes: id=${id}`,
+        el
+      );
+    }
+  }
+  console.log(`Extracted ${beamElementsData.length} beam elements.`);
+  return beamElementsData;
+}
+
+/**
+ * 梁要素データを抽出する
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} 梁要素データの配列
+ */
+export function extractGirderElements(xmlDoc) {
+  const beamElementsData = [];
+  // StbGirder, StbBeam 両方取得
+  const girders = parseElements(xmlDoc, "StbGirder");
+  for (const el of [...girders]) {
+    const id = el.getAttribute("id");
+    const idNodeStart = el.getAttribute("id_node_start");
+    const idNodeEnd = el.getAttribute("id_node_end");
+    const idSection = el.getAttribute("id_section");
+    if (id && idNodeStart && idNodeEnd && idSection) {
+      beamElementsData.push({
+        id: id,
+        id_node_start: idNodeStart,
+        id_node_end: idNodeEnd,
+        id_section: idSection,
+        // 必要に応じて他属性も追加
+      });
+    } else {
+      console.warn(
+        `Skipping girder element due to missing required attributes: id=${id}`,
+        el
+      );
+    }
+  }
+  console.log(`Extracted ${beamElementsData.length} beam elements.`);
+  return beamElementsData;
+}
+
+/**
+ * 梁断面データを抽出する
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Map} 断面IDをキーとする断面データのマップ
+ */
+export function extractBeamSections(xmlDoc) {
+  const beamSections = new Map();
+  // StbSecGirder, StbSecBeam 両方取得
+  const secElements = xmlDoc.querySelectorAll(
+    "StbSecGirder_RC, StbSecGirder_S, StbSecGirder_SRC, StbSecBeam_RC, StbSecBeam_S, StbSecBeam_SRC"
+  );
+  for (const secEl of secElements) {
+    const id = secEl.getAttribute("id");
+    if (!id) {
+      console.warn("Skipping beam section due to missing id attribute:", secEl);
+      continue;
+    }
+    const sectionType = secEl.tagName;
+    let shapeName = null;
+    // 鋼材名取得
+    if (sectionType === "StbSecGirder_S" || sectionType === "StbSecBeam_S") {
+      const figureEl = secEl.querySelector(
+        "StbSecSteelFigureGirder_S, StbSecSteelFigureBeam_S"
+      );
+      const shapeEl = figureEl?.querySelector("*[shape]");
+      shapeName = shapeEl?.getAttribute("shape");
+    } else if (
+      sectionType === "StbSecGirder_SRC" ||
+      sectionType === "StbSecBeam_SRC"
+    ) {
+      const figureSteelEl = secEl.querySelector(
+        "StbSecSteelFigureGirder_SRC, StbSecSteelFigureBeam_SRC"
+      );
+      const shapeSteelEl = figureSteelEl?.querySelector("*[shape]");
+      shapeName = shapeSteelEl?.getAttribute("shape");
+      // RC部材情報も必要なら追加
+    } else if (
+      sectionType === "StbSecGirder_RC" ||
+      sectionType === "StbSecBeam_RC"
+    ) {
+      const figureRcEl = secEl.querySelector("StbSecFigureBeam_RC");
+      const shapeRcEl = figureRcEl?.firstElementChild;
+      let concreteShapeData = null;
+      if (shapeRcEl) {
+        concreteShapeData = { type: shapeRcEl.tagName };
+        for (const attr of shapeRcEl.attributes) {
+          concreteShapeData[attr.name] = attr.value;
+        }
+      }
+      beamSections.set(id, {
+        id: id,
+        sectionType: sectionType,
+        shapeName: null,
+        concreteShapeData: concreteShapeData,
+      });
+      continue;
+    }
+    // RC/SRC/その他の属性も必要に応じて追加
+    beamSections.set(id, {
+      id: id,
+      sectionType: sectionType,
+      shapeName: shapeName,
+      // 必要に応じて concreteShapeData など追加
+    });
+  }
+  console.log(`Extracted ${beamSections.size} beam sections.`);
+  return beamSections;
 }

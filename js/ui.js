@@ -1,3 +1,18 @@
+/**
+ * @fileoverview UI管理および操作モジュール
+ *
+ * このファイルは、アプリケーションのUI要素と操作に関する機能を提供します:
+ * - UI要素の表示/非表示状態の管理
+ * - セレクターとフィルターの操作処理
+ * - クリッピング平面の適用制御
+ * - ラベル表示の制御
+ * - UIイベントリスナーのセットアップ
+ * - 凡例表示の切り替え
+ *
+ * このモジュールは、HTMLインターフェースと3Dビューの連携を担当し、
+ * ユーザー操作に応じた表示制御を行います。
+ */
+
 // ★★★ THREE ライブラリをインポート ★★★
 import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
 // ★★★ viewer モジュールからのインポートパス変更 ★★★
@@ -9,7 +24,7 @@ import {
   // ★★★ requestRender をインポート (再描画要求用) ★★★
   renderer, // requestRender がなければ renderer を直接使う
 } from "./viewer/index.js"; // ★★★ パス変更済 ★★★
-import { createLabel } from "./viewer/labels.js"; // ★★★ パス変更済 ★★★
+import { createLabel } from "./viewer/ui/labels.js"; // ★★★ パス変更済 ★★★
 
 // --- グローバル状態 (UIモジュール内) ---
 let allLabels = []; // すべてのラベルオブジェクトを保持
@@ -378,7 +393,20 @@ export function setupUIEventListeners() {
  * 凡例パネルの表示/非表示を切り替える
  */
 export function toggleLegend() {
-  // ...existing code...
+  // ★★★ 実装を追加 ★★★
+  if (!legendPanel) {
+    console.warn("Legend panel element not found.");
+    return;
+  }
+  const currentDisplay = legendPanel.style.display;
+  if (currentDisplay === "none" || currentDisplay === "") {
+    legendPanel.style.display = "block"; // 表示する
+    console.log("Legend panel shown.");
+  } else {
+    legendPanel.style.display = "none"; // 非表示にする
+    console.log("Legend panel hidden.");
+  }
+  // ★★★ ここまで追加 ★★★
 }
 
 /**
