@@ -10,6 +10,8 @@ import {
   elementGroups,
   SUPPORTED_ELEMENTS,
   initRenderer,
+  animate, // core.js からインポート
+  setupViewportResizeHandler, // core.js からインポート
 } from "./core/core.js"; // パス修正
 import { materials } from "./rendering/materials.js"; // パス修正
 import {
@@ -20,14 +22,14 @@ import {
 // ★★★ labels.js のインポートパスを確認・修正 ★★★js/viewer/ui/labels.js
 import { createLabel } from "./ui/labels.js"; // ← このパスが正しいか確認
 import { drawAxes, drawStories } from "./ui/layout.js"; // パス修正
-// ★★★ animate を utils からインポート ★★★
+// ★★★ animate と setupViewportResizeHandler を core.js からインポート ★★★
 import {
   clearClippingPlanes,
   applyClipPlanes,
   updateMaterialClippingPlanes,
   adjustCameraToFitModel,
-  setupResizeListener,
-  animate, // ★★★ animate を追加 ★★★
+  // setupResizeListener, // core.js から取得
+  // animate, // core.js から取得
   clearSceneContent,
   createOrUpdateGridHelper,
 } from "./utils/utils.js"; // パス修正
@@ -44,6 +46,8 @@ export {
   elementGroups,
   SUPPORTED_ELEMENTS,
   initRenderer,
+  animate, // core.js から取得
+  setupViewportResizeHandler, // core.js から取得
   materials,
   drawLineElements,
   drawPolyElements,
@@ -55,8 +59,6 @@ export {
   applyClipPlanes,
   updateMaterialClippingPlanes,
   adjustCameraToFitModel,
-  setupResizeListener,
-  animate, // ★★★ animate をエクスポートリストに追加 ★★★
   clearSceneContent,
   createOrUpdateGridHelper,
 };

@@ -22,7 +22,7 @@ import {
   SUPPORTED_ELEMENTS,
   initRenderer,
   animate,
-  setupResizeListener,
+  setupViewportResizeHandler,
   updateMaterialClippingPlanes,
   createOrUpdateGridHelper,
   clearClippingPlanes,
@@ -30,6 +30,7 @@ import {
 import { compareModels } from "./modelLoader.js";
 import { setupInteractionListeners } from "./interaction.js";
 import { setupViewModeListeners } from "./viewModes.js";
+import { setupColorModeListeners } from "./colorModes.js";
 import {
   setupUIEventListeners,
   toggleLegend,
@@ -37,12 +38,18 @@ import {
   applyAxisClip,
 } from "./ui.js";
 import { displayElementInfo } from "./viewer/ui/elementInfoDisplay.js";
+import { 
+  setState, 
+  getState, 
+  registerGlobalFunction,
+  enableStateDebug
+} from "./core/globalState.js";
 
 // --- 初期化フラグ ---
 let rendererInitialized = false;
 
 // --- 再描画をリクエストする関数 ---
-function requestRender() {
+function scheduleRender() {
   if (rendererInitialized) {
     console.log("Manual render requested");
     if (controls && scene && camera) {
@@ -54,8 +61,15 @@ function requestRender() {
   }
 }
 
-// --- グローバルに公開 ---
-window.requestRender = requestRender;
+// --- グローバル状態管理とレガシー互換性 ---
+// 新しい状態管理システムに登録
+registerGlobalFunction('scheduleRender', scheduleRender);
+registerGlobalFunction('requestRender', scheduleRender);
+setState('rendering.scheduleRender', scheduleRender);
+setState('rendering.requestRender', scheduleRender);
+
+// レガシー互換性のため
+window.requestRender = scheduleRender;
 
 // --- compareModelsをHTMLから呼び出せるようにグローバルに設定 ---
 window.compareModels = async function () {
@@ -66,23 +80,35 @@ window.compareModels = async function () {
   }
 
   // モデルの読み込みと比較処理
-  await compareModels(requestRender, { camera, controls });
+  await compareModels(scheduleRender, { camera, controls });
 };
 
 // --- アプリケーション開始関数 ---
 function startApp() {
-  // HTMLから呼び出す関数をwindowに登録
+  // グローバル関数を状態管理システムに登録
+  registerGlobalFunction('toggleLegend', toggleLegend);
+  registerGlobalFunction('applyStoryClip', applyStoryClip);
+  registerGlobalFunction('applyAxisClip', applyAxisClip);
+  registerGlobalFunction('displayElementInfo', displayElementInfo);
+  registerGlobalFunction('clearClippingPlanes', clearClippingPlanes);
+
+  // レガシー互換性のためwindowにも登録
   window.toggleLegend = toggleLegend;
   window.applyStoryClip = applyStoryClip;
   window.applyAxisClip = applyAxisClip;
   window.displayElementInfo = displayElementInfo;
   window.clearClippingPlanes = clearClippingPlanes;
 
+  // 状態管理システムの初期化
+  setState('rendering.rendererInitialized', rendererInitialized);
+  enableStateDebug(true); // 開発時はデバッグ有効
+
   // 初期化処理
   setupUIEventListeners();
-  setupResizeListener(camera);
-  setupInteractionListeners(requestRender);
-  setupViewModeListeners(requestRender);
+  setupViewportResizeHandler(camera);
+  setupInteractionListeners(scheduleRender);
+  setupViewModeListeners(scheduleRender);
+  setupColorModeListeners(); // 色付けモードの初期化
   controls.target.set(0, 0, 0);
   controls.update();
   animate(controls, scene, camera);
@@ -93,6 +119,7 @@ function startApp() {
 document.addEventListener("DOMContentLoaded", () => {
   if (initRenderer()) {
     rendererInitialized = true;
+    setState('rendering.rendererInitialized', true);
     updateMaterialClippingPlanes();
     console.log("Renderer initialized successfully via DOMContentLoaded.");
     startApp();
@@ -109,15 +136,50 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error("Compare button not found.");
   }
 
-  // クリップ解除ボタンのリスナー設定
+  // クリッピング関連ボタンのリスナー設定
   const clearButton = document.getElementById("clearClipButton");
   if (clearButton) {
     clearButton.addEventListener("click", clearClippingPlanes);
   }
 
-  // 凡例ボタンのリスナー設定
-  const toggleLegendBtn = document.getElementById("toggleLegendBtn");
-  if (toggleLegendBtn) {
-    toggleLegendBtn.addEventListener("click", toggleLegend);
+  const storyClipButton = document.getElementById("applyStoryClipButton");
+  if (storyClipButton) {
+    storyClipButton.addEventListener("click", () => {
+      const storySelector = document.getElementById("storySelector");
+      if (storySelector && storySelector.value !== "all") {
+        applyStoryClip(storySelector.value);
+        if (scheduleRender) scheduleRender();
+      } else {
+        alert("階を選択してください");
+      }
+    });
   }
+
+  const xAxisClipButton = document.getElementById("applyXAxisClipButton");
+  if (xAxisClipButton) {
+    xAxisClipButton.addEventListener("click", () => {
+      const xAxisSelector = document.getElementById("xAxisSelector");
+      if (xAxisSelector && xAxisSelector.value !== "all") {
+        applyAxisClip("X", xAxisSelector.value);
+        if (scheduleRender) scheduleRender();
+      } else {
+        alert("X軸を選択してください");
+      }
+    });
+  }
+
+  const yAxisClipButton = document.getElementById("applyYAxisClipButton");
+  if (yAxisClipButton) {
+    yAxisClipButton.addEventListener("click", () => {
+      const yAxisSelector = document.getElementById("yAxisSelector");
+      if (yAxisSelector && yAxisSelector.value !== "all") {
+        applyAxisClip("Y", yAxisSelector.value);
+        if (scheduleRender) scheduleRender();
+      } else {
+        alert("Y軸を選択してください");
+      }
+    });
+  }
+
+  // 凡例ボタンはui/events.jsで設定済み
 });

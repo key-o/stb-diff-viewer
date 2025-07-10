@@ -169,7 +169,9 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
       }
     };
 
-    spriteGroup.add(sprite);
+    if (spriteGroup) {
+      spriteGroup.add(sprite);
+    }
     return sprite;
   } catch (error) {
     console.error("Error creating label sprite:", error);

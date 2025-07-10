@@ -350,36 +350,38 @@ export function extractColumnElements(xmlDoc) {
 }
 
 /**
- * 梁要素データを抽出する
+ * 梁要素データを抽出する（汎用関数）
  * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @param {string} elementType - 要素タイプ（"StbBeam" または "StbGirder"）
  * @return {Array} 梁要素データの配列
  */
-export function extractBeamElements(xmlDoc) {
-  const beamElementsData = [];
-  // StbGirder, StbBeam 両方取得
-  const beams = parseElements(xmlDoc, "StbBeam");
-  for (const el of [...beams]) {
+function extractBeamLikeElements(xmlDoc, elementType) {
+  const elementsData = [];
+  const elements = parseElements(xmlDoc, elementType);
+  
+  for (const el of elements) {
     const id = el.getAttribute("id");
     const idNodeStart = el.getAttribute("id_node_start");
     const idNodeEnd = el.getAttribute("id_node_end");
     const idSection = el.getAttribute("id_section");
+    
     if (id && idNodeStart && idNodeEnd && idSection) {
-      beamElementsData.push({
+      elementsData.push({
         id: id,
         id_node_start: idNodeStart,
         id_node_end: idNodeEnd,
         id_section: idSection,
-        // 必要に応じて他属性も追加
       });
     } else {
       console.warn(
-        `Skipping beam element due to missing required attributes: id=${id}`,
+        `Skipping ${elementType} element due to missing required attributes: id=${id}`,
         el
       );
     }
   }
-  console.log(`Extracted ${beamElementsData.length} beam elements.`);
-  return beamElementsData;
+  
+  console.log(`Extracted ${elementsData.length} ${elementType} elements.`);
+  return elementsData;
 }
 
 /**
@@ -387,32 +389,17 @@ export function extractBeamElements(xmlDoc) {
  * @param {Document} xmlDoc - パース済みのXMLドキュメント
  * @return {Array} 梁要素データの配列
  */
+export function extractBeamElements(xmlDoc) {
+  return extractBeamLikeElements(xmlDoc, "StbBeam");
+}
+
+/**
+ * 大梁要素データを抽出する
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} 大梁要素データの配列
+ */
 export function extractGirderElements(xmlDoc) {
-  const beamElementsData = [];
-  // StbGirder, StbBeam 両方取得
-  const girders = parseElements(xmlDoc, "StbGirder");
-  for (const el of [...girders]) {
-    const id = el.getAttribute("id");
-    const idNodeStart = el.getAttribute("id_node_start");
-    const idNodeEnd = el.getAttribute("id_node_end");
-    const idSection = el.getAttribute("id_section");
-    if (id && idNodeStart && idNodeEnd && idSection) {
-      beamElementsData.push({
-        id: id,
-        id_node_start: idNodeStart,
-        id_node_end: idNodeEnd,
-        id_section: idSection,
-        // 必要に応じて他属性も追加
-      });
-    } else {
-      console.warn(
-        `Skipping girder element due to missing required attributes: id=${id}`,
-        el
-      );
-    }
-  }
-  console.log(`Extracted ${beamElementsData.length} beam elements.`);
-  return beamElementsData;
+  return extractBeamLikeElements(xmlDoc, "StbGirder");
 }
 
 /**

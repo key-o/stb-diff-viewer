@@ -3,6 +3,7 @@
  *
  * このファイルは、選択された構造要素の詳細情報を表示する機能を提供します:
  * - モデルA/B間での要素属性の比較表示
+ * - XSDスキーマに基づく完全な属性リストの表示
  * - STB要素の詳細属性と子要素の表示
  * - 断面情報と形状データの表示
  * - 差分のハイライト表示
@@ -12,9 +13,61 @@
  * リッチな情報パネルを生成し、モデル間の差異を明確に示します。
  */
 
+// XSDスキーマパーサーをインポート
+import {
+  isSchemaLoaded,
+  getAllAttributeNames,
+  getAttributeInfo,
+  loadXsdSchema,
+  validateAttributeValue,
+  validateElement,
+} from "../../parser/xsdSchemaParser.js";
+
+// STBエクスポーターをインポート
+import {
+  exportModifiedStb,
+  validateDocumentForExport,
+  generateModificationReport,
+} from "../../exporter/stbExporter.js";
+
 // XMLドキュメントへの参照 (main.jsのwindowオブジェクト経由で設定される想定)
 // const docA = window.docA;
 // const docB = window.docB;
+
+// パネル幅の状態を保持するグローバル変数とlocalStorage連携
+let storedPanelWidth = localStorage.getItem("stbDiffViewer_panelWidth") || null;
+let storedPanelHeight =
+  localStorage.getItem("stbDiffViewer_panelHeight") || null;
+
+// XSDスキーマの初期化フラグ
+let schemaInitialized = false;
+
+// 編集機能の状態管理
+let editMode = false;
+let modifications = []; // 修正履歴 [{elementType, id, attribute, oldValue, newValue}]
+let currentEditingElement = null;
+
+/**
+ * XSDスキーマを初期化する（初回のみ実行）
+ */
+async function initializeSchema() {
+  if (schemaInitialized) return;
+
+  try {
+    // ST-Bridge202.xsdファイルを使用
+    const xsdPath = "./schemas/ST-Bridge202.xsd";
+    const success = await loadXsdSchema(xsdPath);
+    if (success) {
+      console.log("XSD schema initialized successfully");
+    } else {
+      console.warn("XSD schema initialization failed, using fallback mode");
+    }
+  } catch (error) {
+    console.warn("XSD schema initialization error:", error);
+  } finally {
+    schemaInitialized = true;
+  }
+}
 
 /**
  * 指定されたIDに基づいてモデルAとモデルBの要素情報を比較表示する。
@@ -23,7 +76,13 @@
  * @param {string | null} idB - 表示するモデルBの要素ID。nullの場合はモデルBの要素は検索しない。
  * @param {string | null} elementType - 要素のタイプ ('Node', 'Column' など)。nullの場合はパネルをクリア。
  */
-export function displayElementInfo(idA, idB, elementType) {
+export async function displayElementInfo(idA, idB, elementType) {
+  // XSDスキーマを初期化（初回のみ）
+  await initializeSchema();
+
+  // 現在編集中の要素を記録
+  currentEditingElement = { idA, idB, elementType };
+
   // --- デバッグ用ログを更新 ---
   console.log("displayElementInfo called with:", {
     idA,
@@ -32,22 +91,65 @@ export function displayElementInfo(idA, idB, elementType) {
   });
   console.log("window.docA exists:", !!window.docA);
   console.log("window.docB exists:", !!window.docB);
+  console.log("XSD schema loaded:", isSchemaLoaded());
   // --- デバッグ用ログここまで ---
 
   const panel = document.getElementById("component-info");
-  if (!panel) {
-    console.error("Component info panel not found!");
+  const contentDiv = document.getElementById("element-info-content");
+  if (!panel || !contentDiv) {
+    console.error("Component info panel or content div not found!");
     return;
   }
 
-  // --- 追加: パネルの幅を画面の20%に設定 ---
-  panel.style.width = "20vw";
-  panel.style.minWidth = "240px"; // 必要に応じて最小幅を設定
-  panel.style.maxWidth = "60vw"; // 必要に応じて最大幅を設定
+  // --- パネル幅の設定と保持機能 ---
+  // 初回設定時のデフォルト幅を増加し、一度設定した幅を保持する
+  if (!storedPanelWidth) {
+    // デフォルト幅を大きめに設定
+    const hasModelA = !!window.docA;
+    const hasModelB = !!window.docB;
+    const isSingleModel =
+      (hasModelA && !hasModelB) || (!hasModelA && hasModelB);
+
+    if (isSingleModel) {
+      storedPanelWidth = "25vw"; // 単一モデル時は25vw（以前の15vwより大きく）
+    } else {
+      storedPanelWidth = "30vw"; // 比較モード時は30vw（以前の20vwより大きく）
+    }
+  }
+
+  // 保存された幅を適用
+  panel.style.width = storedPanelWidth;
+  panel.style.minWidth = "300px"; // 最小幅も大きめに設定（以前の240pxより大きく）
+  panel.style.maxWidth = "70vw"; // 最大幅も少し大きめに設定
+
+  // パネルサイズが変更された時の監視を設定（ResizeObserverを使用）
+  if (!panel.hasResizeObserver) {
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        const { width, height } = entry.contentRect;
+        // パネルが手動でリサイズされた場合、その値を保存
+        if (width > 0) {
+          storedPanelWidth = `${width}px`;
+          localStorage.setItem("stbDiffViewer_panelWidth", storedPanelWidth);
+        }
+        if (height > 0) {
+          storedPanelHeight = `${height}px`;
+          localStorage.setItem("stbDiffViewer_panelHeight", storedPanelHeight);
+        }
+      }
+    });
+    resizeObserver.observe(panel);
+    panel.hasResizeObserver = true;
+  }
+
+  // 保存された高さがあれば適用
+  if (storedPanelHeight) {
+    panel.style.height = storedPanelHeight;
+  }
 
   // IDやタイプがnullならパネルをクリア
   if (elementType === null || (idA === null && idB === null)) {
-    panel.innerHTML = "要素を選択してください。"; // デフォルトメッセージ
+    contentDiv.innerHTML = "要素を選択してください。"; // デフォルトメッセージ
     return;
   }
 
@@ -58,12 +160,20 @@ export function displayElementInfo(idA, idB, elementType) {
 
   // モデルAの要素を取得試行
   if (idA && window.docA) {
+    console.log(`Searching for ${tagName}[id="${idA}"] in model A`); // デバッグ用
     nodeA = window.docA.querySelector(`${tagName}[id="${idA}"]`);
     if (!nodeA) {
       console.warn(
         `Element ${elementType} with ID ${idA} not found in model A.`
       );
-      // 見つからなくてもエラーにはしない（Bのみ表示の場合もある）
+      // 全ての該当要素を確認
+      const allElements = window.docA.querySelectorAll(tagName);
+      console.log(`Total ${tagName} elements in model A:`, allElements.length);
+      if (allElements.length > 0) {
+        console.log(`First few IDs:`, Array.from(allElements).slice(0, 5).map(el => el.getAttribute('id')));
+      }
+    } else {
+      console.log(`Found element ${elementType} with ID ${idA} in model A`); // デバッグ用
     }
   } else if (idA && !window.docA) {
     console.error(`XML document for model A not found.`);
@@ -72,12 +182,20 @@ export function displayElementInfo(idA, idB, elementType) {
 
   // モデルBの要素を取得試行
   if (idB && window.docB) {
+    console.log(`Searching for ${tagName}[id="${idB}"] in model B`); // デバッグ用
     nodeB = window.docB.querySelector(`${tagName}[id="${idB}"]`);
     if (!nodeB) {
       console.warn(
         `Element ${elementType} with ID ${idB} not found in model B.`
       );
-      // 見つからなくてもエラーにはしない（Aのみ表示の場合もある）
+      // 全ての該当要素を確認
+      const allElements = window.docB.querySelectorAll(tagName);
+      console.log(`Total ${tagName} elements in model B:`, allElements.length);
+      if (allElements.length > 0) {
+        console.log(`First few IDs:`, Array.from(allElements).slice(0, 5).map(el => el.getAttribute('id')));
+      }
+    } else {
+      console.log(`Found element ${elementType} with ID ${idB} in model B`); // デバッグ用
     }
   } else if (idB && !window.docB) {
     console.error(`XML document for model B not found.`);
@@ -94,43 +212,106 @@ export function displayElementInfo(idA, idB, elementType) {
     return;
   }
 
-  // タイトル設定
+  // タイトル設定（XSDスキーマ状況を含む）
+  let schemaInfo = "";
+  const schemaElementName =
+    elementType === "Node" ? "StbNode" : `Stb${elementType}`;
+
+  if (isSchemaLoaded()) {
+    const attrCount = getAllAttributeNames(schemaElementName).length;
+    if (attrCount > 0) {
+      schemaInfo = ` <span style="color: green; font-size: 0.8em;">[XSD: ${attrCount}属性]</span>`;
+    } else {
+      schemaInfo = ` <span style="color: orange; font-size: 0.8em;">[XSD: ${schemaElementName}未定義]</span>`;
+      console.warn(
+        `XSD schema loaded but ${schemaElementName} not found in definitions`
+      );
+    }
+  } else {
+    schemaInfo =
+      ' <span style="color: red; font-size: 0.8em;">[XSD: 未読込]</span>';
+  }
+
+  // デバッグ出力
+  console.log(`Schema status for ${schemaElementName}:`, {
+    schemaLoaded: isSchemaLoaded(),
+    attributeCount: getAllAttributeNames(schemaElementName).length,
+    availableElements: isSchemaLoaded() ? "Available in console" : "None",
+  });
+
+  // スキーマが読み込まれている場合、利用可能な要素一覧をコンソールに出力
+  if (isSchemaLoaded()) {
+    import("../../parser/xsdSchemaParser.js").then(
+      ({ getAvailableElements }) => {
+        console.log("Available XSD elements:", getAvailableElements());
+      }
+    );
+  }
+
   if (nodeA && nodeB) {
-    title = `比較: ${elementType} (A: ${idA}, B: ${idB})`;
+    title = `比較: ${elementType} (A: ${idA}, B: ${idB})${schemaInfo}`;
   } else if (nodeA) {
-    title = `モデル A: ${elementType} (ID: ${idA})`;
+    title = `モデル A: ${elementType} (ID: ${idA})${schemaInfo}`;
   } else {
     // nodeB のみ
-    title = `モデル B: ${elementType} (ID: ${idB})`;
+    title = `モデル B: ${elementType} (ID: ${idB})${schemaInfo}`;
   }
 
   // showInfoを呼び出して情報を表示 (nodeA, nodeB を渡す)
-  showInfo(nodeA, nodeB, panel, title);
+  showInfo(nodeA, nodeB, panel, title, contentDiv);
 }
 
 /**
  * モデルAとモデルBのXML要素ノードを受け取り、比較情報を整形してパネルに表示する。
  * 属性、子要素、断面情報を1つのテーブルに統合して比較表示する。
+ * モデルが一つだけの場合は、単一モデル用の表示にレイアウトを調整する。
  * @param {Element | null} nodeA - モデルAのXML要素ノード (存在しない場合は null)。
  * @param {Element | null} nodeB - モデルBのXML要素ノード (存在しない場合は null)。
  * @param {HTMLElement} panel - 表示先のHTML要素。
  * @param {string} title - パネルに表示するタイトル。
+ * @param {HTMLElement} contentDiv - コンテンツ表示用のHTML要素。
  */
-function showInfo(nodeA, nodeB, panel, title) {
+function showInfo(nodeA, nodeB, panel, title, contentDiv) {
   console.log("Title:", title);
-  if (!panel) return;
+  if (!panel || !contentDiv) {
+    console.error("Panel or contentDiv is missing in showInfo");
+    return;
+  }
 
   let content = `<h3>${title}</h3>`;
+
+  // モデルが一つだけかどうかを判定
+  const hasModelA = !!window.docA;
+  const hasModelB = !!window.docB;
+  const isSingleModel = (hasModelA && !hasModelB) || (!hasModelA && hasModelB);
+  const hasOnlyA = nodeA && !nodeB;
+  const hasOnlyB = !nodeA && nodeB;
+  const showSingleColumn = isSingleModel || hasOnlyA || hasOnlyB;
 
   // --- 統合比較テーブルの生成 ---
   // tbodyにidを付与して、イベントデリゲーションで折りたたみ制御
   content += '<table class="unified-comparison-table">';
-  content +=
-    '<thead><tr><th style="width: 40%;">要素 / 属性</th><th style="width: 30%;">モデル A</th><th style="width: 30%;">モデル B</th></tr></thead>';
+
+  if (showSingleColumn) {
+    // 単一モデル表示用のテーブルヘッダー
+    const modelName = hasOnlyA || hasModelA ? "モデル A" : "モデル B";
+    content += `<thead><tr><th style="width: 50%;">要素 / 属性</th><th style="width: 50%;">${modelName}</th></tr></thead>`;
+  } else {
+    // 比較表示用のテーブルヘッダー（従来通り）
+    content +=
+      '<thead><tr><th style="width: 40%;">要素 / 属性</th><th style="width: 30%;">モデル A</th><th style="width: 30%;">モデル B</th></tr></thead>';
+  }
+
   content += `<tbody id="element-info-tbody">`;
 
   // ルート要素の比較表示
-  content += renderComparisonRecursive(nodeA, nodeB, 0, "root");
+  content += renderComparisonRecursive(
+    nodeA,
+    nodeB,
+    0,
+    "root",
+    showSingleColumn
+  );
 
   // 断面情報の比較表示 (id_section があれば)
   const sectionIdA = nodeA?.getAttribute("id_section");
@@ -145,21 +326,32 @@ function showInfo(nodeA, nodeB, panel, title) {
       ? findSectionNode(window.docB, sectionIdB)
       : null;
 
-    // 断面情報セクションのヘッダー行を追加 (オプション)
-    content += `<tr class="section-header-row"><td colspan="3">▼ 断面情報 (A: ${
-      sectionIdA ?? "なし"
-    }, B: ${sectionIdB ?? "なし"})</td></tr>`;
+    // 断面情報セクションのヘッダー行を追加
+    if (showSingleColumn) {
+      const sectionId = sectionIdA || sectionIdB;
+      content += `<tr class="section-header-row"><td colspan="2">▼ 断面情報 (ID: ${sectionId})</td></tr>`;
+    } else {
+      content += `<tr class="section-header-row"><td colspan="3">▼ 断面情報 (A: ${
+        sectionIdA ?? "なし"
+      }, B: ${sectionIdB ?? "なし"})</td></tr>`;
+    }
 
     // 断面要素の比較表示 (ルート要素と同じレベルで表示)
-    content += renderComparisonRecursive(sectionNodeA, sectionNodeB, 0); // レベル0から開始
+    content += renderComparisonRecursive(
+      sectionNodeA,
+      sectionNodeB,
+      0,
+      "section",
+      showSingleColumn
+    ); // レベル0から開始
   }
 
   content += "</tbody></table>";
 
-  panel.innerHTML = content;
+  contentDiv.innerHTML = content;
 
   // --- 折りたたみイベントの追加 ---
-  const tbody = panel.querySelector("#element-info-tbody");
+  const tbody = contentDiv.querySelector("#element-info-tbody");
   if (tbody) {
     tbody.addEventListener("click", function (e) {
       const btn = e.target.closest(".toggle-btn");
@@ -249,8 +441,205 @@ function showInfo(nodeA, nodeB, panel, title) {
              color: #999;
              font-style: italic;
         }
+        
+        /* 単一モデル表示時のパネル幅調整 */
+        ${
+          showSingleColumn
+            ? `
+        .unified-comparison-table th:first-child,
+        .unified-comparison-table td:first-child {
+            width: 50% !important;
+        }
+        .unified-comparison-table th:last-child,
+        .unified-comparison-table td:last-child {
+            width: 50% !important;
+        }
+        `
+            : `
+        /* 比較モード時は3カラムのままでCSSによる幅制御は最小限に */
+        `
+        }
     `;
 }
+
+/**
+ * 編集モードの切り替え
+ */
+export function toggleEditMode() {
+  editMode = !editMode;
+  const editButton = document.getElementById("edit-mode-button");
+  if (editButton) {
+    editButton.textContent = editMode ? "終了" : "編集";
+    if (editMode) {
+      editButton.style.background = "#fff3cd";
+      editButton.style.borderColor = "#ffeaa7";
+      editButton.style.color = "#856404";
+    } else {
+      editButton.style.background = "#f8f9fa";
+      editButton.style.borderColor = "#dee2e6";
+      editButton.style.color = "#6c757d";
+    }
+  }
+
+  // 現在表示中の要素を再表示して編集UIを反映
+  if (currentEditingElement) {
+    const { idA, idB, elementType } = currentEditingElement;
+    displayElementInfo(idA, idB, elementType);
+  }
+}
+
+/**
+ * 修正をエクスポート
+ */
+export function exportModifications() {
+  if (modifications.length === 0) {
+    alert("修正がありません。");
+    return;
+  }
+
+  // モデルAまたはBのドキュメントを選択
+  const sourceDoc = window.docA || window.docB;
+  if (!sourceDoc) {
+    alert("エクスポート対象のドキュメントがありません。");
+    return;
+  }
+
+  // エクスポート前のバリデーション
+  const validation = validateDocumentForExport(sourceDoc);
+  console.log("Export validation:", validation);
+
+  // ユーザーに確認
+  const proceed = confirm(
+    `${modifications.length}件の修正をエクスポートしますか？\n\n` +
+      `バリデーション: ${validation.message}`
+  );
+
+  if (proceed) {
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, "-")
+      .slice(0, 19);
+    const filename = `modified_stb_${timestamp}.stb`;
+
+    exportModifiedStb(sourceDoc, modifications, filename).then((success) => {
+      if (success) {
+        alert(
+          `STBファイルが正常にエクスポートされました。\nファイル名: ${filename}`
+        );
+
+        // 修正レポートも生成
+        const report = generateModificationReport(modifications);
+        console.log("Modification Report:\n", report);
+      } else {
+        alert(
+          "エクスポートに失敗しました。コンソールでエラーを確認してください。"
+        );
+      }
+    });
+  }
+}
+
+/**
+ * 属性値を編集
+ * @param {string} elementType - 要素タイプ
+ * @param {string} elementId - 要素ID
+ * @param {string} attributeName - 属性名
+ * @param {string} currentValue - 現在の値
+ */
+function editAttributeValue(
+  elementType,
+  elementId,
+  attributeName,
+  currentValue
+) {
+  const newValue = prompt(
+    `属性「${attributeName}」の新しい値を入力してください:`,
+    currentValue || ""
+  );
+
+  if (newValue === null) return; // キャンセル
+
+  // XSDバリデーション
+  if (isSchemaLoaded()) {
+    const tagName = elementType === "Node" ? "StbNode" : `Stb${elementType}`;
+    const validation = validateAttributeValue(tagName, attributeName, newValue);
+
+    if (!validation.valid) {
+      const proceed = confirm(
+        `警告: ${validation.error}\n\n` +
+          (validation.suggestions
+            ? `推奨値: ${validation.suggestions.join(", ")}\n\n`
+            : "") +
+          "それでも続行しますか？"
+      );
+      if (!proceed) return;
+    }
+  }
+
+  // 修正を記録
+  modifications.push({
+    elementType,
+    id: elementId,
+    attribute: attributeName,
+    oldValue: currentValue,
+    newValue: newValue,
+  });
+
+  // UIを更新（現在の要素を再表示）
+  if (currentEditingElement) {
+    const { idA, idB } = currentEditingElement;
+    displayElementInfo(idA, idB, elementType);
+  }
+
+  console.log(
+    `修正を記録: ${elementType}(${elementId}).${attributeName} = "${newValue}"`
+  );
+  updateEditingSummary();
+}
+
+/**
+ * 編集サマリーを更新
+ */
+function updateEditingSummary() {
+  const summaryElement = document.getElementById("editing-summary");
+  if (summaryElement) {
+    summaryElement.innerHTML = `
+      修正: ${modifications.length}件
+      ${
+        modifications.length > 0
+          ? '<button id="export-btn" style="font-size: 0.6em; padding: 1px 4px; margin-left: 3px; background: #d4edda; border: 1px solid #c3e6cb; color: #155724;" onclick="window.exportModifications()">出力</button>'
+          : ""
+      }
+      ${
+        modifications.length > 0
+          ? '<button id="clear-modifications-btn" style="font-size: 0.6em; padding: 1px 4px; margin-left: 2px; background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24;" onclick="window.clearModifications()">削除</button>'
+          : ""
+      }
+    `;
+  }
+}
+
+/**
+ * 修正履歴をクリア
+ */
+export function clearModifications() {
+  if (modifications.length === 0) return;
+
+  const proceed = confirm(
+    `${modifications.length}件の修正履歴をクリアしますか？`
+  );
+  if (proceed) {
+    modifications = [];
+    updateEditingSummary();
+    console.log("修正履歴をクリアしました");
+  }
+}
+
+// グローバル関数として登録（HTML内のonclickから呼び出すため）
+window.exportModifications = exportModifications;
+window.clearModifications = clearModifications;
+window.toggleEditMode = toggleEditMode;
+window.editAttribute = editAttributeValue;
 
 /**
  * 指定されたドキュメントの StbSections 内から、指定IDを持つ断面要素を検索する。
@@ -319,14 +708,21 @@ function findSteelSectionInfo(shapeName) {
 }
 
 /**
- * XML要素とその子孫を再帰的に比較処理し、3列比較テーブルの行HTMLを生成する。
+ * XML要素とその子孫を再帰的に比較処理し、3列比較テーブルまたは2列単一モデルテーブルの行HTMLを生成する。
  * @param {Element | null} nodeA - モデルAの要素。
  * @param {Element | null} nodeB - モデルBの要素。
  * @param {number} level - 現在の階層レベル (インデント用)。
  * @param {string} parentId - 親要素のID (折りたたみ制御用)。
+ * @param {boolean} showSingleColumn - 単一モデル表示かどうか。
  * @returns {string} テーブル行(<tr>...</tr>)のHTML文字列。子孫要素の行も含む。
  */
-function renderComparisonRecursive(nodeA, nodeB, level, parentId) {
+function renderComparisonRecursive(
+  nodeA,
+  nodeB,
+  level,
+  parentId,
+  showSingleColumn = false
+) {
   if (!nodeA && !nodeB) return ""; // 両方なければ何も表示しない
 
   let rowsHtml = "";
@@ -355,13 +751,25 @@ function renderComparisonRecursive(nodeA, nodeB, level, parentId) {
   }
   elementCell += "</td>";
   rowsHtml += elementCell;
-  rowsHtml += "<td></td><td></td>";
-  rowsHtml += "</tr>";
 
-  // --- 属性行 ---
+  if (showSingleColumn) {
+    rowsHtml += "<td></td>";
+  } else {
+    rowsHtml += "<td></td><td></td>";
+  }
+  rowsHtml += "</tr>";
+  // --- 属性行（XSDスキーマ対応版） ---
   const attrsA = nodeA ? getAttributesMap(nodeA) : new Map();
   const attrsB = nodeB ? getAttributesMap(nodeB) : new Map();
-  const allAttrNames = new Set([...attrsA.keys(), ...attrsB.keys()]);
+
+  // XSDスキーマから完全な属性リストを取得
+  let allAttrNames = new Set([...attrsA.keys(), ...attrsB.keys()]);
+
+  // XSDスキーマが利用可能な場合、スキーマ定義の属性も追加
+  if (isSchemaLoaded() && displayTagName) {
+    const schemaAttributes = getAllAttributeNames(displayTagName);
+    schemaAttributes.forEach((attr) => allAttrNames.add(attr));
+  }
 
   const attrRowDisplay = "";
 
@@ -382,21 +790,104 @@ function renderComparisonRecursive(nodeA, nodeB, level, parentId) {
 
       const valueA = attrsA.get(attrName);
       const valueB = attrsB.get(attrName);
-      const displayValueA = valueA ?? '<span class="no-value">-</span>';
-      const displayValueB = valueB ?? '<span class="no-value">-</span>';
-      const differs =
-        nodeA &&
-        nodeB &&
-        valueA !== valueB &&
-        valueA !== undefined &&
-        valueB !== undefined;
-      const highlightClass = differs ? ' class="differs"' : "";
 
-      rowsHtml += `<tr data-parent="${rowId}"${attrRowDisplay}>`;
-      rowsHtml += `<td style="${attrIndentStyle}"><span class="attr-name">${attrName}</span></td>`;
-      rowsHtml += `<td${highlightClass}>${displayValueA}</td>`;
-      rowsHtml += `<td${highlightClass}>${displayValueB}</td>`;
-      rowsHtml += "</tr>";
+      // XSDスキーマから属性情報を取得
+      const attrInfo = isSchemaLoaded()
+        ? getAttributeInfo(displayTagName, attrName)
+        : null;
+      const isRequired = attrInfo?.required || false;
+      const hasDefault = attrInfo?.default || attrInfo?.fixed;
+      const documentation = attrInfo?.documentation;
+
+      if (showSingleColumn) {
+        // 単一モデル表示の場合
+        const singleValue = valueA || valueB;
+        let displayValue = singleValue ?? '<span class="no-value">-</span>';
+
+        // 編集モードの場合、編集ボタンを追加
+        if (editMode && currentEditingElement) {
+          const { elementType: currentElementType } = currentEditingElement;
+          const currentId = valueA ? idA : idB;
+          displayValue += ` <button class="edit-btn" style="font-size: 0.6em; padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentElementType}', '${currentId}', '${attrName}', '${
+            singleValue || ""
+          }')" title="編集">✏️</button>`;
+        }
+
+        // XSDスキーマからの情報を付加
+        if (attrInfo) {
+          let attrLabel = "";
+          if (isRequired)
+            attrLabel +=
+              '<span style="color:red;font-size:0.9em;" title="必須パラメータ">🔴</span> ';
+          attrLabel += attrName;
+          if (hasDefault)
+            attrLabel += ` <span style="color:blue;font-size:0.8em;" title="デフォルト値: ${hasDefault}">(${hasDefault})</span>`;
+
+          rowsHtml += `<tr data-parent="${rowId}"${attrRowDisplay}>`;
+          rowsHtml += `<td style="${attrIndentStyle}" title="${
+            documentation || ""
+          }"><span class="attr-name">${attrLabel}</span></td>`;
+          rowsHtml += `<td>${displayValue}</td>`;
+          rowsHtml += "</tr>";
+        } else {
+          rowsHtml += `<tr data-parent="${rowId}"${attrRowDisplay}>`;
+          rowsHtml += `<td style="${attrIndentStyle}"><span class="attr-name">${attrName}</span></td>`;
+          rowsHtml += `<td>${displayValue}</td>`;
+          rowsHtml += "</tr>";
+        }
+      } else {
+        // 比較表示の場合
+        let displayValueA = valueA ?? '<span class="no-value">-</span>';
+        let displayValueB = valueB ?? '<span class="no-value">-</span>';
+
+        // 編集モードの場合、編集ボタンを追加
+        if (editMode && currentEditingElement) {
+          const { elementType: currentElementType } = currentEditingElement;
+          if (valueA !== undefined && idA) {
+            displayValueA += ` <button class="edit-btn" style="font-size: 0.6em; padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentElementType}', '${idA}', '${attrName}', '${
+              valueA || ""
+            }')" title="編集">✏️</button>`;
+          }
+          if (valueB !== undefined && idB) {
+            displayValueB += ` <button class="edit-btn" style="font-size: 0.6em; padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentElementType}', '${idB}', '${attrName}', '${
+              valueB || ""
+            }')" title="編集">✏️</button>`;
+          }
+        }
+
+        const differs =
+          nodeA &&
+          nodeB &&
+          valueA !== valueB &&
+          valueA !== undefined &&
+          valueB !== undefined;
+        const highlightClass = differs ? ' class="differs"' : "";
+
+        // XSDスキーマからの情報を付加
+        if (attrInfo) {
+          let attrLabel = "";
+          if (isRequired)
+            attrLabel +=
+              '<span style="color:red;font-size:0.9em;" title="必須パラメータ">🔴</span> ';
+          attrLabel += attrName;
+          if (hasDefault)
+            attrLabel += ` <span style="color:blue;font-size:0.8em;" title="デフォルト値: ${hasDefault}">(${hasDefault})</span>`;
+
+          rowsHtml += `<tr data-parent="${rowId}"${attrRowDisplay}>`;
+          rowsHtml += `<td style="${attrIndentStyle}" title="${
+            documentation || ""
+          }"><span class="attr-name">${attrLabel}</span></td>`;
+          rowsHtml += `<td${highlightClass}>${displayValueA}</td>`;
+          rowsHtml += `<td${highlightClass}>${displayValueB}</td>`;
+          rowsHtml += "</tr>";
+        } else {
+          rowsHtml += `<tr data-parent="${rowId}"${attrRowDisplay}>`;
+          rowsHtml += `<td style="${attrIndentStyle}"><span class="attr-name">${attrName}</span></td>`;
+          rowsHtml += `<td${highlightClass}>${displayValueA}</td>`;
+          rowsHtml += `<td${highlightClass}>${displayValueB}</td>`;
+          rowsHtml += "</tr>";
+        }
+      }
     }
   }
 
@@ -439,25 +930,43 @@ function renderComparisonRecursive(nodeA, nodeB, level, parentId) {
   }
   const textRowDisplay = "";
   if (hasMeaningfulTextA || hasMeaningfulTextB) {
-    const displayTextA = hasMeaningfulTextA
-      ? textA
-      : '<span class="no-value">-</span>';
-    const displayTextB = hasMeaningfulTextB
-      ? textB
-      : '<span class="no-value">-</span>';
-    const differs =
-      nodeA &&
-      nodeB &&
-      hasMeaningfulTextA &&
-      hasMeaningfulTextB &&
-      textA !== textB;
-    const highlightClass = differs ? ' class="differs"' : "";
+    if (showSingleColumn) {
+      // 単一モデル表示の場合
+      const singleText = hasMeaningfulTextA
+        ? textA
+        : hasMeaningfulTextB
+        ? textB
+        : "";
+      const displayText = singleText
+        ? singleText
+        : '<span class="no-value">-</span>';
 
-    rowsHtml += `<tr data-parent="${rowId}"${textRowDisplay}>`;
-    rowsHtml += `<td style="${attrIndentStyle}"><span class="text-label">(内容)</span></td>`;
-    rowsHtml += `<td${highlightClass}><span class="text-content">${displayTextA}</span></td>`;
-    rowsHtml += `<td${highlightClass}><span class="text-content">${displayTextB}</span></td>`;
-    rowsHtml += "</tr>";
+      rowsHtml += `<tr data-parent="${rowId}"${textRowDisplay}>`;
+      rowsHtml += `<td style="${attrIndentStyle}"><span class="text-label">(内容)</span></td>`;
+      rowsHtml += `<td><span class="text-content">${displayText}</span></td>`;
+      rowsHtml += "</tr>";
+    } else {
+      // 比較表示の場合（従来通り）
+      const displayTextA = hasMeaningfulTextA
+        ? textA
+        : '<span class="no-value">-</span>';
+      const displayTextB = hasMeaningfulTextB
+        ? textB
+        : '<span class="no-value">-</span>';
+      const differs =
+        nodeA &&
+        nodeB &&
+        hasMeaningfulTextA &&
+        hasMeaningfulTextB &&
+        textA !== textB;
+      const highlightClass = differs ? ' class="differs"' : "";
+
+      rowsHtml += `<tr data-parent="${rowId}"${textRowDisplay}>`;
+      rowsHtml += `<td style="${attrIndentStyle}"><span class="text-label">(内容)</span></td>`;
+      rowsHtml += `<td${highlightClass}><span class="text-content">${displayTextA}</span></td>`;
+      rowsHtml += `<td${highlightClass}><span class="text-content">${displayTextB}</span></td>`;
+      rowsHtml += "</tr>";
+    }
   }
 
   // --- 4. 子要素の行を再帰的に生成して追加 ---
@@ -469,33 +978,67 @@ function renderComparisonRecursive(nodeA, nodeB, level, parentId) {
     const childA = childrenA[i] ?? null;
     const childB = childrenB[i] ?? null;
     if (childA && childB && childA.tagName !== childB.tagName) {
-      rowsHtml += renderComparisonRecursive(childA, null, level + 1, rowId);
-      rowsHtml += renderComparisonRecursive(null, childB, level + 1, rowId);
+      rowsHtml += renderComparisonRecursive(
+        childA,
+        null,
+        level + 1,
+        rowId,
+        showSingleColumn
+      );
+      rowsHtml += renderComparisonRecursive(
+        null,
+        childB,
+        level + 1,
+        rowId,
+        showSingleColumn
+      );
     } else {
-      rowsHtml += renderComparisonRecursive(childA, childB, level + 1, rowId);
+      rowsHtml += renderComparisonRecursive(
+        childA,
+        childB,
+        level + 1,
+        rowId,
+        showSingleColumn
+      );
     }
   }
 
   // --- shape属性を持つ「直接の子要素」だけ寸法付きで1行ずつ表示 ---
   // ※「直接の子要素」が1つもない場合は何も出さない
   // ※「直接の子要素」だけを判定し、孫要素以降は再帰で処理
-  if (childrenA.length > 0) {
-    for (const child of childrenA) {
-      if (child.hasAttribute && child.hasAttribute("shape")) {
-        const shape = child.getAttribute("shape");
-        rowsHtml += `<tr data-parent="${rowId}"><td style="${attrIndentStyle}"><span class="attr-name">shape</span></td><td>${renderShapeWithSteelInfo(
-          shape
-        )}</td><td><span class="no-value">-</span></td></tr>`;
+  if (showSingleColumn) {
+    // 単一モデル表示の場合
+    const children = childrenA.length > 0 ? childrenA : childrenB;
+    if (children.length > 0) {
+      for (const child of children) {
+        if (child.hasAttribute && child.hasAttribute("shape")) {
+          const shape = child.getAttribute("shape");
+          rowsHtml += `<tr data-parent="${rowId}"><td style="${attrIndentStyle}"><span class="attr-name">shape</span></td><td>${renderShapeWithSteelInfo(
+            shape
+          )}</td></tr>`;
+        }
       }
     }
-  }
-  if (childrenB.length > 0) {
-    for (const child of childrenB) {
-      if (child.hasAttribute && child.hasAttribute("shape")) {
-        const shape = child.getAttribute("shape");
-        rowsHtml += `<tr data-parent="${rowId}"><td style="${attrIndentStyle}"><span class="attr-name">shape</span></td><td><span class="no-value">-</span></td><td>${renderShapeWithSteelInfo(
-          shape
-        )}</td></tr>`;
+  } else {
+    // 比較表示の場合（従来通り）
+    if (childrenA.length > 0) {
+      for (const child of childrenA) {
+        if (child.hasAttribute && child.hasAttribute("shape")) {
+          const shape = child.getAttribute("shape");
+          rowsHtml += `<tr data-parent="${rowId}"><td style="${attrIndentStyle}"><span class="attr-name">shape</span></td><td>${renderShapeWithSteelInfo(
+            shape
+          )}</td><td><span class="no-value">-</span></td></tr>`;
+        }
+      }
+    }
+    if (childrenB.length > 0) {
+      for (const child of childrenB) {
+        if (child.hasAttribute && child.hasAttribute("shape")) {
+          const shape = child.getAttribute("shape");
+          rowsHtml += `<tr data-parent="${rowId}"><td style="${attrIndentStyle}"><span class="attr-name">shape</span></td><td><span class="no-value">-</span></td><td>${renderShapeWithSteelInfo(
+            shape
+          )}</td></tr>`;
+        }
       }
     }
   }

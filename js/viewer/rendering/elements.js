@@ -14,6 +14,7 @@
 
 import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
 import { createLabelSprite } from "../ui/labels.js";
+import { getMaterialForElementWithMode } from "./materials.js";
 
 /**
  * 線分要素（柱、梁など）の比較結果を描画する。
@@ -63,7 +64,10 @@ export function drawLineElements(
         startVec,
         endVec,
       ]);
-      const line = new THREE.Line(geometry, materials.lineMatched);
+      const line = new THREE.Line(
+        geometry,
+        getMaterialForElementWithMode(elementType, "matched", true, false, idA)
+      );
       line.userData = {
         elementType: elementType,
         elementIdA: idA,
@@ -120,7 +124,10 @@ export function drawLineElements(
         startVec,
         endVec,
       ]);
-      const line = new THREE.Line(geometry, materials.lineOnlyA);
+      const line = new THREE.Line(
+        geometry,
+        getMaterialForElementWithMode(elementType, "onlyA", true, false, id)
+      );
       line.userData = {
         elementType: elementType,
         elementId: id,
@@ -183,7 +190,10 @@ export function drawLineElements(
         startVec,
         endVec,
       ]);
-      const line = new THREE.Line(geometry, materials.lineOnlyB);
+      const line = new THREE.Line(
+        geometry,
+        getMaterialForElementWithMode(elementType, "onlyB", true, false, id)
+      );
       line.userData = {
         elementType: elementType,
         elementId: id,
@@ -337,12 +347,40 @@ export function drawPolyElements(
       id: item.dataA.id,
       // idB: item.dataB.id, // 必要ならBのIDも渡す
     })),
-    materials.polyMatched,
+    getMaterialForElementWithMode(
+      elementType,
+      "matched",
+      false,
+      true,
+      comparisonResult.matched[0]?.dataA?.id
+    ),
     "matched",
     labelToggle // ★★★ 追加 ★★★
   );
-  createMeshes(comparisonResult.onlyA, materials.polyOnlyA, "A", labelToggle); // ★★★ 追加 ★★★
-  createMeshes(comparisonResult.onlyB, materials.polyOnlyB, "B", labelToggle); // ★★★ 追加 ★★★
+  createMeshes(
+    comparisonResult.onlyA,
+    getMaterialForElementWithMode(
+      elementType,
+      "onlyA",
+      false,
+      true,
+      comparisonResult.onlyA[0]?.id
+    ),
+    "A",
+    labelToggle
+  ); // ★★★ 追加 ★★★
+  createMeshes(
+    comparisonResult.onlyB,
+    getMaterialForElementWithMode(
+      elementType,
+      "onlyB",
+      false,
+      true,
+      comparisonResult.onlyB[0]?.id
+    ),
+    "B",
+    labelToggle
+  ); // ★★★ 追加 ★★★
 
   return createdLabels; // ★★★ 追加 ★★★
 }
@@ -378,7 +416,10 @@ export function drawNodes(
     ) {
       const pos = new THREE.Vector3(coords.x, coords.y, coords.z);
       const sphereGeo = new THREE.SphereGeometry(50, 12, 8);
-      const sphere = new THREE.Mesh(sphereGeo, materials.matched);
+      const sphere = new THREE.Mesh(
+        sphereGeo,
+        getMaterialForElementWithMode("Node", "matched", false, false, idA)
+      );
       sphere.position.copy(pos);
       sphere.userData = {
         elementType: "Node",
@@ -414,7 +455,10 @@ export function drawNodes(
     ) {
       const pos = new THREE.Vector3(coords.x, coords.y, coords.z);
       const sphereGeo = new THREE.SphereGeometry(50, 12, 8);
-      const sphere = new THREE.Mesh(sphereGeo, materials.onlyA);
+      const sphere = new THREE.Mesh(
+        sphereGeo,
+        getMaterialForElementWithMode("Node", "onlyA", false, false, id)
+      );
       sphere.position.copy(pos);
       sphere.userData = {
         elementType: "Node",
@@ -446,7 +490,10 @@ export function drawNodes(
     ) {
       const pos = new THREE.Vector3(coords.x, coords.y, coords.z);
       const sphereGeo = new THREE.SphereGeometry(50, 12, 8);
-      const sphere = new THREE.Mesh(sphereGeo, materials.onlyB);
+      const sphere = new THREE.Mesh(
+        sphereGeo,
+        getMaterialForElementWithMode("Node", "onlyB", false, false, id)
+      );
       sphere.position.copy(pos);
       sphere.userData = {
         elementType: "Node",

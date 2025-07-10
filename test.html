@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STB Diff Viewer - Test Environment</title>
+    
+    <!-- メインアプリケーションのスタイル -->
+    <link rel="stylesheet" href="style/style.css">
+    
+    <!-- テスト専用スタイル -->
+    <style>
+        body {
+            background: #1a1a1a;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .test-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            height: 100vh;
+        }
+        
+        .test-sidebar {
+            background: #2a2a2a;
+            padding: 20px;
+            border-right: 2px solid #333;
+            overflow-y: auto;
+        }
+        
+        .test-main {
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .test-header {
+            background: #333;
+            padding: 15px 20px;
+            border-bottom: 2px solid #444;
+            grid-column: 1 / -1;
+        }
+        
+        .test-button {
+            display: block;
+            width: 100%;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 14px;
+        }
+        
+        .test-button:hover { background: #45a049; }
+        .test-button:disabled { background: #666; cursor: not-allowed; }
+        
+        .test-stats {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 8px;
+            background: #2a2a2a;
+            border-radius: 3px;
+        }
+        
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #00ff00;
+        }
+        
+        .test-result {
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-left: 4px solid #00ff00;
+            background: #0f0f0f;
+            font-size: 12px;
+            border-radius: 0 3px 3px 0;
+        }
+        
+        .test-result.error { border-left-color: #ff0000; color: #ff6666; }
+        .test-result.success { border-left-color: #00ff00; color: #66ff66; }
+        .test-result.warning { border-left-color: #ffaa00; color: #ffcc66; }
+        .test-result.info { border-left-color: #00aaff; color: #66ccff; }
+        
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #00ff00);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+        
+        .main-app-link {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #007bff;
+            color: white;
+            padding: 12px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .main-app-link:hover {
+            background: #0056b3;
+        }
+        
+        /* メインアプリケーション要素を非表示（テストでは必要だが表示しない） */
+        #main-app {
+            position: absolute;
+            left: -9999px;
+            visibility: hidden;
+        }
+    </style>
+</head>
+<body>
+    <!-- テスト専用UI -->
+    <div class="test-container">
+        <div class="test-header">
+            <h1>🧪 STB Diff Viewer Test Environment</h1>
+            <p>Dedicated testing interface for developers and QA</p>
+        </div>
+        
+        <div class="test-sidebar">
+            <h3>Test Categories</h3>
+            
+            <button class="test-button" onclick="runQuickTest()">
+                ⚡ Quick Test
+            </button>
+            
+            <button class="test-button" onclick="runUnitTests()">
+                📋 Unit Tests
+            </button>
+            
+            <button class="test-button" onclick="runIntegrationTests()">
+                🔗 Integration Tests
+            </button>
+            
+            <button class="test-button" onclick="runE2ETests()">
+                🌍 E2E Tests
+            </button>
+            
+            <button class="test-button" onclick="runPerformanceTests()">
+                ⚡ Performance Tests
+            </button>
+            
+            <button class="test-button" onclick="runRegressionTests()">
+                🔄 Regression Tests
+            </button>
+            
+            <button class="test-button" onclick="runComprehensiveTests()">
+                🚀 All Tests
+            </button>
+            
+            <hr style="border-color: #444; margin: 20px 0;">
+            
+            <button class="test-button" onclick="runSampleFileTests()" style="background: #ff9800;">
+                📁 Sample File Tests
+            </button>
+            
+            <button class="test-button" onclick="runGirderRegressionTest()" style="background: #9c27b0;">
+                🎯 Girder Fix Test
+            </button>
+            
+            <button class="test-button" onclick="clearResults()" style="background: #666;">
+                🧹 Clear Results
+            </button>
+            
+            <!-- テスト統計 -->
+            <div class="test-stats">
+                <h4 style="margin-top: 0;">Test Statistics</h4>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-bar"></div>
+                </div>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="total-tests">0</div>
+                        <div>Total</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="passed-tests">0</div>
+                        <div>Passed</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="failed-tests">0</div>
+                        <div>Failed</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="test-time">0ms</div>
+                        <div>Time</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- テスト環境情報 -->
+            <div class="test-stats">
+                <h4 style="margin-top: 0;">Environment</h4>
+                <div style="font-size: 11px; line-height: 1.4;">
+                    <div>Browser: <span id="browser-info">-</span></div>
+                    <div>Memory: <span id="memory-info">-</span></div>
+                    <div>Timestamp: <span id="timestamp">-</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-main">
+            <h3>Test Results & Logs</h3>
+            <div id="test-results" style="height: calc(100vh - 150px); overflow-y: auto;"></div>
+        </div>
+    </div>
+    
+    <!-- メインアプリケーション（非表示だがテスト用に必要） -->
+    <div id="main-app">
+        <div class="panel file-panel">
+            <input type="file" id="fileA" accept=".stb,.xml" />
+            <input type="file" id="fileB" accept=".stb,.xml" />
+            <button id="compareButton">モデルを比較</button>
+        </div>
+        <canvas id="three-canvas"></canvas>
+        <div id="component-info" class="panel info-panel">
+            <div id="editing-controls">
+                <button id="edit-mode-button">編集</button>
+                <span id="editing-summary">修正: 0件</span>
+            </div>
+            <div id="element-info-content">要素を選択してください。</div>
+        </div>
+        <div id="legendPanel"></div>
+    </div>
+    
+    <!-- メインアプリへのリンク -->
+    <a href="index.html" class="main-app-link">
+        🏠 Back to Main App
+    </a>
+    
+    <!-- Three.js & Main Application -->
+    <script type="module" src="js/main.js"></script>
+    
+    <!-- テストモジュールを動的インポート -->
+    <script type="module">
+      // テストモジュールを動的読み込み
+      Promise.all([
+        import('./js/test/comprehensiveTestSuite.js'),
+        import('./js/test/sampleDataLoader.js'),
+        import('./js/test/sampleFileLoader.js')
+      ]).then(() => {
+        console.log('🧪 All test modules loaded successfully');
+      }).catch(error => {
+        console.error('❌ Failed to load test modules:', error);
+      });
+    </script>
+    
+    <!-- テスト専用スクリプト -->
+    <script type="module">
+        // テスト統計管理
+        let testStats = { total: 0, passed: 0, failed: 0, startTime: null };
+
+        // 環境情報表示
+        function updateEnvironmentInfo() {
+            document.getElementById('browser-info').textContent = navigator.userAgent.split(' ').pop();
+            
+            if (performance.memory) {
+                const memory = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024);
+                document.getElementById('memory-info').textContent = `${memory}MB`;
+            } else {
+                document.getElementById('memory-info').textContent = 'N/A';
+            }
+            
+            document.getElementById('timestamp').textContent = new Date().toLocaleTimeString();
+        }
+
+        // テスト結果記録
+        function logTest(name, type, message) {
+            const resultsDiv = document.getElementById('test-results');
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `test-result ${type}`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            resultDiv.innerHTML = `[${timestamp}] <strong>${name}</strong>: ${message}`;
+            
+            resultsDiv.appendChild(resultDiv);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+
+            // 統計更新
+            if (type !== 'info') {
+                testStats.total++;
+                if (type === 'success') testStats.passed++;
+                if (type === 'error') testStats.failed++;
+                updateStats();
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('total-tests').textContent = testStats.total;
+            document.getElementById('passed-tests').textContent = testStats.passed;
+            document.getElementById('failed-tests').textContent = testStats.failed;
+            
+            if (testStats.startTime) {
+                const elapsed = Date.now() - testStats.startTime;
+                document.getElementById('test-time').textContent = `${elapsed}ms`;
+            }
+
+            if (testStats.total > 0) {
+                const progress = ((testStats.passed + testStats.failed) / testStats.total) * 100;
+                document.getElementById('progress-bar').style.width = `${progress}%`;
+            }
+        }
+
+        // テスト実行関数群
+        window.runQuickTest = async function() {
+            logTest('Quick Test', 'info', 'Running essential functionality checks...');
+            testStats.startTime = Date.now();
+            
+            // 基本DOM要素確認
+            const elements = ['three-canvas', 'fileA', 'fileB', 'compareButton', 'element-info-content'];
+            elements.forEach(id => {
+                const element = document.getElementById(id);
+                logTest(`DOM: ${id}`, element ? 'success' : 'error', 
+                    element ? 'Found' : 'Missing');
+            });
+            
+            // 基本関数確認
+            const functions = ['compareModels', 'requestRender', 'displayElementInfo'];
+            functions.forEach(name => {
+                const exists = typeof window[name] === 'function';
+                logTest(`Function: ${name}`, exists ? 'success' : 'error',
+                    exists ? 'Available' : 'Missing');
+            });
+            
+            logTest('Quick Test', 'info', 'Quick test completed');
+        };
+
+        window.runUnitTests = async function() {
+            logTest('Unit Tests', 'info', 'Running unit tests...');
+            
+            if (window.testSuite && window.testSuite.runUnit) {
+                try {
+                    const report = await window.testSuite.runUnit();
+                    logTest('Unit Tests', 'success', `Completed: ${report.passed} passed, ${report.failed} failed`);
+                } catch (error) {
+                    logTest('Unit Tests', 'error', error.message);
+                }
+            } else {
+                logTest('Unit Tests', 'warning', 'Test suite not available');
+            }
+        };
+
+        window.runIntegrationTests = async function() {
+            logTest('Integration Tests', 'info', 'Running integration tests...');
+            
+            if (window.testSuite && window.testSuite.runIntegration) {
+                try {
+                    const report = await window.testSuite.runIntegration();
+                    logTest('Integration Tests', 'success', `Completed: ${report.passed} passed, ${report.failed} failed`);
+                } catch (error) {
+                    logTest('Integration Tests', 'error', error.message);
+                }
+            } else {
+                logTest('Integration Tests', 'warning', 'Test suite not available');
+            }
+        };
+
+        window.runE2ETests = async function() {
+            logTest('E2E Tests', 'info', 'Running end-to-end tests...');
+            
+            if (window.testSuite && window.testSuite.runE2E) {
+                try {
+                    const report = await window.testSuite.runE2E();
+                    logTest('E2E Tests', 'success', `Completed: ${report.passed} passed, ${report.failed} failed`);
+                } catch (error) {
+                    logTest('E2E Tests', 'error', error.message);
+                }
+            } else {
+                logTest('E2E Tests', 'warning', 'Test suite not available');
+            }
+        };
+
+        window.runPerformanceTests = async function() {
+            logTest('Performance Tests', 'info', 'Running performance tests...');
+            
+            if (window.testSuite && window.testSuite.runPerformance) {
+                try {
+                    const report = await window.testSuite.runPerformance();
+                    logTest('Performance Tests', 'success', `Completed: ${report.passed} passed, ${report.failed} failed`);
+                } catch (error) {
+                    logTest('Performance Tests', 'error', error.message);
+                }
+            } else {
+                logTest('Performance Tests', 'warning', 'Test suite not available');
+            }
+        };
+
+        window.runRegressionTests = async function() {
+            logTest('Regression Tests', 'info', 'Running regression tests...');
+            
+            if (window.testSuite && window.testSuite.runRegression) {
+                try {
+                    const report = await window.testSuite.runRegression();
+                    logTest('Regression Tests', 'success', `Completed: ${report.passed} passed, ${report.failed} failed`);
+                } catch (error) {
+                    logTest('Regression Tests', 'error', error.message);
+                }
+            } else {
+                logTest('Regression Tests', 'warning', 'Test suite not available');
+            }
+        };
+
+        window.runComprehensiveTests = async function() {
+            clearResults();
+            logTest('Comprehensive Tests', 'info', 'Starting comprehensive test suite...');
+            
+            if (window.testSuite && window.testSuite.run) {
+                try {
+                    const report = await window.testSuite.run();
+                    const successRate = ((report.passed / report.totalTests) * 100).toFixed(1);
+                    logTest('Comprehensive Tests', 'success', 
+                        `All tests completed! Success rate: ${successRate}% (${report.passed}/${report.totalTests})`);
+                } catch (error) {
+                    logTest('Comprehensive Tests', 'error', error.message);
+                }
+            } else {
+                logTest('Comprehensive Tests', 'warning', 'Comprehensive test suite not available');
+            }
+        };
+
+        window.runSampleFileTests = async function() {
+            logTest('Sample File Tests', 'info', 'Testing sample file accessibility...');
+            
+            if (window.stbSamples && window.stbSamples.testAll) {
+                try {
+                    const results = await window.stbSamples.testAll();
+                    logTest('Sample File Tests', 'success', `${results.length} sample files tested`);
+                } catch (error) {
+                    logTest('Sample File Tests', 'error', error.message);
+                }
+            } else {
+                logTest('Sample File Tests', 'warning', 'Sample test utilities not available');
+            }
+        };
+
+        window.runGirderRegressionTest = async function() {
+            logTest('Girder Regression Test', 'info', 'Testing girder parameter display fix...');
+            
+            if (window.stbSamples && window.stbSamples.testGirder) {
+                try {
+                    const result = await window.stbSamples.testGirder();
+                    logTest('Girder Regression Test', 'success', 'Girder test completed successfully');
+                } catch (error) {
+                    logTest('Girder Regression Test', 'error', error.message);
+                }
+            } else {
+                logTest('Girder Regression Test', 'warning', 'Girder test utilities not available');
+            }
+        };
+
+        window.clearResults = function() {
+            document.getElementById('test-results').innerHTML = '';
+            testStats = { total: 0, passed: 0, failed: 0, startTime: null };
+            updateStats();
+            document.getElementById('progress-bar').style.width = '0%';
+            logTest('Clear', 'info', 'Test results cleared');
+        };
+
+        // 初期化
+        document.addEventListener('DOMContentLoaded', () => {
+            updateEnvironmentInfo();
+            logTest('Test Environment', 'info', 'STB Diff Viewer Test Environment initialized');
+            
+            // 環境情報を定期更新
+            setInterval(updateEnvironmentInfo, 5000);
+        });
+
+        // URLパラメータで自動テスト実行
+        if (window.location.search.includes('auto=true')) {
+            window.addEventListener('load', () => {
+                setTimeout(runComprehensiveTests, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

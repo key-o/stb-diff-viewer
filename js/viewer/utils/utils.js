@@ -23,19 +23,7 @@ import {
 } from "../core/core.js"; // elementGroups もインポート
 import { materials } from "../rendering/materials.js"; // materials をインポート
 
-/**
- * レンダリングループを開始する
- * - requestAnimationFrameで毎フレーム描画
- * - controls/camera/scene/rendererが存在する場合のみ描画
- */
-export function animate() {
-  requestAnimationFrame(animate);
-  if (controls) controls.update(); // controls が存在する場合のみ update を呼び出す
-  if (renderer && scene && camera) {
-    // renderer, scene, camera が存在する場合のみ render を呼び出す
-    renderer.render(scene, camera);
-  }
-}
+// animate 関数は core.js で定義されているため、utils.js からは削除
 
 /**
  * シーン内のモデル要素（メッシュ、線分、ラベル）、バウンディングボックスをクリアする。
@@ -335,8 +323,8 @@ export function applyClipPlanes(planes) {
   );
 
   // ★★★ 再描画要求は呼び出し元で行うため、ここでは不要 ★★★
-  // if (window.requestRender) {
-  //     window.requestRender();
+  // if (window.scheduleRender) {
+  //     window.scheduleRender();
   // }
 }
 
@@ -383,33 +371,13 @@ export function updateMaterialClippingPlanes() {
   });
   console.log("Updated clipping planes for all materials.");
   // 再描画を要求
-  if (window.requestRender) {
-    window.requestRender();
+  if (window.scheduleRender) {
+    window.scheduleRender();
   }
 }
 
-/**
- * ウィンドウリサイズ時の処理を設定する
- * - カメラのアスペクト比・プロジェクション行列・rendererサイズを更新
- * - 再描画要求
- * @param {THREE.PerspectiveCamera} camera - カメラ
- */
-export function setupResizeListener(camera) {
-  // ★★★ export を追加 ★★★
-  window.addEventListener(
-    "resize",
-    () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      // 再描画を要求 (requestRender がグローバルにある場合)
-      if (window.requestRender) {
-        window.requestRender();
-      }
-    },
-    false
-  );
-}
+// setupResizeListener 関数は core.js で定義されているため、utils.js からは削除
+// 代わりに setupResizeListenerWithRender として別名で定義
 
 /**
  * STBファイル(XML)のencoding宣言を自動判別してデコードする

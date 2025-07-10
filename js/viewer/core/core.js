@@ -23,6 +23,7 @@ export const SUPPORTED_ELEMENTS = [
   "Column",
   "Girder",
   "Beam",
+  "Brace",
   "Slab",
   "Wall",
   "Axis",
@@ -123,7 +124,7 @@ export function animate(controls, scene, camera) {
 }
 
 // --- ウィンドウリサイズ処理 ---
-export function setupResizeListener(camera) {
+export function setupViewportResizeHandler(camera) {
   window.addEventListener(
     "resize",
     () => {

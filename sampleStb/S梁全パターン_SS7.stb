@@ -1,0 +1,1389 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ST_BRIDGE xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.0.1"
+  xmlns="https://www.building-smart.or.jp/dl">
+  <StbCommon guid="415010b838c64835b089c5f3edb76b9c" project_name="Sパターン" app_name="Super Build／SS7"
+    strength_concrete="Fc21">
+    <StbApplyConditionsList>
+      <StbColumn_RC_RebarPositionApply set_default="false" />
+      <StbColumn_RC_BarSpacingApply set_default="false" />
+      <StbColumn_SRC_RebarPositionApply set_default="false" />
+      <StbColumn_SRC_BarSpacingApply set_default="false" />
+      <StbBeam_RC_RebarPositionApply set_default="false" />
+      <StbBeam_RC_BarWebApply set_default="false" />
+      <StbBeam_RC_BarSpacingApply set_default="false" />
+      <StbBeam_SRC_RebarPositionApply set_default="false" />
+      <StbBeam_SRC_BarWebApply set_default="false" />
+      <StbBeam_SRC_BarSpacingApply set_default="false" />
+    </StbApplyConditionsList>
+  </StbCommon>
+  <StbModel>
+    <StbNodes>
+      <StbNode id="19" guid="c72e6837db0646b096442583ea2d033e" X="0.0" Y="0.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="20" guid="0be7b24e13fe4169baba8dfdcee6306c" X="6000.0" Y="0.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="21" guid="e8b500953cb343e7b1f80d1c7bd9083e" X="12000.0" Y="0.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="22" guid="ee6c1308d6ca4ffaabb7602cfbacf582" X="18000.0" Y="0.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="23" guid="a16f3e3e0b08438ba4235b72057b224d" X="24000.0" Y="0.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="24" guid="8e20c439066d42bba114e748582e83bc" X="30000.0" Y="0.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="25" guid="4c4ac89e2f654cd5bd5466e81243963a" X="36000.0" Y="0.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="26" guid="0c20143b7af94bdcb21922a43d680891" X="42000.0" Y="0.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="27" guid="4da1621b8aee430e8643149cd83d066e" X="48000.0" Y="0.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="28" guid="7d7f68a41f3c457a8364a7faa491145e" X="54000.0" Y="0.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="29" guid="029feebec9d942008502879f4dd87c8d" X="0.0" Y="6000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="30" guid="e5585acbc57d4bd89f2b76deab7fdcf2" X="6000.0" Y="6000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="31" guid="8d848613c3b642b7bca83f45e3c07364" X="12000.0" Y="6000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="32" guid="206be368122448598c7ea1a0e5c336cf" X="18000.0" Y="6000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="33" guid="0bce45d989ce48968affa5958812c23e" X="24000.0" Y="6000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="34" guid="d8fbb6070aa94a519b5b1b506cfde2d9" X="30000.0" Y="6000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="35" guid="2cde807a94514fc896108a4d5157f1d4" X="36000.0" Y="6000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="36" guid="ab7560b9ac754426a816cadc21d7b58d" X="42000.0" Y="6000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="37" guid="1931952288954535957c1b75df8af76d" X="48000.0" Y="6000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="38" guid="aca13f00adae40de9092acf69e73460f" X="54000.0" Y="6000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="39" guid="cf2a1897e4ba4c779b4330b0b316437e" X="0.0" Y="12000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="40" guid="8d2774e6ace24925b1525012840aa967" X="6000.0" Y="12000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="41" guid="91e723aba61c4778946db4c80151ef9a" X="12000.0" Y="12000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="42" guid="9a46b00ba4b849a5bba55a8a3d1d4b65" X="18000.0" Y="12000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="43" guid="a3373cbe2bd44edea71e1793218bec9c" X="24000.0" Y="12000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="44" guid="3b7d11f8e2ec45c092ec088737b169c4" X="30000.0" Y="12000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="45" guid="9d863f42c7584178983e20cfcfe8516d" X="36000.0" Y="12000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="46" guid="b659d4ee0d1c46dbb50145b10161ecda" X="42000.0" Y="12000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="47" guid="bcfc92797eac401eb20287881b17578f" X="48000.0" Y="12000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="48" guid="98f449cbdba44a489d29cf2c30025237" X="54000.0" Y="12000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="49" guid="538de19794824bbf884c153521d42cdc" X="0.0" Y="18000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="50" guid="1efc895dbc25460495ae157dbce95e4c" X="6000.0" Y="18000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="51" guid="2df550b03cb54520b90d3d08d3b613a9" X="12000.0" Y="18000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="52" guid="72bbb538fc3c4b1e965dbd64877120df" X="18000.0" Y="18000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="53" guid="0ca715afd57d4b4aaa768adaecb6fb69" X="24000.0" Y="18000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="54" guid="0f5f227afc734c6b9c9ccd74676aab08" X="30000.0" Y="18000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="55" guid="7bbff679aebf409db688927208264c4a" X="36000.0" Y="18000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="56" guid="0bbe05911bc84499b9767cdd459a0b61" X="42000.0" Y="18000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="57" guid="11462496b24c4bcaa5d24f2b40cc0a31" X="48000.0" Y="18000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="58" guid="264f0aebf1fa471bb03069be63efabc8" X="54000.0" Y="18000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="59" guid="689db194303d4df8bbd6a7dc9a8909fc" X="0.0" Y="24000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="60" guid="be919df9a08f4c87a70c519e7ad1d8ed" X="6000.0" Y="24000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="61" guid="9db15d26939248408ec0590ce4211a73" X="12000.0" Y="24000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="62" guid="5dbba63118ec4373b6f52c1b0dc75bec" X="18000.0" Y="24000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="63" guid="26de3e0e4f7e4c6a8b03e61f335ef4a5" X="24000.0" Y="24000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="64" guid="25fd55acedd544b2a8292a6b7f84322f" X="30000.0" Y="24000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="65" guid="ec4ff7e9b54849ecb544f9ef739937b7" X="36000.0" Y="24000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="66" guid="4c33ab23dc7b4acdbbc10029955a8d84" X="42000.0" Y="24000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="67" guid="95287ee913f84a43b0b0a773d31fa42f" X="48000.0" Y="24000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="68" guid="edde5199613d41eeb68b4cb4952fb21d" X="54000.0" Y="24000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="69" guid="3bc4665ea01c49588be8c1ee36f98cd7" X="0.0" Y="30000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="70" guid="207bf572a946426ea65195e0481e6e45" X="6000.0" Y="30000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="71" guid="cf7af482d8234a91afbe5ea0217d00ad" X="12000.0" Y="30000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="72" guid="461104c429594511a5ff8558571b45aa" X="18000.0" Y="30000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="73" guid="59086973727244edae2c4448ce2b6cae" X="24000.0" Y="30000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="74" guid="41cba0dc2ffe480c9abcdcd68768f1a8" X="30000.0" Y="30000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="75" guid="743b54e2741c48aab68934636031c947" X="36000.0" Y="30000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="76" guid="2fefe2a9696e4f5bb0eef966f4a4f745" X="42000.0" Y="30000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="77" guid="ce17acf7995441c5a617a465e14bfb6a" X="48000.0" Y="30000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="78" guid="dc3407c7946d46cd94b0e85efba9f7d7" X="54000.0" Y="30000.0" Z="0.0"
+        kind="ON_GRID" />
+      <StbNode id="79" guid="cf705bde378e4924bb0d846eaaf69113" X="0.0" Y="0.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="80" guid="61dfb54f7b9c47e99498730d04e30520" X="6000.0" Y="0.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="81" guid="1fc30658d05c4996856fafc4d1e8936c" X="12000.0" Y="0.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="82" guid="c0cdecaba28b465aa39f90b498e5e2a4" X="18000.0" Y="0.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="83" guid="ab25da51eb16474d869b563388788173" X="24000.0" Y="0.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="84" guid="75cefbfdc3124802ae9eb8d24de35bf6" X="30000.0" Y="0.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="85" guid="6fb6f1ff40b642f197f0a10e9ef89770" X="36000.0" Y="0.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="86" guid="433df1d6b6b34cce9c6d3e65b7ba8127" X="42000.0" Y="0.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="87" guid="37e6d657ced642df89ef2fa475e59633" X="48000.0" Y="0.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="88" guid="3efb4ab9825e4a4d85bc5099ad8866ef" X="54000.0" Y="0.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="89" guid="b382ba619e4941418b65b5c67696279b" X="0.0" Y="6000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="90" guid="192187e705e44217b59e1b0c16d3e645" X="6000.0" Y="6000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="91" guid="c7d184c5c1f74fdcb3d54a1268736cc6" X="12000.0" Y="6000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="92" guid="304c850a996f4811b086aac9921872bc" X="18000.0" Y="6000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="93" guid="de0cf48d1c1c43749ec1415f05ef0b63" X="24000.0" Y="6000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="94" guid="f8475f80488b47a98b27cebd8352325d" X="30000.0" Y="6000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="95" guid="a0a0b46ad2cf44e88665f330543b9550" X="36000.0" Y="6000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="96" guid="1314ac98a0d54888b4a7d264a5cc068b" X="42000.0" Y="6000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="97" guid="4f70b2b285d14d55b371311f50e396e3" X="48000.0" Y="6000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="98" guid="337f152c854045ac9a696dc37220f040" X="54000.0" Y="6000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="99" guid="547f5addba67423aa783de26401fbf9b" X="0.0" Y="12000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="100" guid="b058e857012c4e449e69700c228f9d45" X="6000.0" Y="12000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="101" guid="8e9b09b43bea4cb8910b4e9b695d48f6" X="12000.0" Y="12000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="102" guid="210ddfced7064ea9b4e69ee2c4d08ca8" X="18000.0" Y="12000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="103" guid="f80d7dd4ad3040198057a98d5c604dd7" X="24000.0" Y="12000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="104" guid="223d53e85eba4ec29446530e190af292" X="30000.0" Y="12000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="105" guid="b80a19c0aa3447a1b5007b62c5ebe87a" X="36000.0" Y="12000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="106" guid="c983abe8e8e64bc993aac0ca678faa75" X="42000.0" Y="12000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="107" guid="f86287bb85e042d481c2ef6aca452a35" X="48000.0" Y="12000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="108" guid="cb7de00a90154719b37ee1f10a1cb446" X="54000.0" Y="12000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="109" guid="e3c2b6feb6b140a580a27ff6253c646d" X="0.0" Y="18000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="110" guid="ab264e6e585d4cd6b7d7ab7466acad8b" X="6000.0" Y="18000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="111" guid="86ac3e5d44d449fd9d547f6f9ed6a3b8" X="12000.0" Y="18000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="112" guid="ffe4eb2c30764e6f8fd4cec90adab35e" X="18000.0" Y="18000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="113" guid="2c2cb8b5312848f69326d81c69386929" X="24000.0" Y="18000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="114" guid="eb100c0806aa4c52824612b76655ee07" X="30000.0" Y="18000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="115" guid="efe78d7839114e4e8953376d0f9f0a3d" X="36000.0" Y="18000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="116" guid="35d292e7ec8a44be8b42ff1c9035d668" X="42000.0" Y="18000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="117" guid="aff52ebffcf74d08aeb706968972ef15" X="48000.0" Y="18000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="118" guid="6fb6c4a466484cc09769d757070b61ad" X="54000.0" Y="18000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="119" guid="ff27465d542b4636990938b482d2bef7" X="0.0" Y="24000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="120" guid="e2726c86417246bea8554a3f96bf5c73" X="6000.0" Y="24000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="121" guid="681bebf25ada4508a513129dc903123c" X="12000.0" Y="24000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="122" guid="81b7ecdd342546a88ddecbeaf9c50f03" X="18000.0" Y="24000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="123" guid="3fc64bd0613d4f0188ff4b484bcd6720" X="24000.0" Y="24000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="124" guid="5270179673634c32aa19394bfcf2a86e" X="30000.0" Y="24000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="125" guid="b45e98e9c2604740ad4c9cfca39020e8" X="36000.0" Y="24000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="126" guid="de8ab31085e6450aa78a3c433835fd44" X="42000.0" Y="24000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="127" guid="996eeec4c0d4476d991fc78a3507ac04" X="48000.0" Y="24000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="128" guid="a554f0947726495baebf47cc28fd31bc" X="54000.0" Y="24000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="129" guid="773be21b89f6451292bfa5f697fdc14b" X="0.0" Y="30000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="130" guid="f8ffb4aedc934ed4a892684afa82c696" X="6000.0" Y="30000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="131" guid="ae678e00697f4b8ba1d479b5f2ab9bed" X="12000.0" Y="30000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="132" guid="432813a3d7d841acbfaed113c474ba9c" X="18000.0" Y="30000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="133" guid="7de0a56ded5842a7a7c791967958f0f4" X="24000.0" Y="30000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="134" guid="d2d9e782ebd54c9388d26c0e7f640c22" X="30000.0" Y="30000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="135" guid="c7ebe0f227d642388046545702976062" X="36000.0" Y="30000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="136" guid="8ae4e5553d724d75bf6c490f55e73aff" X="42000.0" Y="30000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="137" guid="abb1d354b4f64e9fb6df84b97ee8dad7" X="48000.0" Y="30000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="138" guid="ad4914a13b8a4dab8669357bf5007b2c" X="54000.0" Y="30000.0" Z="3000.0"
+        kind="ON_GRID" />
+      <StbNode id="139" guid="5c55d48265d1462d82a71028ad248fca" X="6000.0" Y="9000.0" Z="3000.0"
+        kind="ON_CANTI" />
+      <StbNode id="140" guid="bd3ff184433c40acad8daa0b8785a91a" X="12000.0" Y="9000.0" Z="3000.0"
+        kind="ON_CANTI" />
+      <StbNode id="141" guid="528622ec587145ad825effb185d85fa9" X="18000.0" Y="9000.0" Z="3000.0"
+        kind="ON_CANTI" />
+      <StbNode id="142" guid="c4d4e4139c014db6b5a6646c13cd7511" X="24000.0" Y="9000.0" Z="3000.0"
+        kind="ON_CANTI" />
+      <StbNode id="143" guid="393da28436ea4c039e37dcfc8b67c901" X="30000.0" Y="9000.0" Z="3000.0"
+        kind="ON_CANTI" />
+      <StbNode id="144" guid="e21693d3584648f0ad97fe9c4f32d677" X="6000.0" Y="15000.0" Z="3000.0"
+        kind="ON_CANTI" />
+      <StbNode id="145" guid="13c82e0e5672489b842d80e19408aa86" X="6000.0" Y="21000.0" Z="3000.0"
+        kind="ON_CANTI" />
+      <StbNode id="146" guid="beb3ba6942864312b38f0dba8043b7c8" X="0.0" Y="667.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="11" />
+      <StbNode id="147" guid="6aa6c0ac93d94afc9b53dcf5cd219c58" X="6000.0" Y="667.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="15" />
+      <StbNode id="148" guid="bd94ea2ec53c41928cc29b04c22f06b5" X="0.0" Y="1333.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="11" />
+      <StbNode id="149" guid="77364d50b6164c179f48f648e7b68007" X="6000.0" Y="1333.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="15" />
+      <StbNode id="150" guid="b1772017f37b488e9ea345370a794657" X="0.0" Y="2000.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="11" />
+      <StbNode id="151" guid="0f19c104510441bdb4ece1c4852f2fba" X="6000.0" Y="2000.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="15" />
+      <StbNode id="152" guid="a92463498c1045599dd3a083fc364dec" X="0.0" Y="2667.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="11" />
+      <StbNode id="153" guid="e525ae5a09514215b8be35af9b677803" X="6000.0" Y="2667.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="15" />
+      <StbNode id="154" guid="e14bd9e38aa54372a3602cc9eb306469" X="0.0" Y="3333.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="11" />
+      <StbNode id="155" guid="00666adab3ac485db73221e2242a2caf" X="6000.0" Y="3333.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="15" />
+      <StbNode id="156" guid="1827bb0356cc4a9d9ad61c55b44f64e4" X="0.0" Y="4000.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="11" />
+      <StbNode id="157" guid="7a7f492de28841acac4937bee81b09ac" X="6000.0" Y="4000.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="15" />
+      <StbNode id="158" guid="4381791fde6d4958ab02befbb43fb0a5" X="0.0" Y="4667.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="11" />
+      <StbNode id="159" guid="aca626b2a0204e42a09f5f554ce264fe" X="6000.0" Y="4667.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="15" />
+      <StbNode id="160" guid="f130b866f3124a41b2af4c99f7335f16" X="0.0" Y="5333.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="11" />
+      <StbNode id="161" guid="6eafb638f84e482d9fc53df21f38849f" X="6000.0" Y="5333.0" Z="3000.0"
+        kind="ON_GIRDER" id_member="15" />
+    </StbNodes>
+    <StbAxes>
+      <StbParallelAxes group_name="Y" X="0.0" Y="0.0" angle="0.0">
+        <StbParallelAxis id="1" guid="1747e67db221454090d22ba0c6298598" name="Y1" distance="0.0">
+          <StbNodeIdList>
+            <StbNodeId id="19" />
+            <StbNodeId id="20" />
+            <StbNodeId id="21" />
+            <StbNodeId id="22" />
+            <StbNodeId id="23" />
+            <StbNodeId id="24" />
+            <StbNodeId id="25" />
+            <StbNodeId id="26" />
+            <StbNodeId id="27" />
+            <StbNodeId id="28" />
+            <StbNodeId id="79" />
+            <StbNodeId id="80" />
+            <StbNodeId id="81" />
+            <StbNodeId id="82" />
+            <StbNodeId id="83" />
+            <StbNodeId id="84" />
+            <StbNodeId id="85" />
+            <StbNodeId id="86" />
+            <StbNodeId id="87" />
+            <StbNodeId id="88" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="2" guid="bba5be7d4da641e4a89aec0ca029446a" name="Y2" distance="6000.0">
+          <StbNodeIdList>
+            <StbNodeId id="29" />
+            <StbNodeId id="30" />
+            <StbNodeId id="31" />
+            <StbNodeId id="32" />
+            <StbNodeId id="33" />
+            <StbNodeId id="34" />
+            <StbNodeId id="35" />
+            <StbNodeId id="36" />
+            <StbNodeId id="37" />
+            <StbNodeId id="38" />
+            <StbNodeId id="89" />
+            <StbNodeId id="90" />
+            <StbNodeId id="91" />
+            <StbNodeId id="92" />
+            <StbNodeId id="93" />
+            <StbNodeId id="94" />
+            <StbNodeId id="95" />
+            <StbNodeId id="96" />
+            <StbNodeId id="97" />
+            <StbNodeId id="98" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="3" guid="fce826c40c03432db302440577fb48d1" name="Y3" distance="12000.0">
+          <StbNodeIdList>
+            <StbNodeId id="39" />
+            <StbNodeId id="40" />
+            <StbNodeId id="41" />
+            <StbNodeId id="42" />
+            <StbNodeId id="43" />
+            <StbNodeId id="44" />
+            <StbNodeId id="45" />
+            <StbNodeId id="46" />
+            <StbNodeId id="47" />
+            <StbNodeId id="48" />
+            <StbNodeId id="99" />
+            <StbNodeId id="100" />
+            <StbNodeId id="101" />
+            <StbNodeId id="102" />
+            <StbNodeId id="103" />
+            <StbNodeId id="104" />
+            <StbNodeId id="105" />
+            <StbNodeId id="106" />
+            <StbNodeId id="107" />
+            <StbNodeId id="108" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="4" guid="259997110da54441bbbf9aa13c9de04e" name="Y4" distance="18000.0">
+          <StbNodeIdList>
+            <StbNodeId id="49" />
+            <StbNodeId id="50" />
+            <StbNodeId id="51" />
+            <StbNodeId id="52" />
+            <StbNodeId id="53" />
+            <StbNodeId id="54" />
+            <StbNodeId id="55" />
+            <StbNodeId id="56" />
+            <StbNodeId id="57" />
+            <StbNodeId id="58" />
+            <StbNodeId id="109" />
+            <StbNodeId id="110" />
+            <StbNodeId id="111" />
+            <StbNodeId id="112" />
+            <StbNodeId id="113" />
+            <StbNodeId id="114" />
+            <StbNodeId id="115" />
+            <StbNodeId id="116" />
+            <StbNodeId id="117" />
+            <StbNodeId id="118" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="5" guid="6e27d5bf86614227995dfc218832b35a" name="Y5" distance="24000.0">
+          <StbNodeIdList>
+            <StbNodeId id="59" />
+            <StbNodeId id="60" />
+            <StbNodeId id="61" />
+            <StbNodeId id="62" />
+            <StbNodeId id="63" />
+            <StbNodeId id="64" />
+            <StbNodeId id="65" />
+            <StbNodeId id="66" />
+            <StbNodeId id="67" />
+            <StbNodeId id="68" />
+            <StbNodeId id="119" />
+            <StbNodeId id="120" />
+            <StbNodeId id="121" />
+            <StbNodeId id="122" />
+            <StbNodeId id="123" />
+            <StbNodeId id="124" />
+            <StbNodeId id="125" />
+            <StbNodeId id="126" />
+            <StbNodeId id="127" />
+            <StbNodeId id="128" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="6" guid="9755b113961540cca9fa60bdbbc77055" name="Y6" distance="30000.0">
+          <StbNodeIdList>
+            <StbNodeId id="69" />
+            <StbNodeId id="70" />
+            <StbNodeId id="71" />
+            <StbNodeId id="72" />
+            <StbNodeId id="73" />
+            <StbNodeId id="74" />
+            <StbNodeId id="75" />
+            <StbNodeId id="76" />
+            <StbNodeId id="77" />
+            <StbNodeId id="78" />
+            <StbNodeId id="129" />
+            <StbNodeId id="130" />
+            <StbNodeId id="131" />
+            <StbNodeId id="132" />
+            <StbNodeId id="133" />
+            <StbNodeId id="134" />
+            <StbNodeId id="135" />
+            <StbNodeId id="136" />
+            <StbNodeId id="137" />
+            <StbNodeId id="138" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+      </StbParallelAxes>
+      <StbParallelAxes group_name="X" X="0.0" Y="0.0" angle="270.0">
+        <StbParallelAxis id="7" guid="0539f44139b3431b9e8b02e9b4a221e4" name="X1" distance="0.0">
+          <StbNodeIdList>
+            <StbNodeId id="19" />
+            <StbNodeId id="29" />
+            <StbNodeId id="39" />
+            <StbNodeId id="49" />
+            <StbNodeId id="59" />
+            <StbNodeId id="69" />
+            <StbNodeId id="79" />
+            <StbNodeId id="89" />
+            <StbNodeId id="99" />
+            <StbNodeId id="109" />
+            <StbNodeId id="119" />
+            <StbNodeId id="129" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="8" guid="f9f1e758eda3499fb83e62a73d551917" name="X2" distance="6000.0">
+          <StbNodeIdList>
+            <StbNodeId id="20" />
+            <StbNodeId id="30" />
+            <StbNodeId id="40" />
+            <StbNodeId id="50" />
+            <StbNodeId id="60" />
+            <StbNodeId id="70" />
+            <StbNodeId id="80" />
+            <StbNodeId id="90" />
+            <StbNodeId id="100" />
+            <StbNodeId id="110" />
+            <StbNodeId id="120" />
+            <StbNodeId id="130" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="9" guid="3668575c3bd34052a90b16d24d7973b8" name="X3" distance="12000.0">
+          <StbNodeIdList>
+            <StbNodeId id="21" />
+            <StbNodeId id="31" />
+            <StbNodeId id="41" />
+            <StbNodeId id="51" />
+            <StbNodeId id="61" />
+            <StbNodeId id="71" />
+            <StbNodeId id="81" />
+            <StbNodeId id="91" />
+            <StbNodeId id="101" />
+            <StbNodeId id="111" />
+            <StbNodeId id="121" />
+            <StbNodeId id="131" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="10" guid="072fbdf94b6841f284d92cfb14d1888a" name="X4"
+          distance="18000.0">
+          <StbNodeIdList>
+            <StbNodeId id="22" />
+            <StbNodeId id="32" />
+            <StbNodeId id="42" />
+            <StbNodeId id="52" />
+            <StbNodeId id="62" />
+            <StbNodeId id="72" />
+            <StbNodeId id="82" />
+            <StbNodeId id="92" />
+            <StbNodeId id="102" />
+            <StbNodeId id="112" />
+            <StbNodeId id="122" />
+            <StbNodeId id="132" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="11" guid="99b3ca5147104cdc8a41f155b2be5fca" name="X5"
+          distance="24000.0">
+          <StbNodeIdList>
+            <StbNodeId id="23" />
+            <StbNodeId id="33" />
+            <StbNodeId id="43" />
+            <StbNodeId id="53" />
+            <StbNodeId id="63" />
+            <StbNodeId id="73" />
+            <StbNodeId id="83" />
+            <StbNodeId id="93" />
+            <StbNodeId id="103" />
+            <StbNodeId id="113" />
+            <StbNodeId id="123" />
+            <StbNodeId id="133" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="12" guid="0ce2b5edf61443ada04ab8058cd25a68" name="X6"
+          distance="30000.0">
+          <StbNodeIdList>
+            <StbNodeId id="24" />
+            <StbNodeId id="34" />
+            <StbNodeId id="44" />
+            <StbNodeId id="54" />
+            <StbNodeId id="64" />
+            <StbNodeId id="74" />
+            <StbNodeId id="84" />
+            <StbNodeId id="94" />
+            <StbNodeId id="104" />
+            <StbNodeId id="114" />
+            <StbNodeId id="124" />
+            <StbNodeId id="134" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="13" guid="5afb09421a4f41b7b2deecd6a746f563" name="X7"
+          distance="36000.0">
+          <StbNodeIdList>
+            <StbNodeId id="25" />
+            <StbNodeId id="35" />
+            <StbNodeId id="45" />
+            <StbNodeId id="55" />
+            <StbNodeId id="65" />
+            <StbNodeId id="75" />
+            <StbNodeId id="85" />
+            <StbNodeId id="95" />
+            <StbNodeId id="105" />
+            <StbNodeId id="115" />
+            <StbNodeId id="125" />
+            <StbNodeId id="135" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="14" guid="80caad0174c04de287da9f3f2137eac5" name="X8"
+          distance="42000.0">
+          <StbNodeIdList>
+            <StbNodeId id="26" />
+            <StbNodeId id="36" />
+            <StbNodeId id="46" />
+            <StbNodeId id="56" />
+            <StbNodeId id="66" />
+            <StbNodeId id="76" />
+            <StbNodeId id="86" />
+            <StbNodeId id="96" />
+            <StbNodeId id="106" />
+            <StbNodeId id="116" />
+            <StbNodeId id="126" />
+            <StbNodeId id="136" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="15" guid="8ae928bbdb3c4c08952625932430e744" name="X9"
+          distance="48000.0">
+          <StbNodeIdList>
+            <StbNodeId id="27" />
+            <StbNodeId id="37" />
+            <StbNodeId id="47" />
+            <StbNodeId id="57" />
+            <StbNodeId id="67" />
+            <StbNodeId id="77" />
+            <StbNodeId id="87" />
+            <StbNodeId id="97" />
+            <StbNodeId id="107" />
+            <StbNodeId id="117" />
+            <StbNodeId id="127" />
+            <StbNodeId id="137" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="16" guid="b0b9a730f51f4b3181124dcdbbd51948" name="X10"
+          distance="54000.0">
+          <StbNodeIdList>
+            <StbNodeId id="28" />
+            <StbNodeId id="38" />
+            <StbNodeId id="48" />
+            <StbNodeId id="58" />
+            <StbNodeId id="68" />
+            <StbNodeId id="78" />
+            <StbNodeId id="88" />
+            <StbNodeId id="98" />
+            <StbNodeId id="108" />
+            <StbNodeId id="118" />
+            <StbNodeId id="128" />
+            <StbNodeId id="138" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+      </StbParallelAxes>
+    </StbAxes>
+    <StbStories>
+      <StbStory id="17" guid="1bd1361bfb284ed9a7bead13bb444c2a" name="1FL" height="0.0"
+        kind="GENERAL">
+        <StbNodeIdList>
+          <StbNodeId id="19" />
+          <StbNodeId id="20" />
+          <StbNodeId id="21" />
+          <StbNodeId id="22" />
+          <StbNodeId id="23" />
+          <StbNodeId id="24" />
+          <StbNodeId id="25" />
+          <StbNodeId id="26" />
+          <StbNodeId id="27" />
+          <StbNodeId id="28" />
+          <StbNodeId id="29" />
+          <StbNodeId id="30" />
+          <StbNodeId id="31" />
+          <StbNodeId id="32" />
+          <StbNodeId id="33" />
+          <StbNodeId id="34" />
+          <StbNodeId id="35" />
+          <StbNodeId id="36" />
+          <StbNodeId id="37" />
+          <StbNodeId id="38" />
+          <StbNodeId id="39" />
+          <StbNodeId id="40" />
+          <StbNodeId id="41" />
+          <StbNodeId id="42" />
+          <StbNodeId id="43" />
+          <StbNodeId id="44" />
+          <StbNodeId id="45" />
+          <StbNodeId id="46" />
+          <StbNodeId id="47" />
+          <StbNodeId id="48" />
+          <StbNodeId id="49" />
+          <StbNodeId id="50" />
+          <StbNodeId id="51" />
+          <StbNodeId id="52" />
+          <StbNodeId id="53" />
+          <StbNodeId id="54" />
+          <StbNodeId id="55" />
+          <StbNodeId id="56" />
+          <StbNodeId id="57" />
+          <StbNodeId id="58" />
+          <StbNodeId id="59" />
+          <StbNodeId id="60" />
+          <StbNodeId id="61" />
+          <StbNodeId id="62" />
+          <StbNodeId id="63" />
+          <StbNodeId id="64" />
+          <StbNodeId id="65" />
+          <StbNodeId id="66" />
+          <StbNodeId id="67" />
+          <StbNodeId id="68" />
+          <StbNodeId id="69" />
+          <StbNodeId id="70" />
+          <StbNodeId id="71" />
+          <StbNodeId id="72" />
+          <StbNodeId id="73" />
+          <StbNodeId id="74" />
+          <StbNodeId id="75" />
+          <StbNodeId id="76" />
+          <StbNodeId id="77" />
+          <StbNodeId id="78" />
+        </StbNodeIdList>
+      </StbStory>
+      <StbStory id="18" guid="466f5bbf5d114ac6a7c3ce38ac40f342" name="RFL" height="3000.0"
+        kind="ROOF">
+        <StbNodeIdList>
+          <StbNodeId id="79" />
+          <StbNodeId id="80" />
+          <StbNodeId id="81" />
+          <StbNodeId id="82" />
+          <StbNodeId id="83" />
+          <StbNodeId id="84" />
+          <StbNodeId id="85" />
+          <StbNodeId id="86" />
+          <StbNodeId id="87" />
+          <StbNodeId id="88" />
+          <StbNodeId id="89" />
+          <StbNodeId id="90" />
+          <StbNodeId id="91" />
+          <StbNodeId id="92" />
+          <StbNodeId id="93" />
+          <StbNodeId id="94" />
+          <StbNodeId id="95" />
+          <StbNodeId id="96" />
+          <StbNodeId id="97" />
+          <StbNodeId id="98" />
+          <StbNodeId id="99" />
+          <StbNodeId id="100" />
+          <StbNodeId id="101" />
+          <StbNodeId id="102" />
+          <StbNodeId id="103" />
+          <StbNodeId id="104" />
+          <StbNodeId id="105" />
+          <StbNodeId id="106" />
+          <StbNodeId id="107" />
+          <StbNodeId id="108" />
+          <StbNodeId id="109" />
+          <StbNodeId id="110" />
+          <StbNodeId id="111" />
+          <StbNodeId id="112" />
+          <StbNodeId id="113" />
+          <StbNodeId id="114" />
+          <StbNodeId id="115" />
+          <StbNodeId id="116" />
+          <StbNodeId id="117" />
+          <StbNodeId id="118" />
+          <StbNodeId id="119" />
+          <StbNodeId id="120" />
+          <StbNodeId id="121" />
+          <StbNodeId id="122" />
+          <StbNodeId id="123" />
+          <StbNodeId id="124" />
+          <StbNodeId id="125" />
+          <StbNodeId id="126" />
+          <StbNodeId id="127" />
+          <StbNodeId id="128" />
+          <StbNodeId id="129" />
+          <StbNodeId id="130" />
+          <StbNodeId id="131" />
+          <StbNodeId id="132" />
+          <StbNodeId id="133" />
+          <StbNodeId id="134" />
+          <StbNodeId id="135" />
+          <StbNodeId id="136" />
+          <StbNodeId id="137" />
+          <StbNodeId id="138" />
+          <StbNodeId id="145" />
+          <StbNodeId id="144" />
+          <StbNodeId id="143" />
+          <StbNodeId id="142" />
+          <StbNodeId id="141" />
+          <StbNodeId id="140" />
+          <StbNodeId id="139" />
+          <StbNodeId id="146" />
+          <StbNodeId id="147" />
+          <StbNodeId id="148" />
+          <StbNodeId id="149" />
+          <StbNodeId id="150" />
+          <StbNodeId id="151" />
+          <StbNodeId id="152" />
+          <StbNodeId id="153" />
+          <StbNodeId id="154" />
+          <StbNodeId id="155" />
+          <StbNodeId id="156" />
+          <StbNodeId id="157" />
+          <StbNodeId id="158" />
+          <StbNodeId id="159" />
+          <StbNodeId id="160" />
+          <StbNodeId id="161" />
+        </StbNodeIdList>
+      </StbStory>
+    </StbStories>
+    <StbMembers>
+      <StbColumns>
+        <StbColumn id="1" guid="a1e8db11cff8402181a5c95e635ac5c5" name="1C1" id_node_bottom="69"
+          id_node_top="129" rotate="0.0" id_section="1" kind_structure="S" offset_bottom_X="0.0"
+          offset_bottom_Y="0.0" offset_top_X="0.0" offset_top_Y="0.0" condition_bottom="FIX"
+          condition_top="FIX" />
+        <StbColumn id="2" guid="682638eb56a846fb86e7374701e72214" name="1C2" id_node_bottom="70"
+          id_node_top="130" rotate="0.0" id_section="2" kind_structure="S" offset_bottom_X="0.0"
+          offset_bottom_Y="0.0" offset_top_X="0.0" offset_top_Y="0.0" condition_bottom="FIX"
+          condition_top="FIX" />
+        <StbColumn id="3" guid="fdafc584ee084431af87b40b1e15162b" name="1C3" id_node_bottom="71"
+          id_node_top="131" rotate="0.0" id_section="3" kind_structure="S" offset_bottom_X="0.0"
+          offset_bottom_Y="0.0" offset_top_X="0.0" offset_top_Y="0.0" condition_bottom="FIX"
+          condition_top="FIX" />
+        <StbColumn id="4" guid="787e9bc6871d4bfea98203b0adc005e1" name="1C4" id_node_bottom="72"
+          id_node_top="132" rotate="0.0" id_section="4" kind_structure="S" offset_bottom_X="0.0"
+          offset_bottom_Y="0.0" offset_top_X="0.0" offset_top_Y="0.0" condition_bottom="FIX"
+          condition_top="FIX" />
+        <StbColumn id="5" guid="b4ce3f9cc111437f92e6ac27cbce1ad6" name="1C5" id_node_bottom="73"
+          id_node_top="133" rotate="180.0" id_section="5" kind_structure="S" offset_bottom_X="0.0"
+          offset_bottom_Y="0.0" offset_top_X="0.0" offset_top_Y="0.0" condition_bottom="FIX"
+          condition_top="FIX" />
+        <StbColumn id="6" guid="054e9e1f01674fa586353ae6f64e4aca" name="1C6" id_node_bottom="74"
+          id_node_top="134" rotate="0.0" id_section="6" kind_structure="S" offset_bottom_X="0.0"
+          offset_bottom_Y="0.0" offset_top_X="0.0" offset_top_Y="0.0" condition_bottom="FIX"
+          condition_top="FIX" />
+        <StbColumn id="7" guid="ef74b632dffc45918be4796b784defcc" name="1C7" id_node_bottom="75"
+          id_node_top="135" rotate="0.0" id_section="7" kind_structure="S" offset_bottom_X="0.0"
+          offset_bottom_Y="0.0" offset_top_X="0.0" offset_top_Y="0.0" condition_bottom="FIX"
+          condition_top="FIX" />
+        <StbColumn id="8" guid="f796311b31d74894b4219aa357960441" name="1C8" id_node_bottom="76"
+          id_node_top="136" rotate="0.0" id_section="8" kind_structure="S" offset_bottom_X="0.0"
+          offset_bottom_Y="0.0" offset_top_X="0.0" offset_top_Y="0.0" condition_bottom="FIX"
+          condition_top="FIX" />
+        <StbColumn id="9" guid="e35b1b08bd8649dcad3ef8a01c8c305f" name="1C9" id_node_bottom="77"
+          id_node_top="137" rotate="0.0" id_section="9" kind_structure="S" offset_bottom_X="0.0"
+          offset_bottom_Y="0.0" offset_top_X="0.0" offset_top_Y="0.0" condition_bottom="FIX"
+          condition_top="FIX" />
+        <StbColumn id="10" guid="bf3dfb1d649c4b88906c9763cf2ea6e5" name="1C10" id_node_bottom="78"
+          id_node_top="138" rotate="0.0" id_section="10" kind_structure="S" offset_bottom_X="0.0"
+          offset_bottom_Y="0.0" offset_top_X="0.0" offset_top_Y="0.0" condition_bottom="FIX"
+          condition_top="FIX" />
+      </StbColumns>
+      <StbGirders>
+        <StbGirder id="11" guid="dd7f6520cf6f409da7fc8d6f45e34dc6" name="RG1" id_node_start="79"
+          id_node_end="89" id_section="11" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="12" guid="a142ca9d869748e08e6719a2906049e0" name="RG11" id_node_start="89"
+          id_node_end="99" id_section="12" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" condition_start="FIX" condition_end="FIX"
+          haunch_start="1000.0" />
+        <StbGirder id="13" guid="d90808ebba1a4d2eb44bb71e395e247a" name="RG21" id_node_start="99"
+          id_node_end="109" id_section="13" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" condition_start="FIX" condition_end="FIX"
+          haunch_start="1000.0" haunch_end="1000.0" />
+        <StbGirder id="14" guid="56a9c5f8effc4df3a4e09f942715b5eb" name="RG31" id_node_start="109"
+          id_node_end="119" id_section="14" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="15" guid="e4b40e3a41bb457e9318b497a12d332d" name="RG2" id_node_start="80"
+          id_node_end="90" rotate="90.0" id_section="15" kind_structure="S" isFoundation="false"
+          offset_start_X="100.0" offset_start_Y="0.0" offset_start_Z="-50.0" offset_end_X="100.0"
+          offset_end_Y="0.0" offset_end_Z="-50.0" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="16" guid="44d89a938ef14e89b9cbbbaa5dd74b33" name="RG3" id_node_start="81"
+          id_node_end="91" id_section="16" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="17" guid="8e4ccd926a6548438988448bf0c2ef6e" name="RG4" id_node_start="82"
+          id_node_end="92" id_section="17" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="-0.050" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="-0.050" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="18" guid="0db87d1e7d59479eb3e2f6bb4a25b9bf" name="RG5" id_node_start="83"
+          id_node_end="93" id_section="18" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="19" guid="83445c17b3fc430ea9b96d297a0bf561" name="RG6" id_node_start="84"
+          id_node_end="94" id_section="19" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="20" guid="1322c1425477401bbe9f74744e356815" name="RG7" id_node_start="85"
+          id_node_end="95" rotate="90.0" id_section="20" kind_structure="S" isFoundation="false"
+          offset_start_X="100.0" offset_start_Y="0.0" offset_start_Z="-40.0" offset_end_X="100.0"
+          offset_end_Y="0.0" offset_end_Z="-40.0" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="21" guid="4b10491762614cc3ba423392be72cd2d" name="RG8" id_node_start="86"
+          id_node_end="96" rotate="90.0" id_section="21" kind_structure="S" isFoundation="false"
+          offset_start_X="100.0" offset_start_Y="0.0" offset_start_Z="-80.0" offset_end_X="100.0"
+          offset_end_Y="0.0" offset_end_Z="-80.0" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="22" guid="c38f678ce026468082acda7d2f781455" name="CG21" id_node_start="120"
+          id_node_end="145" id_section="22" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" />
+        <StbGirder id="23" guid="92f7b94d7b7649ceabb26405a30b75a2" name="CG11" id_node_start="110"
+          id_node_end="144" id_section="23" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" haunch_start="1000.0" />
+        <StbGirder id="24" guid="39523f51bab249419edfec49da2b4b2a" name="CG5" id_node_start="104"
+          id_node_end="143" id_section="24" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" />
+        <StbGirder id="25" guid="1209498b8c734ae598e8f68af4444dcb" name="CG4" id_node_start="103"
+          id_node_end="142" id_section="25" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" />
+        <StbGirder id="26" guid="5695d284d99e4232b6bb45b36170f181" name="CG3" id_node_start="102"
+          id_node_end="141" id_section="26" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="-0.050" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="-0.050" />
+        <StbGirder id="27" guid="a33960e8b92240a888915d6358540264" name="CG2" id_node_start="101"
+          id_node_end="140" id_section="27" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" />
+        <StbGirder id="28" guid="cc8398280022485e897ddafb25efcfe5" name="CG1" id_node_start="100"
+          id_node_end="139" id_section="28" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" />
+      </StbGirders>
+      <StbBeams>
+        <StbBeam id="29" guid="d0b4faac5c01401aab1dfce21cf52967" name="B1" id_node_start="146"
+          id_node_end="147" id_section="29" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" />
+        <StbBeam id="30" guid="1f06d6c480054f59a9a397a7844dfbfd" name="B2" id_node_start="148"
+          id_node_end="149" rotate="90.0" id_section="30" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="-100.0" offset_start_Z="-100.0" offset_end_X="0.0"
+          offset_end_Y="-100.0" offset_end_Z="-100.0" />
+        <StbBeam id="31" guid="f09342ba5b9c450093d2f8001088c10f" name="B3" id_node_start="150"
+          id_node_end="151" id_section="31" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" />
+        <StbBeam id="32" guid="6ca17bbbcb3b458d9f0c1071db58a4cd" name="B4" id_node_start="152"
+          id_node_end="153" id_section="32" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" />
+        <StbBeam id="33" guid="deadf16eaacc4156a6428ca6b386a3bf" name="B5" id_node_start="154"
+          id_node_end="155" id_section="33" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" />
+        <StbBeam id="34" guid="97bad2cbddaf47579d08fe2b149c4b32" name="B6" id_node_start="156"
+          id_node_end="157" id_section="34" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0"
+          offset_end_Y="0.0" offset_end_Z="0.0" />
+        <StbBeam id="35" guid="9ff984b792fc4861a882dae2d01dcdbc" name="B7" id_node_start="158"
+          id_node_end="159" rotate="90.0" id_section="35" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="-100.0" offset_start_Z="-100.0" offset_end_X="0.0"
+          offset_end_Y="-100.0" offset_end_Z="-100.0" />
+        <StbBeam id="36" guid="41e033773efa40599caf44fbd40657ca" name="B8" id_node_start="160"
+          id_node_end="161" rotate="90.0" id_section="36" kind_structure="S" isFoundation="false"
+          offset_start_X="0.0" offset_start_Y="-100.0" offset_start_Z="-100.0" offset_end_X="0.0"
+          offset_end_Y="-100.0" offset_end_Z="-100.0" />
+      </StbBeams>
+      <StbBraces>
+        <StbBrace id="37" guid="431cfb06a8c54abf9d5172388bc6544d" name="BR1" id_node_start="51"
+          id_node_end="112" id_section="37" kind_structure="S" offset_start_X="0.0"
+          offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0" offset_end_Y="0.0"
+          offset_end_Z="0.0" feature_brace="TENSION" />
+        <StbBrace id="38" guid="ffc832fa7ca4478f8c0bdf451c5e3b11" name="BR2" id_node_start="52"
+          id_node_end="113" id_section="38" kind_structure="S" offset_start_X="0.0"
+          offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0" offset_end_Y="0.0"
+          offset_end_Z="0.0" feature_brace="TENSION" />
+        <StbBrace id="39" guid="d98a5f82da684aa294a6343a3ffb6124" name="BR3" id_node_start="53"
+          id_node_end="114" id_section="39" kind_structure="S" offset_start_X="0.0"
+          offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0" offset_end_Y="0.0"
+          offset_end_Z="0.0" feature_brace="TENSION" />
+        <StbBrace id="40" guid="17a5c9a3e28f4c68956df80ebf04c043" name="BR4" id_node_start="54"
+          id_node_end="115" id_section="40" kind_structure="S" offset_start_X="0.0"
+          offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0" offset_end_Y="0.0"
+          offset_end_Z="0.0" feature_brace="TENSION" />
+        <StbBrace id="41" guid="ca3bb509c7644cba9c9ff28557c5cfca" name="BR5" id_node_start="55"
+          id_node_end="116" id_section="41" kind_structure="S" offset_start_X="0.0"
+          offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0" offset_end_Y="0.0"
+          offset_end_Z="0.0" feature_brace="TENSION" />
+        <StbBrace id="42" guid="bf34c647600245448f3ddacf963c0ea8" name="BR6" id_node_start="56"
+          id_node_end="117" id_section="42" kind_structure="S" offset_start_X="0.0"
+          offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0" offset_end_Y="0.0"
+          offset_end_Z="0.0" feature_brace="TENSION" />
+        <StbBrace id="43" guid="e5e642ac8a5a4a8aa4598fb56fd364a9" name="BR7" id_node_start="57"
+          id_node_end="118" id_section="43" kind_structure="S" offset_start_X="0.0"
+          offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0" offset_end_Y="0.0"
+          offset_end_Z="0.0" feature_brace="TENSION" />
+        <StbBrace id="44" guid="e81a773da92b4ef6827af3d76e3c10cb" name="BR8" id_node_start="61"
+          id_node_end="122" id_section="44" kind_structure="S" offset_start_X="0.0"
+          offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0" offset_end_Y="0.0"
+          offset_end_Z="0.0" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="45" guid="624482e9580d4c3da011191fa0de3ca0" name="BR9" id_node_start="62"
+          id_node_end="123" id_section="45" kind_structure="S" offset_start_X="0.0"
+          offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0" offset_end_Y="0.0"
+          offset_end_Z="0.0" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="46" guid="8abac02b45dc4dd0a9c53fefaca4e452" name="BR10" id_node_start="63"
+          id_node_end="124" id_section="46" kind_structure="S" offset_start_X="0.0"
+          offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0" offset_end_Y="0.0"
+          offset_end_Z="0.0" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="47" guid="e386732273974379b1e24f0c78cc9c74" name="BR11" id_node_start="64"
+          id_node_end="125" id_section="47" kind_structure="S" offset_start_X="0.0"
+          offset_start_Y="0.0" offset_start_Z="0.0" offset_end_X="0.0" offset_end_Y="0.0"
+          offset_end_Z="0.0" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="48" guid="b6e42247170346438cdae8eee119a1bf" name="SB1" id_node_start="101"
+          id_node_end="112" id_section="48" kind_structure="S" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="49" guid="58c30e6ac974439dab04854b90cd9e1e" name="SB2" id_node_start="102"
+          id_node_end="113" id_section="49" kind_structure="S" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="50" guid="81d2673f0b9742468b0a0c8a432a5482" name="SB3" id_node_start="103"
+          id_node_end="114" id_section="50" kind_structure="S" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="51" guid="b407870b5bee4c63a87ca28a9bea8d7e" name="SB4" id_node_start="104"
+          id_node_end="115" id_section="51" kind_structure="S" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="52" guid="13b93a78eda7439caafb1fc3c7a64de4" name="SB5" id_node_start="105"
+          id_node_end="116" id_section="52" kind_structure="S" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="53" guid="79c4cbbb2596402f86fab73893f628a9" name="SB6" id_node_start="106"
+          id_node_end="117" id_section="53" kind_structure="S" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="54" guid="d382ad184c374c1e92399aa69c63abb1" name="SB7" id_node_start="107"
+          id_node_end="118" id_section="54" kind_structure="S" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="55" guid="867f551f559a450b846b311a6353dd72" name="SB8" id_node_start="111"
+          id_node_end="122" id_section="55" kind_structure="S" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="56" guid="d64c0ec576aa4f17bf4f62dffec056c7" name="SB9" id_node_start="112"
+          id_node_end="123" id_section="56" kind_structure="S" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="57" guid="cc1bd6ec8f7c48d19cde67daa75e4fa9" name="SB10" id_node_start="113"
+          id_node_end="124" id_section="57" kind_structure="S" feature_brace="TENSIONANDCOMPRESSION" />
+      </StbBraces>
+    </StbMembers>
+    <StbSections>
+      <StbSecColumn_S id="1" guid="010b4c468b844ddfbf43c798879f4064" name="C1" floor="1"
+        kind_column="COLUMN" isReferenceDirection="false">
+        <StbSecSteelFigureColumn_S base_type="NONE">
+          <StbSecSteelColumn_S_Same shape="H-400x200x8x13x13" strength_main="SN400B" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="2" guid="7709d903056d40a1a0dc7afffc694dab" name="C2" floor="1"
+        kind_column="COLUMN" isReferenceDirection="true">
+        <StbSecSteelFigureColumn_S base_type="NONE">
+          <StbSecSteelColumn_S_Same shape="H-400x200x8x13x13" strength_main="SN400B" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="3" guid="a89a31b582ec4bd69784b5863bd83b99" name="C3" floor="1"
+        kind_column="COLUMN" isReferenceDirection="false">
+        <StbSecSteelFigureColumn_S base_type="NONE">
+          <StbSecSteelColumn_S_Same shape="□-400x400x9x22.5" strength_main="BCR295" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="4" guid="ed7aa0c94a7c407d8a94c284bf7b8216" name="C4" floor="1"
+        kind_column="COLUMN" isReferenceDirection="true">
+        <StbSecSteelFigureColumn_S base_type="NONE">
+          <StbSecSteelColumn_S_Same shape="○-406.4x9.5" strength_main="SN400B" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="5" guid="08efe56c2e6140c989d7dabac4593717" name="C5" floor="1"
+        kind_column="COLUMN" isReferenceDirection="false">
+        <StbSecSteelFigureColumn_S base_type="NONE">
+          <StbSecSteelColumn_S_Same shape="[-300x90x9x13x14x7" strength_main="SN400B" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="6" guid="43d7293436224a819f0b59717550af5f" name="C6" floor="1"
+        kind_column="COLUMN" isReferenceDirection="false">
+        <StbSecSteelFigureColumn_S base_type="NONE">
+          <StbSecSteelColumn_S_Same shape="2[-300x90x9x13x14x7" strength_main="SN400B" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="7" guid="c1c922e730044b029b65cfbdebf7fbcb" name="C7" floor="1"
+        kind_column="COLUMN" isReferenceDirection="false">
+        <StbSecSteelFigureColumn_S base_type="NONE">
+          <StbSecSteelColumn_S_Same shape="2[(表)-300x90x9x13x14x7" strength_main="SN400B" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="8" guid="b9b0c8fcc8da4d5c8ebe884e353a1bb8" name="C8" floor="1"
+        kind_column="COLUMN" isReferenceDirection="true">
+        <StbSecSteelFigureColumn_S base_type="NONE">
+          <StbSecSteelColumn_S_Same shape="[-300x90x9x13x14x7" strength_main="SN400B" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="9" guid="dfe41fe3051849c7b6e282a7e504e380" name="C9" floor="1"
+        kind_column="COLUMN" isReferenceDirection="true">
+        <StbSecSteelFigureColumn_S base_type="NONE">
+          <StbSecSteelColumn_S_Same shape="2[-300x90x9x13x14x7" strength_main="SN400B" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="10" guid="0f7edf4a2aa447e2becfb91b87710c7a" name="C10" floor="1"
+        kind_column="COLUMN" isReferenceDirection="true">
+        <StbSecSteelFigureColumn_S base_type="NONE">
+          <StbSecSteelColumn_S_Same shape="2[(表)-300x90x9x13x14x7" strength_main="SN400B" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecBeam_S id="11" guid="cb0c01b7fec949238df0754c5e6e4c6a" name="G1" floor="R"
+        kind_beam="GIRDER" isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="H-200x100x5.5x8x8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="15" guid="01ff7a4f7ce746dcb441a7078fd4e249" name="G2" floor="R"
+        kind_beam="GIRDER" isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="H-200x100x5.5x8x8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="16" guid="315b151465094b988bbbb109b797b40a" name="G3" floor="R"
+        kind_beam="GIRDER" isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="□-200x200x6x15" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="17" guid="86d1043979e64170b47eb91410c5fdd6" name="G4" floor="R"
+        kind_beam="GIRDER" isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="○-216.3x5.8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="18" guid="63e806972397422a8ce9873e936f531f" name="G5" floor="R"
+        kind_beam="GIRDER" isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="[-200x80x7.5x11x12x6" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="19" guid="5dd3584fbc8d4810b40f279a1b173be5" name="G6" floor="R"
+        kind_beam="GIRDER" isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="2[-200x80x7.5x11x12x6" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="20" guid="193615dbd72f47429da2d4e64e2d159a" name="G7" floor="R"
+        kind_beam="GIRDER" isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="[-200x80x7.5x11x12x6" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="21" guid="cf37d1cf446d436caa26f2b26a39090d" name="G8" floor="R"
+        kind_beam="GIRDER" isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="2[-200x80x7.5x11x12x6" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="12" guid="6ab1eded4f854718b0e06fb8c0c5231a" name="G11" floor="R"
+        kind_beam="GIRDER" isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Haunch pos="START" shape="H-250x125x6x9x8" strength_main="SN400B" />
+          <StbSecSteelBeam_S_Haunch pos="CENTER" shape="H-200x100x5.5x8x8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="13" guid="d482415390d943e895e8f76a43b95728" name="G21" floor="R"
+        kind_beam="GIRDER" isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Haunch pos="START" shape="H-250x125x6x9x8" strength_main="SN400B" />
+          <StbSecSteelBeam_S_Haunch pos="CENTER" shape="H-200x100x5.5x8x8" strength_main="SN400B" />
+          <StbSecSteelBeam_S_Haunch pos="END" shape="H-300x150x6.5x9x13" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="14" guid="cf832401505540cfbdadc049eb284adb" name="G31" floor="R"
+        kind_beam="GIRDER" isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Joint pos="START" shape="H-300x150x6.5x9x13" strength_main="SN400B" />
+          <StbSecSteelBeam_S_Joint pos="CENTER" shape="H-200x100x5.5x8x8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="29" guid="cad0a94a5174473486bca619a518c6c6" name="B1" kind_beam="BEAM"
+        isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="H-200x100x5.5x8x8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="30" guid="2fa5514392334103bde64f03f773289e" name="B2" kind_beam="BEAM"
+        isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="H-200x100x5.5x8x8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="31" guid="4e782299e80a429bad05b049fea98cc3" name="B3" kind_beam="BEAM"
+        isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="□-200x200x6x15" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="32" guid="22105cfedc614703a8f2426e8aed4df0" name="B4" kind_beam="BEAM"
+        isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="○-216.3x5.8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="33" guid="d5d7bcaf190e45bfbad4cff99fe5633c" name="B5" kind_beam="BEAM"
+        isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="[-200x80x7.5x11x12x6" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="34" guid="06fa99d60c3a4705931c40d52aac0acb" name="B6" kind_beam="BEAM"
+        isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="2[-200x80x7.5x11x12x6" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="35" guid="90f25c337597433585c9ee5689a0168e" name="B7" kind_beam="BEAM"
+        isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="[-200x80x7.5x11x12x6" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="36" guid="f11b7c9986c743d5a2fd281c09631f35" name="B8" kind_beam="BEAM"
+        isCanti="false">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="2[-200x80x7.5x11x12x6" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="28" guid="e7956381e0fc40a28daf612680d40e71" name="CG1" kind_beam="GIRDER"
+        isCanti="true" isOutin="true">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="H-200x100x5.5x8x8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="27" guid="ab577dab6b64407389c3bee5d64b9f85" name="CG2" kind_beam="GIRDER"
+        isCanti="true" isOutin="true">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="H-248x124x5x8x8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="26" guid="59b273bf619a4b09883ba8dcc0156a1d" name="CG3" kind_beam="GIRDER"
+        isCanti="true" isOutin="true">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="H-198x99x4.5x7x8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="25" guid="d4c9677a7d634f5c96873ccb33896668" name="CG4" kind_beam="GIRDER"
+        isCanti="true" isOutin="true">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="H-248x124x5x8x8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="24" guid="b20d7fb3bb904707be166daa4b37822e" name="CG5" kind_beam="GIRDER"
+        isCanti="true" isOutin="true">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="H-248x124x5x8x8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="23" guid="fc600a225e844f05aac2632bbe12e40b" name="CG11" kind_beam="GIRDER"
+        isCanti="true" isOutin="true">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Haunch pos="START" shape="H-200x100x5.5x8x8" strength_main="SN400B" />
+          <StbSecSteelBeam_S_Haunch pos="END" shape="H-100x50x5x7x8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="22" guid="45e9260388b44ff7a9fa50a54490c6a5" name="CG21" kind_beam="GIRDER"
+        isCanti="true" isOutin="true">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Taper pos="START" shape="H-200x100x5.5x8x8" strength_main="SN400B" />
+          <StbSecSteelBeam_S_Taper pos="END" shape="H-100x50x5x7x8" strength_main="SN400B" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBrace_S id="37" guid="a97940b6f7ce44f4b1cc818c98431c68" name="BR1"
+        kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="L-100x100x7" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="38" guid="79cd26042f2b4c148cbf9ce5b093dd8a" name="BR2"
+        kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2L-100x100x7" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="39" guid="0380d0b1808d447d83d89e845f699f27" name="BR3"
+        kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2L(並)-100x100x7" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="40" guid="718c6d0acdf84a2381a0c59bcf41df6e" name="BR4"
+        kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="[-100x50x5x7.5" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="41" guid="4117cc9898b244dfa54904d4950f7514" name="BR5"
+        kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2[-100x50x5x7.5" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="42" guid="ecc526d632b34f03935c5ae82d668e86" name="BR6"
+        kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="TB-M20" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="43" guid="74b18cd326444f9eb88fe4374e1cbf04" name="BR7"
+        kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="FB-100x9" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="44" guid="d6145282ece44dd79ca3f92427c3d5b4" name="BR8"
+        kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="H-200x100x5.5x8x8" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="45" guid="a400ab3dcf19482bab09e3ef2e387296" name="BR9"
+        kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="□-200x200x6x15" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="46" guid="b9176061e7564bad9179422aeda3adc2" name="BR10"
+        kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="○-216.3x5.8" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="47" guid="daa7bc0a384245b09d230c8d5a95b954" name="BR11"
+        kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="UB400-054-1(012508)" strength_main="SN400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="48" guid="846c5508068f432fabf9ef9e90cb4277" name="SB1"
+        kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="L-100x100x7" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="49" guid="389cf7e17be64cfe8f5d95efef177ab2" name="SB2"
+        kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2L-100x100x7" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="50" guid="cca4925e342747b79430c8223e375251" name="SB3"
+        kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2L(並)-100x100x7" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="51" guid="05262f03f78947b1a0bbf3c53d2d2d5a" name="SB4"
+        kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="[-100x50x5x7.5" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="52" guid="22f6bbc17a054e7096e501384417f7b8" name="SB5"
+        kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2[-100x50x5x7.5" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="53" guid="e7a5856493d54338a536e52386e3f656" name="SB6"
+        kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="TB-M20" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="54" guid="64de4602364044a2bdf2bc7ba239777c" name="SB7"
+        kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="FB-100x9" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="55" guid="f817cc8d07db4f688ef23626fcc4b155" name="SB8"
+        kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="H-200x100x5.5x8x8" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="56" guid="e13170873a434a07b3e826fa59aba498" name="SB9"
+        kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="□-200x200x6x15" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="57" guid="1461b998408c4009a72953bf277dcb62" name="SB10"
+        kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="○-216.3x5.8" strength_main="SN400B" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecSteel>
+        <StbSecRoll-H name="H-100x50x5x7x8" type="H" A="100" B="50" t1="5" t2="7" r="8" />
+        <StbSecRoll-H name="H-198x99x4.5x7x8" type="H" A="198" B="99" t1="4.5" t2="7" r="8" />
+        <StbSecRoll-H name="H-200x100x5.5x8x8" type="H" A="200" B="100" t1="5.5" t2="8" r="8" />
+        <StbSecRoll-H name="H-248x124x5x8x8" type="H" A="248" B="124" t1="5" t2="8" r="8" />
+        <StbSecRoll-H name="H-250x125x6x9x8" type="H" A="250" B="125" t1="6" t2="9" r="8" />
+        <StbSecRoll-H name="H-300x150x6.5x9x13" type="H" A="300" B="150" t1="6.5" t2="9" r="13" />
+        <StbSecRoll-H name="H-400x200x8x13x13" type="H" A="400" B="200" t1="8" t2="13" r="13" />
+        <StbSecRoll-H name="TB-M20" type="H" A="99" B="99" t1="9" t2="9" r="9" />
+        <StbSecRoll-H name="UB400-054-1(012508)" type="H" A="99" B="99" t1="9" t2="9" r="9" />
+        <StbSecRoll-BOX name="□-200x200x6x15" type="BCR" A="200" B="200" t="6" r="15" />
+        <StbSecRoll-BOX name="□-400x400x9x22.5" type="BCR" A="400" B="400" t="9" r="22.5" />
+        <StbSecPipe name="○-216.3x5.8" D="216.3" t="5.8" />
+        <StbSecPipe name="○-406.4x9.5" D="406.4" t="9.5" />
+        <StbSecRoll-C name="[-200x80x7.5x11x12x6" type="SINGLE" A="200" B="80" t1="7.5" t2="11"
+          r1="12" r2="6" />
+        <StbSecRoll-C name="2[-200x80x7.5x11x12x6" type="BACKTOBACK" A="200" B="80" t1="7.5" t2="11"
+          r1="12" r2="6" />
+        <StbSecRoll-C name="[-300x90x9x13x14x7" type="SINGLE" A="300" B="90" t1="9" t2="13" r1="14"
+          r2="7" />
+        <StbSecRoll-C name="2[-300x90x9x13x14x7" type="BACKTOBACK" A="300" B="90" t1="9" t2="13"
+          r1="14" r2="7" />
+        <StbSecRoll-C name="2[(表)-300x90x9x13x14x7" type="FACETOFACE" A="300" B="90" t1="9" t2="13"
+          r1="14" r2="7" />
+        <StbSecRoll-C name="[-100x50x5x7.5" type="SINGLE" A="100.0" B="50.0" t1="5.0" t2="7.50"
+          r1="0.0" r2="0.0" />
+        <StbSecRoll-C name="2[-100x50x5x7.5" type="BACKTOBACK" A="100.0" B="50.0" t1="5.0" t2="7.50"
+          r1="0.0" r2="0.0" />
+        <StbSecRoll-L name="L-100x100x7" type="SINGLE" A="100.0" B="100.0" t1="7.0" t2="7.0"
+          r1="0.0" r2="0.0" />
+        <StbSecRoll-L name="2L-100x100x7" type="BACKTOBACK" A="100.0" B="100.0" t1="7.0" t2="7.0"
+          r1="0.0" r2="0.0" />
+        <StbSecRoll-L name="2L(並)-100x100x7" type="FACETOFACE" A="100.0" B="100.0" t1="7.0" t2="7.0"
+          r1="0.0" r2="0.0" />
+        <StbSecFlatBar name="FB-100x9" B="100.0" t="9.0" />
+      </StbSecSteel>
+    </StbSections>
+    <StbJoints />
+  </StbModel>
+</ST_BRIDGE>

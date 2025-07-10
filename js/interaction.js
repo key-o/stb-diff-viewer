@@ -41,9 +41,9 @@ export function resetSelection() {
 /**
  * クリックイベント処理関数
  * @param {Event} event - マウスイベント
- * @param {Function} requestRender - 再描画要求関数
+ * @param {Function} scheduleRender - 再描画要求関数
  */
-export function handleObjectClick(event, requestRender) {
+export function processElementSelection(event, scheduleRender) {
   event.preventDefault();
 
   const canvas = document.getElementById("three-canvas");
@@ -139,6 +139,7 @@ export function handleObjectClick(event, requestRender) {
       }
 
       console.log("Highlighted Object:", selectedObject);
+      console.log("UserData:", userData); // デバッグ用
 
       // 情報表示処理 (ハイライト対象のみ)
       const modelSource = userData.modelSource;
@@ -176,8 +177,10 @@ export function handleObjectClick(event, requestRender) {
           idA = userData.elementId;
         }
         if (idA || idB) {
+          console.log(`Calling displayElementInfo for ${elementType}:`, { idA, idB, elementType }); // デバッグ用
           displayElementInfo(idA, idB, elementType);
         } else {
+          console.log(`No valid ID found for ${elementType}, clearing display`); // デバッグ用
           displayElementInfo(null, null, null);
         }
       }
@@ -189,20 +192,20 @@ export function handleObjectClick(event, requestRender) {
   }
 
   // 再描画要求
-  if (requestRender) requestRender();
+  if (scheduleRender) scheduleRender();
 }
 
 /**
  * インタラクションイベントリスナーを設定
- * @param {Function} requestRender - 再描画要求関数
+ * @param {Function} scheduleRender - 再描画要求関数
  */
-export function setupInteractionListeners(requestRender) {
+export function setupInteractionListeners(scheduleRender) {
   const canvasElement = document.getElementById("three-canvas");
   if (canvasElement) {
     canvasElement.addEventListener(
       "click",
       (event) => {
-        handleObjectClick(event, requestRender);
+        processElementSelection(event, scheduleRender);
       },
       false
     );

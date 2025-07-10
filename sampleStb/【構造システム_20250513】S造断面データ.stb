@@ -1,0 +1,1989 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ST_BRIDGE xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.0.2" xmlns="https://www.building-smart.or.jp/dl">
+  <StbCommon guid="415010b838c64835b089c5f3edb76b9c" project_name="Sパターン" app_name="構造モデラー+NBUS7" app_version="2.0.0.6β" strength_concrete="FC24">
+    <StbReinforcementStrengthList>
+      <StbReinforcementStrength D="D10" strength="SD295A" />
+      <StbReinforcementStrength D="D13" strength="SD295A" />
+      <StbReinforcementStrength D="D16" strength="SD295A" />
+      <StbReinforcementStrength D="D19" strength="SD345" />
+      <StbReinforcementStrength D="D22" strength="SD345" />
+      <StbReinforcementStrength D="D25" strength="SD345" />
+      <StbReinforcementStrength D="D29" strength="SD390" />
+      <StbReinforcementStrength D="D32" strength="SD390" />
+      <StbReinforcementStrength D="D35" strength="SD390" />
+      <StbReinforcementStrength D="D38" strength="SD390" />
+      <StbReinforcementStrength D="D41" strength="SD390" />
+      <StbReinforcementStrength D="R9" strength="SR235" />
+      <StbReinforcementStrength D="R13" strength="SR235" />
+      <StbReinforcementStrength D="R16" strength="SR235" />
+      <StbReinforcementStrength D="R19" strength="SR235" />
+      <StbReinforcementStrength D="R22" strength="SR235" />
+      <StbReinforcementStrength D="R25" strength="SR235" />
+      <StbReinforcementStrength D="R28" strength="SR235" />
+      <StbReinforcementStrength D="R32" strength="SR235" />
+    </StbReinforcementStrengthList>
+  </StbCommon>
+  <StbModel>
+    <StbNodes>
+      <StbNode id="1" guid="474d2b12aa1b4820b8d82dc6b0d382b9" X="0" Y="0" Z="0" kind="ON_GRID" />
+      <StbNode id="2" guid="44fab5a09eff4122922af0c672dfd29c" X="6000" Y="0" Z="0" kind="ON_GRID" />
+      <StbNode id="3" guid="5f69d8b678c84fbcaf0dfb2d55a295fc" X="12000" Y="0" Z="0" kind="ON_GRID" />
+      <StbNode id="4" guid="84aebbeac64b4516b3b95883e35305cc" X="18000" Y="0" Z="0" kind="ON_GRID" />
+      <StbNode id="5" guid="69067c69a4b4477a93592b5252d0be17" X="24000" Y="0" Z="0" kind="ON_GRID" />
+      <StbNode id="6" guid="8e5eb8cd56c44898afa9f989db821656" X="30000" Y="0" Z="0" kind="ON_GRID" />
+      <StbNode id="7" guid="61c350b051754dd0b2c12d5ed5bb3d1f" X="36000" Y="0" Z="0" kind="ON_GRID" />
+      <StbNode id="8" guid="b9c7505cd08d4fa7a7b5112061522a27" X="42000" Y="0" Z="0" kind="ON_GRID" />
+      <StbNode id="9" guid="e687b1a6f64a4fa1a57135a8b27bc01c" X="48000" Y="0" Z="0" kind="ON_GRID" />
+      <StbNode id="10" guid="7fef8e83125945bdae5d84b50e6e9761" X="54000" Y="0" Z="0" kind="ON_GRID" />
+      <StbNode id="11" guid="de0ff976fe894f94ac05ab18f1b8f177" X="0" Y="6000" Z="0" kind="ON_GRID" />
+      <StbNode id="12" guid="25371e74dd1a41c8abec4f6d928fbf3b" X="6000" Y="6000" Z="0" kind="ON_GRID" />
+      <StbNode id="13" guid="a46ae8ed18b64f7e94d98fae2dedb5bf" X="12000" Y="6000" Z="0" kind="ON_GRID" />
+      <StbNode id="14" guid="bc3991870bdd434d84e3162495eb3563" X="18000" Y="6000" Z="0" kind="ON_GRID" />
+      <StbNode id="15" guid="36c1cbcfa72942a2b7278b0681c5cf3d" X="24000" Y="6000" Z="0" kind="ON_GRID" />
+      <StbNode id="16" guid="510b7dc833bc4802bd0a51ec4b682291" X="30000" Y="6000" Z="0" kind="ON_GRID" />
+      <StbNode id="17" guid="b885d77dae6848ac869afaee010be81f" X="36000" Y="6000" Z="0" kind="ON_GRID" />
+      <StbNode id="18" guid="0068352723704939871d2686a59813a2" X="42000" Y="6000" Z="0" kind="ON_GRID" />
+      <StbNode id="19" guid="7b4e50dbb7c648af98db544213e64d1c" X="48000" Y="6000" Z="0" kind="ON_GRID" />
+      <StbNode id="20" guid="29bcca99b82f498a91d098448ab2b61c" X="54000" Y="6000" Z="0" kind="ON_GRID" />
+      <StbNode id="21" guid="8469e98a826b4ced818543145b40308a" X="0" Y="12000" Z="0" kind="ON_GRID" />
+      <StbNode id="22" guid="1e40c7caf6d94e54b44597adae79c37b" X="6000" Y="12000" Z="0" kind="ON_GRID" />
+      <StbNode id="23" guid="b76f833b370f4984b8a213cc6bdc5409" X="12000" Y="12000" Z="0" kind="ON_GRID" />
+      <StbNode id="24" guid="eca4d443fc3b4c1d91551bffabe4442a" X="18000" Y="12000" Z="0" kind="ON_GRID" />
+      <StbNode id="25" guid="8b2569bb0f3643c387f0e88d965d4dba" X="24000" Y="12000" Z="0" kind="ON_GRID" />
+      <StbNode id="26" guid="a45b1023a936496a97dc4381b41dd5a2" X="30000" Y="12000" Z="0" kind="ON_GRID" />
+      <StbNode id="27" guid="91d639b2583e4ec196da1110e2e802fe" X="36000" Y="12000" Z="0" kind="ON_GRID" />
+      <StbNode id="28" guid="eb90ab99f21142fdbe560ef79c852f06" X="42000" Y="12000" Z="0" kind="ON_GRID" />
+      <StbNode id="29" guid="c6bba97d9bfe4658818a2e93ff17223a" X="48000" Y="12000" Z="0" kind="ON_GRID" />
+      <StbNode id="30" guid="ce2b942381a04443a8d67c0eed0416b6" X="54000" Y="12000" Z="0" kind="ON_GRID" />
+      <StbNode id="31" guid="e0727ad6a82143e588e930f4377e4858" X="0" Y="18000" Z="0" kind="ON_GRID" />
+      <StbNode id="32" guid="d0e455f0a8504423ab1d4498b7674a4b" X="6000" Y="18000" Z="0" kind="ON_GRID" />
+      <StbNode id="33" guid="f77a02dc9ec141a4835656f44309dd8e" X="12000" Y="18000" Z="0" kind="ON_GRID" />
+      <StbNode id="34" guid="0ba4a0be28744782ae78633f0da6519a" X="18000" Y="18000" Z="0" kind="ON_GRID" />
+      <StbNode id="35" guid="d486fd09f89446dfbc7f117a9f0ec492" X="24000" Y="18000" Z="0" kind="ON_GRID" />
+      <StbNode id="36" guid="f843d5799a214296b40c5413fb223398" X="30000" Y="18000" Z="0" kind="ON_GRID" />
+      <StbNode id="37" guid="d95ac5ea04204a7696a93eafca8f49e2" X="36000" Y="18000" Z="0" kind="ON_GRID" />
+      <StbNode id="38" guid="47580b395ca94adb9030bf09c5a1e700" X="42000" Y="18000" Z="0" kind="ON_GRID" />
+      <StbNode id="39" guid="93b7fa8a65ac499f8dcb239e1f262b1b" X="48000" Y="18000" Z="0" kind="ON_GRID" />
+      <StbNode id="40" guid="212fd9076cf74a8a8477f6af7e4e2038" X="54000" Y="18000" Z="0" kind="ON_GRID" />
+      <StbNode id="41" guid="06b37497af99468eac69c36739b99b7f" X="0" Y="24000" Z="0" kind="ON_GRID" />
+      <StbNode id="42" guid="52aeaeaaeeb64694a38ddabd03a8eaad" X="6000" Y="24000" Z="0" kind="ON_GRID" />
+      <StbNode id="43" guid="67414f2de2c84e5eb74b7f0c2de045dc" X="12000" Y="24000" Z="0" kind="ON_GRID" />
+      <StbNode id="44" guid="de5d9a9a914847308824b6a62a0ebc67" X="18000" Y="24000" Z="0" kind="ON_GRID" />
+      <StbNode id="45" guid="692c3384eb2745e4a9a8a015d0e1c4b4" X="24000" Y="24000" Z="0" kind="ON_GRID" />
+      <StbNode id="46" guid="482d36bdca47414897506ce273eb7c42" X="30000" Y="24000" Z="0" kind="ON_GRID" />
+      <StbNode id="47" guid="afc2d8e8e77c40a68722b69edd9056bf" X="36000" Y="24000" Z="0" kind="ON_GRID" />
+      <StbNode id="48" guid="4f04ddd5a540461895eeaba4c554fb18" X="42000" Y="24000" Z="0" kind="ON_GRID" />
+      <StbNode id="49" guid="59dba850d53547fa8963d8912b16b1e4" X="48000" Y="24000" Z="0" kind="ON_GRID" />
+      <StbNode id="50" guid="5dda2f922aff45fbaf4c42c63c67c4ea" X="54000" Y="24000" Z="0" kind="ON_GRID" />
+      <StbNode id="51" guid="8efab95673874f54aae167a6a64c3597" X="0" Y="30000" Z="0" kind="ON_GRID" />
+      <StbNode id="52" guid="ed31af62791748df8ec98fc456e97d49" X="6000" Y="30000" Z="0" kind="ON_GRID" />
+      <StbNode id="53" guid="8395acdeee7a44e2860fed82107be123" X="12000" Y="30000" Z="0" kind="ON_GRID" />
+      <StbNode id="54" guid="62d3510cc9dd48dea7f0fa4128a8474d" X="18000" Y="30000" Z="0" kind="ON_GRID" />
+      <StbNode id="55" guid="18a2a61f1d8b4389844d2572ed75f864" X="24000" Y="30000" Z="0" kind="ON_GRID" />
+      <StbNode id="56" guid="3a5da7231cfc41a0a9102ac57e4b6435" X="30000" Y="30000" Z="0" kind="ON_GRID" />
+      <StbNode id="57" guid="d726161d37274b96a278d5fc369418a5" X="36000" Y="30000" Z="0" kind="ON_GRID" />
+      <StbNode id="58" guid="c4cce3cc9fd8448086834cacc1ce184f" X="42000" Y="30000" Z="0" kind="ON_GRID" />
+      <StbNode id="59" guid="142de4a7a8d544e9b715d5a49f7d4b64" X="48000" Y="30000" Z="0" kind="ON_GRID" />
+      <StbNode id="60" guid="9f3831f374974954aad9e256f1eb9855" X="54000" Y="30000" Z="0" kind="ON_GRID" />
+      <StbNode id="61" guid="6d27356d86a84998a0f12c6041e70e62" X="0" Y="0" Z="3000" kind="ON_GRID" />
+      <StbNode id="62" guid="d8852cc061f84b059f5542230641aaa1" X="6000" Y="0" Z="3000" kind="ON_GRID" />
+      <StbNode id="63" guid="3bfedaf1d6754f5189ea39dfe99529ad" X="12000" Y="0" Z="3000" kind="ON_GRID" />
+      <StbNode id="64" guid="07a6b9f7c1ee4eb38e1e5546c9f93421" X="18000" Y="0" Z="3000" kind="ON_GRID" />
+      <StbNode id="65" guid="7194ca48375741f987ac166fc2ac4913" X="24000" Y="0" Z="3000" kind="ON_GRID" />
+      <StbNode id="66" guid="7e4e71da6bd7420b81d683f661f751eb" X="30000" Y="0" Z="3000" kind="ON_GRID" />
+      <StbNode id="67" guid="467df0af8d69415aa23a15a49d978d46" X="36000" Y="0" Z="3000" kind="ON_GRID" />
+      <StbNode id="68" guid="8b70c05b2dfe495b90b4962dd49afdd9" X="42000" Y="0" Z="3000" kind="ON_GRID" />
+      <StbNode id="69" guid="191fb59e299a4368bcf46e2d9f222c0b" X="48000" Y="0" Z="3000" kind="ON_GRID" />
+      <StbNode id="70" guid="685eef5606d1474b98e58ba4348016e0" X="54000" Y="0" Z="3000" kind="ON_GRID" />
+      <StbNode id="71" guid="72840fad628b4deab764d0058aa2294f" X="0" Y="6000" Z="3000" kind="ON_GRID" />
+      <StbNode id="72" guid="82052663e5b447108e2d3e43f121b27d" X="6000" Y="6000" Z="3000" kind="ON_GRID" />
+      <StbNode id="73" guid="222f514db83a49fda836aef2a1b483b7" X="12000" Y="6000" Z="3000" kind="ON_GRID" />
+      <StbNode id="74" guid="cd0dfa1f8a4d4cf381070106ce133aaf" X="18000" Y="6000" Z="3000" kind="ON_GRID" />
+      <StbNode id="75" guid="c8b74e19941e47fba5fc926d32996117" X="24000" Y="6000" Z="3000" kind="ON_GRID" />
+      <StbNode id="76" guid="83bd695db50f46f19916e9454867403f" X="30000" Y="6000" Z="3000" kind="ON_GRID" />
+      <StbNode id="77" guid="0f444161952042bfb75a41f9d9a531fe" X="36000" Y="6000" Z="3000" kind="ON_GRID" />
+      <StbNode id="78" guid="deb8020227834e5fbf4d7597d8d41477" X="42000" Y="6000" Z="3000" kind="ON_GRID" />
+      <StbNode id="79" guid="821ea9b55a384e89b8547e862217cfcc" X="48000" Y="6000" Z="3000" kind="ON_GRID" />
+      <StbNode id="80" guid="ac3babc8bb064d33bdc6e22f514d9721" X="54000" Y="6000" Z="3000" kind="ON_GRID" />
+      <StbNode id="81" guid="89b24252b26448bc9679c284c4827d26" X="0" Y="12000" Z="3000" kind="ON_GRID" />
+      <StbNode id="82" guid="efba1fef6ed1434889d72aafeaa961c0" X="6000" Y="12000" Z="3000" kind="ON_GRID" />
+      <StbNode id="83" guid="f85a348f317c44f68462a9321cc62fa2" X="12000" Y="12000" Z="3000" kind="ON_GRID" />
+      <StbNode id="84" guid="11eb1c95c1f44fcb8b75f1eee6ab0973" X="18000" Y="12000" Z="3000" kind="ON_GRID" />
+      <StbNode id="85" guid="ea8629845b94495ba94053c8e019e567" X="24000" Y="12000" Z="3000" kind="ON_GRID" />
+      <StbNode id="86" guid="9ea017741a9c41139423727a26464db7" X="30000" Y="12000" Z="3000" kind="ON_GRID" />
+      <StbNode id="87" guid="120f7f7c398b44388b15c398b4a44279" X="36000" Y="12000" Z="3000" kind="ON_GRID" />
+      <StbNode id="88" guid="b2cd1692e2a241d6a80d6f9b278dbd4a" X="42000" Y="12000" Z="3000" kind="ON_GRID" />
+      <StbNode id="89" guid="7cd51aab28d74979aa359814cf7a2b0d" X="48000" Y="12000" Z="3000" kind="ON_GRID" />
+      <StbNode id="90" guid="a92d8017382f4884956565948998eaed" X="54000" Y="12000" Z="3000" kind="ON_GRID" />
+      <StbNode id="91" guid="11813458d9f04fa5b01f3efe2d224974" X="0" Y="18000" Z="3000" kind="ON_GRID" />
+      <StbNode id="92" guid="af9e866a7cc34299b1fbc0ea44b6be47" X="6000" Y="18000" Z="3000" kind="ON_GRID" />
+      <StbNode id="93" guid="0808707c160543b9bdab02495d3dd286" X="12000" Y="18000" Z="3000" kind="ON_GRID" />
+      <StbNode id="94" guid="fd3fafb7024d49abaa8bfb221a71da3a" X="18000" Y="18000" Z="3000" kind="ON_GRID" />
+      <StbNode id="95" guid="c2f953707e8d4867b626af86ec06d3bf" X="24000" Y="18000" Z="3000" kind="ON_GRID" />
+      <StbNode id="96" guid="436961a48cf7463d8bf5ff878a7ea69d" X="30000" Y="18000" Z="3000" kind="ON_GRID" />
+      <StbNode id="97" guid="cc14a15bff2a411495ae75847b1fb169" X="36000" Y="18000" Z="3000" kind="ON_GRID" />
+      <StbNode id="98" guid="b1d1f664bb1140a8b785032359c6e7db" X="42000" Y="18000" Z="3000" kind="ON_GRID" />
+      <StbNode id="99" guid="fb9e8036c02a4521b9b7e951bb04caf8" X="48000" Y="18000" Z="3000" kind="ON_GRID" />
+      <StbNode id="100" guid="bb99386a74bf4793864770f1fe792665" X="54000" Y="18000" Z="3000" kind="ON_GRID" />
+      <StbNode id="101" guid="46db958be8be4d62ba913de623572cf3" X="0" Y="24000" Z="3000" kind="ON_GRID" />
+      <StbNode id="102" guid="77a2e1c71981464cbe41e1a5627268ce" X="6000" Y="24000" Z="3000" kind="ON_GRID" />
+      <StbNode id="103" guid="29ada5a547824ac583e7ba6907c31a27" X="12000" Y="24000" Z="3000" kind="ON_GRID" />
+      <StbNode id="104" guid="6efb917e0675489b949e37f59cf26f0e" X="18000" Y="24000" Z="3000" kind="ON_GRID" />
+      <StbNode id="105" guid="e2e3957213db46ac81a3c5b0575f7026" X="24000" Y="24000" Z="3000" kind="ON_GRID" />
+      <StbNode id="106" guid="4ec501abce8241ed94ab81dfc727cf79" X="30000" Y="24000" Z="3000" kind="ON_GRID" />
+      <StbNode id="107" guid="d710ca0b4df444e9b80003f3344ec008" X="36000" Y="24000" Z="3000" kind="ON_GRID" />
+      <StbNode id="108" guid="d356f35370574ad3b1ba4fffed7bf562" X="42000" Y="24000" Z="3000" kind="ON_GRID" />
+      <StbNode id="109" guid="19333501e9e4472d9da4095ce74e525e" X="48000" Y="24000" Z="3000" kind="ON_GRID" />
+      <StbNode id="110" guid="44b2f7dc789e48b18a30cb7656a32a7b" X="54000" Y="24000" Z="3000" kind="ON_GRID" />
+      <StbNode id="111" guid="74d95f3ff5ab47468fea43577ed6d869" X="0" Y="30000" Z="3000" kind="ON_GRID" />
+      <StbNode id="112" guid="3fb187d1ad174000b6c42d7402633a41" X="6000" Y="30000" Z="3000" kind="ON_GRID" />
+      <StbNode id="113" guid="2bf16a1f4c7a4523a352ba0607e13deb" X="12000" Y="30000" Z="3000" kind="ON_GRID" />
+      <StbNode id="114" guid="133e92d2c9564a9f983a67e50e5536bf" X="18000" Y="30000" Z="3000" kind="ON_GRID" />
+      <StbNode id="115" guid="b6dcaf0399584af0aed1878d3c418474" X="24000" Y="30000" Z="3000" kind="ON_GRID" />
+      <StbNode id="116" guid="64c4d0cba2f2446cb4b58d282a02e667" X="30000" Y="30000" Z="3000" kind="ON_GRID" />
+      <StbNode id="117" guid="f3b687caa7864fb3855127d94cf3d85b" X="36000" Y="30000" Z="3000" kind="ON_GRID" />
+      <StbNode id="118" guid="2fc14e8baceb4305956b3556215275ab" X="42000" Y="30000" Z="3000" kind="ON_GRID" />
+      <StbNode id="119" guid="aeb1fe60749d4e7eb5201cb64fd1233b" X="48000" Y="30000" Z="3000" kind="ON_GRID" />
+      <StbNode id="120" guid="f2caf721982942fa876b3782c72e43a0" X="54000" Y="30000" Z="3000" kind="ON_GRID" />
+      <StbNode id="121" X="9600" Y="0" Z="3000" kind="ON_GIRDER" id_member="166" />
+      <StbNode id="122" X="9600" Y="6000" Z="3000" kind="ON_GIRDER" id_member="175" />
+      <StbNode id="123" X="13200" Y="0" Z="3000" kind="ON_GIRDER" id_member="167" />
+      <StbNode id="124" X="13200" Y="6000" Z="3000" kind="ON_GIRDER" id_member="176" />
+      <StbNode id="125" X="16800" Y="0" Z="3000" kind="ON_GIRDER" id_member="167" />
+      <StbNode id="126" X="16800" Y="6000" Z="3000" kind="ON_GIRDER" id_member="176" />
+      <StbNode id="127" X="20400" Y="0" Z="3000" kind="ON_GIRDER" id_member="168" />
+      <StbNode id="128" X="20400" Y="6000" Z="3000" kind="ON_GIRDER" id_member="177" />
+      <StbNode id="129" X="33600" Y="0" Z="3000" kind="ON_GIRDER" id_member="170" />
+      <StbNode id="130" X="33600" Y="6000" Z="3000" kind="ON_GIRDER" id_member="179" />
+      <StbNode id="131" X="37200" Y="0" Z="3000" kind="ON_GIRDER" id_member="171" />
+      <StbNode id="132" X="37200" Y="6000" Z="3000" kind="ON_GIRDER" id_member="180" />
+      <StbNode id="133" X="40800" Y="0" Z="3000" kind="ON_GIRDER" id_member="171" />
+      <StbNode id="134" X="40800" Y="6000" Z="3000" kind="ON_GIRDER" id_member="180" />
+      <StbNode id="135" X="44400" Y="0" Z="3000" kind="ON_GIRDER" id_member="172" />
+      <StbNode id="136" X="44400" Y="6000" Z="3000" kind="ON_GIRDER" id_member="181" />
+      <StbNode id="137" X="9600" Y="12000" Z="3000" kind="ON_GIRDER" id_member="184" />
+      <StbNode id="138" X="13200" Y="12000" Z="3000" kind="ON_GIRDER" id_member="185" />
+      <StbNode id="139" X="16800" Y="12000" Z="3000" kind="ON_GIRDER" id_member="185" />
+      <StbNode id="140" X="20400" Y="12000" Z="3000" kind="ON_GIRDER" id_member="186" />
+      <StbNode id="141" X="33600" Y="12000" Z="3000" kind="ON_GIRDER" id_member="188" />
+      <StbNode id="142" X="37200" Y="12000" Z="3000" kind="ON_GIRDER" id_member="189" />
+      <StbNode id="143" X="40800" Y="12000" Z="3000" kind="ON_GIRDER" id_member="189" />
+      <StbNode id="144" X="44400" Y="12000" Z="3000" kind="ON_GIRDER" id_member="190" />
+      <StbNode id="145" X="9600" Y="18000" Z="3000" kind="ON_GIRDER" id_member="193" />
+      <StbNode id="146" X="13200" Y="18000" Z="3000" kind="ON_GIRDER" id_member="194" />
+      <StbNode id="147" X="16800" Y="18000" Z="3000" kind="ON_GIRDER" id_member="194" />
+      <StbNode id="148" X="20400" Y="18000" Z="3000" kind="ON_GIRDER" id_member="195" />
+      <StbNode id="149" X="33600" Y="18000" Z="3000" kind="ON_GIRDER" id_member="197" />
+      <StbNode id="150" X="37200" Y="18000" Z="3000" kind="ON_GIRDER" id_member="198" />
+      <StbNode id="151" X="40800" Y="18000" Z="3000" kind="ON_GIRDER" id_member="198" />
+      <StbNode id="152" X="44400" Y="18000" Z="3000" kind="ON_GIRDER" id_member="199" />
+      <StbNode id="153" X="9600" Y="24000" Z="3000" kind="ON_GIRDER" id_member="202" />
+      <StbNode id="154" X="13200" Y="24000" Z="3000" kind="ON_GIRDER" id_member="203" />
+      <StbNode id="155" X="16800" Y="24000" Z="3000" kind="ON_GIRDER" id_member="203" />
+      <StbNode id="156" X="20400" Y="24000" Z="3000" kind="ON_GIRDER" id_member="204" />
+      <StbNode id="157" X="9600" Y="30000" Z="3000" kind="ON_GIRDER" id_member="211" />
+      <StbNode id="158" X="13200" Y="30000" Z="3000" kind="ON_GIRDER" id_member="212" />
+      <StbNode id="159" X="16800" Y="30000" Z="3000" kind="ON_GIRDER" id_member="212" />
+      <StbNode id="160" X="20400" Y="30000" Z="3000" kind="ON_GIRDER" id_member="213" />
+    </StbNodes>
+    <StbAxes>
+      <StbParallelAxes group_name="X" X="0" Y="0" angle="270">
+        <StbParallelAxis id="101" guid="0539f44139b3431b9e8b02e9b4a221e4" name="X1" distance="0">
+          <StbNodeIdList>
+            <StbNodeId id="1" />
+            <StbNodeId id="11" />
+            <StbNodeId id="21" />
+            <StbNodeId id="31" />
+            <StbNodeId id="41" />
+            <StbNodeId id="51" />
+            <StbNodeId id="61" />
+            <StbNodeId id="71" />
+            <StbNodeId id="81" />
+            <StbNodeId id="91" />
+            <StbNodeId id="101" />
+            <StbNodeId id="111" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="102" guid="f9f1e758eda3499fb83e62a73d551917" name="X2" distance="6000">
+          <StbNodeIdList>
+            <StbNodeId id="2" />
+            <StbNodeId id="12" />
+            <StbNodeId id="22" />
+            <StbNodeId id="32" />
+            <StbNodeId id="42" />
+            <StbNodeId id="52" />
+            <StbNodeId id="62" />
+            <StbNodeId id="72" />
+            <StbNodeId id="82" />
+            <StbNodeId id="92" />
+            <StbNodeId id="102" />
+            <StbNodeId id="112" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="103" guid="3668575c3bd34052a90b16d24d7973b8" name="X3" distance="12000">
+          <StbNodeIdList>
+            <StbNodeId id="3" />
+            <StbNodeId id="13" />
+            <StbNodeId id="23" />
+            <StbNodeId id="33" />
+            <StbNodeId id="43" />
+            <StbNodeId id="53" />
+            <StbNodeId id="63" />
+            <StbNodeId id="73" />
+            <StbNodeId id="83" />
+            <StbNodeId id="93" />
+            <StbNodeId id="103" />
+            <StbNodeId id="113" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="104" guid="072fbdf94b6841f284d92cfb14d1888a" name="X4" distance="18000">
+          <StbNodeIdList>
+            <StbNodeId id="4" />
+            <StbNodeId id="14" />
+            <StbNodeId id="24" />
+            <StbNodeId id="34" />
+            <StbNodeId id="44" />
+            <StbNodeId id="54" />
+            <StbNodeId id="64" />
+            <StbNodeId id="74" />
+            <StbNodeId id="84" />
+            <StbNodeId id="94" />
+            <StbNodeId id="104" />
+            <StbNodeId id="114" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="105" guid="99b3ca5147104cdc8a41f155b2be5fca" name="X5" distance="24000">
+          <StbNodeIdList>
+            <StbNodeId id="5" />
+            <StbNodeId id="15" />
+            <StbNodeId id="25" />
+            <StbNodeId id="35" />
+            <StbNodeId id="45" />
+            <StbNodeId id="55" />
+            <StbNodeId id="65" />
+            <StbNodeId id="75" />
+            <StbNodeId id="85" />
+            <StbNodeId id="95" />
+            <StbNodeId id="105" />
+            <StbNodeId id="115" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="106" guid="0ce2b5edf61443ada04ab8058cd25a68" name="X6" distance="30000">
+          <StbNodeIdList>
+            <StbNodeId id="6" />
+            <StbNodeId id="16" />
+            <StbNodeId id="26" />
+            <StbNodeId id="36" />
+            <StbNodeId id="46" />
+            <StbNodeId id="56" />
+            <StbNodeId id="66" />
+            <StbNodeId id="76" />
+            <StbNodeId id="86" />
+            <StbNodeId id="96" />
+            <StbNodeId id="106" />
+            <StbNodeId id="116" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="107" guid="5afb09421a4f41b7b2deecd6a746f563" name="X7" distance="36000">
+          <StbNodeIdList>
+            <StbNodeId id="7" />
+            <StbNodeId id="17" />
+            <StbNodeId id="27" />
+            <StbNodeId id="37" />
+            <StbNodeId id="47" />
+            <StbNodeId id="57" />
+            <StbNodeId id="67" />
+            <StbNodeId id="77" />
+            <StbNodeId id="87" />
+            <StbNodeId id="97" />
+            <StbNodeId id="107" />
+            <StbNodeId id="117" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="108" guid="80caad0174c04de287da9f3f2137eac5" name="X8" distance="42000">
+          <StbNodeIdList>
+            <StbNodeId id="8" />
+            <StbNodeId id="18" />
+            <StbNodeId id="28" />
+            <StbNodeId id="38" />
+            <StbNodeId id="48" />
+            <StbNodeId id="58" />
+            <StbNodeId id="68" />
+            <StbNodeId id="78" />
+            <StbNodeId id="88" />
+            <StbNodeId id="98" />
+            <StbNodeId id="108" />
+            <StbNodeId id="118" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="109" guid="8ae928bbdb3c4c08952625932430e744" name="X9" distance="48000">
+          <StbNodeIdList>
+            <StbNodeId id="9" />
+            <StbNodeId id="19" />
+            <StbNodeId id="29" />
+            <StbNodeId id="39" />
+            <StbNodeId id="49" />
+            <StbNodeId id="59" />
+            <StbNodeId id="69" />
+            <StbNodeId id="79" />
+            <StbNodeId id="89" />
+            <StbNodeId id="99" />
+            <StbNodeId id="109" />
+            <StbNodeId id="119" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="110" guid="b0b9a730f51f4b3181124dcdbbd51948" name="X10" distance="54000">
+          <StbNodeIdList>
+            <StbNodeId id="10" />
+            <StbNodeId id="20" />
+            <StbNodeId id="30" />
+            <StbNodeId id="40" />
+            <StbNodeId id="50" />
+            <StbNodeId id="60" />
+            <StbNodeId id="70" />
+            <StbNodeId id="80" />
+            <StbNodeId id="90" />
+            <StbNodeId id="100" />
+            <StbNodeId id="110" />
+            <StbNodeId id="120" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+      </StbParallelAxes>
+      <StbParallelAxes group_name="Y" X="0" Y="0" angle="0">
+        <StbParallelAxis id="1" guid="1747e67db221454090d22ba0c6298598" name="Y1" distance="0">
+          <StbNodeIdList>
+            <StbNodeId id="1" />
+            <StbNodeId id="2" />
+            <StbNodeId id="3" />
+            <StbNodeId id="4" />
+            <StbNodeId id="5" />
+            <StbNodeId id="6" />
+            <StbNodeId id="7" />
+            <StbNodeId id="8" />
+            <StbNodeId id="9" />
+            <StbNodeId id="10" />
+            <StbNodeId id="61" />
+            <StbNodeId id="62" />
+            <StbNodeId id="63" />
+            <StbNodeId id="64" />
+            <StbNodeId id="65" />
+            <StbNodeId id="66" />
+            <StbNodeId id="67" />
+            <StbNodeId id="68" />
+            <StbNodeId id="69" />
+            <StbNodeId id="70" />
+            <StbNodeId id="121" />
+            <StbNodeId id="123" />
+            <StbNodeId id="125" />
+            <StbNodeId id="127" />
+            <StbNodeId id="129" />
+            <StbNodeId id="131" />
+            <StbNodeId id="133" />
+            <StbNodeId id="135" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="2" guid="bba5be7d4da641e4a89aec0ca029446a" name="Y2" distance="6000">
+          <StbNodeIdList>
+            <StbNodeId id="11" />
+            <StbNodeId id="12" />
+            <StbNodeId id="13" />
+            <StbNodeId id="14" />
+            <StbNodeId id="15" />
+            <StbNodeId id="16" />
+            <StbNodeId id="17" />
+            <StbNodeId id="18" />
+            <StbNodeId id="19" />
+            <StbNodeId id="20" />
+            <StbNodeId id="71" />
+            <StbNodeId id="72" />
+            <StbNodeId id="73" />
+            <StbNodeId id="74" />
+            <StbNodeId id="75" />
+            <StbNodeId id="76" />
+            <StbNodeId id="77" />
+            <StbNodeId id="78" />
+            <StbNodeId id="79" />
+            <StbNodeId id="80" />
+            <StbNodeId id="122" />
+            <StbNodeId id="124" />
+            <StbNodeId id="126" />
+            <StbNodeId id="128" />
+            <StbNodeId id="130" />
+            <StbNodeId id="132" />
+            <StbNodeId id="134" />
+            <StbNodeId id="136" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="3" guid="fce826c40c03432db302440577fb48d1" name="Y3" distance="12000">
+          <StbNodeIdList>
+            <StbNodeId id="21" />
+            <StbNodeId id="22" />
+            <StbNodeId id="23" />
+            <StbNodeId id="24" />
+            <StbNodeId id="25" />
+            <StbNodeId id="26" />
+            <StbNodeId id="27" />
+            <StbNodeId id="28" />
+            <StbNodeId id="29" />
+            <StbNodeId id="30" />
+            <StbNodeId id="81" />
+            <StbNodeId id="82" />
+            <StbNodeId id="83" />
+            <StbNodeId id="84" />
+            <StbNodeId id="85" />
+            <StbNodeId id="86" />
+            <StbNodeId id="87" />
+            <StbNodeId id="88" />
+            <StbNodeId id="89" />
+            <StbNodeId id="90" />
+            <StbNodeId id="137" />
+            <StbNodeId id="138" />
+            <StbNodeId id="139" />
+            <StbNodeId id="140" />
+            <StbNodeId id="141" />
+            <StbNodeId id="142" />
+            <StbNodeId id="143" />
+            <StbNodeId id="144" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="4" guid="259997110da54441bbbf9aa13c9de04e" name="Y4" distance="18000">
+          <StbNodeIdList>
+            <StbNodeId id="31" />
+            <StbNodeId id="32" />
+            <StbNodeId id="33" />
+            <StbNodeId id="34" />
+            <StbNodeId id="35" />
+            <StbNodeId id="36" />
+            <StbNodeId id="37" />
+            <StbNodeId id="38" />
+            <StbNodeId id="39" />
+            <StbNodeId id="40" />
+            <StbNodeId id="91" />
+            <StbNodeId id="92" />
+            <StbNodeId id="93" />
+            <StbNodeId id="94" />
+            <StbNodeId id="95" />
+            <StbNodeId id="96" />
+            <StbNodeId id="97" />
+            <StbNodeId id="98" />
+            <StbNodeId id="99" />
+            <StbNodeId id="100" />
+            <StbNodeId id="145" />
+            <StbNodeId id="146" />
+            <StbNodeId id="147" />
+            <StbNodeId id="148" />
+            <StbNodeId id="149" />
+            <StbNodeId id="150" />
+            <StbNodeId id="151" />
+            <StbNodeId id="152" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="5" guid="6e27d5bf86614227995dfc218832b35a" name="Y5" distance="24000">
+          <StbNodeIdList>
+            <StbNodeId id="41" />
+            <StbNodeId id="42" />
+            <StbNodeId id="43" />
+            <StbNodeId id="44" />
+            <StbNodeId id="45" />
+            <StbNodeId id="46" />
+            <StbNodeId id="47" />
+            <StbNodeId id="48" />
+            <StbNodeId id="49" />
+            <StbNodeId id="50" />
+            <StbNodeId id="101" />
+            <StbNodeId id="102" />
+            <StbNodeId id="103" />
+            <StbNodeId id="104" />
+            <StbNodeId id="105" />
+            <StbNodeId id="106" />
+            <StbNodeId id="107" />
+            <StbNodeId id="108" />
+            <StbNodeId id="109" />
+            <StbNodeId id="110" />
+            <StbNodeId id="153" />
+            <StbNodeId id="154" />
+            <StbNodeId id="155" />
+            <StbNodeId id="156" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+        <StbParallelAxis id="6" guid="9755b113961540cca9fa60bdbbc77055" name="Y6" distance="30000">
+          <StbNodeIdList>
+            <StbNodeId id="51" />
+            <StbNodeId id="52" />
+            <StbNodeId id="53" />
+            <StbNodeId id="54" />
+            <StbNodeId id="55" />
+            <StbNodeId id="56" />
+            <StbNodeId id="57" />
+            <StbNodeId id="58" />
+            <StbNodeId id="59" />
+            <StbNodeId id="60" />
+            <StbNodeId id="111" />
+            <StbNodeId id="112" />
+            <StbNodeId id="113" />
+            <StbNodeId id="114" />
+            <StbNodeId id="115" />
+            <StbNodeId id="116" />
+            <StbNodeId id="117" />
+            <StbNodeId id="118" />
+            <StbNodeId id="119" />
+            <StbNodeId id="120" />
+            <StbNodeId id="157" />
+            <StbNodeId id="158" />
+            <StbNodeId id="159" />
+            <StbNodeId id="160" />
+          </StbNodeIdList>
+        </StbParallelAxis>
+      </StbParallelAxes>
+      <StbDrawingAxes>
+        <StbDrawingLineAxis name="X1" start_X="0" start_Y="-1500" end_X="0" end_Y="31500" />
+        <StbDrawingLineAxis name="X2" start_X="6000" start_Y="-1500" end_X="6000" end_Y="31500" />
+        <StbDrawingLineAxis name="X3" start_X="12000" start_Y="-1500" end_X="12000" end_Y="31500" />
+        <StbDrawingLineAxis name="X4" start_X="18000" start_Y="-1500" end_X="18000" end_Y="31500" />
+        <StbDrawingLineAxis name="X5" start_X="24000" start_Y="-1500" end_X="24000" end_Y="31500" />
+        <StbDrawingLineAxis name="X6" start_X="30000" start_Y="-1500" end_X="30000" end_Y="31500" />
+        <StbDrawingLineAxis name="X7" start_X="36000" start_Y="-1500" end_X="36000" end_Y="31500" />
+        <StbDrawingLineAxis name="X8" start_X="42000" start_Y="-1500" end_X="42000" end_Y="31500" />
+        <StbDrawingLineAxis name="X9" start_X="48000" start_Y="-1500" end_X="48000" end_Y="31500" />
+        <StbDrawingLineAxis name="X10" start_X="54000" start_Y="-1500" end_X="54000" end_Y="31500" />
+        <StbDrawingLineAxis name="Y1" start_X="-1500" start_Y="0" end_X="55500" end_Y="0" />
+        <StbDrawingLineAxis name="Y2" start_X="-1500" start_Y="6000" end_X="55500" end_Y="6000" />
+        <StbDrawingLineAxis name="Y3" start_X="-1500" start_Y="12000" end_X="55500" end_Y="12000" />
+        <StbDrawingLineAxis name="Y4" start_X="-1500" start_Y="18000" end_X="55500" end_Y="18000" />
+        <StbDrawingLineAxis name="Y5" start_X="-1500" start_Y="24000" end_X="55500" end_Y="24000" />
+        <StbDrawingLineAxis name="Y6" start_X="-1500" start_Y="30000" end_X="55500" end_Y="30000" />
+      </StbDrawingAxes>
+    </StbAxes>
+    <StbStories>
+      <StbStory id="201" guid="1bd1361bfb284ed9a7bead13bb444c2a" name="1FL" height="0" kind="GENERAL" strength_concrete="FC21">
+        <StbNodeIdList>
+          <StbNodeId id="1" />
+          <StbNodeId id="2" />
+          <StbNodeId id="3" />
+          <StbNodeId id="4" />
+          <StbNodeId id="5" />
+          <StbNodeId id="6" />
+          <StbNodeId id="7" />
+          <StbNodeId id="8" />
+          <StbNodeId id="9" />
+          <StbNodeId id="10" />
+          <StbNodeId id="11" />
+          <StbNodeId id="12" />
+          <StbNodeId id="13" />
+          <StbNodeId id="14" />
+          <StbNodeId id="15" />
+          <StbNodeId id="16" />
+          <StbNodeId id="17" />
+          <StbNodeId id="18" />
+          <StbNodeId id="19" />
+          <StbNodeId id="20" />
+          <StbNodeId id="21" />
+          <StbNodeId id="22" />
+          <StbNodeId id="23" />
+          <StbNodeId id="24" />
+          <StbNodeId id="25" />
+          <StbNodeId id="26" />
+          <StbNodeId id="27" />
+          <StbNodeId id="28" />
+          <StbNodeId id="29" />
+          <StbNodeId id="30" />
+          <StbNodeId id="31" />
+          <StbNodeId id="32" />
+          <StbNodeId id="33" />
+          <StbNodeId id="34" />
+          <StbNodeId id="35" />
+          <StbNodeId id="36" />
+          <StbNodeId id="37" />
+          <StbNodeId id="38" />
+          <StbNodeId id="39" />
+          <StbNodeId id="40" />
+          <StbNodeId id="41" />
+          <StbNodeId id="42" />
+          <StbNodeId id="43" />
+          <StbNodeId id="44" />
+          <StbNodeId id="45" />
+          <StbNodeId id="46" />
+          <StbNodeId id="47" />
+          <StbNodeId id="48" />
+          <StbNodeId id="49" />
+          <StbNodeId id="50" />
+          <StbNodeId id="51" />
+          <StbNodeId id="52" />
+          <StbNodeId id="53" />
+          <StbNodeId id="54" />
+          <StbNodeId id="55" />
+          <StbNodeId id="56" />
+          <StbNodeId id="57" />
+          <StbNodeId id="58" />
+          <StbNodeId id="59" />
+          <StbNodeId id="60" />
+        </StbNodeIdList>
+      </StbStory>
+      <StbStory id="202" guid="466f5bbf5d114ac6a7c3ce38ac40f342" name="RFL" height="3000" kind="ROOF" strength_concrete="FC21">
+        <StbNodeIdList>
+          <StbNodeId id="61" />
+          <StbNodeId id="62" />
+          <StbNodeId id="63" />
+          <StbNodeId id="64" />
+          <StbNodeId id="65" />
+          <StbNodeId id="66" />
+          <StbNodeId id="67" />
+          <StbNodeId id="68" />
+          <StbNodeId id="69" />
+          <StbNodeId id="70" />
+          <StbNodeId id="71" />
+          <StbNodeId id="72" />
+          <StbNodeId id="73" />
+          <StbNodeId id="74" />
+          <StbNodeId id="75" />
+          <StbNodeId id="76" />
+          <StbNodeId id="77" />
+          <StbNodeId id="78" />
+          <StbNodeId id="79" />
+          <StbNodeId id="80" />
+          <StbNodeId id="81" />
+          <StbNodeId id="82" />
+          <StbNodeId id="83" />
+          <StbNodeId id="84" />
+          <StbNodeId id="85" />
+          <StbNodeId id="86" />
+          <StbNodeId id="87" />
+          <StbNodeId id="88" />
+          <StbNodeId id="89" />
+          <StbNodeId id="90" />
+          <StbNodeId id="91" />
+          <StbNodeId id="92" />
+          <StbNodeId id="93" />
+          <StbNodeId id="94" />
+          <StbNodeId id="95" />
+          <StbNodeId id="96" />
+          <StbNodeId id="97" />
+          <StbNodeId id="98" />
+          <StbNodeId id="99" />
+          <StbNodeId id="100" />
+          <StbNodeId id="101" />
+          <StbNodeId id="102" />
+          <StbNodeId id="103" />
+          <StbNodeId id="104" />
+          <StbNodeId id="105" />
+          <StbNodeId id="106" />
+          <StbNodeId id="107" />
+          <StbNodeId id="108" />
+          <StbNodeId id="109" />
+          <StbNodeId id="110" />
+          <StbNodeId id="111" />
+          <StbNodeId id="112" />
+          <StbNodeId id="113" />
+          <StbNodeId id="114" />
+          <StbNodeId id="115" />
+          <StbNodeId id="116" />
+          <StbNodeId id="117" />
+          <StbNodeId id="118" />
+          <StbNodeId id="119" />
+          <StbNodeId id="120" />
+          <StbNodeId id="121" />
+          <StbNodeId id="122" />
+          <StbNodeId id="123" />
+          <StbNodeId id="124" />
+          <StbNodeId id="125" />
+          <StbNodeId id="126" />
+          <StbNodeId id="127" />
+          <StbNodeId id="128" />
+          <StbNodeId id="129" />
+          <StbNodeId id="130" />
+          <StbNodeId id="131" />
+          <StbNodeId id="132" />
+          <StbNodeId id="133" />
+          <StbNodeId id="134" />
+          <StbNodeId id="135" />
+          <StbNodeId id="136" />
+          <StbNodeId id="137" />
+          <StbNodeId id="138" />
+          <StbNodeId id="139" />
+          <StbNodeId id="140" />
+          <StbNodeId id="141" />
+          <StbNodeId id="142" />
+          <StbNodeId id="143" />
+          <StbNodeId id="144" />
+          <StbNodeId id="145" />
+          <StbNodeId id="146" />
+          <StbNodeId id="147" />
+          <StbNodeId id="148" />
+          <StbNodeId id="149" />
+          <StbNodeId id="150" />
+          <StbNodeId id="151" />
+          <StbNodeId id="152" />
+          <StbNodeId id="153" />
+          <StbNodeId id="154" />
+          <StbNodeId id="155" />
+          <StbNodeId id="156" />
+          <StbNodeId id="157" />
+          <StbNodeId id="158" />
+          <StbNodeId id="159" />
+          <StbNodeId id="160" />
+        </StbNodeIdList>
+      </StbStory>
+    </StbStories>
+    <StbMembers>
+      <StbColumns>
+        <StbColumn id="1" guid="225e0d385b1e4444ad3ad064b1b1a492" name="1CH1" id_node_bottom="1" id_node_top="61" rotate="90" id_section="1" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="2" guid="6bf77541e6414ced9463e78f32acf278" name="1CBB1" id_node_bottom="2" id_node_top="62" id_section="2" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="3" guid="f0593daaed56409cbc1851aa13830691" name="1CRB1" id_node_bottom="3" id_node_top="63" id_section="3" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="4" guid="df9e5fbbecd84e61ab37384d0452d281" name="1CP1" id_node_bottom="4" id_node_top="64" id_section="4" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="5" guid="80c82e9b65a5425594caf21b9d29bcf0" name="1CFTRB1" id_node_bottom="5" id_node_top="65" id_section="5" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="6" guid="a7ca52ec8746453d9104788f4c49c0a8" name="1CFTP1" id_node_bottom="6" id_node_top="66" id_section="6" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="7" guid="ce04ab478bda4ba99b44c402a76066bf" name="1CFTBB1" id_node_bottom="7" id_node_top="67" id_section="7" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="8" guid="c0c0dc47030e4acead86cdb17ac70423" name="1CLC1" id_node_bottom="8" id_node_top="68" id_section="8" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="9" guid="c0676057f1e54b8a98a01707ec2f10ad" name="1C21LC1" id_node_bottom="9" id_node_top="69" id_section="9" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="10" guid="eeccd2fa0f98407e843993cdbf2f10e5" name="1C22LC1" id_node_bottom="10" id_node_top="70" id_section="10" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="11" guid="839c9f6925c64d9ba930c3b0620d26fb" name="1CH1" id_node_bottom="11" id_node_top="71" rotate="90" id_section="1" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="12" guid="69056453cced4cba8cf5bf7c47783eba" name="1CBB1" id_node_bottom="12" id_node_top="72" id_section="2" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="13" guid="d06e988c5a5a42a7b4553a9c583f5907" name="1CRB1" id_node_bottom="13" id_node_top="73" id_section="3" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="14" guid="de15151f4fe141fa92e044be3dae1500" name="1CP1" id_node_bottom="14" id_node_top="74" id_section="4" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="15" guid="3706844886e74ebcbcd5ac80da923ddd" name="1CFTRB1" id_node_bottom="15" id_node_top="75" id_section="5" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="16" guid="a8e6976959654b09b246d8e587ff52db" name="1CFTP1" id_node_bottom="16" id_node_top="76" id_section="6" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="17" guid="2a2f7260809d483ca56b101070910be6" name="1CFTBB1" id_node_bottom="17" id_node_top="77" id_section="7" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="18" guid="cdef3ba44806454a80485d6f9f577af0" name="1CLC1" id_node_bottom="18" id_node_top="78" id_section="8" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="19" guid="d7663bcaf0c74d3aba732d5cf9b71cb1" name="1C21LC1" id_node_bottom="19" id_node_top="79" id_section="9" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="20" guid="34023cfa3cf3464b9a78cd6f2ac65dac" name="1C22LC1" id_node_bottom="20" id_node_top="80" id_section="10" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="21" guid="937c31fe64ff405891dce0547e9465e0" name="1CH1" id_node_bottom="21" id_node_top="81" rotate="90" id_section="1" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="22" guid="8a00880259564fb19687a0b10af146db" name="1CBB1" id_node_bottom="22" id_node_top="82" id_section="2" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="23" guid="18a653ce8b5a4506bcf3c9e9c8ce40e0" name="1CBB1" id_node_bottom="23" id_node_top="83" id_section="2" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="24" guid="be34ccf2c8784e38bbe3482b20ee0306" name="1CP1" id_node_bottom="24" id_node_top="84" id_section="4" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="25" guid="b97d31df107d49bfad18c8785a86d313" name="1CFTRB1" id_node_bottom="25" id_node_top="85" id_section="5" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="26" guid="8b172438fb57409aaffbdfb5ef212dab" name="1CFTP1" id_node_bottom="26" id_node_top="86" id_section="6" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="27" guid="b5e2c7ceda284327b5599f5aae9acf39" name="1CFTBB1" id_node_bottom="27" id_node_top="87" id_section="7" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="28" guid="ebecabcd64d94925b1874096b0c528fc" name="1CLC1" id_node_bottom="28" id_node_top="88" id_section="8" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="29" guid="e07e62ce8e31467facd83f766b76574d" name="1C21LC1" id_node_bottom="29" id_node_top="89" id_section="9" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="30" guid="b7d02bf2a8da4173bd2efb1ca4782d66" name="1C22LC1" id_node_bottom="30" id_node_top="90" id_section="10" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="31" guid="18fe77c4cf3a4d8390bd45a76f1035b7" name="1CH1" id_node_bottom="31" id_node_top="91" rotate="90" id_section="1" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="32" guid="9b36ea4790e147d580a3382e3709dda9" name="1CBB1" id_node_bottom="32" id_node_top="92" id_section="2" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="33" guid="1041c4008ad2493f9db72bea46fc283c" name="1CRB1" id_node_bottom="33" id_node_top="93" id_section="3" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="34" guid="ba735b3fda0f48eca0d8cabf17cf88cd" name="1CP1" id_node_bottom="34" id_node_top="94" id_section="4" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="35" guid="54c75b740ec8405a80a4532d502faed3" name="1CFTRB1" id_node_bottom="35" id_node_top="95" id_section="5" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="36" guid="6b73bd2dd1294c1da82af67aa88f3c92" name="1CFTP1" id_node_bottom="36" id_node_top="96" id_section="6" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="37" guid="117d0a521aa544e2be7a34f44c386b7e" name="1CFTBB1" id_node_bottom="37" id_node_top="97" id_section="7" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="38" guid="1c3821ee2ef5427c9dd02fabc3aee3e0" name="1CLC1" id_node_bottom="38" id_node_top="98" id_section="8" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="39" guid="dc8d8a7de7e24fa595a80b30b1841551" name="1C21LC1" id_node_bottom="39" id_node_top="99" id_section="9" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="40" guid="9b652dc195a0441ab4a7d6fed5dec74b" name="1C22LC1" id_node_bottom="40" id_node_top="100" id_section="10" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="41" guid="51e5db83a5db4d0c9423002bf2985545" name="1CH2" id_node_bottom="41" id_node_top="101" rotate="90" id_section="11" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="42" guid="8912cabb98fc4374a50f797990741289" name="1CBB2" id_node_bottom="42" id_node_top="102" id_section="12" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="43" guid="266b15e1837541d9ba7f697a5733af51" name="1CRB2" id_node_bottom="43" id_node_top="103" id_section="13" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="44" guid="11c47b85216f44e9967c509db9db2bba" name="1CP2" id_node_bottom="44" id_node_top="104" id_section="14" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="45" guid="b76c728060d248489590e577c593284d" name="1CFTRB2" id_node_bottom="45" id_node_top="105" id_section="15" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="46" guid="77da74773d574416a9ca0db35a9490eb" name="1CFTP2" id_node_bottom="46" id_node_top="106" id_section="16" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="47" guid="f7271c1556c54566baaa213025f40120" name="1CFTBB2" id_node_bottom="47" id_node_top="107" id_section="17" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="48" guid="bdc3781dbca94acaa21811ed90fa75e0" name="1CLC2" id_node_bottom="48" id_node_top="108" id_section="18" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="49" guid="43ec629212dc434e9092da49024116a7" name="1C21LC2" id_node_bottom="49" id_node_top="109" id_section="19" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="50" guid="3fdba45fa0874c9b9e8b02600dd71b3a" name="1C22LC2" id_node_bottom="50" id_node_top="110" id_section="20" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="51" guid="2b9d8ea59a664267ad8e71c8b5a4bfc6" name="1CH2" id_node_bottom="51" id_node_top="111" rotate="90" id_section="11" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="52" guid="48a79f6ca6454b63ac579c12e96b434f" name="1CBB2" id_node_bottom="52" id_node_top="112" id_section="12" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="53" guid="1c81cbd58a754ab8bb33c23cffabdfe4" name="1CRB2" id_node_bottom="53" id_node_top="113" id_section="13" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="54" guid="9f6d01e638ee4a769184cfd5d768ce9e" name="1CP2" id_node_bottom="54" id_node_top="114" id_section="14" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="55" guid="ea9ca1d1fac44fc1af704869102b1238" name="1CFTRB2" id_node_bottom="55" id_node_top="115" id_section="15" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="56" guid="ca34548989e84652b9b987b273c6d880" name="1CFTP2" id_node_bottom="56" id_node_top="116" id_section="16" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="57" guid="c2cb774ea5d0499fb7db5d93836f90ea" name="1CFTBB2" id_node_bottom="57" id_node_top="117" id_section="17" kind_structure="CFT" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="58" guid="72b7e7af5ce74dc0a35153c81b683d16" name="1CLC2" id_node_bottom="58" id_node_top="118" id_section="18" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="59" guid="139aaed69fe54cb5be52506670007c37" name="1C21LC2" id_node_bottom="59" id_node_top="119" id_section="19" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+        <StbColumn id="60" guid="1cb983adb5f54b44b7879b88cb3c9094" name="1C22LC2" id_node_bottom="60" id_node_top="120" id_section="20" kind_structure="S" condition_bottom="FIX" condition_top="FIX" />
+      </StbColumns>
+      <StbGirders>
+        <StbGirder id="61" guid="e5e105bfb88d45a782f791e23e65f01d" name="1FG1" id_node_start="1" id_node_end="2" id_section="21" kind_structure="RC" isFoundation="true" offset_end_X="-225" />
+        <StbGirder id="62" guid="d20beec08c854e6eb4d2e0bd46612b2d" name="1FG1" id_node_start="2" id_node_end="3" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="220" offset_end_X="-225" />
+        <StbGirder id="63" guid="fb5234b97af948d497bc5d4fb745e18b" name="1FG1" id_node_start="3" id_node_end="4" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-225" />
+        <StbGirder id="64" guid="e773e46f43fc4bd4975c5681dd764efc" name="1FG1" id_node_start="4" id_node_end="5" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-225" />
+        <StbGirder id="65" guid="a288efa3ded54966b731cb2fc4f3a018" name="1FG1" id_node_start="5" id_node_end="6" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-225" />
+        <StbGirder id="66" guid="3f30388915a54706b09d6bf5ec645c0c" name="1FG1" id_node_start="6" id_node_end="7" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-125" />
+        <StbGirder id="67" guid="42207d170b5a48268dc824005d5b4e5b" name="1FG1" id_node_start="7" id_node_end="8" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-125" />
+        <StbGirder id="68" guid="9528e7589f134f09a25627b2bb5b575d" name="1FG1" id_node_start="8" id_node_end="9" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-125" />
+        <StbGirder id="69" guid="23bf8421264e4c48a916e8c9f930092b" name="1FG1" id_node_start="9" id_node_end="10" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="125" />
+        <StbGirder id="70" guid="d469d99d2b7749eaae597e3e31b5853e" name="1FG1" id_node_start="11" id_node_end="12" id_section="21" kind_structure="RC" isFoundation="true" offset_end_X="-225" />
+        <StbGirder id="71" guid="b99df9cc5abe44feab63d795ee59159b" name="1FG1" id_node_start="12" id_node_end="13" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="220" offset_end_X="-225" />
+        <StbGirder id="72" guid="8a0dd6cc10fd4b728f8eb4219c2a2db2" name="1FG1" id_node_start="13" id_node_end="14" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-225" />
+        <StbGirder id="73" guid="a0466b73d266469b99cea11dced99d87" name="1FG1" id_node_start="14" id_node_end="15" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-225" />
+        <StbGirder id="74" guid="5070ef215cc24bb18f3dc31ccc5397d5" name="1FG1" id_node_start="15" id_node_end="16" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-225" />
+        <StbGirder id="75" guid="098142f5ba15463aa99f117b1d61d7ae" name="1FG1" id_node_start="16" id_node_end="17" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-125" />
+        <StbGirder id="76" guid="78823c08a6ae4a1d9d7d4c108c360c2b" name="1FG1" id_node_start="17" id_node_end="18" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-125" />
+        <StbGirder id="77" guid="064a2229dc0d4538bf1061df88095956" name="1FG1" id_node_start="18" id_node_end="19" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-125" />
+        <StbGirder id="78" guid="2d22ba579b994c5c81cc31ef96a685b1" name="1FG1" id_node_start="19" id_node_end="20" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="125" />
+        <StbGirder id="79" guid="8eaea71fea07425a8eba7d2a5338924d" name="1FG1" id_node_start="21" id_node_end="22" id_section="21" kind_structure="RC" isFoundation="true" offset_end_X="-225" />
+        <StbGirder id="80" guid="c82097deec884b50910ef20640e1649e" name="1FG1" id_node_start="22" id_node_end="23" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="220" offset_end_X="-225" />
+        <StbGirder id="81" guid="c1eb8007d42848268f0168f30bbb8252" name="1FG1" id_node_start="23" id_node_end="24" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-225" />
+        <StbGirder id="82" guid="691bf2b316cd4263907981b5a9c88371" name="1FG1" id_node_start="24" id_node_end="25" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-225" />
+        <StbGirder id="83" guid="c9ea574710a04454a379b56f07046b21" name="1FG1" id_node_start="25" id_node_end="26" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-225" />
+        <StbGirder id="84" guid="cdc194b7d2244566b7492207e1dcde3b" name="1FG1" id_node_start="26" id_node_end="27" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-125" />
+        <StbGirder id="85" guid="0d6f0bbc57fb4c8cb1ed1e578e226937" name="1FG1" id_node_start="27" id_node_end="28" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-125" />
+        <StbGirder id="86" guid="4ed584f88ed142b09e8ae95866f6ab1d" name="1FG1" id_node_start="28" id_node_end="29" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-125" />
+        <StbGirder id="87" guid="d734331424ed4f01ad6d6d7e26500f2c" name="1FG1" id_node_start="29" id_node_end="30" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="125" />
+        <StbGirder id="88" guid="68a540ff96314dcca6a177dd60b15fff" name="1FG1" id_node_start="31" id_node_end="32" id_section="21" kind_structure="RC" isFoundation="true" offset_end_X="-225" />
+        <StbGirder id="89" guid="28d0b308fba743cfbd723738358308f8" name="1FG1" id_node_start="32" id_node_end="33" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="220" offset_end_X="-225" />
+        <StbGirder id="90" guid="bff9f00eb79d414aa30c49b65b4459df" name="1FG1" id_node_start="33" id_node_end="34" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-225" />
+        <StbGirder id="91" guid="446deb094ad04b238b116b230083127d" name="1FG1" id_node_start="34" id_node_end="35" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-225" />
+        <StbGirder id="92" guid="12c5fb604a58482a96204ff062ce2787" name="1FG1" id_node_start="35" id_node_end="36" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-225" />
+        <StbGirder id="93" guid="2967fd07c85d4cdc8556813ccb1072f3" name="1FG1" id_node_start="36" id_node_end="37" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-125" />
+        <StbGirder id="94" guid="218826f494ff4a7f901bd277cecde383" name="1FG1" id_node_start="37" id_node_end="38" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-125" />
+        <StbGirder id="95" guid="b470c516e45e434daf34168330abb72d" name="1FG1" id_node_start="38" id_node_end="39" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="225" offset_end_X="-125" />
+        <StbGirder id="96" guid="24cc7761a25e4b018c045a920cac5cf9" name="1FG1" id_node_start="39" id_node_end="40" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="125" />
+        <StbGirder id="97" guid="3baa0b3e63fd4917bdf9f225e1579e13" name="1FG1" id_node_start="41" id_node_end="42" id_section="21" kind_structure="RC" isFoundation="true" offset_end_X="-200" />
+        <StbGirder id="98" guid="f0500e4aa5e6416ba743df70c1a2b7f6" name="1FG1" id_node_start="42" id_node_end="43" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="195" offset_end_X="-200" />
+        <StbGirder id="99" guid="88cd8c5007ae4366aa74fe4ea665bd69" name="1FG1" id_node_start="43" id_node_end="44" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="215" offset_end_X="-200" />
+        <StbGirder id="100" guid="7fecab62f9ed4f51bbcb8fb8743f2e97" name="1FG1" id_node_start="44" id_node_end="45" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="200" offset_end_X="-200" />
+        <StbGirder id="101" guid="160c8ca226d94cb8b373a14c7654be20" name="1FG1" id_node_start="45" id_node_end="46" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="200" offset_end_X="-215" />
+        <StbGirder id="102" guid="7535bd8aaa1f497cb0f1a396fdd9f9c4" name="1FG1" id_node_start="46" id_node_end="47" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="200" offset_end_X="-100" />
+        <StbGirder id="103" guid="3f3d623c652a41babaabc42687ec84d7" name="1FG1" id_node_start="47" id_node_end="48" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="200" offset_end_X="-100" />
+        <StbGirder id="104" guid="754eaaa08b4a432181feaea355ea2130" name="1FG1" id_node_start="48" id_node_end="49" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="215" offset_end_X="-100" />
+        <StbGirder id="105" guid="0ad2eba534cb496c9ae1f2722ff20d88" name="1FG1" id_node_start="49" id_node_end="50" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="100" />
+        <StbGirder id="106" guid="395662b6b36c4925ad6e06f1e21cf62a" name="1FG1" id_node_start="51" id_node_end="52" id_section="21" kind_structure="RC" isFoundation="true" offset_end_X="-200" />
+        <StbGirder id="107" guid="5476b9e2a1604ea98a74816039c1fa17" name="1FG1" id_node_start="52" id_node_end="53" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="195" offset_end_X="-200" />
+        <StbGirder id="108" guid="31de75f695bb4b1c89c2d9fd6516b518" name="1FG1" id_node_start="53" id_node_end="54" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="215" offset_end_X="-200" />
+        <StbGirder id="109" guid="afb77591cbb54eea85716df40fe731f2" name="1FG1" id_node_start="54" id_node_end="55" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="200" offset_end_X="-200" />
+        <StbGirder id="110" guid="88e0de9d5ecf40548e83ef0b21804fd3" name="1FG1" id_node_start="55" id_node_end="56" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="200" offset_end_X="-215" />
+        <StbGirder id="111" guid="993cbd074b7942f3a9f083be47b58e14" name="1FG1" id_node_start="56" id_node_end="57" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="200" offset_end_X="-100" />
+        <StbGirder id="112" guid="a7a795d922d44d51b4ae720756c0b15d" name="1FG1" id_node_start="57" id_node_end="58" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="200" offset_end_X="-100" />
+        <StbGirder id="113" guid="76919d4dd9ea4f69b824f25371ba0fdd" name="1FG1" id_node_start="58" id_node_end="59" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="215" offset_end_X="-100" />
+        <StbGirder id="114" guid="bb323bfa95704bba908ec29cb1d9ddb4" name="1FG1" id_node_start="59" id_node_end="60" id_section="21" kind_structure="RC" isFoundation="true" offset_start_X="100" />
+        <StbGirder id="115" guid="e2dd1ac3cc454ac8bec97ca84072422f" name="1FG1" id_node_start="1" id_node_end="11" id_section="21" kind_structure="RC" isFoundation="true" offset_end_Y="-150" />
+        <StbGirder id="116" guid="ea0f41560b1541e384af23a4aeaada58" name="1FG1" id_node_start="11" id_node_end="21" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="150" offset_end_Y="-150" />
+        <StbGirder id="117" guid="e5fa6f37d148446eb22ed25747d4d26f" name="1FG1" id_node_start="21" id_node_end="31" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="150" offset_end_Y="-150" />
+        <StbGirder id="118" guid="3dacd05303274fd6aafe106dcca19dd6" name="1FG1" id_node_start="31" id_node_end="41" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="150" offset_end_Y="-150" />
+        <StbGirder id="119" guid="88e28b9f3651410a8eb0193dab14bba3" name="1FG1" id_node_start="41" id_node_end="51" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="150" />
+        <StbGirder id="120" guid="445a0032d1564574b6ad961ca5af67ef" name="1FG1" id_node_start="2" id_node_end="12" id_section="21" kind_structure="RC" isFoundation="true" offset_end_Y="-200" />
+        <StbGirder id="121" guid="09871a11fdeb44ce9d6aa2c42e5f66fe" name="1FG1" id_node_start="12" id_node_end="22" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="200" offset_end_Y="-200" />
+        <StbGirder id="122" guid="b6990ddaf245441dbc755138a0426a76" name="1FG1" id_node_start="22" id_node_end="32" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="200" offset_end_Y="-200" />
+        <StbGirder id="123" guid="0b1c81aeeb1c456fa0e7f761e72740ec" name="1FG1" id_node_start="32" id_node_end="42" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="200" offset_end_Y="-200" />
+        <StbGirder id="124" guid="46fc43eb0e52478c8f78ef1117c31568" name="1FG1" id_node_start="42" id_node_end="52" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="200" />
+        <StbGirder id="125" guid="9c1381149a014c51b7676fd7f7722691" name="1FG1" id_node_start="3" id_node_end="13" id_section="21" kind_structure="RC" isFoundation="true" offset_end_Y="-200" />
+        <StbGirder id="126" guid="03767a8d7dbe42de91ce4c8dd26b3d87" name="1FG1" id_node_start="13" id_node_end="23" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" offset_end_Y="-225" />
+        <StbGirder id="127" guid="d5b17765759e4a4c8a0bc0cb65d420ff" name="1FG1" id_node_start="23" id_node_end="33" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" offset_end_Y="-200" />
+        <StbGirder id="128" guid="14ce6c494c454ab78c0796313b703ebf" name="1FG1" id_node_start="33" id_node_end="43" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="200" offset_end_Y="-200" />
+        <StbGirder id="129" guid="6b7c2d04668b428d87b920b2e04848a1" name="1FG1" id_node_start="43" id_node_end="53" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" />
+        <StbGirder id="130" guid="a2cf26c5b3a0449fa2b9971414e7db92" name="1FG1" id_node_start="4" id_node_end="14" id_section="21" kind_structure="RC" isFoundation="true" offset_end_Y="-225" />
+        <StbGirder id="131" guid="3301c76f01de400999354e774006bf7d" name="1FG1" id_node_start="14" id_node_end="24" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" offset_end_Y="-225" />
+        <StbGirder id="132" guid="3f9ab5d7fc2348279aaea64cc2934254" name="1FG1" id_node_start="24" id_node_end="34" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" offset_end_Y="-200" />
+        <StbGirder id="133" guid="a40639fa16f44997b66ccdcce71fd9d0" name="1FG1" id_node_start="34" id_node_end="44" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" offset_end_Y="-200" />
+        <StbGirder id="134" guid="1c6968eac804458eaf7363ada14a2a1a" name="1FG1" id_node_start="44" id_node_end="54" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" />
+        <StbGirder id="135" guid="5c4e7a5df6544d3ca219be2d26b7be5d" name="1FG1" id_node_start="5" id_node_end="15" id_section="21" kind_structure="RC" isFoundation="true" offset_end_Y="-225" />
+        <StbGirder id="136" guid="02867f8bc6a24614954ec348d6f05e15" name="1FG1" id_node_start="15" id_node_end="25" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" offset_end_Y="-225" />
+        <StbGirder id="137" guid="be8774c217f9447e900cab1d926d7773" name="1FG1" id_node_start="25" id_node_end="35" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" offset_end_Y="-200" />
+        <StbGirder id="138" guid="3f17441b7e754c888609f979ca6a8586" name="1FG1" id_node_start="35" id_node_end="45" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" offset_end_Y="-200" />
+        <StbGirder id="139" guid="235761dbfb444d77a554be85d3985c86" name="1FG1" id_node_start="45" id_node_end="55" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" />
+        <StbGirder id="140" guid="cde51a5637584a499a06a35bb3bde77f" name="1FG1" id_node_start="6" id_node_end="16" id_section="21" kind_structure="RC" isFoundation="true" offset_end_Y="-225" />
+        <StbGirder id="141" guid="ccf3aa20a44d4db0b7811690559b5e92" name="1FG1" id_node_start="16" id_node_end="26" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" offset_end_Y="-225" />
+        <StbGirder id="142" guid="d2d90bcd98e545fda0d8557fe20e5830" name="1FG1" id_node_start="26" id_node_end="36" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" offset_end_Y="-200" />
+        <StbGirder id="143" guid="4a4d04e709094b0a99afc4e74d8425bc" name="1FG1" id_node_start="36" id_node_end="46" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" offset_end_Y="-200" />
+        <StbGirder id="144" guid="d9547a4306f043238206b5a3359a7906" name="1FG1" id_node_start="46" id_node_end="56" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="225" />
+        <StbGirder id="145" guid="0293f30b489e419eaf5cf80f89d9b159" name="1FG1" id_node_start="7" id_node_end="17" id_section="21" kind_structure="RC" isFoundation="true" offset_end_Y="-200" />
+        <StbGirder id="146" guid="6b12f4ae190640d5b5bb930dca797072" name="1FG1" id_node_start="17" id_node_end="27" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="200" offset_end_Y="-200" />
+        <StbGirder id="147" guid="0591e949d0a04346979bbd00854ba2dc" name="1FG1" id_node_start="27" id_node_end="37" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="200" offset_end_Y="-200" />
+        <StbGirder id="148" guid="7deab17f0f4047ae85aeb9ee85bc152c" name="1FG1" id_node_start="37" id_node_end="47" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="200" offset_end_Y="-200" />
+        <StbGirder id="149" guid="ebb33d784f0f4fe3810289737c8ae991" name="1FG1" id_node_start="47" id_node_end="57" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="200" />
+        <StbGirder id="150" guid="ade4706b06bd4885b76165ecda09151a" name="1FG1" id_node_start="8" id_node_end="18" id_section="21" kind_structure="RC" isFoundation="true" offset_end_Y="-37.5" />
+        <StbGirder id="151" guid="563f63ff13c3413b9c24325aa83b97ca" name="1FG1" id_node_start="18" id_node_end="28" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="37.5" offset_end_Y="-37.5" />
+        <StbGirder id="152" guid="45afbf85eb4347eb84467e8fee77e6b4" name="1FG1" id_node_start="28" id_node_end="38" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="37.5" offset_end_Y="-37.5" />
+        <StbGirder id="153" guid="600234005ab049cc933e3a05e399863b" name="1FG1" id_node_start="38" id_node_end="48" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="37.5" offset_end_Y="-37.5" />
+        <StbGirder id="154" guid="281b35c90be5424aa14c4ed11bc3052a" name="1FG1" id_node_start="48" id_node_end="58" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="37.5" />
+        <StbGirder id="155" guid="66b862ba41a64f19b2e673e38441e85f" name="1FG1" id_node_start="9" id_node_end="19" id_section="21" kind_structure="RC" isFoundation="true" offset_end_Y="-75" />
+        <StbGirder id="156" guid="e3fc0c0f40284c7c85ee5b30a9a0e8ff" name="1FG1" id_node_start="19" id_node_end="29" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="75" offset_end_Y="-75" />
+        <StbGirder id="157" guid="5a1461e7101a4da492b16f7d47a7c40a" name="1FG1" id_node_start="29" id_node_end="39" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="75" offset_end_Y="-75" />
+        <StbGirder id="158" guid="c74f912486044ddda4025f2f5d7e312a" name="1FG1" id_node_start="39" id_node_end="49" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="75" offset_end_Y="-75" />
+        <StbGirder id="159" guid="d433d349387a4beca9128659f26fcdb1" name="1FG1" id_node_start="49" id_node_end="59" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="75" />
+        <StbGirder id="160" guid="e648e84572d74044a1c978d725db352d" name="1FG1" id_node_start="10" id_node_end="20" id_section="21" kind_structure="RC" isFoundation="true" offset_end_Y="-75" />
+        <StbGirder id="161" guid="8b58940b5c1c445789b08a49f95acd21" name="1FG1" id_node_start="20" id_node_end="30" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="75" offset_end_Y="-75" />
+        <StbGirder id="162" guid="d3eaab061608429188670c77c2824991" name="1FG1" id_node_start="30" id_node_end="40" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="75" offset_end_Y="-75" />
+        <StbGirder id="163" guid="83449c137b1c4eea972e992e244e1b84" name="1FG1" id_node_start="40" id_node_end="50" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="75" offset_end_Y="-75" />
+        <StbGirder id="164" guid="6320d4c7ebb74322b0cc1190c849fb85" name="1FG1" id_node_start="50" id_node_end="60" id_section="21" kind_structure="RC" isFoundation="true" offset_start_Y="75" />
+        <StbGirder id="165" guid="995392a2f92c419f9430a8703213195e" name="RGH1" id_node_start="61" id_node_end="62" id_section="22" kind_structure="S" isFoundation="false" offset_start_X="220" offset_end_X="-225" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="166" guid="b96ad57a116f4d80b8e56053a463e8a0" name="RGH2" id_node_start="62" id_node_end="63" id_section="23" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" />
+        <StbGirder id="167" guid="6abf927001c34ef788d2a0210dd55b10" name="RGH3" id_node_start="63" id_node_end="64" id_section="24" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" />
+        <StbGirder id="168" guid="34ea472a41984e2d8710079a923c95fa" name="RGH4" id_node_start="64" id_node_end="65" id_section="25" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" joint_start="1200" kind_joint_start="BOLT" />
+        <StbGirder id="169" guid="b8e0d8deedd04b16919fbf6c9b3ec870" name="RGH5" id_node_start="65" id_node_end="66" id_section="26" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="170" guid="aa2ccd0a00ef4f62921aa96af9d7e9b7" name="RGH6" id_node_start="66" id_node_end="67" id_section="27" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="171" guid="282126b2a6a54b8881d9e0483cc98ecc" name="RGH7" id_node_start="67" id_node_end="68" id_section="28" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-125" condition_start="FIX" condition_end="FIX" joint_start="1200" joint_end="1200" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="172" guid="b05e177156664f4ba267735f02125bc3" name="RGH8" id_node_start="68" id_node_end="69" id_section="29" kind_structure="S" isFoundation="false" offset_start_X="125" offset_end_X="-125" condition_start="FIX" condition_end="FIX" joint_start="1200" joint_end="1200" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="173" guid="58ab15296a144560af6438a4284bcc54" name="RGH9" id_node_start="69" id_node_end="70" id_section="30" kind_structure="S" isFoundation="false" offset_start_X="125" offset_end_X="-125" condition_start="FIX" condition_end="FIX" joint_start="1200" joint_end="1200" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="174" guid="129bbb89821b4c109eabc6c9d4b139d4" name="RGC1" id_node_start="71" id_node_end="72" id_section="31" kind_structure="S" isFoundation="false" offset_start_X="220" offset_end_X="-225" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="175" guid="d5778e7d49144aaeb4de65b67414a1e2" name="RGC2" id_node_start="72" id_node_end="73" id_section="32" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" kind_haunch_start="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" />
+        <StbGirder id="176" guid="df037bc17abf4ef8b75588aed2dc200b" name="RGC3" id_node_start="73" id_node_end="74" id_section="33" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" />
+        <StbGirder id="177" guid="48925a8a409f4b69b0e0cc04ecc65bc9" name="RGC4" id_node_start="74" id_node_end="75" id_section="34" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" joint_start="1200" kind_joint_start="BOLT" />
+        <StbGirder id="178" guid="3492360b8aae4796a4a3e7eb5ea615ad" name="RGC5" id_node_start="75" id_node_end="76" id_section="35" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" kind_haunch_start="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="179" guid="2284dba6a8d94f7781f7c2a064e14669" name="RGC6" id_node_start="76" id_node_end="77" id_section="36" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="180" guid="aa575aba08934ecba4eda1e05b157dc7" name="RGC7" id_node_start="77" id_node_end="78" id_section="37" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-125" condition_start="FIX" condition_end="FIX" joint_start="1200" joint_end="1200" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="181" guid="e3d3b8ae1e044df98149ba4e34dc1f49" name="RGC8" id_node_start="78" id_node_end="79" id_section="38" kind_structure="S" isFoundation="false" offset_start_X="125" offset_end_X="-125" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="182" guid="f09c8ae5affa4f0ca3ba98c18a2c1c5e" name="RGC9" id_node_start="79" id_node_end="80" id_section="39" kind_structure="S" isFoundation="false" offset_start_X="125" offset_end_X="-125" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="183" guid="a7a1febc02204dfca1015ba04500b259" name="RG2C1" id_node_start="81" id_node_end="82" id_section="40" kind_structure="S" isFoundation="false" offset_start_X="220" offset_end_X="-225" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="184" guid="99edbf9679dc49d880789181af2fb794" name="RG2C2" id_node_start="82" id_node_end="83" id_section="41" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" kind_haunch_start="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" />
+        <StbGirder id="185" guid="ee1360f467694defaffcd6527c51d83f" name="RG2C3" id_node_start="83" id_node_end="84" id_section="42" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" />
+        <StbGirder id="186" guid="f0df8392a4584f9699869d42f4c39eb0" name="RG2C4" id_node_start="84" id_node_end="85" id_section="43" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" joint_start="1200" kind_joint_start="BOLT" />
+        <StbGirder id="187" guid="636a343b83a941cc82f67675c0645436" name="RG2C5" id_node_start="85" id_node_end="86" id_section="44" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" kind_haunch_start="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="188" guid="69ee1a156607432f917191cef286691b" name="RG2C6" id_node_start="86" id_node_end="87" id_section="45" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="189" guid="4009446839174d3297a546574a794692" name="RG2C7" id_node_start="87" id_node_end="88" id_section="46" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-125" condition_start="FIX" condition_end="FIX" joint_start="1200" joint_end="1200" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="190" guid="62c55de4455e4185826fa0a73ca9a3cb" name="RG2C8" id_node_start="88" id_node_end="89" id_section="47" kind_structure="S" isFoundation="false" offset_start_X="125" offset_end_X="-125" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="191" guid="1a830f2f9f09460bb8c35c01a0241026" name="RG2C9" id_node_start="89" id_node_end="90" id_section="48" kind_structure="S" isFoundation="false" offset_start_X="125" offset_end_X="-125" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="192" guid="90c2476bca48497ea5e4602b4c401c70" name="RGBB1" id_node_start="91" id_node_end="92" id_section="49" kind_structure="S" isFoundation="false" offset_start_X="220" offset_end_X="-225" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="193" guid="91c73a7d032441b2bc674234a66b10b6" name="RGBB2" id_node_start="92" id_node_end="93" id_section="50" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" />
+        <StbGirder id="194" guid="1a371a1891124edaaf7dd5bd4736dedc" name="RGBB3" id_node_start="93" id_node_end="94" id_section="51" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" />
+        <StbGirder id="195" guid="71e95e58eb8c4e9ea7b6fa1f55a5bf8c" name="RGBB4" id_node_start="94" id_node_end="95" id_section="52" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" joint_start="1200" kind_joint_start="BOLT" />
+        <StbGirder id="196" guid="c65f1c2a0a3642d594cd2ffcd0ec2881" name="RGBB5" id_node_start="95" id_node_end="96" id_section="53" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="197" guid="939fbf4d767148708c6bac17304d8d50" name="RGBB6" id_node_start="96" id_node_end="97" id_section="54" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-225" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="198" guid="e0942881e5f2465392c645635daf5aab" name="RGBB7" id_node_start="97" id_node_end="98" id_section="55" kind_structure="S" isFoundation="false" offset_start_X="225" offset_end_X="-125" condition_start="FIX" condition_end="FIX" joint_start="1200" joint_end="1200" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="199" guid="183216b4b07847978cf1cab8792ddf1e" name="RGBB8" id_node_start="98" id_node_end="99" id_section="56" kind_structure="S" isFoundation="false" offset_start_X="125" offset_end_X="-125" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="200" guid="3b780dc38c6a478683dd3d324d32d03e" name="RGBB9" id_node_start="99" id_node_end="100" id_section="57" kind_structure="S" isFoundation="false" offset_start_X="125" offset_end_X="-125" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="201" guid="0ef2fa5e715842df95451bbc67e7485f" name="RGRB1" id_node_start="101" id_node_end="102" id_section="58" kind_structure="S" isFoundation="false" offset_start_X="195" offset_end_X="-215" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="202" guid="2e2de1bf604a4320b4270a64a060361e" name="RGRB2" id_node_start="102" id_node_end="103" id_section="59" kind_structure="S" isFoundation="false" offset_start_X="215" offset_end_X="-200" condition_start="FIX" condition_end="FIX" haunch_start="100" kind_haunch_start="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" />
+        <StbGirder id="203" guid="75c4002c85c644619efb737b9a32ded8" name="RGRB3" id_node_start="103" id_node_end="104" id_section="60" kind_structure="S" isFoundation="false" offset_start_X="200" offset_end_X="-200" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" />
+        <StbGirder id="204" guid="7e7c3cf216104fd8884f4564a30abb98" name="RGRB4" id_node_start="104" id_node_end="105" id_section="61" kind_structure="S" isFoundation="false" offset_start_X="200" offset_end_X="-200" condition_start="FIX" condition_end="FIX" joint_start="1200" kind_joint_start="BOLT" />
+        <StbGirder id="205" guid="d767613b821f4b21a847c14a6effac6b" name="RGRB5" id_node_start="105" id_node_end="106" id_section="62" kind_structure="S" isFoundation="false" offset_start_X="200" offset_end_X="-200" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" kind_haunch_start="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="206" guid="e983d5b66ed34706867df164e66bbda3" name="RGRB6" id_node_start="106" id_node_end="107" id_section="63" kind_structure="S" isFoundation="false" offset_start_X="200" offset_end_X="-215" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="207" guid="8d7115e48ebe40e48b48dc6398bb89a2" name="RGRB7" id_node_start="107" id_node_end="108" id_section="64" kind_structure="S" isFoundation="false" offset_start_X="215" offset_end_X="-100" condition_start="FIX" condition_end="FIX" joint_start="1200" joint_end="1200" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="208" guid="275e6bc0213e422aa38df0f390cf0b7c" name="RGRB8" id_node_start="108" id_node_end="109" id_section="65" kind_structure="S" isFoundation="false" offset_start_X="100" offset_end_X="-100" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="209" guid="1953440f7f4b4c7b89235da7710621b1" name="RGRB9" id_node_start="109" id_node_end="110" id_section="66" kind_structure="S" isFoundation="false" offset_start_X="100" offset_end_X="-100" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_H="BOTH" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="210" guid="b1a064a474a94e5da47e874ed167057b" name="RGLC1" id_node_start="111" id_node_end="112" id_section="67" kind_structure="S" isFoundation="false" offset_start_X="195" offset_end_X="-215" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="211" guid="39a1c1dff19e4fb7a914389f2be5ba54" name="RGLC2" id_node_start="112" id_node_end="113" id_section="68" kind_structure="S" isFoundation="false" offset_start_X="215" offset_end_X="-200" condition_start="FIX" condition_end="FIX" haunch_start="100" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" />
+        <StbGirder id="212" guid="a6db473a0f994b76b18661b98a49a87d" name="RGLC3" id_node_start="113" id_node_end="114" id_section="69" kind_structure="S" isFoundation="false" offset_start_X="200" offset_end_X="-200" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" />
+        <StbGirder id="213" guid="45b2eab85cc640ee8e78b5b09919d2c5" name="RGLC4" id_node_start="114" id_node_end="115" id_section="70" kind_structure="S" isFoundation="false" offset_start_X="200" offset_end_X="-200" condition_start="FIX" condition_end="FIX" joint_start="1200" kind_joint_start="BOLT" />
+        <StbGirder id="214" guid="0c42fbda1b5546838da82346d0e12e27" name="RGLC5" id_node_start="115" id_node_end="116" id_section="71" kind_structure="S" isFoundation="false" offset_start_X="200" offset_end_X="-200" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="215" guid="09908c8e1a334148b621d97a4bc4f7b0" name="RGLC6" id_node_start="116" id_node_end="117" id_section="72" kind_structure="S" isFoundation="false" offset_start_X="200" offset_end_X="-215" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="216" guid="f81718f530ee46a4897b59717e95a78a" name="RGLC7" id_node_start="117" id_node_end="118" id_section="73" kind_structure="S" isFoundation="false" offset_start_X="215" offset_end_X="-100" condition_start="FIX" condition_end="FIX" joint_start="1200" joint_end="1200" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="217" guid="6936bef28ca34e36961517cd3b00795f" name="RGLC8" id_node_start="118" id_node_end="119" id_section="74" kind_structure="S" isFoundation="false" offset_start_X="100" offset_end_X="-100" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="218" guid="7073681c67f2422088f99291ffcbfd90" name="RGLC9" id_node_start="119" id_node_end="120" id_section="75" kind_structure="S" isFoundation="false" offset_start_X="100" offset_end_X="-100" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="219" guid="1ef9776b458e4ac9a208b8a85a01341b" name="RG21LC1" id_node_start="61" id_node_end="71" id_section="76" kind_structure="S" isFoundation="false" offset_start_Y="150" offset_end_Y="-150" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="220" guid="ffb7e8cf4a1c4330af6b00200c0590ee" name="RG21LC2" id_node_start="71" id_node_end="81" id_section="77" kind_structure="S" isFoundation="false" offset_start_Y="150" offset_end_Y="-150" condition_start="FIX" condition_end="FIX" haunch_start="100" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" />
+        <StbGirder id="221" guid="3f4811808140469c92a3a693e8959ddf" name="RG21LC3" id_node_start="81" id_node_end="91" id_section="78" kind_structure="S" isFoundation="false" offset_start_Y="150" offset_end_Y="-150" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" />
+        <StbGirder id="222" guid="ad3ef4a8dcb4451d9379425c535a0879" name="RG21LC4" id_node_start="91" id_node_end="101" id_section="79" kind_structure="S" isFoundation="false" offset_start_Y="150" offset_end_Y="-150" condition_start="FIX" condition_end="FIX" joint_start="1200" kind_joint_start="BOLT" />
+        <StbGirder id="223" guid="3ea7426b97894b4b91c4509de3853494" name="RG21LC5" id_node_start="101" id_node_end="111" id_section="80" kind_structure="S" isFoundation="false" offset_start_Y="150" offset_end_Y="-150" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="224" guid="e31ae208203340d2a679c6a2b2a8260d" name="RG21LC6" id_node_start="62" id_node_end="72" id_section="81" kind_structure="S" isFoundation="false" offset_start_Y="200" offset_end_Y="-200" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="225" guid="564ae4697f3b44bcb4b05dfaeecb2847" name="RG21LC7" id_node_start="72" id_node_end="82" id_section="82" kind_structure="S" isFoundation="false" offset_start_Y="200" offset_end_Y="-200" condition_start="FIX" condition_end="FIX" joint_start="1200" joint_end="1200" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="226" guid="851c5a69af4f4e87b9a79f67f8eb5279" name="RG21LC8" id_node_start="82" id_node_end="92" id_section="83" kind_structure="S" isFoundation="false" offset_start_Y="200" offset_end_Y="-200" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="227" guid="36fb1197a7dc4a6490f96adad7388e52" name="RG21LC9" id_node_start="92" id_node_end="102" id_section="84" kind_structure="S" isFoundation="false" offset_start_Y="200" offset_end_Y="-200" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="228" guid="5ce85824950c4841b4771b03c581c1a6" name="RG21LC5" id_node_start="102" id_node_end="112" id_section="80" kind_structure="S" isFoundation="false" offset_start_Y="200" offset_end_Y="-200" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="229" guid="41e4406ab57f45538ec7627239b5309b" name="RGH1" id_node_start="65" id_node_end="75" id_section="22" kind_structure="S" isFoundation="false" offset_start_Y="225" offset_end_Y="-225" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="230" guid="886a914e1de947f18f5d842e8d123ff6" name="RGH1" id_node_start="75" id_node_end="85" id_section="22" kind_structure="S" isFoundation="false" offset_start_Y="225" offset_end_Y="-225" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="231" guid="7301beafa812422588ec04f374b965f5" name="RGH1" id_node_start="85" id_node_end="95" id_section="22" kind_structure="S" isFoundation="false" offset_start_Y="225" offset_end_Y="-225" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="232" guid="d7891c728a5a4993ade2992714324d3b" name="RGH1" id_node_start="95" id_node_end="105" id_section="22" kind_structure="S" isFoundation="false" offset_start_Y="225" offset_end_Y="-200" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="233" guid="de37201f1cc84bb9924b1b29b715a776" name="RGH1" id_node_start="105" id_node_end="115" id_section="22" kind_structure="S" isFoundation="false" offset_start_Y="200" offset_end_Y="-200" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="234" guid="538aa5aee0a24db5b11f77ef0b055842" name="RGH1" id_node_start="66" id_node_end="76" id_section="22" kind_structure="S" isFoundation="false" offset_start_Y="225" offset_end_Y="-225" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="235" guid="349aba721e3143ecbe85cad045bfddbe" name="RGH1" id_node_start="76" id_node_end="86" id_section="22" kind_structure="S" isFoundation="false" offset_start_Y="225" offset_end_Y="-225" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="236" guid="3af0d3bf7ad14184ab97e19e46e818f7" name="RGH1" id_node_start="86" id_node_end="96" id_section="22" kind_structure="S" isFoundation="false" offset_start_Y="225" offset_end_Y="-225" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="237" guid="a69f443a6d4b4a039f2092cdc830d642" name="RGH1" id_node_start="96" id_node_end="106" id_section="22" kind_structure="S" isFoundation="false" offset_start_Y="225" offset_end_Y="-200" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="238" guid="5de4593dc54e42cd9217eecb829c5f24" name="RGH1" id_node_start="106" id_node_end="116" id_section="22" kind_structure="S" isFoundation="false" offset_start_Y="200" offset_end_Y="-200" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="239" guid="7bbccfa92b3e4536baba480f586cfa2b" name="RG22LC6" id_node_start="69" id_node_end="79" id_section="85" kind_structure="S" isFoundation="false" offset_start_Y="75" offset_end_Y="-75" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="240" guid="e3ef06b40fe14bbd96a00685af26a2e9" name="RG22LC7" id_node_start="79" id_node_end="89" id_section="86" kind_structure="S" isFoundation="false" offset_start_Y="75" offset_end_Y="-75" condition_start="FIX" condition_end="FIX" joint_start="1200" joint_end="1200" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="241" guid="b71d9cb218a24d2da8aa4e2ae22d2a00" name="RG22LC8" id_node_start="89" id_node_end="99" id_section="87" kind_structure="S" isFoundation="false" offset_start_Y="75" offset_end_Y="-75" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="242" guid="b740cc5d5b624cf1b2d1317ba07b7626" name="RG22LC9" id_node_start="99" id_node_end="109" id_section="88" kind_structure="S" isFoundation="false" offset_start_Y="75" offset_end_Y="-75" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" joint_start="1200" joint_end="1200" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" kind_joint_end="BOLT" />
+        <StbGirder id="243" guid="9326c4e4470a49ea9830cc1159e47ca4" name="RG22LC5" id_node_start="109" id_node_end="119" id_section="89" kind_structure="S" isFoundation="false" offset_start_Y="75" offset_end_Y="-75" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+        <StbGirder id="244" guid="ba7cd3c8d6144ccb85f0b7ece448b397" name="RG22LC1" id_node_start="70" id_node_end="80" id_section="90" kind_structure="S" isFoundation="false" offset_start_Y="75" offset_end_Y="-75" condition_start="FIX" condition_end="FIX" />
+        <StbGirder id="245" guid="5122921793d74d7bb1a0e000f21695ba" name="RG22LC2" id_node_start="80" id_node_end="90" id_section="91" kind_structure="S" isFoundation="false" offset_start_Y="75" offset_end_Y="-75" condition_start="FIX" condition_end="FIX" haunch_start="100" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" />
+        <StbGirder id="246" guid="c00882bed622495da9dd5b7aa3d32fd1" name="RG22LC3" id_node_start="90" id_node_end="100" id_section="92" kind_structure="S" isFoundation="false" offset_start_Y="75" offset_end_Y="-75" condition_start="FIX" condition_end="FIX" haunch_start="100" haunch_end="100" kind_haunch_start="SLOPE" kind_haunch_end="SLOPE" type_haunch_V="BOTTOM" />
+        <StbGirder id="247" guid="41f15ec435bb4f4bb8141f44c0d03d32" name="RG22LC4" id_node_start="100" id_node_end="110" id_section="93" kind_structure="S" isFoundation="false" offset_start_Y="75" offset_end_Y="-75" condition_start="FIX" condition_end="FIX" joint_start="1200" kind_joint_start="BOLT" />
+        <StbGirder id="248" guid="31333ae27dd74d7ca5813adf34a1369c" name="RG22LC5" id_node_start="110" id_node_end="120" id_section="89" kind_structure="S" isFoundation="false" offset_start_Y="75" offset_end_Y="-75" condition_start="FIX" condition_end="FIX" haunch_start="100" joint_start="1200" kind_haunch_start="SLOPE" type_haunch_V="BOTTOM" kind_joint_start="BOLT" />
+      </StbGirders>
+      <StbBeams>
+        <StbBeam id="249" guid="6e4689ed8819485590e462d46054f1ed" name="BH" id_node_start="121" id_node_end="122" id_section="94" kind_structure="S" isFoundation="false" offset_start_Y="99.5" offset_end_Y="-45" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="250" guid="78525e9176e84fc59a554ba5d2038669" name="BH" id_node_start="123" id_node_end="124" id_section="94" kind_structure="S" isFoundation="false" offset_start_Y="99.5" offset_end_Y="-45" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="251" guid="ffa1a0fcbe8045d4ae3af0ffe97ff1a2" name="BH" id_node_start="125" id_node_end="126" id_section="94" kind_structure="S" isFoundation="false" offset_start_Y="99.5" offset_end_Y="-45" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="252" guid="5f21c8e002b449219f1b789fbd07f33f" name="BH" id_node_start="127" id_node_end="128" id_section="94" kind_structure="S" isFoundation="false" offset_start_Y="99.5" offset_end_Y="-50" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="253" guid="b41dc9167c9340529bfbd09066551779" name="BLC" id_node_start="129" id_node_end="130" id_section="95" kind_structure="S" isFoundation="false" offset_start_Y="99.5" offset_end_Y="-45" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="254" guid="d1980650cc04404085c09c1e2694fd7d" name="BLC" id_node_start="131" id_node_end="132" id_section="95" kind_structure="S" isFoundation="false" offset_start_Y="99.5" offset_end_Y="-50" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="255" guid="14bcfd9f44a546f588f9de2d72f26259" name="BLC" id_node_start="133" id_node_end="134" id_section="95" kind_structure="S" isFoundation="false" offset_start_Y="99.5" offset_end_Y="-50" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="256" guid="1e3af169269a4cca82a564e50b497fa1" name="BLC" id_node_start="135" id_node_end="136" id_section="95" kind_structure="S" isFoundation="false" offset_start_Y="99.5" offset_end_Y="-45" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="257" guid="1656ad13fcc549fdba471cb66937aa7f" name="BC" id_node_start="122" id_node_end="137" id_section="96" kind_structure="S" isFoundation="false" offset_start_Y="45" offset_end_Y="-90" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="258" guid="2a9ef0b2702541509e5718e1610ebb28" name="BC" id_node_start="124" id_node_end="138" id_section="96" kind_structure="S" isFoundation="false" offset_start_Y="45" offset_end_Y="-90" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="259" guid="1c03ec3c28e74964ad0367730fb3f524" name="BC" id_node_start="126" id_node_end="139" id_section="96" kind_structure="S" isFoundation="false" offset_start_Y="45" offset_end_Y="-90" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="260" guid="f7050cbf3aa24492b567d00fbebc1033" name="BC" id_node_start="128" id_node_end="140" id_section="96" kind_structure="S" isFoundation="false" offset_start_Y="50" offset_end_Y="-100" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="261" guid="8a36d03b900a48f7a8f526adb510bc12" name="B21LC" id_node_start="130" id_node_end="141" id_section="97" kind_structure="S" isFoundation="false" offset_start_Y="45" offset_end_Y="-90" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="262" guid="42bc48b9cfd743338aefb5c93c09b17f" name="B21LC" id_node_start="132" id_node_end="142" id_section="97" kind_structure="S" isFoundation="false" offset_start_Y="50" offset_end_Y="-100" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="263" guid="57379a9a0c2b4d9fb8a33d99e8b6b2aa" name="B21LC" id_node_start="134" id_node_end="143" id_section="97" kind_structure="S" isFoundation="false" offset_start_Y="50" offset_end_Y="-100" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="264" guid="eee0b8ba1142412495b2c766fdeea4f9" name="B21LC" id_node_start="136" id_node_end="144" id_section="97" kind_structure="S" isFoundation="false" offset_start_Y="45" offset_end_Y="-90" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="265" guid="290ef7bd59f14209ae67abc7937f1742" name="B2C" id_node_start="137" id_node_end="145" id_section="98" kind_structure="S" isFoundation="false" offset_start_Y="90" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="266" guid="5d5e3c65207c4813bdebf23d5bcdf6b8" name="B2C" id_node_start="138" id_node_end="146" id_section="98" kind_structure="S" isFoundation="false" offset_start_Y="90" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="267" guid="56f700d40ea14fa68edc0b649a7ec51d" name="B2C" id_node_start="139" id_node_end="147" id_section="98" kind_structure="S" isFoundation="false" offset_start_Y="90" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="268" guid="8dd7089ac3db4ac78bcd9126e8ce73f7" name="B2C" id_node_start="140" id_node_end="148" id_section="98" kind_structure="S" isFoundation="false" offset_start_Y="100" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="269" guid="78d4ef07692e47f8aac6fccfb0a9dcd7" name="B22LC" id_node_start="141" id_node_end="149" id_section="99" kind_structure="S" isFoundation="false" offset_start_Y="90" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="270" guid="07827c27dd3648cbad08b637800c1a99" name="B22LC" id_node_start="142" id_node_end="150" id_section="99" kind_structure="S" isFoundation="false" offset_start_Y="100" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="271" guid="1236fc43326e43999da4ea7e1e1750e0" name="B22LC" id_node_start="143" id_node_end="151" id_section="99" kind_structure="S" isFoundation="false" offset_start_Y="100" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="272" guid="4770d92eebba4fdaabbc6fce40e461fd" name="B22LC" id_node_start="144" id_node_end="152" id_section="99" kind_structure="S" isFoundation="false" offset_start_Y="90" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="273" guid="51274574a83e42dc8c98b02eaa7cf199" name="BBB" id_node_start="145" id_node_end="153" id_section="100" kind_structure="S" isFoundation="false" offset_end_Y="-200" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="274" guid="52178e574b3f4b209d2d6c0b60c100ff" name="BBB" id_node_start="146" id_node_end="154" id_section="100" kind_structure="S" isFoundation="false" offset_end_Y="-200" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="275" guid="d988d9a4091a40be9bdda37f64fd6463" name="BBB" id_node_start="147" id_node_end="155" id_section="100" kind_structure="S" isFoundation="false" offset_end_Y="-200" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="276" guid="1d8eaa9a83e944e99d22bf8dd30cc233" name="BBB" id_node_start="148" id_node_end="156" id_section="100" kind_structure="S" isFoundation="false" offset_end_Y="-225" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="277" guid="8abab618b6ae43cf9a9bc8e804a699c8" name="BRB" id_node_start="153" id_node_end="157" id_section="101" kind_structure="S" isFoundation="false" offset_start_Y="200" offset_end_Y="-37.5" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="278" guid="dec50c3dceb046f79e4c23403677882c" name="BRB" id_node_start="154" id_node_end="158" id_section="101" kind_structure="S" isFoundation="false" offset_start_Y="200" offset_end_Y="-37.5" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="279" guid="778571821db343e3912f00b2ffe8ef58" name="BRB" id_node_start="155" id_node_end="159" id_section="101" kind_structure="S" isFoundation="false" offset_start_Y="200" offset_end_Y="-37.5" condition_start="PIN" condition_end="PIN" />
+        <StbBeam id="280" guid="4ad550c1b8a44858bce417d7b07686c1" name="BRB" id_node_start="156" id_node_end="160" id_section="101" kind_structure="S" isFoundation="false" offset_start_Y="225" offset_end_Y="-37.5" condition_start="PIN" condition_end="PIN" />
+      </StbBeams>
+      <StbBraces>
+        <StbBrace id="281" guid="0f8dc7b6ccc64eb8b3e05d3426014084" name="BRCC" id_node_start="1" id_node_end="62" rotate="90" id_section="102" kind_structure="S" offset_end_Z="-248" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="282" guid="f0970e12456c4a36a64629bf9e595bc3" name="BRCC" id_node_start="2" id_node_end="61" rotate="90" id_section="102" kind_structure="S" offset_end_Z="-248" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="283" guid="3e17b33b3d83440fb493f8617d4e986e" name="BRF" id_node_start="2" id_node_end="63" rotate="90" id_section="103" kind_structure="S" offset_end_Z="-223" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="284" guid="e812911d001646889f5532ac322ba54f" name="BRF" id_node_start="3" id_node_end="62" rotate="90" id_section="103" kind_structure="S" offset_end_Z="-223" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="285" guid="491c09aa6e2045af974ea8cff0bcb80a" name="BRL" id_node_start="3" id_node_end="64" rotate="90" id_section="104" kind_structure="S" offset_end_Z="-223" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="286" guid="607652803ed44b1999a5bd7d045d8883" name="BRL" id_node_start="4" id_node_end="63" rotate="90" id_section="104" kind_structure="S" offset_end_Z="-223" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="287" guid="805828af4b0947f79cfd9158f17ea103" name="BR2L" id_node_start="4" id_node_end="65" id_section="105" kind_structure="S" offset_end_Z="-248" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="288" guid="b074a95bb4ba4c66bbdfdead8822ef75" name="BR2L" id_node_start="5" id_node_end="64" id_section="105" kind_structure="S" offset_end_Z="-248" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="289" guid="6c0a27e9bd91451695da2fe6fa8ca2ef" name="BRC" id_node_start="5" id_node_end="66" rotate="90" id_section="106" kind_structure="S" offset_end_Z="-223" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="290" guid="74f76b1fa4c044e1a0a89f53f049f53d" name="BRC" id_node_start="6" id_node_end="65" rotate="90" id_section="106" kind_structure="S" offset_end_Z="-223" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="291" guid="6dff29e463db4adfa71659d2d5b36bb6" name="BR2C" id_node_start="6" id_node_end="67" rotate="90" id_section="107" kind_structure="S" offset_end_Z="-223" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="292" guid="a611b80543a94063b58b379832f41734" name="BR2C" id_node_start="7" id_node_end="66" rotate="90" id_section="107" kind_structure="S" offset_end_Z="-223" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="293" guid="04fcd7b670ff4304b5e558843477baf9" name="BRH" id_node_start="7" id_node_end="68" rotate="90" id_section="108" kind_structure="S" offset_end_Z="-248" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="294" guid="f33feb1ee34646f4817e1c498dc3ade8" name="BRH" id_node_start="8" id_node_end="67" rotate="90" id_section="108" kind_structure="S" offset_end_Z="-248" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="295" guid="ff4b72b001d04f71bf6ea2a885629ba4" name="BRP" id_node_start="8" id_node_end="69" rotate="90" id_section="109" kind_structure="S" offset_end_Z="-223" condition_start="PIN" condition_end="PIN" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="296" guid="9d30f3f18cb442d5b74fbaf2d8fd5c26" name="BRP" id_node_start="9" id_node_end="68" rotate="90" id_section="109" kind_structure="S" offset_end_Z="-223" condition_start="PIN" condition_end="PIN" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="297" guid="1c7ba141c1a146fa8c45bf2be2c00467" name="BRRB" id_node_start="9" id_node_end="70" rotate="90" id_section="110" kind_structure="S" offset_end_Z="-223" condition_start="PIN" condition_end="PIN" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="298" guid="47f4fbe6a9de4d4785338813aa75379a" name="BRRB" id_node_start="10" id_node_end="69" rotate="90" id_section="110" kind_structure="S" offset_end_Z="-223" condition_start="PIN" condition_end="PIN" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="299" guid="eb732f680b704415a14589c60c520521" name="BRLC" id_node_start="51" id_node_end="112" rotate="90" id_section="111" kind_structure="S" offset_end_Z="-125" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="300" guid="36d04cd5e0a3492e901c50cda83789ff" name="BRLC" id_node_start="52" id_node_end="111" rotate="90" id_section="111" kind_structure="S" offset_end_Z="-125" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="301" guid="3fca2aaf87654a0f9f3fb50fb25cd840" name="BR21LC" id_node_start="52" id_node_end="113" rotate="90" id_section="112" kind_structure="S" offset_end_Z="-100" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="302" guid="80a34c4e967b4ed4b4009b627a83d84b" name="BR21LC" id_node_start="53" id_node_end="112" rotate="90" id_section="112" kind_structure="S" offset_end_Z="-100" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="303" guid="18049dd711f846ce9bd0ca37f9b703a7" name="BR22LC" id_node_start="53" id_node_end="114" rotate="90" id_section="113" kind_structure="S" offset_end_Z="-100" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="304" guid="41bae7b851c848fa95d8bdbba06ed44e" name="BR22LC" id_node_start="54" id_node_end="113" rotate="90" id_section="113" kind_structure="S" offset_end_Z="-100" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="305" guid="48e74512c08c471583924db3121688d6" name="HBRCC" id_node_start="61" id_node_end="72" id_section="114" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="306" guid="89242b912b6948b78fc8265a328329bf" name="HBRCC" id_node_start="62" id_node_end="71" id_section="114" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="307" guid="7bc005dadb7e4026a8a24d8e4370c9cf" name="HBR2C" id_node_start="65" id_node_end="76" rotate="90" id_section="115" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="308" guid="1f0865ff53044c1da98ac611d47ffa33" name="HBR2C" id_node_start="66" id_node_end="75" rotate="90" id_section="115" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="309" guid="489b33ae0a404927bed21a2ea4433192" name="HBR21LC" id_node_start="69" id_node_end="80" rotate="90" id_section="116" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="310" guid="c5c2c6c1ac5947c090e78029504f6c43" name="HBR21LC" id_node_start="70" id_node_end="79" rotate="90" id_section="116" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="311" guid="4fc137ac3dae462b96857a5c4c2136a7" name="HBRF" id_node_start="71" id_node_end="82" rotate="90" id_section="117" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="312" guid="496b6dfdecd64f8388ea9be86306d443" name="HBRF" id_node_start="72" id_node_end="81" rotate="90" id_section="117" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="313" guid="9f2377d0eaba4a75af6155e4633da407" name="HBRH" id_node_start="75" id_node_end="86" rotate="90" id_section="118" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="314" guid="ae7789e3f98f440483567c84653cca34" name="HBRH" id_node_start="76" id_node_end="85" rotate="90" id_section="118" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="315" guid="e571d8957b2d41d48cc60616faf36a19" name="HBR22LC" id_node_start="79" id_node_end="90" rotate="90" id_section="119" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="316" guid="57f09d82ef4e47d1847b1ba1846f2eca" name="HBR22LC" id_node_start="80" id_node_end="89" rotate="90" id_section="119" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="317" guid="3ecd13850aef47a49e57668477db18b3" name="HBRL" id_node_start="81" id_node_end="92" rotate="90" id_section="120" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="318" guid="0a862d6181a943e78bef0ef16da2aaa5" name="HBRL" id_node_start="82" id_node_end="91" rotate="90" id_section="120" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="319" guid="e1267b33098e4587a9c82129d894f70d" name="HBRP" id_node_start="85" id_node_end="96" rotate="90" id_section="121" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="320" guid="338b0d592d8a40e1a30443009184b59e" name="HBRP" id_node_start="86" id_node_end="95" rotate="90" id_section="121" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="321" guid="27aa01d252934d5faa5aa7b517a9a590" name="HBR2L" id_node_start="91" id_node_end="102" id_section="122" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="322" guid="659772cc1daf44ac945cc92a2af37129" name="HBR2L" id_node_start="92" id_node_end="101" id_section="122" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="323" guid="0fefdda1de344e83ae92a7c6d9c5f46c" name="HBRRB" id_node_start="95" id_node_end="106" rotate="90" id_section="123" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="324" guid="a5950f0688134ac9bf1632b0661bc85f" name="HBRRB" id_node_start="96" id_node_end="105" rotate="90" id_section="123" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSIONANDCOMPRESSION" />
+        <StbBrace id="325" guid="e6ff07814c0e461283214e69de10d891" name="HBRC" id_node_start="101" id_node_end="112" rotate="90" id_section="124" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="326" guid="0910cd7aece1404aa1d97c6078272864" name="HBRC" id_node_start="102" id_node_end="111" rotate="90" id_section="124" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="327" guid="c9a9a107356f46aca104e2a42535442d" name="HBRLC" id_node_start="105" id_node_end="116" rotate="90" id_section="125" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+        <StbBrace id="328" guid="8d3d1519c76442ce8408fa4507f611d6" name="HBRLC" id_node_start="106" id_node_end="115" rotate="90" id_section="125" kind_structure="S" condition_start="PIN" condition_end="PIN" feature_brace="TENSION" />
+      </StbBraces>
+    </StbMembers>
+    <StbSections>
+      <StbSecColumn_S id="1" guid="d0c49e8831334231b17bf477cfae547d" name="CH1" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="H-440x300x11x18x13" strength_main="SS400" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="H-440x300x11x18x13" strength_main="SS400" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="2" guid="f02fe454cef845da9f5d26f37f71d90b" name="CBB1" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="B□-450x400x16x13" strength_main="SS400" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="B□-450x400x16x13" strength_main="SS400" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="3" guid="72ca99b881294d95b38274e4671740ef" name="CRB1" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="□-450x450x16x48" strength_main="BCR295" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="□-450x450x16x48" strength_main="BCR295" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="4" guid="b9699ef80c6443568d4a90cb764a18c6" name="CP1" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="○-450x19" strength_main="STK400" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="○-450x19" strength_main="STK400" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="8" guid="09cc56d587f34330a4db5ee0bc64164d" name="CLC1" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="C-250x75x25x4.5" strength_main="SSC400" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="C-250x75x25x4.5" strength_main="SSC400" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="9" guid="0cfa5f7d7ff741ba9ed26dfb64f7fafa" name="C21LC1" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="2CF-250x75x25x4.5" strength_main="SSC400" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="2CF-250x75x25x4.5" strength_main="SSC400" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="10" guid="ca1bc80a8db948909588b6aed18a796f" name="C22LC1" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="2CB-250x75x25x4.5" strength_main="SSC400" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="2CB-250x75x25x4.5" strength_main="SSC400" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="11" guid="daeefe643be347e0a24d222cb11955ab" name="CH2" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="H-390x300x10x16x13" strength_main="SS400" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="H-440x300x11x18x13" strength_main="SS400" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="12" guid="aefee9fd46d64b41a7602979b9d29761" name="CBB2" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="B□-430x400x16x13" strength_main="SS400" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="B□-450x400x16x13" strength_main="SS400" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="13" guid="45028450c0984691a9bd46709be92dfa" name="CRB2" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="□-400x400x16x48" strength_main="BCR295" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="□-450x450x16x48" strength_main="BCR295" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="14" guid="f9da7354260147cdb1207dd21c21a2cc" name="CP2" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="○-400x19" strength_main="STK400" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="○-450x19" strength_main="STK400" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="18" guid="63200774dfaf4682b77d71bac290c067" name="CLC2" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="C-200x75x25x4.5" strength_main="SSC400" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="C-250x75x25x4.5" strength_main="SSC400" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="19" guid="860cb08b0fa7496d8bfc2dcdf627b8af" name="C21LC2" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="2CF-200x75x25x4.5" strength_main="SSC400" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="2CF-250x75x25x4.5" strength_main="SSC400" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_S id="20" guid="032472bb4ea64882b823eb126da93bea" name="C22LC2" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_S>
+          <StbSecSteelColumn_S_NotSame pos="TOP" shape="2CB-200x75x25x4.5" strength_main="SSC400" />
+          <StbSecSteelColumn_S_NotSame pos="BOTTOM" shape="2CB-250x75x25x4.5" strength_main="SSC400" />
+        </StbSecSteelFigureColumn_S>
+      </StbSecColumn_S>
+      <StbSecColumn_CFT id="5" guid="38a1b143b80a4e4aac1b7377a3a1d99a" name="CFTRB1" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_CFT>
+          <StbSecSteelColumn_CFT_NotSame pos="BOTTOM" shape="□-450x450x16x48" strength="BCR295" />
+          <StbSecSteelColumn_CFT_NotSame pos="TOP" shape="□-450x450x16x48" strength="BCR295" />
+        </StbSecSteelFigureColumn_CFT>
+      </StbSecColumn_CFT>
+      <StbSecColumn_CFT id="6" guid="0153397db20b4903b5c9a1a4d1969809" name="CFTP1" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_CFT>
+          <StbSecSteelColumn_CFT_NotSame pos="BOTTOM" shape="○-450x19" strength="STK400" />
+          <StbSecSteelColumn_CFT_NotSame pos="TOP" shape="○-450x19" strength="STK400" />
+        </StbSecSteelFigureColumn_CFT>
+      </StbSecColumn_CFT>
+      <StbSecColumn_CFT id="7" guid="b982950350c04984bcb317cd82a41823" name="CFTBB1" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_CFT>
+          <StbSecSteelColumn_CFT_NotSame pos="BOTTOM" shape="B□-450x400x16x13" strength="SS400" />
+          <StbSecSteelColumn_CFT_NotSame pos="TOP" shape="B□-450x400x16x13" strength="SS400" />
+        </StbSecSteelFigureColumn_CFT>
+      </StbSecColumn_CFT>
+      <StbSecColumn_CFT id="15" guid="f18436fe9e8d46e2b250652fdc2a4573" name="CFTRB2" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_CFT>
+          <StbSecSteelColumn_CFT_NotSame pos="BOTTOM" shape="□-450x450x16x48" strength="BCR295" />
+          <StbSecSteelColumn_CFT_NotSame pos="TOP" shape="□-400x400x16x48" strength="BCR295" />
+        </StbSecSteelFigureColumn_CFT>
+      </StbSecColumn_CFT>
+      <StbSecColumn_CFT id="16" guid="6b38ba8b492a40e6a17c9e640bc1e6cd" name="CFTP2" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_CFT>
+          <StbSecSteelColumn_CFT_NotSame pos="BOTTOM" shape="○-450x19" strength="STK400" />
+          <StbSecSteelColumn_CFT_NotSame pos="TOP" shape="○-400x19" strength="STK400" />
+        </StbSecSteelFigureColumn_CFT>
+      </StbSecColumn_CFT>
+      <StbSecColumn_CFT id="17" guid="fa3752d4c95d4063b396adebfa02c4ac" name="CFTBB2" floor="1FL" kind_column="COLUMN">
+        <StbSecSteelFigureColumn_CFT>
+          <StbSecSteelColumn_CFT_NotSame pos="BOTTOM" shape="B□-450x400x16x13" strength="SS400" />
+          <StbSecSteelColumn_CFT_NotSame pos="TOP" shape="B□-430x400x16x13" strength="SS400" />
+        </StbSecSteelFigureColumn_CFT>
+      </StbSecColumn_CFT>
+      <StbSecBeam_RC id="21" guid="32aa850f18fe406b8847ea337b2f58d3" name="FG1" floor="1FL" isFoundation="true">
+        <StbSecFigureBeam_RC>
+          <StbSecBeam_RC_Straight width="500" depth="1000" />
+        </StbSecFigureBeam_RC>
+        <StbSecBarArrangementBeam_RC depth_cover_left="50" depth_cover_right="50" depth_cover_top="50" depth_cover_bottom="50">
+          <StbSecBarBeam_RC_Same D_main="D25" D_stirrup="D13" strength_main="SD345" strength_stirrup="SD295A" N_main_top_1st="2" N_main_bottom_1st="2" N_stirrup="2" pitch_stirrup="200" />
+        </StbSecBarArrangementBeam_RC>
+      </StbSecBeam_RC>
+      <StbSecBeam_S id="22" guid="81e9cc91e52246d39f9787587fad60ec" name="GH1" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="23" guid="003ba6630c244d21819090cbd0dc7031" name="GH2" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="H-446x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="H-446x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="H-446x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="24" guid="579fbab2ab4749dbb2958d1e82928d5a" name="GH3" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="H-446x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="H-446x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="H-446x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="25" guid="62494423b86d44d8a7177fbb80f8c9ed" name="GH4" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="H-496x199x8x13x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="H-496x199x8x13x13" strength_main="SS400" strength_web="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="26" guid="891619bd24d2416aa5e9c99adf9874e1" name="GH5" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="H-446x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="H-446x199x8x13x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="H-446x199x8x13x13" strength_main="SS400" strength_web="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="27" guid="c90de511711f467d9495f7ca2536a32d" name="GH6" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="H-446x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="H-446x199x8x13x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="H-446x199x8x13x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="H-496x199x8x13x13" strength_main="SS400" strength_web="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="28" guid="d5a7703e146a47d8ae52e217cb9da90b" name="GH7" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="H-496x199x8x13x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="29" guid="a3e75a0560c04eee9cf38d6c5a3dc461" name="GH8" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="H-446x199x8x13x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="H-446x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="30" guid="d802a6118b8c4b3baac76f444f2a0e55" name="GH9" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="H-446x199x8x13x13" strength_main="SS400" strength_web="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="H-496x199x9x14x13" strength_main="SS400" strength_web="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="31" guid="b2644b7a4ae74d9a8e6a7a5885e656df" name="GC1" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="32" guid="93f498ac2aa34c769e56345d38050e79" name="GC2" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="[-300x90x13x20x24x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="33" guid="ea5b4f9920a84f61bdd87d733eb6fa7f" name="GC3" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="34" guid="40fbd1261e7c44349ab396cd9158a127" name="GC4" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="[-380x100x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="[-380x100x12x16x19x9.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="35" guid="a19ec5f6e9e3485dbecbcc779f7bd767" name="GC5" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="[-300x90x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="[-300x90x12x16x19x9.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="36" guid="30a0375cc50a4dc4b374d589cce7ac9c" name="GC6" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="[-300x90x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="[-300x90x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="[-380x100x12x16x19x9.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="37" guid="dfb79b7316dc4769b9f8c14a582931fa" name="GC7" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="[-380x100x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="38" guid="c8feaf6244d54a4f9b946b24c296b3a5" name="GC8" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="[-300x90x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="[-300x90x13x20x24x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="39" guid="c956966a373542bfa8dc559ee07d8222" name="GC9" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="[-300x90x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="[-380x100x13x20x24x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="40" guid="6de22f72060349f9a61b1fa33e854252" name="G2C1" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="41" guid="3220ffcbb56640d6ab97186b0868a5c0" name="G2C2" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2[-300x90x13x20x24x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="42" guid="5adc3652b7a444a4ae82fe099f2041af" name="G2C3" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="2[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="43" guid="d5f429d3ee354fda992c82bdacba161d" name="G2C4" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2[-380x100x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2[-380x100x12x16x19x9.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="44" guid="b91b5967a84a49958973f9f9aeee5b2b" name="G2C5" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2[-300x90x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2[-300x90x12x16x19x9.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="45" guid="1ec179878796454eaa2fe8f84711c687" name="G2C6" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2[-300x90x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="2[-300x90x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2[-380x100x12x16x19x9.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="46" guid="aac4f28f28694252b542c79b04ecebc1" name="G2C7" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2[-380x100x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="47" guid="d30586d1eb0443c0a3e9464f3db803c1" name="G2C8" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2[-300x90x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2[-300x90x13x20x24x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="48" guid="1c43ae3be75f431f802693120ceb2832" name="G2C9" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2[-300x90x12x16x19x9.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="2[-300x90x13x20x24x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2[-380x100x13x20x24x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="49" guid="f947febb237e46efabfd6b000bfadb5d" name="GBB1" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="B□-410x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="B□-410x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="B□-410x400x13x13" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="50" guid="edad736d642d42ae9b754927012a5eb7" name="GBB2" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="B□-410x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="B□-400x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="B□-400x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="B□-400x400x13x13" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="51" guid="d3cb2e7a94714bb19cd7567b672d21a3" name="GBB3" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="B□-410x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="B□-400x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="B□-400x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="B□-400x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="B□-410x400x13x13" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="52" guid="2b2c5f4f9b6e40308151f34352b5536c" name="GBB4" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="B□-410x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="B□-410x400x12x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="B□-410x400x12x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="53" guid="d1ceb87d5c7f42a28c016110ae110d40" name="GBB5" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="B□-410x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="B□-400x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="B□-400x400x12x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="B□-400x400x12x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="54" guid="6100d4f3af244e96aceca7d0a7a5d4ce" name="GBB6" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="B□-410x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="B□-400x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="B□-400x400x12x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="B□-400x400x12x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="B□-410x400x12x12" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="55" guid="6dac88a0a3a14814903c178602cc80db" name="GBB7" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="B□-410x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="B□-410x400x12x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="B□-410x400x13x13" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="56" guid="f87c631f1bbf4477990f51fee65e133a" name="GBB8" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="B□-410x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="B□-400x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="B□-400x400x12x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="B□-400x400x13x13" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="57" guid="1dadea6c478544ab827ab97df97ae018" name="GBB9" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="B□-410x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="B□-400x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="B□-400x400x12x12" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="B□-400x400x13x13" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="B□-410x400x13x13" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="58" guid="d0a7762c31fc457385999b561676ef42" name="GRB1" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="□-450x450x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="□-450x450x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="□-450x450x16x48" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="59" guid="c41f879d1d494ff6a8fbc6c72e19d5da" name="GRB2" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="□-450x450x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="□-400x400x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="□-400x400x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="□-400x400x16x48" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="60" guid="0a500a452436402ca34346e9997d8eb7" name="GRB3" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="□-450x450x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="□-400x400x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="□-400x400x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="□-400x400x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="□-450x450x16x48" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="61" guid="d2d5878acb0c4441982645c45d18a488" name="GRB4" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="□-450x450x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="□-450x450x12x36" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="□-450x450x12x36" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="62" guid="1d05f538773f45a6b39f95381a25e1af" name="GRB5" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="□-450x450x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="□-400x400x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="□-400x400x12x36" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="□-400x400x12x36" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="63" guid="78facce5b5754b37bd8e257c1f3c12f5" name="GRB6" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="□-450x450x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="□-400x400x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="□-400x400x12x36" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="□-400x400x12x36" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="□-450x450x12x36" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="64" guid="b6243c991d9347ecab8bdc556ed5e6e2" name="GRB7" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="□-450x450x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="□-450x450x12x36" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="□-450x450x16x48" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="65" guid="e11d5d8b8cc444ee9b1f1dce3b4875be" name="GRB8" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="□-450x450x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="□-400x400x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="□-400x400x12x36" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="□-400x400x16x48" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="66" guid="04a841e42c15468dab4f953ff60c03c4" name="GRB9" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="□-450x450x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="□-400x400x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="□-400x400x12x36" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="□-400x400x16x48" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="□-450x450x16x48" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="67" guid="b9138b2f21934bcc8a2da199dcd4bcba" name="GLC1" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="C-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="C-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="C-250x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="68" guid="00d8d9a70c494bc288c75efe84e86eed" name="GLC2" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="C-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="C-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="C-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="C-200x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="69" guid="14841278559149a49408340a10ba25d1" name="GLC3" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="C-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="C-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="C-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="C-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="C-250x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="70" guid="fa5d6ac45b8845b7b87a101783736ed7" name="GLC4" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="C-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="C-250x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="C-250x75x25x3.2" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="71" guid="505c6f4070ba4643ba9f95a9fe11e4a4" name="GLC5" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="C-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="C-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="C-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="C-200x75x25x3.2" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="72" guid="d463dc98320c4fd4b382a69f81655ed7" name="GLC6" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="C-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="C-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="C-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="C-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="C-250x75x25x3.2" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="73" guid="86a82f6ee56348cc8654ac107dc96230" name="GLC7" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="C-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="C-250x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="C-250x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="74" guid="6a76876f0ea44300a1b72bad04cf97e9" name="GLC8" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="C-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="C-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="C-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="C-200x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="75" guid="05b8985ea3974a27983db4e0a0f4dba3" name="GLC9" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="C-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="C-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="C-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="C-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="C-250x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="76" guid="db5951bb0df248b489bd9c44dedab502" name="G21LC1" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="77" guid="a86e5250e8044451bbe82d905842ad0d" name="G21LC2" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2CF-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CF-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CF-200x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="78" guid="a5928f91c4be41ad8a6fce018f8d8d63" name="G21LC3" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2CF-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CF-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="2CF-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="79" guid="0e23a75b05d94a5a90930974a9d61881" name="G21LC4" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CF-250x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CF-250x75x25x3.2" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="80" guid="93e97c879bb84cacaeda930f93746946" name="G21LC5" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2CF-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CF-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CF-200x75x25x3.2" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="81" guid="98784143f3404dbba2ecd14c23f6d737" name="G21LC6" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2CF-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CF-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="2CF-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CF-250x75x25x3.2" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="82" guid="dc1c73e5d84447c0afa5908b4083d782" name="G21LC7" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CF-250x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="83" guid="cd0282e785d348bbb09a1d176f24c4a3" name="G21LC8" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2CF-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CF-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CF-200x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="84" guid="a5ca0b9f84054b10a9594593e58dd328" name="G21LC9" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2CF-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CF-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="2CF-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CF-250x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="85" guid="2140fe703f694b108c3a6a0c5be4e75c" name="G22LC6" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2CB-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CB-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="2CB-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CB-250x75x25x3.2" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="86" guid="f5aacf107c434d458ae2a9b7471fdd37" name="G22LC7" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CB-250x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="87" guid="e6c55b00b18044c4a78e3453538022aa" name="G22LC8" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2CB-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CB-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CB-200x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="88" guid="88048e33c8e9480a8ffd2ffe0358c62d" name="G22LC9" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2CB-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CB-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="2CB-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="89" guid="c85c8d5bc9d8406cadc588a59280e6fb" name="G22LC5" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2CB-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CB-200x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CB-200x75x25x3.2" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="90" guid="2bed7a60f9e844339fdb0745295e8c81" name="G22LC1" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="91" guid="5f7d439c204b43658f40be529583bf24" name="G22LC2" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2CB-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CB-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CB-200x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="92" guid="5b34175918b34abba6c044569ba3675d" name="G22LC3" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_S" shape="2CB-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CB-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="HAUNCH_E" shape="2CB-200x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="93" guid="e0e67611a44a4fcb86e58ca4e339eaf4" name="G22LC4" floor="RFL">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_FiveTypes pos="START" shape="2CB-250x75x25x4.5" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="CENTER" shape="2CB-250x75x25x3.2" strength_main="SS400" />
+          <StbSecSteelBeam_S_FiveTypes pos="END" shape="2CB-250x75x25x3.2" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="94" guid="e9a6b6871efd4748b6c146075e938d3d" name="BH" kind_beam="BEAM">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="H-350x175x7x11x13" strength_main="SS400" strength_web="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="95" guid="93f63907263047a79fccbd495071903e" name="BLC" kind_beam="BEAM">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="C-150x75x25x4.5" strength_main="SSC400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="96" guid="c8f36242a019418181eb4f20de503cb5" name="BC" kind_beam="BEAM">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="[-380x100x10.5x16x18x9" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="97" guid="684ce65087454953a0bfc1a90a90f9ac" name="B21LC" kind_beam="BEAM">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="2CF-150x75x25x4.5" strength_main="SSC400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="98" guid="6c11c59607c64380a5844c162e3c7eff" name="B2C" kind_beam="BEAM">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="2[-380x100x10.5x16x18x9" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="99" guid="89c0f128dfeb4e638b9c17e0c08283b9" name="B22LC" kind_beam="BEAM">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="2CB-150x75x25x4.5" strength_main="SSC400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="100" guid="148f7acbcb2141ce873f6d344f759b9c" name="BBB" kind_beam="BEAM">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="B□-250x250x15x16" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBeam_S id="101" guid="c1ddb01b07414461b422a84af58980b9" name="BRB" kind_beam="BEAM">
+        <StbSecSteelFigureBeam_S>
+          <StbSecSteelBeam_S_Straight shape="□-250x250x16x48" strength_main="SS400" />
+        </StbSecSteelFigureBeam_S>
+      </StbSecBeam_S>
+      <StbSecBrace_S id="102" guid="4357b99996614f2cb30870a0dd38fa46" name="BRCC" kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="RB-60" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="103" guid="96c4db1400d943b59fee809cb4ccf01a" name="BRF" kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="FB-100x15" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="104" guid="281b9b65813249a999ea46148fbcee84" name="BRL" kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="L-100x100x7x10x5" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="105" guid="44a7fc8de152427fb81f0c8ce0c38e07" name="BR2L" kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2L-100x100x7x10x5" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="106" guid="15bba5c5177c4ba5bbfe3b15f1604b6c" name="BRC" kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="[-100x50x5x7.5x8x4" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="107" guid="1161e0d915e042a6b1fefb8cec22d19d" name="BR2C" kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2[-100x50x5x7.5x8x4" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="108" guid="fa16d697b0d24ce190570ce650e5f90d" name="BRH" kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="H-150x75x5x7x8" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="109" guid="f71332709f6d40a1b51c1c63f1e6d06d" name="BRP" kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="○-216x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="110" guid="29724df31a4d4d5fa2573593554c4556" name="BRRB" kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="□-200x200x6x18" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="111" guid="6586411151184b61b9046c549669c1e9" name="BRLC" kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="C-100x50x20x3.2" strength_main="SSC400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="112" guid="0187a4dcd1ff40e0911789f5bbcb3929" name="BR21LC" kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2CF-100x50x20x3.2" strength_main="SSC400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="113" guid="47eb070f916a42f48211ce77b574ee09" name="BR22LC" kind_brace="VERTICAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2CB-100x50x20x3.2" strength_main="SSC400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="114" guid="393a6e456171487ebca1e73ffad55a67" name="HBRCC" kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="RB-60" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="115" guid="78b95dbf6b5a4d93a6c966fd1f97e463" name="HBR2C" kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2[-100x50x5x7.5x8x4" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="116" guid="8bfbabe47f94486f90f4f5ad1cae68d9" name="HBR21LC" kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2CF-100x50x20x3.2" strength_main="SSC400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="117" guid="b587772e07744d8c9e35b455c82927f0" name="HBRF" kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="FB-100x15" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="118" guid="c39bd45b760a4a69ba052187923af380" name="HBRH" kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="H-150x75x5x7x8" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="119" guid="8ac197e6c4bb446388ef4dbbb21511ee" name="HBR22LC" kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2CB-100x50x20x3.2" strength_main="SSC400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="120" guid="829dfa4a037146389c16fd06c14da8db" name="HBRL" kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="L-100x100x7x10x5" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="121" guid="4a09f452c75f4700bccae11e437dbfff" name="HBRP" kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="○-216x4.5" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="122" guid="2e40ff38b83c45f38fcc04ca97d43e0e" name="HBR2L" kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="2L-100x100x7x10x5" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="123" guid="d75c67fca02444fb8a23b3c96b109fbd" name="HBRRB" kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="□-200x200x6x18" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="124" guid="42ae7b95f44148dfa0b0aeb27e78d653" name="HBRC" kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="[-100x50x5x7.5x8x4" strength_main="SS400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecBrace_S id="125" guid="6eb4d78971634594b623796aedd8806b" name="HBRLC" kind_brace="HORIZONTAL">
+        <StbSecSteelFigureBrace_S>
+          <StbSecSteelBrace_S_Same shape="C-100x50x20x3.2" strength_main="SSC400" />
+        </StbSecSteelFigureBrace_S>
+      </StbSecBrace_S>
+      <StbSecSteel>
+        <StbSecRoll-H name="H-440x300x11x18x13" type="H" A="440" B="300" t1="11" t2="18" r="13" />
+        <StbSecRoll-H name="H-390x300x10x16x13" type="H" A="390" B="300" t1="10" t2="16" r="13" />
+        <StbSecRoll-H name="H-496x199x9x14x13" type="H" A="496" B="199" t1="9" t2="14" r="13" />
+        <StbSecRoll-H name="H-446x199x9x14x13" type="H" A="446" B="199" t1="9" t2="14" r="13" />
+        <StbSecRoll-H name="H-496x199x8x13x13" type="H" A="496" B="199" t1="8" t2="13" r="13" />
+        <StbSecRoll-H name="H-446x199x8x13x13" type="H" A="446" B="199" t1="8" t2="13" r="13" />
+        <StbSecRoll-H name="H-350x175x7x11x13" type="H" A="350" B="175" t1="7" t2="11" r="13" />
+        <StbSecRoll-H name="H-150x75x5x7x8" type="H" A="150" B="75" t1="5" t2="7" r="8" />
+        <StbSecRoll-BOX name="□-450x450x16x48" type="BCR" A="450" B="450" t="16" r="48" />
+        <StbSecRoll-BOX name="□-400x400x16x48" type="BCR" A="400" B="400" t="16" r="48" />
+        <StbSecRoll-BOX name="□-450x450x12x36" type="ELSE" A="450" B="450" t="12" r="36" />
+        <StbSecRoll-BOX name="□-400x400x12x36" type="ELSE" A="400" B="400" t="12" r="36" />
+        <StbSecRoll-BOX name="□-250x250x16x48" type="ELSE" A="250" B="250" t="16" r="48" />
+        <StbSecRoll-BOX name="□-200x200x6x18" type="ELSE" A="200" B="200" t="6" r="18" />
+        <StbSecBuild-BOX name="B□-450x400x16x13" A="400" B="450" t1="13" t2="16" />
+        <StbSecBuild-BOX name="B□-430x400x16x13" A="400" B="430" t1="13" t2="16" />
+        <StbSecBuild-BOX name="B□-410x400x13x13" A="400" B="410" t1="13" t2="13" />
+        <StbSecBuild-BOX name="B□-400x400x13x13" A="400" B="400" t1="13" t2="13" />
+        <StbSecBuild-BOX name="B□-410x400x12x12" A="400" B="410" t1="12" t2="12" />
+        <StbSecBuild-BOX name="B□-400x400x12x12" A="400" B="400" t1="12" t2="12" />
+        <StbSecBuild-BOX name="B□-250x250x15x16" A="250" B="250" t1="16" t2="15" />
+        <StbSecPipe name="○-450x19" D="450" t="19" />
+        <StbSecPipe name="○-400x19" D="400" t="19" />
+        <StbSecPipe name="○-216x4.5" D="216.3" t="4.5" />
+        <StbSecRoll-C name="[-380x100x13x20x24x12" type="SINGLE" A="380" B="100" t1="13" t2="20" r1="24" r2="12" />
+        <StbSecRoll-C name="[-300x90x13x20x24x12" type="SINGLE" A="300" B="90" t1="13" t2="20" r1="24" r2="12" />
+        <StbSecRoll-C name="[-380x100x12x16x19x9.5" type="SINGLE" A="380" B="100" t1="12" t2="16" r1="19" r2="9.5" />
+        <StbSecRoll-C name="[-300x90x12x16x19x9.5" type="SINGLE" A="300" B="90" t1="12" t2="16" r1="19" r2="9.5" />
+        <StbSecRoll-C name="2[-380x100x13x20x24x12" type="BACKTOBACK" A="380" B="100" t1="13" t2="20" r1="24" r2="12" />
+        <StbSecRoll-C name="2[-300x90x13x20x24x12" type="BACKTOBACK" A="300" B="90" t1="13" t2="20" r1="24" r2="12" />
+        <StbSecRoll-C name="2[-380x100x12x16x19x9.5" type="BACKTOBACK" A="380" B="100" t1="12" t2="16" r1="19" r2="9.5" />
+        <StbSecRoll-C name="2[-300x90x12x16x19x9.5" type="BACKTOBACK" A="300" B="90" t1="12" t2="16" r1="19" r2="9.5" />
+        <StbSecRoll-C name="[-380x100x10.5x16x18x9" type="SINGLE" A="380" B="100" t1="10.5" t2="16" r1="18" r2="9" />
+        <StbSecRoll-C name="2[-380x100x10.5x16x18x9" type="BACKTOBACK" A="380" B="100" t1="10.5" t2="16" r1="18" r2="9" />
+        <StbSecRoll-C name="[-100x50x5x7.5x8x4" type="SINGLE" A="100" B="50" t1="5" t2="7.5" r1="8" r2="4" />
+        <StbSecRoll-C name="2[-100x50x5x7.5x8x4" type="BACKTOBACK" A="100" B="50" t1="5" t2="7.5" r1="8" r2="4" />
+        <StbSecRoll-L name="L-100x100x7x10x5" type="SINGLE" A="100" B="100" t1="7" t2="7" r1="10" r2="5" />
+        <StbSecRoll-L name="2L-100x100x7x10x5" type="BACKTOBACK" A="100" B="100" t1="7" t2="7" r1="10" r2="5" />
+        <StbSecLipC name="C-250x75x25x4.5" type="SINGLE" H="250" A="75" C="25" t="4.5" />
+        <StbSecLipC name="2CF-250x75x25x4.5" type="FACETOFACE" H="250" A="75" C="25" t="4.5" />
+        <StbSecLipC name="2CB-250x75x25x4.5" type="BACKTOBACK" H="250" A="75" C="25" t="4.5" />
+        <StbSecLipC name="C-200x75x25x4.5" type="SINGLE" H="200" A="75" C="25" t="4.5" />
+        <StbSecLipC name="2CF-200x75x25x4.5" type="FACETOFACE" H="200" A="75" C="25" t="4.5" />
+        <StbSecLipC name="2CB-200x75x25x4.5" type="BACKTOBACK" H="200" A="75" C="25" t="4.5" />
+        <StbSecLipC name="C-250x75x25x3.2" type="SINGLE" H="250" A="75" C="25" t="3.2" />
+        <StbSecLipC name="C-200x75x25x3.2" type="SINGLE" H="200" A="75" C="25" t="3.2" />
+        <StbSecLipC name="2CF-250x75x25x3.2" type="FACETOFACE" H="250" A="75" C="25" t="3.2" />
+        <StbSecLipC name="2CF-200x75x25x3.2" type="FACETOFACE" H="200" A="75" C="25" t="3.2" />
+        <StbSecLipC name="2CB-200x75x25x3.2" type="BACKTOBACK" H="200" A="75" C="25" t="3.2" />
+        <StbSecLipC name="2CB-250x75x25x3.2" type="BACKTOBACK" H="250" A="75" C="25" t="3.2" />
+        <StbSecLipC name="C-150x75x25x4.5" type="SINGLE" H="150" A="75" C="25" t="4.5" />
+        <StbSecLipC name="2CF-150x75x25x4.5" type="FACETOFACE" H="150" A="75" C="25" t="4.5" />
+        <StbSecLipC name="2CB-150x75x25x4.5" type="BACKTOBACK" H="150" A="75" C="25" t="4.5" />
+        <StbSecLipC name="C-100x50x20x3.2" type="SINGLE" H="100" A="50" C="20" t="3.2" />
+        <StbSecLipC name="2CF-100x50x20x3.2" type="FACETOFACE" H="100" A="50" C="20" t="3.2" />
+        <StbSecLipC name="2CB-100x50x20x3.2" type="BACKTOBACK" H="100" A="50" C="20" t="3.2" />
+        <StbSecFlatBar name="FB-100x15" B="100" t="15" />
+        <StbSecRoundBar name="RB-60" R="60" />
+      </StbSecSteel>
+    </StbSections>
+  </StbModel>
+</ST_BRIDGE>

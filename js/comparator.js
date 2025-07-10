@@ -98,15 +98,15 @@ export function compareElements(
   const dataB = [];
   const matchedData = [];
 
-  for (const elA of elementsA) {
-    const { key, data } = keyExtractor(elA, nodeMapA);
+  for (const elementA of elementsA) {
+    const { key, data } = keyExtractor(elementA, nodeMapA);
     if (key !== null) {
       keysA.set(key, data);
     }
   }
 
-  for (const elB of elementsB) {
-    const { key, data } = keyExtractor(elB, nodeMapB);
+  for (const elementB of elementsB) {
+    const { key, data } = keyExtractor(elementB, nodeMapB);
     if (key !== null) {
       keysB.set(key, data);
     }

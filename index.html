@@ -13,9 +13,10 @@
         background-color: rgba(240, 240, 240, 0.85); /* 半透明の背景 */
         border: 1px solid #ccc;
         padding: 10px;
-        min-width: 150px; /* 最小幅を追加 */
+        min-width: 300px; /* 最小幅を大きく設定 */
         min-height: 100px; /* 最小高さを追加 */
-        max-width: 80vw; /* 最大幅をビューポート基準に */
+        width: 30vw; /* デフォルト幅を大きく設定 */
+        max-width: 70vw; /* 最大幅をビューポート基準に */
         max-height: 80vh; /* 最大高さをビューポート基準に */
         overflow: auto; /* 内容が多い場合はスクロール (overflow-y から変更) */
         resize: both; /* ★★★ 追加: リサイズ可能にする ★★★ */
@@ -35,6 +36,9 @@
         margin: 0;
         white-space: pre-wrap; /* 折り返し表示 */
         word-wrap: break-word;
+      }
+      #element-info-content {
+        margin-top: 0;
       }
       /* ★★★ 追加: 凡例パネルのスタイル ★★★ */
       #legendPanel {
@@ -57,17 +61,202 @@
         /* display: none; はHTML要素のstyle属性で制御されるため、ここでは不要 */
       }
       /* ★★★ ここまで追加 ★★★ */
+
+      /* ★★★ 編集機能用スタイル ★★★ */
+      .btn {
+        padding: 4px 8px;
+        margin: 2px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+        background-color: #f8f9fa;
+        cursor: pointer;
+        font-size: 0.8em;
+      }
+      .btn-primary {
+        background-color: #007bff;
+        color: white;
+        border-color: #007bff;
+      }
+      .btn-warning {
+        background-color: #ffc107;
+        color: #212529;
+        border-color: #ffc107;
+      }
+      .btn-success {
+        background-color: #28a745;
+        color: white;
+        border-color: #28a745;
+      }
+      .btn-danger {
+        background-color: #dc3545;
+        color: white;
+        border-color: #dc3545;
+      }
+      .btn-sm {
+        padding: 2px 6px;
+        font-size: 0.7em;
+      }
+      .edit-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 0.8em;
+        margin-left: 5px;
+        padding: 1px 3px;
+        border-radius: 2px;
+        opacity: 0.7;
+      }
+      .edit-btn:hover {
+        opacity: 1;
+        background-color: #e9ecef;
+      }
+      #editing-controls {
+        background-color: #f8f9fa;
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+        margin-bottom: 10px;
+      }
+      /* ★★★ 編集機能用スタイル終了 ★★★ */
+
+      /* ★★★ 色分けUI用スタイル ★★★ */
+      #color-mode-controls {
+        background-color: #f8f9fa;
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+      }
+      .form-control {
+        width: 100%;
+        padding: 4px 8px;
+        border: 1px solid #ced4da;
+        border-radius: 3px;
+        font-size: 0.9em;
+      }
+      .color-legend-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 5px;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        font-size: 0.75em;
+      }
+      .legend-color-box {
+        width: 12px;
+        height: 12px;
+        border: 1px solid #ccc;
+        margin-right: 4px;
+        display: inline-block;
+      }
+      .legend-label {
+        white-space: nowrap;
+      }
+      /* 色付けモード用追加スタイル */
+      .element-color-settings {
+        display: none;
+        margin-top: 10px;
+      }
+      .schema-color-settings {
+        display: none;
+        margin-top: 10px;
+      }
+      .color-setting-label {
+        font-size: 0.9em;
+      }
+      .margin-left-8 {
+        margin-left: 8px;
+      }
+      .legend-panel-hidden {
+        display: none;
+      }
+      .legend-color-matched {
+        background-color: #00aaff;
+      }
+      .legend-color-onlya {
+        background-color: #00ff00;
+      }
+      .legend-color-onlyb {
+        background-color: #ff0000;
+      }
+      .editing-summary {
+        margin-top: 8px;
+        font-size: 0.9em;
+      }
+      .legend-color {
+        width: 12px;
+        height: 12px;
+        border: 1px solid #ccc;
+        margin-right: 4px;
+        display: inline-block;
+      }
+      /* ★★★ 色分けUI用スタイルここまで ★★★ */
     </style>
   </head>
-
   <body>
     <div id="overlay">
-      <label>モデルA</label>
+      <label for="fileA">モデルA</label>
       <input type="file" id="fileA" accept=".stb,.xml" />
-      <label>モデルB</label>
+      <label for="fileB">モデルB</label>
       <input type="file" id="fileB" accept=".stb,.xml" />
       <!-- ★★★ ボタンのテキストを更新 ★★★ -->
       <button id="compareButton">モデル読み込み・表示</button>
+
+      <hr />
+
+      <!-- ★★★ 色付けモード選択UI ★★★ -->
+      <div id="color-mode-controls">
+        <label><strong>色付けモード</strong></label
+        ><br />
+        <select
+          id="colorModeSelector"
+          class="form-control"
+          title="色付けモードを選択"
+        >
+          <option value="diff">差分表示（デフォルト）</option>
+          <option value="element">部材別色付け</option>
+          <option value="schema">スキーマエラー表示</option>
+        </select>
+
+        <!-- 部材別色付け設定 -->
+        <div id="element-color-settings" class="element-color-settings">
+          <label class="color-setting-label"
+            ><strong>部材色設定:</strong></label
+          >
+          <div class="color-legend-container" id="element-color-controls">
+            <!-- 動的に生成される -->
+          </div>
+        </div>
+
+        <!-- スキーマエラー色設定 -->
+        <div id="schema-color-settings" class="schema-color-settings">
+          <label class="color-setting-label"
+            ><strong>スキーマエラー色設定:</strong></label
+          >
+          <div class="color-legend-container">
+            <div class="legend-item">
+              <input
+                type="color"
+                id="schema-valid-color"
+                value="#00aaff"
+                class="legend-color-box"
+              />
+              <span class="legend-label">正常要素</span>
+            </div>
+            <div class="legend-item">
+              <input
+                type="color"
+                id="schema-error-color"
+                value="#ff0000"
+                class="legend-color-box"
+              />
+              <span class="legend-label">エラー要素</span>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <hr />
 
@@ -99,7 +288,14 @@
         <label>比較/表示する要素</label> <br />
         <!-- 改行を追加 -->
         <label>
-          <input type="checkbox" name="elements" value="Node" /> 節点 (Node)
+          <input
+            type="checkbox"
+            name="elements"
+            value="Node"
+            id="toggleNodeView"
+            checked
+          />
+          節点 (Node)
         </label>
         <label for="toggleLabel-Node">
           <input
@@ -116,12 +312,12 @@
           (Column)
         </label>
         <!-- ▼柱表示切替UI追加▼ -->
-        <label for="toggleColumnView" style="margin-left: 8px">
+        <label for="toggleColumnView" class="margin-left-8">
           <input type="checkbox" id="toggleColumnView" name="columnViewMode" />
           立体表示
         </label>
         <!-- ▲柱表示切替UI追加▲ -->
-        <label for="toggleLabel-Column" style="margin-left: 8px">
+        <label for="toggleLabel-Column" class="margin-left-8">
           <input
             type="checkbox"
             name="labelToggle"
@@ -135,11 +331,11 @@
           <input type="checkbox" name="elements" value="Girder" checked /> 大梁
           (Girder)
         </label>
-        <label for="toggleBeamView" style="margin-left: 8px">
-          <input type="checkbox" id="toggleBeamView" name="girderViewMode" />
+        <label for="toggleGirderView" class="margin-left-8">
+          <input type="checkbox" id="toggleGirderView" name="girderViewMode" />
           立体表示
         </label>
-        <label for="toggleLabel-Girder" style="margin-left: 8px">
+        <label for="toggleLabel-Girder" class="margin-left-8">
           <input
             type="checkbox"
             name="labelToggle"
@@ -164,8 +360,34 @@
         </label>
         <br />
         <label>
-          <input type="checkbox" name="elements" value="Slab" checked /> スラブ
-          (Slab)
+          <input
+            type="checkbox"
+            name="elements"
+            value="Brace"
+            id="toggleBraceView"
+            checked
+          />
+          ブレース (Brace)
+        </label>
+        <label for="toggleLabel-Brace">
+          <input
+            type="checkbox"
+            name="labelToggle"
+            value="Brace"
+            id="toggleLabel-Brace"
+          />
+          ID
+        </label>
+        <br />
+        <label>
+          <input
+            type="checkbox"
+            name="elements"
+            value="Slab"
+            id="toggleSlabView"
+            checked
+          />
+          スラブ (Slab)
         </label>
         <label for="toggleLabel-Slab">
           <input
@@ -178,8 +400,14 @@
         </label>
         <br />
         <label>
-          <input type="checkbox" name="elements" value="Wall" checked /> 壁
-          (Wall)
+          <input
+            type="checkbox"
+            name="elements"
+            value="Wall"
+            id="toggleWallView"
+            checked
+          />
+          壁 (Wall)
         </label>
         <label for="toggleLabel-Wall">
           <input
@@ -192,8 +420,14 @@
         </label>
         <br />
         <label>
-          <input type="checkbox" name="elements" value="Axis" checked /> 通り芯
-          (Axis)
+          <input
+            type="checkbox"
+            name="elements"
+            value="Axis"
+            id="toggleAxisView"
+            checked
+          />
+          通り芯 (Axis)
         </label>
         <label for="toggleLabel-Axis">
           <input
@@ -207,8 +441,14 @@
         </label>
         <br />
         <label>
-          <input type="checkbox" name="elements" value="Story" checked /> 階
-          (Story)
+          <input
+            type="checkbox"
+            name="elements"
+            value="Story"
+            id="toggleStoryView"
+            checked
+          />
+          階 (Story)
         </label>
         <label for="toggleLabel-Story">
           <input
@@ -222,10 +462,9 @@
         </label>
         <!-- 他の要素 (Story, Axis) は現状未対応 -->
       </div>
-
       <hr />
 
-      <label>階の表示制限</label>
+      <label for="storySelector">階の表示制限</label>
       <select id="storySelector"></select>
       <div id="storyButtons">
         <!-- ★★★ onclick 属性を削除 ★★★ -->
@@ -251,20 +490,20 @@
     </div>
 
     <!-- ここに凡例パネルのHTMLを追加 -->
-    <div id="legendPanel" class="panel" style="display: none">
+    <div id="legendPanel" class="panel legend-panel-hidden">
       <!-- 初期状態は非表示 -->
       <div class="panel-header">凡例</div>
       <div class="legend-content">
         <div class="legend-item">
-          <span class="legend-color" style="background-color: #00aaff"></span>
+          <span class="legend-color legend-color-matched"></span>
           <span>一致要素</span>
         </div>
         <div class="legend-item">
-          <span class="legend-color" style="background-color: #00ff00"></span>
+          <span class="legend-color legend-color-onlya"></span>
           <span>モデルAのみ</span>
         </div>
         <div class="legend-item">
-          <span class="legend-color" style="background-color: #ff0000"></span>
+          <span class="legend-color legend-color-onlyb"></span>
           <span>モデルBのみ</span>
         </div>
         <hr />
@@ -286,13 +525,49 @@
 
     <!-- ★★★ 追加: 要素情報表示パネル ★★★ -->
     <div id="component-info" class="panel info-panel">
-      要素を選択してください。
+      <!-- 編集機能UI (最小化) -->
+      <div id="editing-controls" style="font-size: 0.8em; opacity: 0.7; margin-bottom: 8px;">
+        <button
+          id="edit-mode-button"
+          class="btn btn-sm"
+          style="font-size: 0.7em; padding: 2px 6px; background: #f8f9fa; border: 1px solid #dee2e6; color: #6c757d;"
+          onclick="window.toggleEditMode()"
+          title="高度な編集機能（開発者向け）"
+        >
+          編集
+        </button>
+        <span id="editing-summary" style="font-size: 0.7em; color: #6c757d; margin-left: 5px;">
+          修正: 0件
+        </span>
+      </div>
+      <div id="element-info-content">要素を選択してください。</div>
     </div>
     <!-- /要素情報表示パネル -->
 
     <canvas id="three-canvas"></canvas>
+
+    <!-- 開発者向けリンク (本番環境では削除) -->
+    <div id="dev-tools" style="position: fixed; bottom: 10px; right: 10px; z-index: 1000; display: none;">
+      <a href="test.html" 
+         style="background: #666; color: white; padding: 4px 8px; text-decoration: none; 
+                border-radius: 3px; font-size: 11px; opacity: 0.7;"
+         title="開発者向けテスト環境">
+        🧪 Tests
+      </a>
+    </div>
+    
+    <!-- 開発環境でのみテストリンクを表示 -->
+    <script>
+      if (window.location.hostname === 'localhost' || 
+          window.location.hostname === '127.0.0.1' ||
+          window.location.search.includes('dev=true')) {
+        document.getElementById('dev-tools').style.display = 'block';
+      }
+    </script>
+
     <!-- ★★★ パスを js/main.js に変更 ★★★ -->
     <script type="module" src="js/main.js"></script>
+
     <!-- ★★★ 追加: selectComponentInfo.js の script タグは不要 (main.js から import されるため) ★★★ -->
     <!-- <script type="module" src="selectComponentInfo.js"></script> -->
   </body>

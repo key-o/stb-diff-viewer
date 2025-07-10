@@ -15,6 +15,11 @@
 
 import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
 import { renderer } from "../core/core.js";
+import {
+  getCurrentColorMode,
+  getMaterialForElement,
+  COLOR_MODES,
+} from "../../colorModes.js";
 
 // --- マテリアル定義 (clippingPlanesは後で設定) ---
 export const materials = {
@@ -109,4 +114,84 @@ export function updateMaterialClippingPlanes() {
     }
   }
   console.log("Updated material clipping planes.");
+}
+
+/**
+ * 要素に適用するマテリアルを取得する関数
+ * 色付けモードに応じて適切なマテリアルを返す
+ * @param {string} elementType 要素タイプ (Column, Girder, Beam, etc.)
+ * @param {string} comparisonState 比較状態 ('matched', 'onlyA', 'onlyB')
+ * @param {boolean} isLine 線要素かどうか
+ * @param {boolean} isPoly ポリゴン要素かどうか
+ * @returns {THREE.Material} 適用するマテリアル
+ */
+export function getMaterialForElementWithMode(
+  elementType,
+  comparisonState,
+  isLine = false,
+  isPoly = false,
+  elementId = null
+) {
+  const colorMode = getCurrentColorMode();
+
+  // 差分表示モード以外の場合は、専用マテリアルを取得
+  if (colorMode !== COLOR_MODES.DIFF) {
+    const customMaterial = getMaterialForElement(
+      elementType,
+      isLine,
+      elementId
+    );
+    if (customMaterial) {
+      // クリッピング平面を設定
+      customMaterial.clippingPlanes = renderer?.clippingPlanes || [];
+      customMaterial.needsUpdate = true;
+      return customMaterial;
+    }
+  }
+
+  // 差分表示モード（デフォルト）の場合は従来のマテリアルを使用
+  if (isPoly) {
+    switch (comparisonState) {
+      case "matched":
+        return materials.polyMatched;
+      case "onlyA":
+        return materials.polyOnlyA;
+      case "onlyB":
+        return materials.polyOnlyB;
+      default:
+        return materials.polyMatched;
+    }
+  } else if (isLine) {
+    switch (comparisonState) {
+      case "matched":
+        return materials.lineMatched;
+      case "onlyA":
+        return materials.lineOnlyA;
+      case "onlyB":
+        return materials.lineOnlyB;
+      default:
+        return materials.lineMatched;
+    }
+  } else {
+    switch (comparisonState) {
+      case "matched":
+        return materials.matched;
+      case "onlyA":
+        return materials.onlyA;
+      case "onlyB":
+        return materials.onlyB;
+      default:
+        return materials.matched;
+    }
+  }
+}
+
+/**
+ * 色付けモードが変更された時にマテリアルを更新する関数
+ */
+export function updateMaterialsForColorMode() {
+  // 既存のマテリアルのクリッピング平面を更新
+  updateMaterialClippingPlanes();
+
+  console.log(`Materials updated for color mode: ${getCurrentColorMode()}`);
 }
