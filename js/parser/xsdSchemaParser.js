@@ -573,6 +573,82 @@ function getEnumerationValues(typeName) {
 }
 
 /**
+ * 指定された要素タイプ・属性名の詳細な型情報を取得
+ * @param {string} elementType - 要素タイプ名 (StbColumn等)
+ * @param {string} attributeName - 属性名
+ * @returns {Object|null} 型情報オブジェクト
+ */
+export function getAttributeTypeInfo(elementType, attributeName) {
+  const attrInfo = getAttributeInfo(elementType, attributeName);
+  if (!attrInfo) return null;
+
+  const typeInfo = {
+    type: attrInfo.type,
+    required: attrInfo.required,
+    default: attrInfo.default,
+    fixed: attrInfo.fixed,
+    documentation: attrInfo.documentation
+  };
+
+  // 列挙値の場合は値も含める
+  if (attrInfo.type) {
+    const enumValues = getEnumerationValues(attrInfo.type);
+    if (enumValues.length > 0) {
+      typeInfo.isEnumeration = true;
+      typeInfo.enumerationValues = enumValues;
+    }
+  }
+
+  return typeInfo;
+}
+
+/**
+ * 指定された要素タイプ・属性名が列挙値を持つかチェック
+ * @param {string} elementType - 要素タイプ名 (StbColumn等)
+ * @param {string} attributeName - 属性名
+ * @returns {boolean} 列挙値を持つかどうか
+ */
+export function hasEnumerationValues(elementType, attributeName) {
+  const attrInfo = getAttributeInfo(elementType, attributeName);
+  if (!attrInfo || !attrInfo.type) return false;
+
+  const enumValues = getEnumerationValues(attrInfo.type);
+  return enumValues.length > 0;
+}
+
+/**
+ * 指定された要素タイプ・属性名の制約情報を取得
+ * @param {string} elementType - 要素タイプ名 (StbColumn等)
+ * @param {string} attributeName - 属性名
+ * @returns {Object|null} 制約情報オブジェクト
+ */
+export function getAttributeConstraints(elementType, attributeName) {
+  const attrInfo = getAttributeInfo(elementType, attributeName);
+  if (!attrInfo) return null;
+
+  const constraints = {
+    required: attrInfo.required,
+    type: attrInfo.type,
+    default: attrInfo.default,
+    fixed: attrInfo.fixed
+  };
+
+  // 列挙値制約
+  if (attrInfo.type) {
+    const enumValues = getEnumerationValues(attrInfo.type);
+    if (enumValues.length > 0) {
+      constraints.enumValues = enumValues;
+      constraints.restrictionType = 'enumeration';
+    }
+  }
+
+  // その他の制約（パターン、長さ等）
+  // TODO: 必要に応じて拡張
+
+  return constraints;
+}
+
+/**
  * 要素の必須属性が全て設定されているかチェック
  * @param {string} elementType - 要素タイプ名
  * @param {Object} attributes - 現在の属性値オブジェクト

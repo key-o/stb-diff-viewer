@@ -23,6 +23,10 @@ import {
   validateElement,
 } from "../../parser/xsdSchemaParser.js";
 
+// 新しいパラメータ編集機能をインポート
+import { ParameterEditor } from '../../ui/parameterEditor.js';
+import { SuggestionEngine } from '../../core/suggestionEngine.js';
+
 // STBエクスポーターをインポート
 import {
   exportModifiedStb,
@@ -540,61 +544,121 @@ export function exportModifications() {
 }
 
 /**
- * 属性値を編集
+ * 属性値を編集（新しいParameterEditorを使用）
  * @param {string} elementType - 要素タイプ
  * @param {string} elementId - 要素ID
  * @param {string} attributeName - 属性名
  * @param {string} currentValue - 現在の値
  */
-function editAttributeValue(
+async function editAttributeValue(
   elementType,
   elementId,
   attributeName,
   currentValue
 ) {
-  const newValue = prompt(
-    `属性「${attributeName}」の新しい値を入力してください:`,
-    currentValue || ""
-  );
+  try {
+    // サジェスト候補を取得
+    const suggestions = SuggestionEngine.getSuggestions(
+      elementType, 
+      attributeName, 
+      { currentValue, elementId }
+    );
 
-  if (newValue === null) return; // キャンセル
-
-  // XSDバリデーション
-  if (isSchemaLoaded()) {
+    // 属性情報を取得
     const tagName = elementType === "Node" ? "StbNode" : `Stb${elementType}`;
-    const validation = validateAttributeValue(tagName, attributeName, newValue);
+    const attrInfo = getAttributeInfo(tagName, attributeName);
+    
+    // ParameterEditorの設定
+    const config = {
+      attributeName,
+      currentValue: currentValue || '',
+      suggestions,
+      elementType,
+      elementId,
+      allowFreeText: !attrInfo || !suggestions.length || suggestions.length > 10,
+      required: attrInfo ? attrInfo.required : false
+    };
 
-    if (!validation.valid) {
-      const proceed = confirm(
-        `警告: ${validation.error}\n\n` +
-          (validation.suggestions
-            ? `推奨値: ${validation.suggestions.join(", ")}\n\n`
-            : "") +
-          "それでも続行しますか？"
-      );
-      if (!proceed) return;
+    // 新しいParameterEditorモーダルを表示
+    const newValue = await ParameterEditor.show(config);
+
+    if (newValue === null) {
+      console.log('編集がキャンセルされました');
+      return; // キャンセル
     }
+
+    // 使用統計を記録
+    SuggestionEngine.recordUsage(elementType, attributeName, newValue);
+
+    // 修正を記録
+    modifications.push({
+      elementType,
+      id: elementId,
+      attribute: attributeName,
+      oldValue: currentValue,
+      newValue: newValue,
+    });
+
+    // UIを更新（現在の要素を再表示）
+    if (currentEditingElement) {
+      const { idA, idB } = currentEditingElement;
+      displayElementInfo(idA, idB, elementType);
+    }
+
+    console.log(
+      `修正を記録: ${elementType}(${elementId}).${attributeName} = "${newValue}"`
+    );
+    updateEditingSummary();
+
+  } catch (error) {
+    console.error('属性編集中にエラーが発生しました:', error);
+    
+    // フォールバック: 従来のprompt()を使用
+    console.log('フォールバック: 従来の編集方法を使用します');
+    const newValue = prompt(
+      `属性「${attributeName}」の新しい値を入力してください:`,
+      currentValue || ""
+    );
+
+    if (newValue === null) return; // キャンセル
+
+    // XSDバリデーション
+    if (isSchemaLoaded()) {
+      const tagName = elementType === "Node" ? "StbNode" : `Stb${elementType}`;
+      const validation = validateAttributeValue(tagName, attributeName, newValue);
+
+      if (!validation.valid) {
+        const proceed = confirm(
+          `警告: ${validation.error}\n\n` +
+            (validation.suggestions
+              ? `推奨値: ${validation.suggestions.join(", ")}\n\n`
+              : "") +
+            "それでも続行しますか？"
+        );
+        if (!proceed) return;
+      }
+    }
+
+    // 修正を記録
+    modifications.push({
+      elementType,
+      id: elementId,
+      attribute: attributeName,
+      oldValue: currentValue,
+      newValue: newValue,
+    });
+
+    // UIを更新
+    if (currentEditingElement) {
+      const { idA, idB } = currentEditingElement;
+      displayElementInfo(idA, idB, elementType);
+    }
+
+    console.log(
+      `修正を記録: ${elementType}(${elementId}).${attributeName} = "${newValue}"`
+    );
+    updateEditingSummary();
   }
-
-  // 修正を記録
-  modifications.push({
-    elementType,
-    id: elementId,
-    attribute: attributeName,
-    oldValue: currentValue,
-    newValue: newValue,
-  });
-
-  // UIを更新（現在の要素を再表示）
-  if (currentEditingElement) {
-    const { idA, idB } = currentEditingElement;
-    displayElementInfo(idA, idB, elementType);
-  }
-
-  console.log(
-    `修正を記録: ${elementType}(${elementId}).${attributeName} = "${newValue}"`
-  );
-  updateEditingSummary();
 }
 
 /**

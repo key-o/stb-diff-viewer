@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parameter Suggestion Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .test-button:hover {
+            background: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        h2 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Parameter Suggestion Functionality Test</h1>
+
+    <div class="test-container">
+        <h2>1. SuggestionEngine Tests</h2>
+        <button class="test-button" onclick="testSuggestionEngine()">Test SuggestionEngine</button>
+        <button class="test-button" onclick="testEnumerationExtraction()">Test Enumeration Extraction</button>
+        <div id="suggestion-results" class="result"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>2. ParameterEditor Tests</h2>
+        <button class="test-button" onclick="testParameterEditorDropdown()">Test Dropdown Mode</button>
+        <button class="test-button" onclick="testParameterEditorMixed()">Test Mixed Mode</button>
+        <button class="test-button" onclick="testParameterEditorText()">Test Text Mode</button>
+        <div id="editor-results" class="result"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>3. XSD Integration Tests</h2>
+        <button class="test-button" onclick="testXSDIntegration()">Test XSD Schema Integration</button>
+        <button class="test-button" onclick="testAttributeInfo()">Test Attribute Info</button>
+        <div id="xsd-results" class="result"></div>
+    </div>
+
+    <div class="test-container">
+        <h2>4. Performance Tests</h2>
+        <button class="test-button" onclick="testPerformance()">Test Response Times</button>
+        <div id="performance-results" class="result"></div>
+    </div>
+
+    <script type="module">
+        // Import the necessary modules
+        import { SuggestionEngine } from './js/core/suggestionEngine.js';
+        import { ParameterEditor } from './js/ui/parameterEditor.js';
+        import { 
+            getAttributeInfo, 
+            hasEnumerationValues, 
+            isSchemaLoaded,
+            loadXsdSchema 
+        } from './js/parser/xsdSchemaParser.js';
+
+        // Make functions globally available for HTML onclick handlers
+        window.testSuggestionEngine = async () => {
+            const results = document.getElementById('suggestion-results');
+            results.innerHTML = 'Testing SuggestionEngine...';
+            
+            try {
+                // Test basic suggestion retrieval
+                const suggestions1 = SuggestionEngine.getSuggestions('Column', 'kind', { currentValue: 'ON_G' });
+                const suggestions2 = SuggestionEngine.getSuggestions('Beam', 'type', { currentValue: '' });
+                
+                results.innerHTML = `
+                    <strong>✅ SuggestionEngine Test Results:</strong><br>
+                    Column.kind suggestions: [${suggestions1.join(', ')}]<br>
+                    Beam.type suggestions: [${suggestions2.join(', ')}]<br>
+                    <em>Test completed at ${new Date().toLocaleTimeString()}</em>
+                `;
+            } catch (error) {
+                results.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        };
+
+        window.testEnumerationExtraction = async () => {
+            const results = document.getElementById('suggestion-results');
+            results.innerHTML = 'Testing enumeration extraction...';
+            
+            try {
+                const engine = new SuggestionEngine();
+                
+                // Test schema-based enumeration extraction
+                const enumValues = engine.getEnumerationValuesFromSchema('StbColumnKindType');
+                
+                results.innerHTML = `
+                    <strong>✅ Enumeration Extraction Results:</strong><br>
+                    StbColumnKindType values: [${enumValues.join(', ')}]<br>
+                    Count: ${enumValues.length}<br>
+                    <em>Test completed at ${new Date().toLocaleTimeString()}</em>
+                `;
+            } catch (error) {
+                results.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        };
+
+        window.testParameterEditorDropdown = async () => {
+            const results = document.getElementById('editor-results');
+            results.innerHTML = 'Opening dropdown Parameter Editor...';
+            
+            try {
+                const config = {
+                    attributeName: 'kind',
+                    currentValue: 'ON_GIRDER',
+                    suggestions: ['ON_GIRDER', 'ON_BEAM', 'ON_COLUMN', 'ON_POST', 'ON_GRID'],
+                    elementType: 'Column',
+                    elementId: 'C1',
+                    allowFreeText: false,
+                    required: true
+                };
+
+                const result = await ParameterEditor.show(config);
+                
+                results.innerHTML = `
+                    <strong>✅ Dropdown Editor Result:</strong><br>
+                    Selected value: "${result}"<br>
+                    <em>Test completed at ${new Date().toLocaleTimeString()}</em>
+                `;
+            } catch (error) {
+                results.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        };
+
+        window.testParameterEditorMixed = async () => {
+            const results = document.getElementById('editor-results');
+            results.innerHTML = 'Opening mixed mode Parameter Editor...';
+            
+            try {
+                const config = {
+                    attributeName: 'custom_property',
+                    currentValue: '',
+                    suggestions: ['Value1', 'Value2', 'Value3', 'Value4', 'Value5', 'Value6', 'Value7', 'Value8', 'Value9', 'Value10', 'Value11'],
+                    elementType: 'Column',
+                    elementId: 'C1',
+                    allowFreeText: true,
+                    required: false
+                };
+
+                const result = await ParameterEditor.show(config);
+                
+                results.innerHTML = `
+                    <strong>✅ Mixed Mode Editor Result:</strong><br>
+                    Selected/Entered value: "${result}"<br>
+                    <em>Test completed at ${new Date().toLocaleTimeString()}</em>
+                `;
+            } catch (error) {
+                results.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        };
+
+        window.testParameterEditorText = async () => {
+            const results = document.getElementById('editor-results');
+            results.innerHTML = 'Opening text-only Parameter Editor...';
+            
+            try {
+                const config = {
+                    attributeName: 'description',
+                    currentValue: 'Test description',
+                    suggestions: [],
+                    elementType: 'Column',
+                    elementId: 'C1',
+                    allowFreeText: true,
+                    required: false
+                };
+
+                const result = await ParameterEditor.show(config);
+                
+                results.innerHTML = `
+                    <strong>✅ Text Editor Result:</strong><br>
+                    Entered value: "${result}"<br>
+                    <em>Test completed at ${new Date().toLocaleTimeString()}</em>
+                `;
+            } catch (error) {
+                results.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        };
+
+        window.testXSDIntegration = async () => {
+            const results = document.getElementById('xsd-results');
+            results.innerHTML = 'Testing XSD Schema integration...';
+            
+            try {
+                const schemaLoaded = isSchemaLoaded();
+                const hasEnumForKind = hasEnumerationValues('StbColumn', 'kind');
+                const attrInfo = getAttributeInfo('StbColumn', 'kind');
+                
+                results.innerHTML = `
+                    <strong>✅ XSD Integration Results:</strong><br>
+                    Schema loaded: ${schemaLoaded}<br>
+                    Has enumeration for kind: ${hasEnumForKind}<br>
+                    Attribute info: ${attrInfo ? JSON.stringify(attrInfo, null, 2) : 'null'}<br>
+                    <em>Test completed at ${new Date().toLocaleTimeString()}</em>
+                `;
+            } catch (error) {
+                results.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        };
+
+        window.testAttributeInfo = async () => {
+            const results = document.getElementById('xsd-results');
+            results.innerHTML = 'Testing attribute information retrieval...';
+            
+            try {
+                const columnAttr = getAttributeInfo('StbColumn', 'kind');
+                const beamAttr = getAttributeInfo('StbGirder', 'kind');
+                const nodeAttr = getAttributeInfo('StbNode', 'X');
+                
+                results.innerHTML = `
+                    <strong>✅ Attribute Info Results:</strong><br>
+                    StbColumn.kind: ${columnAttr ? 'Found' : 'Not found'}<br>
+                    StbGirder.kind: ${beamAttr ? 'Found' : 'Not found'}<br>
+                    StbNode.X: ${nodeAttr ? 'Found' : 'Not found'}<br>
+                    <em>Test completed at ${new Date().toLocaleTimeString()}</em>
+                `;
+            } catch (error) {
+                results.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        };
+
+        window.testPerformance = async () => {
+            const results = document.getElementById('performance-results');
+            results.innerHTML = 'Running performance tests...';
+            
+            try {
+                // Test suggestion generation speed
+                const start1 = performance.now();
+                const suggestions = SuggestionEngine.getSuggestions('Column', 'kind', { currentValue: 'ON_B' });
+                const end1 = performance.now();
+                
+                // Test cache performance
+                const start2 = performance.now();
+                const cachedSuggestions = SuggestionEngine.getSuggestions('Column', 'kind', { currentValue: 'ON_B' });
+                const end2 = performance.now();
+                
+                // Test parameter editor display time
+                const start3 = performance.now();
+                const config = {
+                    attributeName: 'test_attr',
+                    currentValue: '',
+                    suggestions: ['A', 'B', 'C'],
+                    elementType: 'Column',
+                    elementId: 'C1',
+                    allowFreeText: true,
+                    required: false
+                };
+                
+                // We'll just test the setup time, not actually show the modal
+                const editor = new ParameterEditor();
+                editor.currentConfig = config;
+                const end3 = performance.now();
+                
+                results.innerHTML = `
+                    <strong>⚡ Performance Test Results:</strong><br>
+                    Suggestion generation: ${(end1 - start1).toFixed(2)}ms<br>
+                    Cached suggestion: ${(end2 - start2).toFixed(2)}ms<br>
+                    Editor setup: ${(end3 - start3).toFixed(2)}ms<br>
+                    <strong>Targets:</strong> <50ms suggestion, <200ms editor<br>
+                    <em>Test completed at ${new Date().toLocaleTimeString()}</em>
+                `;
+            } catch (error) {
+                results.innerHTML = `<strong>❌ Error:</strong> ${error.message}`;
+            }
+        };
+
+        // Run initial setup
+        console.log('Parameter Suggestion Test Environment Loaded');
+        console.log('Available tests: SuggestionEngine, ParameterEditor, XSD Integration, Performance');
+    </script>
+</body>
+</html>

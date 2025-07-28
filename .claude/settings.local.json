@@ -4,7 +4,9 @@
       "Bash(find:*)",
       "Bash(rm:*)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(python:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   }
