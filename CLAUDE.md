@@ -127,6 +127,15 @@ STBファイル → XMLパーサー → 要素抽出器 → 比較器 → 3Dレ�
 - 記述的動詞を用いたcamelCaseによる一貫した命名規則
 - 簡単なテストと拡張を可能にするモジュラーアーキテクチャ
 
+#### 開発者ツール（2025年1月）
+
+- `js/devtools.js`: 開発時専用ユーティリティ
+  - STBサンプルデータ自動生成
+  - 要素選択テストの自動実行
+  - パフォーマンス測定機能
+  - デバッグ情報表示
+  - ブラウザコンソールから `window.devtools.*` で利用可能
+
 ### IFC互換性強化
 
 #### 新しいIFCプロファイルシステム
@@ -161,6 +170,21 @@ MeshPositioner.positionLinearElement(mesh, startNode, endNode, geometry, {
 ### ファイル読み込みプロセス
 
 STBファイルはファイル入力経由で読み込まれ、XMLとして解析され、スキーマに対して検証された後、3Dジオメトリに処理されます。アプリは自動的に文字エンコーディングを検出し、STBと汎用XML形式の両方をサポートします。
+
+### 開発とテスト
+
+#### 本番環境
+- 本番配布では `js/test/` フォルダは除外済み（2025年1月削除）
+- テスト機能は `js/devtools.js` に統合
+
+#### 開発環境での使用
+```javascript
+// ブラウザコンソールでの開発ツール使用例
+devtools.quickTest()              // クイック機能テスト
+devtools.generateMinimalSTBSample() // テスト用STBデータ生成
+devtools.startPerformanceMonitoring() // パフォーマンス測定開始
+devtools.printDebugInfo()         // デバッグ情報表示
+```
 
 ## 命名規則
 
