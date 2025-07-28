@@ -50,6 +50,16 @@ class ApplicationState {
         isModelBVisible: true
       },
 
+      // 重要度評価関連
+      importanceRating: {
+        currentMode: 'default',
+        customSettings: new Map(),
+        elementRatings: new Map(),
+        displayFilters: ['high', 'medium', 'low'],
+        evaluationInProgress: false,
+        lastEvaluationTime: null
+      },
+
       // 機能関数
       functions: {
         toggleLegend: null,
@@ -229,6 +239,14 @@ class ApplicationState {
         isModelAVisible: true,
         isModelBVisible: true
       },
+      importanceRating: {
+        currentMode: 'default',
+        customSettings: new Map(),
+        elementRatings: new Map(),
+        displayFilters: ['high', 'medium', 'low'],
+        evaluationInProgress: false,
+        lastEvaluationTime: null
+      },
       functions
     };
 
@@ -260,3 +278,68 @@ export const getGlobalFunction = (name) => globalState.getFunction(name);
 export const enableStateDebug = (enabled = true) => globalState.setDebugMode(enabled);
 export const logApplicationState = () => globalState.logState();
 export const resetApplicationState = () => globalState.reset();
+
+// 重要度状態管理用の定数とヘルパー関数
+export const IMPORTANCE_STATE_PATHS = {
+  CURRENT_MODE: 'importanceRating.currentMode',
+  CUSTOM_SETTINGS: 'importanceRating.customSettings',
+  ELEMENT_RATINGS: 'importanceRating.elementRatings',
+  DISPLAY_FILTERS: 'importanceRating.displayFilters',
+  EVALUATION_IN_PROGRESS: 'importanceRating.evaluationInProgress',
+  LAST_EVALUATION_TIME: 'importanceRating.lastEvaluationTime'
+};
+
+/**
+ * 重要度状態を初期化する
+ */
+export function initializeImportanceState() {
+  setState('importanceRating', {
+    currentMode: 'default',
+    customSettings: new Map(),
+    elementRatings: new Map(),
+    displayFilters: ['high', 'medium', 'low'],
+    evaluationInProgress: false,
+    lastEvaluationTime: null
+  });
+  
+  if (globalState.debug) {
+    console.log('Importance state initialized');
+  }
+}
+
+/**
+ * 重要度状態を取得する
+ * @param {string} path - 状態のパス（空文字の場合は全体を返す）
+ * @returns {any} 重要度状態の値
+ */
+export function getImportanceState(path = '') {
+  const basePath = 'importanceRating' + (path ? `.${path}` : '');
+  return getState(basePath);
+}
+
+/**
+ * 重要度状態を設定する
+ * @param {string} path - 状態のパス
+ * @param {any} value - 設定する値
+ */
+export function setImportanceState(path, value) {
+  const fullPath = `importanceRating.${path}`;
+  setState(fullPath, value);
+  
+  // 重要度専用の変更通知を発行
+  notifyStateChange('importance', { path, value });
+}
+
+/**
+ * 状態変更通知を発行する
+ * @param {string} category - 変更カテゴリ
+ * @param {any} data - 変更データ
+ */
+export function notifyStateChange(category, data) {
+  if (typeof window !== 'undefined' && window.CustomEvent) {
+    const event = new CustomEvent(`stateChange:${category}`, {
+      detail: data
+    });
+    document.dispatchEvent(event);
+  }
+}
