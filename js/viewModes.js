@@ -24,8 +24,11 @@ import { parseElements } from "./parser/stbXmlParser.js";
 import { parseStbFile } from "./viewer/geometry/stbStructureReader.js";
 import { compareElements, lineElementKeyExtractor } from "./comparator.js";
 import { drawLineElements } from "./viewer/index.js";
-import { updateAllLabelVisibility, removeLabelsForElementType, addLabelsToGlobalState } from "./ui.js";
+import { updateUnifiedLabelVisibility } from "./ui/unifiedLabelManager.js";
+import { removeLabelsForElementType, addLabelsToGlobalState } from "./ui.js";
 import { createLabelSprite } from "./viewer/ui/labels.js";
+import { generateUnifiedLabelText } from "./ui/unifiedLabelManager.js";
+import { attachElementDataToLabel } from "./ui/labelRegeneration.js";
 
 // 表示モード状態
 let columnViewMode = "line"; // "line" または "solid"
@@ -129,7 +132,7 @@ export function redrawColumnsForViewMode(scheduleRender) {
   // どちらか一方のモデルを使う（A優先）
   const doc = modelADocument || modelBDocument;
   const group = elementGroups["Column"];
-  
+
   // 既存のラベルを削除
   removeLabelsForElementType("Column");
   group.clear(); // 柱グループのみクリア
@@ -144,12 +147,16 @@ export function redrawColumnsForViewMode(scheduleRender) {
       stbData.steelSections
     );
     meshes.forEach((mesh) => group.add(mesh));
-    
+
     // 立体表示でもラベルを作成
     const labelCheckbox = document.getElementById("toggleLabel-Column");
     const createLabels = labelCheckbox ? labelCheckbox.checked : false;
     if (createLabels) {
-      const labels = createLabelsForSolidElements(stbData.columnElements, stbData.nodes, "Column");
+      const labels = createLabelsForSolidElements(
+        stbData.columnElements,
+        stbData.nodes,
+        "Column"
+      );
       labels.forEach((label) => group.add(label));
       addLabelsToGlobalState(labels);
     }
@@ -184,7 +191,7 @@ export function redrawColumnsForViewMode(scheduleRender) {
 
   // 柱の表示モード切り替え後にラベルの表示/非表示を更新（非同期で実行）
   setTimeout(() => {
-    updateAllLabelVisibility();
+    updateUnifiedLabelVisibility();
     if (scheduleRender) scheduleRender();
   }, 10);
 }
@@ -198,15 +205,15 @@ export function redrawColumnsForViewMode(scheduleRender) {
  */
 function createLabelsForSolidElements(elements, nodes, elementType) {
   const labels = [];
-  
+
   for (const element of elements) {
     let startNode, endNode, labelText, centerPosition;
-    
+
     // 要素タイプに応じて座標とラベルテキストを取得
     if (elementType === "Column") {
       startNode = nodes.get(element.id_node_bottom);
       endNode = nodes.get(element.id_node_top);
-      labelText = element.id || "Column";
+      labelText = generateUnifiedLabelText(element, elementType);
       if (startNode && endNode) {
         centerPosition = new THREE.Vector3()
           .addVectors(startNode, endNode)
@@ -215,7 +222,7 @@ function createLabelsForSolidElements(elements, nodes, elementType) {
     } else if (elementType === "Girder" || elementType === "Beam") {
       startNode = nodes.get(element.id_node_start);
       endNode = nodes.get(element.id_node_end);
-      labelText = element.id || elementType;
+      labelText = generateUnifiedLabelText(element, elementType);
       if (startNode && endNode) {
         centerPosition = new THREE.Vector3()
           .addVectors(startNode, endNode)
@@ -224,7 +231,7 @@ function createLabelsForSolidElements(elements, nodes, elementType) {
     } else if (elementType === "Brace") {
       startNode = nodes.get(element.id_node_start);
       endNode = nodes.get(element.id_node_end);
-      labelText = element.id || "Brace";
+      labelText = generateUnifiedLabelText(element, elementType);
       if (startNode && endNode) {
         centerPosition = new THREE.Vector3()
           .addVectors(startNode, endNode)
@@ -233,19 +240,27 @@ function createLabelsForSolidElements(elements, nodes, elementType) {
     } else {
       continue;
     }
-    
+
     if (!centerPosition) continue;
-    
+
     // ラベルスプライトを作成（グループは後で追加するため、nullを渡す）
-    const sprite = createLabelSprite(labelText, centerPosition, null, elementType);
+    const sprite = createLabelSprite(
+      labelText,
+      centerPosition,
+      null,
+      elementType
+    );
     if (sprite) {
       sprite.userData.elementId = element.id;
       sprite.userData.modelSource = "solid"; // 立体表示由来のラベル
       sprite.userData.elementType = elementType;
+
+      // 要素データを保存して再生成時に使用
+      attachElementDataToLabel(sprite, element);
       labels.push(sprite);
     }
   }
-  
+
   return labels;
 }
 
@@ -261,7 +276,7 @@ export function redrawBeamsForViewMode(scheduleRender) {
   const doc = modelADocument || modelBDocument;
   const girderGroup = elementGroups["Girder"];
   const beamGroup = elementGroups["Beam"];
-  
+
   // 既存のラベルを削除
   removeLabelsForElementType("Girder");
   removeLabelsForElementType("Beam");
@@ -280,12 +295,18 @@ export function redrawBeamsForViewMode(scheduleRender) {
       "Girder" // elementType を渡す
     );
     girderMeshes.forEach((mesh) => girderGroup.add(mesh));
-    
+
     // 大梁のラベルを作成
     const girderLabelCheckbox = document.getElementById("toggleLabel-Girder");
-    const createGirderLabels = girderLabelCheckbox ? girderLabelCheckbox.checked : false;
+    const createGirderLabels = girderLabelCheckbox
+      ? girderLabelCheckbox.checked
+      : false;
     if (createGirderLabels) {
-      const girderLabels = createLabelsForSolidElements(stbData.girderElements, stbData.nodes, "Girder");
+      const girderLabels = createLabelsForSolidElements(
+        stbData.girderElements,
+        stbData.nodes,
+        "Girder"
+      );
       girderLabels.forEach((label) => girderGroup.add(label));
       addLabelsToGlobalState(girderLabels);
     }
@@ -299,12 +320,18 @@ export function redrawBeamsForViewMode(scheduleRender) {
       "Beam" // elementType を渡す
     );
     beamMeshes.forEach((mesh) => beamGroup.add(mesh));
-    
+
     // 小梁のラベルを作成
     const beamLabelCheckbox = document.getElementById("toggleLabel-Beam");
-    const createBeamLabels = beamLabelCheckbox ? beamLabelCheckbox.checked : false;
+    const createBeamLabels = beamLabelCheckbox
+      ? beamLabelCheckbox.checked
+      : false;
     if (createBeamLabels) {
-      const beamLabels = createLabelsForSolidElements(stbData.beamElements, stbData.nodes, "Beam");
+      const beamLabels = createLabelsForSolidElements(
+        stbData.beamElements,
+        stbData.nodes,
+        "Beam"
+      );
       beamLabels.forEach((label) => beamGroup.add(label));
       addLabelsToGlobalState(beamLabels);
     }
@@ -323,7 +350,9 @@ export function redrawBeamsForViewMode(scheduleRender) {
     );
     // ラベル表示設定を確認
     const girderLabelCheckbox = document.getElementById("toggleLabel-Girder");
-    const createGirderLabels = girderLabelCheckbox ? girderLabelCheckbox.checked : false;
+    const createGirderLabels = girderLabelCheckbox
+      ? girderLabelCheckbox.checked
+      : false;
     const createdGirderLabels = drawLineElements(
       girderComparison,
       materials,
@@ -350,7 +379,9 @@ export function redrawBeamsForViewMode(scheduleRender) {
     );
     // ラベル表示設定を確認
     const beamLabelCheckbox = document.getElementById("toggleLabel-Beam");
-    const createBeamLabels = beamLabelCheckbox ? beamLabelCheckbox.checked : false;
+    const createBeamLabels = beamLabelCheckbox
+      ? beamLabelCheckbox.checked
+      : false;
     const createdBeamLabels = drawLineElements(
       beamComparison,
       materials,
@@ -367,7 +398,7 @@ export function redrawBeamsForViewMode(scheduleRender) {
 
   // 梁の表示モード切り替え後にラベルの表示/非表示を更新（非同期で実行）
   setTimeout(() => {
-    updateAllLabelVisibility();
+    updateUnifiedLabelVisibility();
     if (scheduleRender) scheduleRender();
   }, 10);
 }
@@ -423,7 +454,7 @@ export function updateModelVisibility(scheduleRender) {
   });
 
   // ラベルの表示状態も更新
-  updateAllLabelVisibility();
+  updateUnifiedLabelVisibility();
 
   // 再描画を要求
   if (scheduleRender) scheduleRender();
@@ -475,7 +506,7 @@ export function setupViewModeListeners(scheduleRender) {
     { id: "toggleSlabView", type: "Slab", name: "スラブ" },
     { id: "toggleWallView", type: "Wall", name: "壁" },
     { id: "toggleAxisView", type: "Axis", name: "通り芯" },
-    { id: "toggleStoryView", type: "Story", name: "階" }
+    { id: "toggleStoryView", type: "Story", name: "階" },
   ];
 
   elementToggleIds.forEach(({ id, type, name }) => {
@@ -511,41 +542,6 @@ export function setupViewModeListeners(scheduleRender) {
     });
   }
 
-  // ラベル表示切り替えのイベントリスナー（全要素タイプ対応）
-  const labelCheckboxes = ["Node", "Column", "Girder", "Beam", "Brace", "Slab", "Wall", "Axis", "Story"];
-  labelCheckboxes.forEach(elementType => {
-    const labelCheckbox = document.getElementById(`toggleLabel-${elementType}`);
-    if (labelCheckbox) {
-      // 既存のイベントリスナーを削除してから新しいものを追加
-      const newHandler = function () {
-        console.log(`${elementType} label visibility changed:`, this.checked);
-        // 立体表示モードの場合は再描画
-        if ((elementType === "Column" && columnViewMode === "solid") ||
-            ((elementType === "Girder" || elementType === "Beam") && beamViewMode === "solid")) {
-          if (elementType === "Column") {
-            redrawColumnsForViewMode(scheduleRender);
-          } else if (elementType === "Girder" || elementType === "Beam") {
-            redrawBeamsForViewMode(scheduleRender);
-          }
-        } else {
-          // 線表示モードまたは立体表示に対応していない要素タイプの場合は単純にラベル表示を更新（遅延実行）
-          setTimeout(() => {
-            updateAllLabelVisibility();
-            if (scheduleRender) scheduleRender();
-          }, 10);
-        }
-      };
-      
-      // 重複を避けるため既存のハンドラーを削除
-      if (labelCheckbox._labelHandler) {
-        labelCheckbox.removeEventListener("change", labelCheckbox._labelHandler);
-      }
-      
-      // 新しいハンドラーを追加し、参照を保存
-      labelCheckbox.addEventListener("change", newHandler);
-      labelCheckbox._labelHandler = newHandler;
-    } else {
-      console.warn(`Label checkbox not found for element type: ${elementType}`);
-    }
-  });
+  // ラベル表示切り替えは events.js で一元管理されるため、ここでは設定しない
+  // 立体表示モードでのラベル更新は、該当する再描画関数内で処理される
 }

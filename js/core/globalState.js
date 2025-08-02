@@ -39,7 +39,8 @@ class ApplicationState {
         stories: [],
         axesData: { xAxes: [], yAxes: [] },
         currentViewMode: 'diff',
-        editMode: false
+        editMode: false,
+        labelContentType: 'id' // ラベル表示内容: 'id', 'name', 'section'
       },
 
       // 表示モード関連
@@ -48,16 +49,6 @@ class ApplicationState {
         beamViewMode: 'line',
         isModelAVisible: true,
         isModelBVisible: true
-      },
-
-      // 重要度評価関連
-      importanceRating: {
-        currentMode: 'default',
-        customSettings: new Map(),
-        elementRatings: new Map(),
-        displayFilters: ['high', 'medium', 'low'],
-        evaluationInProgress: false,
-        lastEvaluationTime: null
       },
 
       // 機能関数
@@ -69,6 +60,14 @@ class ApplicationState {
         clearClippingPlanes: null,
         toggleEditMode: null,
         setModelVisibility: null
+      },
+
+      // 重要度関連
+      importance: {
+        elementRatings: new Map(),
+        evaluationResults: null,
+        currentMode: 'default',
+        filterSettings: {}
       }
     };
 
@@ -231,7 +230,8 @@ class ApplicationState {
         stories: [],
         axesData: { xAxes: [], yAxes: [] },
         currentViewMode: 'diff',
-        editMode: false
+        editMode: false,
+        labelContentType: 'id' // ラベル表示内容: 'id', 'name', 'section'
       },
       viewModes: {
         columnViewMode: 'line',
@@ -239,15 +239,13 @@ class ApplicationState {
         isModelAVisible: true,
         isModelBVisible: true
       },
-      importanceRating: {
-        currentMode: 'default',
-        customSettings: new Map(),
+      functions,
+      importance: {
         elementRatings: new Map(),
-        displayFilters: ['high', 'medium', 'low'],
-        evaluationInProgress: false,
-        lastEvaluationTime: null
-      },
-      functions
+        evaluationResults: null,
+        currentMode: 'default',
+        filterSettings: {}
+      }
     };
 
     if (this.debug) {
@@ -279,67 +277,6 @@ export const enableStateDebug = (enabled = true) => globalState.setDebugMode(ena
 export const logApplicationState = () => globalState.logState();
 export const resetApplicationState = () => globalState.reset();
 
-// 重要度状態管理用の定数とヘルパー関数
-export const IMPORTANCE_STATE_PATHS = {
-  CURRENT_MODE: 'importanceRating.currentMode',
-  CUSTOM_SETTINGS: 'importanceRating.customSettings',
-  ELEMENT_RATINGS: 'importanceRating.elementRatings',
-  DISPLAY_FILTERS: 'importanceRating.displayFilters',
-  EVALUATION_IN_PROGRESS: 'importanceRating.evaluationInProgress',
-  LAST_EVALUATION_TIME: 'importanceRating.lastEvaluationTime'
-};
-
-/**
- * 重要度状態を初期化する
- */
-export function initializeImportanceState() {
-  setState('importanceRating', {
-    currentMode: 'default',
-    customSettings: new Map(),
-    elementRatings: new Map(),
-    displayFilters: ['high', 'medium', 'low'],
-    evaluationInProgress: false,
-    lastEvaluationTime: null
-  });
-  
-  if (globalState.debug) {
-    console.log('Importance state initialized');
-  }
-}
-
-/**
- * 重要度状態を取得する
- * @param {string} path - 状態のパス（空文字の場合は全体を返す）
- * @returns {any} 重要度状態の値
- */
-export function getImportanceState(path = '') {
-  const basePath = 'importanceRating' + (path ? `.${path}` : '');
-  return getState(basePath);
-}
-
-/**
- * 重要度状態を設定する
- * @param {string} path - 状態のパス
- * @param {any} value - 設定する値
- */
-export function setImportanceState(path, value) {
-  const fullPath = `importanceRating.${path}`;
-  setState(fullPath, value);
-  
-  // 重要度専用の変更通知を発行
-  notifyStateChange('importance', { path, value });
-}
-
-/**
- * 状態変更通知を発行する
- * @param {string} category - 変更カテゴリ
- * @param {any} data - 変更データ
- */
-export function notifyStateChange(category, data) {
-  if (typeof window !== 'undefined' && window.CustomEvent) {
-    const event = new CustomEvent(`stateChange:${category}`, {
-      detail: data
-    });
-    document.dispatchEvent(event);
-  }
-}
+// 重要度機能専用の便利関数
+export const setImportanceState = (path, value) => globalState.set(`importance.${path}`, value);
+export const getImportanceState = (path) => globalState.get(`importance.${path}`);

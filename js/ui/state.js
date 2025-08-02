@@ -26,12 +26,29 @@ export function setGlobalStateForUI(labels, stories, axesData) {
   currentStories = stories || [];
   currentAxesData = axesData || { xAxes: [], yAxes: [] };
   
-  console.log("UI State Updated:", {
+  console.log("=== UI STATE DEBUG ===");
+  console.log("setGlobalStateForUI called with:", {
     labelCount: allLabels.length,
     storyCount: currentStories.length,
     axisCountX: currentAxesData.xAxes.length,
     axisCountY: currentAxesData.yAxes.length,
+    axesDataReceived: axesData
   });
+  
+  // Detailed axis data logging
+  if (currentAxesData.xAxes.length > 0) {
+    console.log("X-Axes data:", currentAxesData.xAxes);
+  } else {
+    console.warn("No X-axes data received");
+  }
+  
+  if (currentAxesData.yAxes.length > 0) {
+    console.log("Y-Axes data:", currentAxesData.yAxes);
+  } else {
+    console.warn("No Y-axes data received");
+  }
+  
+  console.log("=== END UI STATE DEBUG ===");
 
   // Trigger state change notification
   notifyStateChange();
@@ -58,6 +75,16 @@ export function getGlobalUIState() {
  */
 export function getAllLabels() {
   return allLabels;
+}
+
+/**
+ * Set all labels (replace existing labels)
+ * @param {Array} labels - Array of label objects to set
+ */
+export function setAllLabels(labels) {
+  allLabels = labels || [];
+  console.log(`Labels set: ${allLabels.length} labels`);
+  notifyStateChange();
 }
 
 /**

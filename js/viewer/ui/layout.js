@@ -38,6 +38,28 @@ export function drawAxes(axesData, group, modelBounds, labelToggle) {
     modelBounds.isEmpty()
   );
 
+  // デバッグ用：モデルバウンドの詳細を出力
+  if (!modelBounds.isEmpty()) {
+    const min = modelBounds.min;
+    const max = modelBounds.max;
+    const size = modelBounds.getSize(new THREE.Vector3());
+    const center = modelBounds.getCenter(new THREE.Vector3());
+    console.log(
+      `Model bounds detail - Min: (${min.x.toFixed(0)}, ${min.y.toFixed(
+        0
+      )}, ${min.z.toFixed(0)})mm, Max: (${max.x.toFixed(0)}, ${max.y.toFixed(
+        0
+      )}, ${max.z.toFixed(0)})mm`
+    );
+    console.log(
+      `Model size: (${size.x.toFixed(0)}, ${size.y.toFixed(
+        0
+      )}, ${size.z.toFixed(0)})mm, Center: (${center.x.toFixed(
+        0
+      )}, ${center.y.toFixed(0)}, ${center.z.toFixed(0)})mm`
+    );
+  }
+
   if (modelBounds.isEmpty()) {
     console.warn(
       "Cannot draw axes accurately without model bounds. Skipping axis drawing."
@@ -48,18 +70,21 @@ export function drawAxes(axesData, group, modelBounds, labelToggle) {
   const min = modelBounds.min;
   const max = modelBounds.max;
   const size = modelBounds.getSize(new THREE.Vector3());
-  // 面のサイズをモデル範囲より少し広げる
-  const extendXY = Math.max(size.x, size.y, 1000) * 0.5 + 1000;
-  const extendZ = Math.max(size.z, 500) * 0.5 + 500; // Z方向にも少し広げる
+  // 通り芯の平面サイズをモデルサイズに基づいて設定
+  // 他の3D要素と同じようにズームに連動するように、シンプルな比例関係にする
   const center = modelBounds.getCenter(new THREE.Vector3());
 
   console.log(
-    `Axes Plane Draw Params: ExtendXY=${extendXY.toFixed(
+    `Axes Plane Draw Params: ModelSize=(${size.x.toFixed(0)}, ${size.y.toFixed(
       0
-    )}, ExtendZ=${extendZ.toFixed(0)}, Center=(${center.x.toFixed(
+    )}, ${size.z.toFixed(0)}), Center=(${center.x.toFixed(
       0
     )}, ${center.y.toFixed(0)}, ${center.z.toFixed(0)})`
   );
+
+  // 面のサイズをモデル範囲より少し広げる
+  const extendXY = Math.max(size.x, size.y, 1000) * 0.5 + 1000;
+  const extendZ = Math.max(size.z, 500) * 0.5 + 500; // Z方向にも少し広げる
 
   // X軸 (YZ平面)
   axesData.xAxes.forEach((axis) => {
@@ -79,7 +104,6 @@ export function drawAxes(axesData, group, modelBounds, labelToggle) {
 
     // ★★★ Render Order を負の値に変更 ★★★
     plane.renderOrder = -1;
-    group.add(plane);
 
     // 位置と向きを設定
     plane.position.set(x, center.y, center.z);
@@ -136,7 +160,6 @@ export function drawAxes(axesData, group, modelBounds, labelToggle) {
 
     // ★★★ Render Order を負の値に変更 ★★★
     plane.renderOrder = -1;
-    group.add(plane);
 
     // 位置と向きを設定
     plane.position.set(center.x, y, center.z);
@@ -201,6 +224,28 @@ export function drawStories(storiesData, group, modelBounds, labelToggle) {
     modelBounds.isEmpty()
   );
 
+  // デバッグ用：モデルバウンドの詳細を出力
+  if (!modelBounds.isEmpty()) {
+    const min = modelBounds.min;
+    const max = modelBounds.max;
+    const size = modelBounds.getSize(new THREE.Vector3());
+    const center = modelBounds.getCenter(new THREE.Vector3());
+    console.log(
+      `Story model bounds detail - Min: (${min.x.toFixed(0)}, ${min.y.toFixed(
+        0
+      )}, ${min.z.toFixed(0)})mm, Max: (${max.x.toFixed(0)}, ${max.y.toFixed(
+        0
+      )}, ${max.z.toFixed(0)})mm`
+    );
+    console.log(
+      `Story model size: (${size.x.toFixed(0)}, ${size.y.toFixed(
+        0
+      )}, ${size.z.toFixed(0)})mm, Center: (${center.x.toFixed(
+        0
+      )}, ${center.y.toFixed(0)}, ${center.z.toFixed(0)})mm`
+    );
+  }
+
   if (modelBounds.isEmpty()) {
     console.warn("Cannot draw stories accurately without model bounds.");
     return createdLabels;
@@ -232,7 +277,6 @@ export function drawStories(storiesData, group, modelBounds, labelToggle) {
 
     // ★★★ Render Order を負の値に変更 ★★★
     plane.renderOrder = -1;
-    group.add(plane);
 
     console.log(
       `  Story Plane '${story.name}': Position=(${plane.position.x.toFixed(

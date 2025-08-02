@@ -1,9 +1,9 @@
 /**
  * @fileoverview 構造要素描画モジュール
  *
- * このファイルは、構造要素の3D表現を生成する機能を提供します:
- * - 線分要素（柱、梁）の描画
- * - ポリゴン要素（スラブ、壁）の描画
+ * このファイルは、構造要素の3D表現を生成する機能を提供します：
+ * - 線要素（柱、梁など）の描画
+ * - ポリゴン要素（スラブ、壁など）の描画
  * - 節点要素の描画
  * - 要素のラベル生成
  * - モデル比較結果の視覚化
@@ -14,17 +14,56 @@
 
 import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
 import { createLabelSprite } from "../ui/labels.js";
+import { generateUnifiedLabelText } from "../../ui/unifiedLabelManager.js";
+import { attachElementDataToLabel } from "../../ui/labelRegeneration.js";
 import { getMaterialForElementWithMode } from "./materials.js";
+import { IMPORTANCE_LEVELS } from "../../core/importanceManager.js";
 
 /**
- * 線分要素（柱、梁など）の比較結果を描画する。
- * @param {object} comparisonResult - compareElementsの比較結果。
- * @param {object} materials - マテリアルオブジェクト。
- * @param {THREE.Group} group - 描画対象の要素グループ。
- * @param {string} elementType - 描画する要素タイプ名 (例: 'Column')。
- * @param {boolean} labelToggle - ラベル表示の有無。
- * @param {THREE.Box3} modelBounds - 更新するモデル全体のバウンディングボックス。
- * @returns {Array<THREE.Sprite>} 作成されたラベルスプライトの配列。
+ * 重要度に基づいて要素の視覚的調整を適用する
+ * @param {THREE.Object3D} object - 調整対象の3Dオブジェクト
+ * @param {string} importance - 重要度レベル
+ */
+function applyImportanceVisuals(object, importance) {
+  if (!importance) return;
+
+  // 重要度に応じた透明度設定
+  const opacityLevels = {
+    [IMPORTANCE_LEVELS.REQUIRED]: 1.0,
+    [IMPORTANCE_LEVELS.OPTIONAL]: 0.8,
+    [IMPORTANCE_LEVELS.UNNECESSARY]: 0.4,
+    [IMPORTANCE_LEVELS.NOT_APPLICABLE]: 0.1,
+  };
+
+  const targetOpacity = opacityLevels[importance] || 1.0;
+
+  if (object.material) {
+    if (Array.isArray(object.material)) {
+      // マテリアル配列の場合
+      object.material.forEach((mat) => {
+        mat.opacity = targetOpacity;
+        mat.transparent = targetOpacity < 1.0;
+      });
+    } else {
+      // 単一マテリアルの場合
+      object.material.opacity = targetOpacity;
+      object.material.transparent = targetOpacity < 1.0;
+    }
+  }
+
+  // userDataに重要度情報を記録
+  object.userData.importance = importance;
+}
+
+/**
+ * 線要素（柱、梁など）の比較結果を描画する
+ * @param {object} comparisonResult - compareElementsの比較結果
+ * @param {object} materials - マテリアルオブジェクト
+ * @param {THREE.Group} group - 描画対象の要素グループ
+ * @param {string} elementType - 描画する要素タイプ名 (例: 'Column')
+ * @param {boolean} labelToggle - ラベル表示の有無
+ * @param {THREE.Box3} modelBounds - 更新するモデル全体のバウンディングボックス
+ * @returns {Array<THREE.Sprite>} 作成されたラベルスプライトの配列
  */
 export function drawLineElements(
   comparisonResult,
@@ -38,7 +77,32 @@ export function drawLineElements(
   const createdLabels = [];
   const labelOffsetAmount = 150;
 
-  comparisonResult.matched.forEach(({ dataA, dataB }) => {
+  console.log(`Drawing line elements for ${elementType}:`, {
+    matched: comparisonResult.matched.length,
+    onlyA: comparisonResult.onlyA.length,
+    onlyB: comparisonResult.onlyB.length,
+  });
+
+  let processedCount = 0;
+  let skippedCount = 0;
+  let addedToGroupCount = 0;
+
+  comparisonResult.matched.forEach((item, index) => {
+    const { dataA, dataB, importance } = item;
+
+    if (index < 3) {
+      // 最初の3つの要素について詳細ログを出力
+      console.log(`Processing matched item ${index}:`, {
+        dataA,
+        dataB,
+        importance,
+      });
+      console.log("dataA.startCoords:", dataA.startCoords);
+      console.log("dataA.endCoords:", dataA.endCoords);
+    }
+
+    processedCount++;
+
     const startCoords = dataA.startCoords;
     const endCoords = dataA.endCoords;
     const idA = dataA.id;
@@ -60,21 +124,83 @@ export function drawLineElements(
         startCoords.z
       );
       const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
+
+      // デバッグ出力（最初の3個の一致要素のみ）
+      if (index < 3) {
+        console.log(
+          `${elementType} matched element ${index}: Start=(${startCoords.x.toFixed(
+            0
+          )}, ${startCoords.y.toFixed(0)}, ${startCoords.z.toFixed(
+            0
+          )})mm, End=(${endCoords.x.toFixed(0)}, ${endCoords.y.toFixed(
+            0
+          )}, ${endCoords.z.toFixed(0)})mm`
+        );
+      }
+
       const geometry = new THREE.BufferGeometry().setFromPoints([
         startVec,
         endVec,
       ]);
-      const line = new THREE.Line(
-        geometry,
-        getMaterialForElementWithMode(elementType, "matched", true, false, idA)
+      const material = getMaterialForElementWithMode(
+        elementType,
+        "matched",
+        true,
+        false,
+        idA
       );
+      if (index < 3) {
+        console.log(`Material for matched item ${index}:`, material);
+      }
+
+      const line = new THREE.Line(geometry, material);
+
+      // 重要度データを取得（重要度管理システムから）
+      let importance = null;
+      if (window.globalState && window.globalState.get) {
+        const importanceManager = window.globalState.get("importanceManager");
+        if (importanceManager && dataA.element) {
+          // 要素の重要度を取得（まずAから、なければBから）
+          importance =
+            importanceManager.getElementImportance?.(dataA.element) ||
+            (dataB.element
+              ? importanceManager.getElementImportance?.(dataB.element)
+              : null);
+        }
+      }
+
       line.userData = {
         elementType: elementType,
         elementIdA: idA,
         elementIdB: idB,
         modelSource: "matched",
+        originalId: idA, // applyImportanceColorMode で使用
+        id: idA,
+        importance: importance, // 重要度データを設定
       };
+
+      if (index < 3) {
+        console.log(`Created line object ${index}:`, line);
+        console.log(`Line importance:`, importance);
+        console.log(
+          `Line geometry points:`,
+          geometry.attributes.position.array
+        );
+      }
+
+      // 重要度による視覚調整を適用
+      applyImportanceVisuals(line, importance);
+
       group.add(line);
+      addedToGroupCount++;
+
+      if (index < 3) {
+        console.log(
+          `Added line ${index} to group. Group children count:`,
+          group.children.length
+        );
+      }
+
       modelBounds.expandByPoint(startVec);
       modelBounds.expandByPoint(endVec);
 
@@ -82,7 +208,23 @@ export function drawLineElements(
         const midPoint = new THREE.Vector3()
           .addVectors(startVec, endVec)
           .multiplyScalar(0.5);
-        const labelText = `${idA || "?"} / ${idB || "?"}`;
+
+        // マッチした要素の場合、設定に応じてラベルテキストを生成
+        const contentType =
+          window.globalState?.get("ui.labelContentType") || "id";
+        let labelText;
+
+        if (contentType === "id") {
+          labelText = `${idA || "?"} / ${idB || "?"}`;
+        } else {
+          // 名前また断面名を使用する場合
+          const nameA =
+            dataA.element && dataA.element.name ? dataA.element.name : idA;
+          const nameB =
+            dataB.element && dataB.element.name ? dataB.element.name : idB;
+          labelText = `${nameA || "?"} / ${nameB || "?"}`;
+        }
+
         const sprite = createLabelSprite(
           labelText,
           midPoint,
@@ -93,17 +235,26 @@ export function drawLineElements(
           sprite.userData.elementIdA = idA;
           sprite.userData.elementIdB = idB;
           sprite.userData.modelSource = "matched";
+
+          // 要素データを保存（両方のモデルの要素データを保存）
+          if (dataA.element) {
+            attachElementDataToLabel(sprite, dataA.element);
+          }
+
           createdLabels.push(sprite);
         }
       }
     } else {
+      skippedCount++;
       console.warn(
         `Skipping matched line due to invalid coords: A=${idA}, B=${idB}`
       );
     }
   });
 
-  comparisonResult.onlyA.forEach(({ startCoords, endCoords, id }) => {
+  let onlyACount = 0;
+  comparisonResult.onlyA.forEach((item) => {
+    const { startCoords, endCoords, id, element, importance } = item;
     if (
       startCoords &&
       endCoords &&
@@ -120,6 +271,20 @@ export function drawLineElements(
         startCoords.z
       );
       const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
+
+      // デバッグ出力（最初の2個のOnlyA要素のみ）
+      if (onlyACount < 2) {
+        console.log(
+          `${elementType} onlyA element ${onlyACount}: Start=(${startCoords.x.toFixed(
+            0
+          )}, ${startCoords.y.toFixed(0)}, ${startCoords.z.toFixed(
+            0
+          )})mm, End=(${endCoords.x.toFixed(0)}, ${endCoords.y.toFixed(
+            0
+          )}, ${endCoords.z.toFixed(0)})mm`
+        );
+      }
+      onlyACount++;
       const geometry = new THREE.BufferGeometry().setFromPoints([
         startVec,
         endVec,
@@ -133,6 +298,10 @@ export function drawLineElements(
         elementId: id,
         modelSource: "A",
       };
+
+      // 重要度による視覚調整を適用
+      applyImportanceVisuals(line, importance);
+
       group.add(line);
       modelBounds.expandByPoint(startVec);
       modelBounds.expandByPoint(endVec);
@@ -151,7 +320,20 @@ export function drawLineElements(
         const labelPosition = midPoint
           .clone()
           .add(offsetDir.multiplyScalar(labelOffsetAmount));
-        const labelText = `A: ${id}`;
+
+        // 設定に応じてラベルテキストを生成
+        const contentType =
+          window.globalState?.get("ui.labelContentType") || "id";
+        let displayText = id;
+
+        if (contentType === "name" && element && element.name) {
+          displayText = element.name;
+        } else if (contentType === "section") {
+          // 断面名表示の場合、統合ラベル管理システムを使用
+          displayText = generateUnifiedLabelText(element, elementType);
+        }
+
+        const labelText = `A: ${displayText}`;
         const sprite = createLabelSprite(
           labelText,
           labelPosition,
@@ -161,6 +343,12 @@ export function drawLineElements(
         if (sprite) {
           sprite.userData.elementId = id;
           sprite.userData.modelSource = "A";
+
+          // 要素データを保存
+          if (element) {
+            attachElementDataToLabel(sprite, element);
+          }
+
           createdLabels.push(sprite);
         }
       }
@@ -169,7 +357,8 @@ export function drawLineElements(
     }
   });
 
-  comparisonResult.onlyB.forEach(({ startCoords, endCoords, id }) => {
+  comparisonResult.onlyB.forEach((item) => {
+    const { startCoords, endCoords, id, element, importance } = item;
     if (
       startCoords &&
       endCoords &&
@@ -199,6 +388,10 @@ export function drawLineElements(
         elementId: id,
         modelSource: "B",
       };
+
+      // 重要度による視覚調整を適用
+      applyImportanceVisuals(line, importance);
+
       group.add(line);
       modelBounds.expandByPoint(startVec);
       modelBounds.expandByPoint(endVec);
@@ -217,7 +410,20 @@ export function drawLineElements(
         const labelPosition = midPoint
           .clone()
           .sub(offsetDir.multiplyScalar(labelOffsetAmount));
-        const labelText = `B: ${id}`;
+
+        // 設定に応じてラベルテキストを生成
+        const contentType =
+          window.globalState?.get("ui.labelContentType") || "id";
+        let displayText = id;
+
+        if (contentType === "name" && element && element.name) {
+          displayText = element.name;
+        } else if (contentType === "section") {
+          // 断面名表示の場合、統合ラベル管理システムを使用
+          displayText = generateUnifiedLabelText(element, elementType);
+        }
+
+        const labelText = `B: ${displayText}`;
         const sprite = createLabelSprite(
           labelText,
           labelPosition,
@@ -227,6 +433,12 @@ export function drawLineElements(
         if (sprite) {
           sprite.userData.elementId = id;
           sprite.userData.modelSource = "B";
+
+          // 要素データを保存
+          if (element) {
+            attachElementDataToLabel(sprite, element);
+          }
+
           createdLabels.push(sprite);
         }
       }
@@ -234,27 +446,36 @@ export function drawLineElements(
       console.warn(`Skipping onlyB line due to invalid coords: ID=${id}`);
     }
   });
+
+  console.log(`${elementType} line rendering summary:`, {
+    processedCount,
+    skippedCount,
+    addedToGroupCount,
+    groupChildrenCount: group.children.length,
+    groupVisible: group.visible,
+  });
+
   return createdLabels;
 }
 
 /**
- * ポリゴン要素（スラブ、壁など）の比較結果を描画する。
- * @param {object} comparisonResult - compareElementsの比較結果。
- * @param {object} materials - マテリアルオブジェクト。
- * @param {THREE.Group} group - 描画対象の要素グループ。
- * @param {boolean} labelToggle - ラベル表示の有無。 // ★★★ 追加 ★★★
- * @param {THREE.Box3} modelBounds - 更新するモデル全体のバウンディングボックス。
- * @returns {Array<THREE.Sprite>} 作成されたラベルスプライトの配列。 // ★★★ 追加 ★★★
+ * ポリゴン要素（スラブ、壁など）の比較結果を描画する
+ * @param {object} comparisonResult - compareElementsの比較結果
+ * @param {object} materials - マテリアルオブジェクト
+ * @param {THREE.Group} group - 描画対象の要素グループ
+ * @param {boolean} labelToggle - ラベル表示の有無
+ * @param {THREE.Box3} modelBounds - 更新するモデル全体のバウンディングボックス
+ * @returns {Array<THREE.Sprite>} 作成されたラベルスプライトの配列
  */
 export function drawPolyElements(
   comparisonResult,
   materials,
   group,
-  labelToggle, // ★★★ 追加 ★★★
+  labelToggle,
   modelBounds
 ) {
   group.clear();
-  const createdLabels = []; // ★★★ 追加 ★★★
+  const createdLabels = [];
 
   const elementType = group.userData.elementType;
   if (!elementType) {
@@ -264,9 +485,10 @@ export function drawPolyElements(
     );
   }
 
-  // ★★★ labelToggle を createMeshes に渡す ★★★
+  // labelToggle を createMeshes に渡す
   const createMeshes = (dataList, material, modelSource, labelToggle) => {
-    dataList.forEach(({ vertexCoordsList, id }) => {
+    dataList.forEach((item) => {
+      const { vertexCoordsList, id, importance, idB } = item;
       const points = [];
       let validPoints = true;
       for (const p of vertexCoordsList) {
@@ -292,17 +514,41 @@ export function drawPolyElements(
       }
       geometry.setIndex(indices);
       geometry.computeVertexNormals();
+
+      // 重要度データを取得
+      let actualImportance = importance; // パラメータから取得
+      if (!actualImportance && window.globalState && window.globalState.get) {
+        const importanceManager = window.globalState.get("importanceManager");
+        if (importanceManager && id) {
+          // 要素IDから重要度を取得
+          actualImportance = importanceManager.getElementImportanceById?.(id);
+        }
+      }
+
       const mesh = new THREE.Mesh(geometry, material);
       mesh.userData = {
         elementType: elementType,
         elementId: id,
         modelSource: modelSource,
+        originalId: id, // applyImportanceColorMode で使用
+        id: id,
+        importance: actualImportance, // 重要度データを設定
       };
+
+      // matched要素の場合、A/B両方のIDを設定
+      if (modelSource === "matched" && idB) {
+        mesh.userData.elementIdA = id;
+        mesh.userData.elementIdB = idB;
+      }
+
+      // 重要度による視覚調整を適用
+      applyImportanceVisuals(mesh, actualImportance);
+
       group.add(mesh);
 
-      // ★★★ ラベル作成ロジックを追加 ★★★
+      // ラベル作成ロジックを追加
       if (labelToggle && id) {
-        // ポリゴンの中心を計算
+        // ポリゴンの中心点を計算
         const centerPoint = new THREE.Vector3();
         points.forEach((p) => centerPoint.add(p));
         centerPoint.divideScalar(points.length);
@@ -313,8 +559,8 @@ export function drawPolyElements(
         } else if (modelSource === "B") {
           labelText = `B: ${id}`;
         } else if (modelSource === "matched") {
-          // matched の場合、dataA の ID を使う (createMeshes 呼び出し側で設定済み)
-          labelText = `${id}`; // matched の場合はシンプルにIDのみ表示 (必要なら変更)
+          // matched の場合、A/B両方のIDを表示
+          labelText = idB ? `${id} / ${idB}` : `${id}`;
         }
 
         if (labelText) {
@@ -325,13 +571,12 @@ export function drawPolyElements(
             elementType
           );
           if (sprite) {
-            sprite.userData.elementId = id; // スプライトにもIDを設定
+            sprite.userData.elementId = id; // スプライトにIDを設定
             sprite.userData.modelSource = modelSource; // スプライトにもソースを設定
-            // matched の場合、必要なら elementIdA/B も設定
-            if (modelSource === "matched") {
-              // comparisonResult から対応する B の ID を探すのは少し手間がかかる
-              // ここでは A の ID のみ elementId として設定
-              // 必要であれば matched の dataList に B の ID も含めるように修正が必要
+            // matched の場合、A/B両方のIDを設定
+            if (modelSource === "matched" && idB) {
+              sprite.userData.elementIdA = id;
+              sprite.userData.elementIdB = idB;
             }
             createdLabels.push(sprite);
           }
@@ -340,12 +585,13 @@ export function drawPolyElements(
     });
   };
 
-  // ★★★ createMeshes 呼び出し時に labelToggle を渡す ★★★
+  // createMeshes 呼び出し時に labelToggle を渡す
   createMeshes(
     comparisonResult.matched.map((item) => ({
       vertexCoordsList: item.dataA.vertexCoordsList,
       id: item.dataA.id,
-      // idB: item.dataB.id, // 必要ならBのIDも渡す
+      idB: item.dataB.id, // B側のIDを追加
+      importance: item.importance,
     })),
     getMaterialForElementWithMode(
       elementType,
@@ -355,7 +601,7 @@ export function drawPolyElements(
       comparisonResult.matched[0]?.dataA?.id
     ),
     "matched",
-    labelToggle // ★★★ 追加 ★★★
+    labelToggle
   );
   createMeshes(
     comparisonResult.onlyA,
@@ -368,7 +614,7 @@ export function drawPolyElements(
     ),
     "A",
     labelToggle
-  ); // ★★★ 追加 ★★★
+  );
   createMeshes(
     comparisonResult.onlyB,
     getMaterialForElementWithMode(
@@ -380,19 +626,19 @@ export function drawPolyElements(
     ),
     "B",
     labelToggle
-  ); // ★★★ 追加 ★★★
+  );
 
-  return createdLabels; // ★★★ 追加 ★★★
+  return createdLabels;
 }
 
 /**
- * 節点要素の比較結果を描画する。
- * @param {object} comparisonResult - compareElementsの比較結果。
- * @param {object} materials - マテリアルオブジェクト。
- * @param {THREE.Group} group - 描画対象の要素グループ (節点メッシュ用)。
- * @param {boolean} labelToggle - ラベル表示の有無。
- * @param {THREE.Box3} modelBounds - 更新するモデル全体のバウンディングボックス。
- * @returns {Array<THREE.Sprite>} 作成されたラベルスプライトの配列。
+ * 節点要素の比較結果を描画する
+ * @param {object} comparisonResult - compareElementsの比較結果
+ * @param {object} materials - マテリアルオブジェクト
+ * @param {THREE.Group} group - 描画対象の要素グループ（節点メッシュ用）
+ * @param {boolean} labelToggle - ラベル表示の有無
+ * @param {THREE.Box3} modelBounds - 更新するモデル全体のバウンディングボックス
+ * @returns {Array<THREE.Sprite>} 作成されたラベルスプライトの配列
  */
 export function drawNodes(
   comparisonResult,
@@ -404,7 +650,8 @@ export function drawNodes(
   group.clear();
   const createdLabels = [];
 
-  comparisonResult.matched.forEach(({ dataA, dataB }) => {
+  comparisonResult.matched.forEach((item) => {
+    const { dataA, dataB, importance } = item;
     const coords = dataA.coords;
     const idA = dataA.id;
     const idB = dataB.id;
@@ -427,6 +674,10 @@ export function drawNodes(
         elementIdB: idB,
         modelSource: "matched",
       };
+
+      // 重要度による視覚調整を適用
+      applyImportanceVisuals(sphere, importance);
+
       group.add(sphere);
       modelBounds.expandByPoint(pos);
       if (labelToggle) {
@@ -446,7 +697,8 @@ export function drawNodes(
     }
   });
 
-  comparisonResult.onlyA.forEach(({ coords, id }) => {
+  comparisonResult.onlyA.forEach((item) => {
+    const { coords, id, importance } = item;
     if (
       coords &&
       Number.isFinite(coords.x) &&
@@ -465,6 +717,10 @@ export function drawNodes(
         elementId: id,
         modelSource: "A",
       };
+
+      // 重要度による視覚調整を適用
+      applyImportanceVisuals(sphere, importance);
+
       group.add(sphere);
       modelBounds.expandByPoint(pos);
       if (labelToggle) {
@@ -481,7 +737,8 @@ export function drawNodes(
     }
   });
 
-  comparisonResult.onlyB.forEach(({ coords, id }) => {
+  comparisonResult.onlyB.forEach((item) => {
+    const { coords, id, importance } = item;
     if (
       coords &&
       Number.isFinite(coords.x) &&
@@ -500,6 +757,10 @@ export function drawNodes(
         elementId: id,
         modelSource: "B",
       };
+
+      // 重要度による視覚調整を適用
+      applyImportanceVisuals(sphere, importance);
+
       group.add(sphere);
       modelBounds.expandByPoint(pos);
       if (labelToggle) {

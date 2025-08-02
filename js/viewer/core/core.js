@@ -97,6 +97,10 @@ export function initRenderer() {
 
     // ★★★ OrbitControls をここでインスタンス化 ★★★
     controls = new OrbitControls(camera, renderer.domElement);
+
+    // グローバルアクセス用にwindowオブジェクトに設定
+    window.controls = controls;
+
     // ★★★ コントロールの設定をインスタンス化後に行う ★★★
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
@@ -105,6 +109,15 @@ export function initRenderer() {
     controls.minDistance = 100; // 100mm (10cm)
     controls.maxDistance = 100000; // 100m (必要ならさらに大きく)
     controls.maxPolarAngle = Math.PI;
+
+    // マウス操作の割り当てを変更
+    // デフォルト: 左クリック=回転, 右クリック=パン, ホイール=ズーム
+    // 変更後: パン操作でマウス前後移動を上下移動にマッピング
+    controls.mouseButtons = {
+      LEFT: THREE.MOUSE.ROTATE, // 左クリック: 回転
+      MIDDLE: THREE.MOUSE.DOLLY, // 中クリック: ズーム
+      RIGHT: THREE.MOUSE.PAN, // 右クリック: パン（上下左右移動）
+    };
 
     console.log("Renderer initialized.");
     return true;

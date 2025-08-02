@@ -1,12 +1,12 @@
 /**
  * @fileoverview 開発者用ツール
- * 
+ *
  * 本番では不要だが開発時に有用な機能をまとめたモジュール:
  * - STBサンプルデータの自動生成
  * - 要素選択テストの自動実行
  * - デバッグ用ユーティリティ
  * - パフォーマンス測定
- * 
+ *
  * 使用方法: ブラウザコンソールで window.devtools.* を実行
  */
 
@@ -90,17 +90,21 @@ class DevTools {
    */
   async loadSampleData(dataA, dataB = null) {
     console.log("📁 Loading sample STB data for development testing...");
-    
-    try {
-      const blobA = new Blob([dataA], { type: 'application/xml' });
-      const blobB = new Blob([dataB || dataA], { type: 'application/xml' });
-      
-      const fileA = new File([blobA], 'sampleA.stb', { type: 'application/xml' });
-      const fileB = new File([blobB], 'sampleB.stb', { type: 'application/xml' });
 
-      const fileInputA = document.getElementById('fileA');
-      const fileInputB = document.getElementById('fileB');
-      
+    try {
+      const blobA = new Blob([dataA], { type: "application/xml" });
+      const blobB = new Blob([dataB || dataA], { type: "application/xml" });
+
+      const fileA = new File([blobA], "sampleA.stb", {
+        type: "application/xml",
+      });
+      const fileB = new File([blobB], "sampleB.stb", {
+        type: "application/xml",
+      });
+
+      const fileInputA = document.getElementById("fileA");
+      const fileInputB = document.getElementById("fileB");
+
       if (fileInputA && fileInputB) {
         const dtA = new DataTransfer();
         dtA.items.add(fileA);
@@ -123,20 +127,20 @@ class DevTools {
 
   /**
    * 要素情報表示テスト
-   */  
+   */
   async testElementDisplay(elementType, idA, idB) {
     console.log(`🧪 Testing ${elementType} display - A:${idA}, B:${idB}`);
-    
+
     try {
-      await displayElementInfo(idA, idB, elementType);
-      
-      const infoPanel = document.getElementById('element-info-content');
+      await displayElementInfo(idA, idB, elementType, "matched");
+
+      const infoPanel = document.getElementById("element-info-content");
       if (!infoPanel) {
         throw new Error("Element info panel not found");
       }
 
       const content = infoPanel.innerHTML;
-      
+
       if (!content || content.includes("要素を選択してください")) {
         throw new Error("No element information displayed");
       }
@@ -145,9 +149,10 @@ class DevTools {
         throw new Error("Error message displayed in element info");
       }
 
-      console.log(`✅ ${elementType} A:${idA} B:${idB} - Parameters displayed successfully`);
+      console.log(
+        `✅ ${elementType} A:${idA} B:${idB} - Parameters displayed successfully`
+      );
       return true;
-      
     } catch (error) {
       console.error(`❌ ${elementType} display test failed:`, error);
       return false;
@@ -159,66 +164,65 @@ class DevTools {
    */
   async quickTest() {
     console.log("🚀 Running quick development test...");
-    
+
     try {
       // 1. サンプルデータ生成・ロード
       const sampleData = this.generateMinimalSTBSample();
       const loadSuccess = await this.loadSampleData(sampleData);
-      
+
       if (!loadSuccess) {
         throw new Error("Failed to load sample data");
       }
-      
+
       // 2. モデル比較実行
       console.log("🔄 Running model comparison...");
       const success = await compareModels(window.requestRender);
-      
+
       if (!success) {
         throw new Error("Model comparison failed");
       }
-      
+
       // 少し待機してレンダリング完了
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       // 3. 要素選択テスト
       console.log("🎯 Testing element selection...");
       const testResults = [];
-      
+
       const testCases = [
-        { elementType: 'Column', idA: 'C1', idB: 'C1' },
-        { elementType: 'Girder', idA: 'G1', idB: 'G1' },
-        { elementType: 'Beam', idA: 'B1', idB: 'B1' }
+        { elementType: "Column", idA: "C1", idB: "C1" },
+        { elementType: "Girder", idA: "G1", idB: "G1" },
+        { elementType: "Beam", idA: "B1", idB: "B1" },
       ];
-      
+
       for (const testCase of testCases) {
         const result = await this.testElementDisplay(
-          testCase.elementType, 
-          testCase.idA, 
+          testCase.elementType,
+          testCase.idA,
           testCase.idB
         );
         testResults.push({ ...testCase, success: result });
       }
-      
+
       // 結果サマリー
-      const passed = testResults.filter(r => r.success).length;
+      const passed = testResults.filter((r) => r.success).length;
       const total = testResults.length;
-      
+
       console.log("📊 Quick Test Results:");
       console.log(`✅ Passed: ${passed}/${total}`);
       console.log(`⏱️ Quick test completed successfully`);
-      
+
       return {
         success: true,
         passed,
         total,
-        results: testResults
+        results: testResults,
       };
-      
     } catch (error) {
       console.error("❌ Quick test failed:", error);
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -243,21 +247,21 @@ class DevTools {
 
     const endTime = Date.now();
     const memoryEnd = this.getMemoryUsage();
-    
+
     const result = {
       duration: endTime - this.startTime,
       memoryUsed: memoryEnd - this.memoryStart,
       memoryStart: this.memoryStart,
-      memoryEnd: memoryEnd
+      memoryEnd: memoryEnd,
     };
 
     console.log("📊 Performance Results:");
     console.log(`⏱️ Duration: ${result.duration}ms`);
     console.log(`💾 Memory used: ${result.memoryUsed.toFixed(2)} MB`);
-    
+
     this.startTime = null;
     this.memoryStart = null;
-    
+
     return result;
   }
 
@@ -276,28 +280,33 @@ class DevTools {
    */
   printDebugInfo() {
     console.group("🔍 Debug Information");
-    
+
     // メモリ使用量
     const memory = this.getMemoryUsage();
     console.log(`💾 Current memory usage: ${memory.toFixed(2)} MB`);
-    
+
     // DOM要素チェック
     const keyElements = [
-      'fileA', 'fileB', 'element-info-content', 
-      'story-selector', 'axis-selector'
+      "fileA",
+      "fileB",
+      "element-info-content",
+      "story-selector",
+      "axis-selector",
     ];
-    
+
     console.log("🏗️ Key DOM elements:");
-    keyElements.forEach(id => {
+    keyElements.forEach((id) => {
       const element = document.getElementById(id);
-      console.log(`  ${id}: ${element ? '✅ Found' : '❌ Missing'}`);
+      console.log(`  ${id}: ${element ? "✅ Found" : "❌ Missing"}`);
     });
-    
+
     // Three.js シーン情報
     if (window.viewer && window.viewer.scene) {
-      console.log(`🎨 Three.js scene children: ${window.viewer.scene.children.length}`);
+      console.log(
+        `🎨 Three.js scene children: ${window.viewer.scene.children.length}`
+      );
     }
-    
+
     console.groupEnd();
   }
 
@@ -307,11 +316,19 @@ class DevTools {
   showHelp() {
     console.log("🛠️ Development Tools Available Commands:");
     console.log("  devtools.quickTest() - Run quick functionality test");
-    console.log("  devtools.generateMinimalSTBSample() - Generate test STB data");
+    console.log(
+      "  devtools.generateMinimalSTBSample() - Generate test STB data"
+    );
     console.log("  devtools.loadSampleData(xmlString) - Load sample data");
-    console.log("  devtools.testElementDisplay(type, idA, idB) - Test element display");
-    console.log("  devtools.startPerformanceMonitoring() - Start performance monitoring");
-    console.log("  devtools.endPerformanceMonitoring() - End performance monitoring");
+    console.log(
+      "  devtools.testElementDisplay(type, idA, idB) - Test element display"
+    );
+    console.log(
+      "  devtools.startPerformanceMonitoring() - Start performance monitoring"
+    );
+    console.log(
+      "  devtools.endPerformanceMonitoring() - End performance monitoring"
+    );
     console.log("  devtools.printDebugInfo() - Show debug information");
     console.log("  devtools.showHelp() - Show this help");
   }
@@ -321,10 +338,12 @@ class DevTools {
 const devtools = new DevTools();
 
 // デバッグ用にwindowに公開
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.devtools = devtools;
-  
-  console.log("🛠️ Development tools loaded. Type 'devtools.showHelp()' for available commands.");
+
+  console.log(
+    "🛠️ Development tools loaded. Type 'devtools.showHelp()' for available commands."
+  );
 }
 
 export default devtools;

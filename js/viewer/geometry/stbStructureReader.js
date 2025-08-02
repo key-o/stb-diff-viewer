@@ -24,12 +24,11 @@ import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module
 import {
   buildNodeMap,
   parseElements,
-  extractSteelSections, // 追加
-  extractColumnSections, // 追加
-  extractColumnElements, // 追加
-  extractBeamElements, // 追加
-  extractBeamSections, // 追加
-  extractGirderElements, // 追加
+  extractSteelSections,
+  extractAllSections, // 統一断面抽出エンジン
+  extractColumnElements,
+  extractBeamElements,
+  extractGirderElements,
 } from "../../parser/stbXmlParser.js";
 
 /**
@@ -51,11 +50,14 @@ export function parseStbFile(xmlDoc) {
   const steelSections = extractSteelSections(xmlDoc);
   console.log("Steel Sections loaded:", steelSections.size);
 
-  // 3. 柱断面データの抽出 (stbXmlParserから呼び出し)
-  const columnSections = extractColumnSections(xmlDoc);
-  console.log("Column Sections loaded:", columnSections.size);
+  // 3. 統一断面抽出エンジンによる断面データ抽出
+  const sectionMaps = extractAllSections(xmlDoc);
+  const columnSections = sectionMaps.columnSections;
+  const beamSections = sectionMaps.beamSections;
+  const braceSections = sectionMaps.braceSections;
+  console.log("Section Maps loaded - Column:", columnSections.size, "Beam:", beamSections.size, "Brace:", braceSections.size);
 
-  // 4. 柱要素データの抽出 (stbXmlParserから呼び出し)
+  // 4. 要素データの抽出 (stbXmlParserから呼び出し)
   const columnElements = extractColumnElements(xmlDoc);
   console.log("Column Elements loaded:", columnElements.length);
 
@@ -65,15 +67,13 @@ export function parseStbFile(xmlDoc) {
   const girderElements = extractGirderElements(xmlDoc);
   console.log("Girder Elements loaded:", girderElements.length);
 
-  const beamSections = extractBeamSections(xmlDoc);
-  console.log("Beam Sections loaded:", beamSections.size);
-
   return {
     nodes, // THREE.Vector3 の Map
     steelSections, // 汎用データ
-    columnSections, // 汎用データ
+    columnSections, // 統一エンジンから抽出
+    beamSections, // 統一エンジンから抽出
+    braceSections, // 統一エンジンから抽出（新規追加）
     columnElements, // 汎用データ
-    beamSections,
     beamElements,
     girderElements, // 大梁要素のデータ
   };

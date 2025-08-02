@@ -15,7 +15,7 @@ import {
   setGlobalStateForUI,
   updateStorySelector,
   updateAxisSelectors,
-  updateAllLabelVisibility,
+  updateUnifiedLabelVisibility,
 } from "../ui.js";
 import { initViewModes, updateModelVisibility } from "../viewModes.js";
 import {
@@ -30,14 +30,13 @@ import {
  * @param {Object} cameraControls - Camera and controls objects
  * @returns {Object} Finalization result
  */
-export function finalizeVisualization(finalizationData, scheduleRender, cameraControls) {
-  const {
-    nodeLabels,
-    stories,
-    axesData,
-    modelBounds,
-    renderingStats
-  } = finalizationData;
+export function finalizeVisualization(
+  finalizationData,
+  scheduleRender,
+  cameraControls
+) {
+  const { nodeLabels, stories, axesData, modelBounds, renderingStats } =
+    finalizationData;
 
   console.log("=== Starting Visualization Finalization ===");
 
@@ -69,14 +68,13 @@ export function finalizeVisualization(finalizationData, scheduleRender, cameraCo
       stories: stories.length,
       xAxes: axesData.xAxes.length,
       yAxes: axesData.yAxes.length,
-      renderingErrors: renderingStats.errors
+      renderingErrors: renderingStats.errors,
     });
 
     return {
       success: true,
-      stats: renderingStats
+      stats: renderingStats,
     };
-
   } catch (error) {
     console.error("Visualization finalization failed:", error);
     return {
@@ -86,8 +84,8 @@ export function finalizeVisualization(finalizationData, scheduleRender, cameraCo
         totalMeshes: 0,
         totalLabels: 0,
         errors: 1,
-        elementTypes: {}
-      }
+        elementTypes: {},
+      },
     };
   }
 }
@@ -100,7 +98,7 @@ export function finalizeVisualization(finalizationData, scheduleRender, cameraCo
  */
 function updateGlobalUIState(nodeLabels, stories, axesData) {
   console.log("Updating global UI state...");
-  
+
   try {
     setGlobalStateForUI(nodeLabels, stories, axesData);
     console.log("Global UI state updated successfully");
@@ -115,7 +113,7 @@ function updateGlobalUIState(nodeLabels, stories, axesData) {
  */
 function updateUISelectors() {
   console.log("Updating UI selectors...");
-  
+
   try {
     updateStorySelector();
     updateAxisSelectors();
@@ -131,9 +129,9 @@ function updateUISelectors() {
  */
 function updateLabelDisplay() {
   console.log("Updating label visibility...");
-  
+
   try {
-    updateAllLabelVisibility();
+    updateUnifiedLabelVisibility();
     console.log("Label visibility updated successfully");
   } catch (error) {
     console.error("Failed to update label visibility:", error);
@@ -147,7 +145,7 @@ function updateLabelDisplay() {
  */
 function initializeViewModes(modelData) {
   console.log("Initializing view modes...");
-  
+
   try {
     initViewModes(modelData);
     console.log("View modes initialized successfully");
@@ -164,7 +162,7 @@ function initializeViewModes(modelData) {
  */
 function setupCameraAndGrid(modelBounds, cameraControls) {
   console.log("Setting up camera and grid...");
-  
+
   try {
     // Create or update grid helper
     createOrUpdateGridHelper(modelBounds);
@@ -172,12 +170,15 @@ function setupCameraAndGrid(modelBounds, cameraControls) {
 
     // Adjust camera to fit model
     if (cameraControls && cameraControls.camera && cameraControls.controls) {
-      adjustCameraToFitModel(modelBounds, cameraControls.camera, cameraControls.controls);
+      adjustCameraToFitModel(
+        modelBounds,
+        cameraControls.camera,
+        cameraControls.controls
+      );
       console.log("Camera adjusted to fit model");
     } else {
       console.warn("Camera controls not available for fitting");
     }
-
   } catch (error) {
     console.error("Failed to setup camera and grid:", error);
     throw error;
@@ -205,16 +206,15 @@ export function handleFinalizationError(error, cleanupData) {
   try {
     // Reset UI state
     setGlobalStateForUI([], [], { xAxes: [], yAxes: [] });
-    
+
     // Clear selectors
     updateStorySelector();
     updateAxisSelectors();
-    
+
     // Set models as not loaded
     setModelsLoadedState(false);
-    
+
     console.log("Cleanup completed after finalization error");
-    
   } catch (cleanupError) {
     console.error("Error during cleanup:", cleanupError);
   }
@@ -235,7 +235,7 @@ export function createFinalizationSummary(modelData, renderingStats) {
     nodeMapB = new Map(),
     stories = [],
     axesData = { xAxes: [], yAxes: [] },
-    nodeLabels = []
+    nodeLabels = [],
   } = modelData || {};
 
   // Safely extract rendering stats with defaults
@@ -243,7 +243,7 @@ export function createFinalizationSummary(modelData, renderingStats) {
     totalMeshes = 0,
     totalLabels = 0,
     errors = 0,
-    elementTypes = {}
+    elementTypes = {},
   } = renderingStats || {};
 
   return {
@@ -251,21 +251,21 @@ export function createFinalizationSummary(modelData, renderingStats) {
       hasModelA: !!modelADocument,
       hasModelB: !!modelBDocument,
       nodesA: nodeMapA ? nodeMapA.size : 0,
-      nodesB: nodeMapB ? nodeMapB.size : 0
+      nodesB: nodeMapB ? nodeMapB.size : 0,
     },
     structure: {
       stories: stories ? stories.length : 0,
       xAxes: axesData && axesData.xAxes ? axesData.xAxes.length : 0,
       yAxes: axesData && axesData.yAxes ? axesData.yAxes.length : 0,
-      labels: nodeLabels ? nodeLabels.length : 0
+      labels: nodeLabels ? nodeLabels.length : 0,
     },
     rendering: {
       totalMeshes,
       totalLabels,
       errors,
-      elementTypes: elementTypes ? Object.keys(elementTypes).length : 0
+      elementTypes: elementTypes ? Object.keys(elementTypes).length : 0,
     },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -278,11 +278,17 @@ export function validateFinalizationData(finalizationData) {
   const validation = {
     isValid: true,
     errors: [],
-    warnings: []
+    warnings: [],
   };
 
-  const requiredFields = ['nodeLabels', 'stories', 'axesData', 'modelBounds', 'renderingStats'];
-  
+  const requiredFields = [
+    "nodeLabels",
+    "stories",
+    "axesData",
+    "modelBounds",
+    "renderingStats",
+  ];
+
   for (const field of requiredFields) {
     if (!finalizationData.hasOwnProperty(field)) {
       validation.isValid = false;
@@ -291,7 +297,10 @@ export function validateFinalizationData(finalizationData) {
   }
 
   // Validate specific field types
-  if (finalizationData.nodeLabels && !Array.isArray(finalizationData.nodeLabels)) {
+  if (
+    finalizationData.nodeLabels &&
+    !Array.isArray(finalizationData.nodeLabels)
+  ) {
     validation.errors.push("nodeLabels must be an array");
     validation.isValid = false;
   }
@@ -301,7 +310,10 @@ export function validateFinalizationData(finalizationData) {
     validation.isValid = false;
   }
 
-  if (finalizationData.axesData && typeof finalizationData.axesData !== 'object') {
+  if (
+    finalizationData.axesData &&
+    typeof finalizationData.axesData !== "object"
+  ) {
     validation.errors.push("axesData must be an object");
     validation.isValid = false;
   }
@@ -311,8 +323,13 @@ export function validateFinalizationData(finalizationData) {
     validation.warnings.push("No node labels found");
   }
 
-  if (finalizationData.renderingStats && finalizationData.renderingStats.errors > 0) {
-    validation.warnings.push(`${finalizationData.renderingStats.errors} rendering errors occurred`);
+  if (
+    finalizationData.renderingStats &&
+    finalizationData.renderingStats.errors > 0
+  ) {
+    validation.warnings.push(
+      `${finalizationData.renderingStats.errors} rendering errors occurred`
+    );
   }
 
   return validation;

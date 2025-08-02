@@ -15,7 +15,9 @@ import {
   buildNodeMap,
   parseStories,
   parseAxes,
+  extractAllSections,
 } from "../parser/stbXmlParser.js";
+import { setState } from "../core/globalState.js";
 
 /**
  * Process model documents and extract structural data
@@ -30,6 +32,7 @@ export async function processModelDocuments(fileA, fileB) {
   let nodeMapB = new Map();
   let stories = [];
   let axesData = { xAxes: [], yAxes: [] };
+  let sectionMaps = { columnSections: new Map(), beamSections: new Map(), braceSections: new Map() };
 
   try {
     // Process Model A
@@ -39,6 +42,9 @@ export async function processModelDocuments(fileA, fileB) {
       nodeMapA = resultA.nodeMap;
       stories.push(...resultA.stories);
       axesData = resultA.axesData;
+      
+      // Merge section data from Model A
+      mergeSectionMaps(sectionMaps, resultA.sectionMaps);
     }
 
     // Process Model B
@@ -53,7 +59,14 @@ export async function processModelDocuments(fileA, fileB) {
         stories.push(...resultB.stories);
         axesData = resultB.axesData;
       }
+      
+      // Merge section data from Model B
+      mergeSectionMaps(sectionMaps, resultB.sectionMaps);
     }
+
+    // Store section maps in global state for label generation
+    setState('model.sectionMaps', sectionMaps);
+    console.log(`Stored section maps: ${sectionMaps.columnSections.size} column sections, ${sectionMaps.beamSections.size} beam sections, ${sectionMaps.braceSections.size} brace sections`);
 
     // Remove duplicates from stories and sort by height
     const uniqueStoriesMap = new Map();
@@ -69,7 +82,8 @@ export async function processModelDocuments(fileA, fileB) {
       nodeMapA,
       nodeMapB,
       stories,
-      axesData
+      axesData,
+      sectionMaps
     };
 
   } catch (error) {
@@ -115,6 +129,9 @@ async function processModelFile(file, modelId) {
     const axesData = parseAxes(document);
     console.log(`Model ${modelId}: Parsed axes - X: ${axesData.xAxes.length}, Y: ${axesData.yAxes.length}`);
 
+    // Extract section data (unified)
+    const sectionMaps = extractAllSections(document);
+
     // Set global reference for legacy compatibility
     if (modelId === 'A') {
       window.docA = document;
@@ -126,7 +143,8 @@ async function processModelFile(file, modelId) {
       document,
       nodeMap,
       stories,
-      axesData
+      axesData,
+      sectionMaps
     };
 
   } catch (error) {
@@ -198,4 +216,34 @@ export function validateModelDocument(document, modelId) {
   }
 
   return validation;
+}
+
+/**
+ * Merge section maps from multiple models
+ * @param {Object} targetMaps - Target section maps to merge into
+ * @param {Object} sourceMaps - Source section maps to merge from
+ */
+function mergeSectionMaps(targetMaps, sourceMaps) {
+  if (!sourceMaps) return;
+  
+  // Merge column sections
+  if (sourceMaps.columnSections) {
+    sourceMaps.columnSections.forEach((value, key) => {
+      targetMaps.columnSections.set(key, value);
+    });
+  }
+  
+  // Merge beam sections
+  if (sourceMaps.beamSections) {
+    sourceMaps.beamSections.forEach((value, key) => {
+      targetMaps.beamSections.set(key, value);
+    });
+  }
+  
+  // Merge brace sections
+  if (sourceMaps.braceSections) {
+    sourceMaps.braceSections.forEach((value, key) => {
+      targetMaps.braceSections.set(key, value);
+    });
+  }
 }

@@ -1,7 +1,16 @@
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
-import { materials } from "./rendering/materials.js";
-import { ShapeFactory } from "./geometry/ShapeFactory.js";
-import { createBraceMeshes } from "./geometry/braceGenerator.js";
+/**
+ * @fileoverview 柱ジオメトリ生成モジュール
+ *
+ * このファイルは、STB柱要素のジオメトリ生成に特化した機能を提供します:
+ * - RC/SRC/S構造の柱メッシュ生成
+ * - 断面形状に基づくジオメトリ作成
+ * - 材質プロパティの適用
+ * - 節点座標による配置
+ *
+ * 注意: このファイルは柱専用です。他の要素は各専用ジェネレーターを使用してください。
+ * - 梁: beamGenerator.js
+ * - ブレース: braceGenerator.js
+ */
 
 /**
  * 柱要素データに基づいて柱のメッシュを作成する
@@ -54,13 +63,17 @@ export function createColumnMeshes(
       );
 
       // ShapeFactoryを使用して鋼材形状を生成
-      geometry = ShapeFactory.createSteelShape(steelShape, length, 'center');
-      
+      geometry = ShapeFactory.createSteelShape(steelShape, length, "center");
+
       if (geometry) {
-        console.log(`Column ${col.id}: Successfully created steel shape using ShapeFactory`);
+        console.log(
+          `Column ${col.id}: Successfully created steel shape using ShapeFactory`
+        );
       } else {
-        console.warn(`Column ${col.id}: Failed to create steel shape, using default`);
-        geometry = ShapeFactory.createDefaultShape(length, 'center');
+        console.warn(
+          `Column ${col.id}: Failed to create steel shape, using default`
+        );
+        geometry = ShapeFactory.createDefaultShape(length, "center");
       }
     } else if (sectionData.concreteShapeData) {
       console.log(`Column ${col.id}: Trying Concrete Section logic.`);
@@ -71,13 +84,21 @@ export function createColumnMeshes(
       );
 
       // ShapeFactoryを使用してコンクリート形状を生成
-      geometry = ShapeFactory.createConcreteShape(concreteShape, length, 'center');
-      
+      geometry = ShapeFactory.createConcreteShape(
+        concreteShape,
+        length,
+        "center"
+      );
+
       if (geometry) {
-        console.log(`Column ${col.id}: Successfully created concrete shape using ShapeFactory`);
+        console.log(
+          `Column ${col.id}: Successfully created concrete shape using ShapeFactory`
+        );
       } else {
-        console.warn(`Column ${col.id}: Failed to create concrete shape, using default`);
-        geometry = ShapeFactory.createDefaultShape(length, 'center');
+        console.warn(
+          `Column ${col.id}: Failed to create concrete shape, using default`
+        );
+        geometry = ShapeFactory.createDefaultShape(length, "center");
       }
     } else {
       console.log(
@@ -87,7 +108,7 @@ export function createColumnMeshes(
 
     // デフォルトジオメトリ (もし上記で作成されなかった場合)
     if (!geometry) {
-      geometry = ShapeFactory.createDefaultShape(length, 'center');
+      geometry = ShapeFactory.createDefaultShape(length, "center");
       console.warn(
         `Column ${col.id}: Using default geometry for section ${col.id_section}.`
       );
@@ -99,7 +120,7 @@ export function createColumnMeshes(
 
     // メッシュの位置と向きを調整（統一された配置ロジック）
     mesh.position.copy(bottomNode).lerp(topNode, 0.5); // 線分の中点に配置
-    
+
     if (geometry instanceof THREE.CylinderGeometry) {
       // CylinderGeometryはデフォルトでY軸に沿って伸びる
       mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction);
@@ -107,12 +128,12 @@ export function createColumnMeshes(
       // ExtrudeGeometryはZ軸に沿って伸びるが、H形鋼をZ軸方向にI型にするため追加回転が必要
       // まずZ軸を部材軸に合わせる
       const quaternion1 = new THREE.Quaternion().setFromUnitVectors(
-        new THREE.Vector3(0, 0, 1), 
+        new THREE.Vector3(0, 0, 1),
         direction
       );
       // 次にX軸回りに90度回転してH形をZ軸方向にI型にする
       const quaternion2 = new THREE.Quaternion().setFromAxisAngle(
-        direction, 
+        direction,
         Math.PI / 2
       );
       mesh.quaternion.multiplyQuaternions(quaternion2, quaternion1);

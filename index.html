@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <title>STB Diff Viewer</title>
     <link rel="stylesheet" href="./style/style.css" />
-    <!-- ★★★ 追加: 要素情報パネル用のスタイル ★★★ -->
+    <!-- 要素情報パネル用のスタイル -->
     <style>
       #component-info {
         position: absolute; /* 絶対位置指定 */
@@ -13,13 +13,13 @@
         background-color: rgba(240, 240, 240, 0.85); /* 半透明の背景 */
         border: 1px solid #ccc;
         padding: 10px;
-        min-width: 300px; /* 最小幅を大きく設定 */
-        min-height: 100px; /* 最小高さを追加 */
-        width: 30vw; /* デフォルト幅を大きく設定 */
-        max-width: 70vw; /* 最大幅をビューポート基準に */
-        max-height: 80vh; /* 最大高さをビューポート基準に */
-        overflow: auto; /* 内容が多い場合はスクロール (overflow-y から変更) */
-        resize: both; /* ★★★ 追加: リサイズ可能にする ★★★ */
+        min-width: 300px;
+        min-height: 100px;
+        width: 30vw;
+        max-width: 70vw;
+        max-height: 80vh;
+        overflow: auto;
+        resize: both;
         z-index: 10; /* 他の要素より手前に表示 */
         border-radius: 4px;
         box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
@@ -40,7 +40,7 @@
       #element-info-content {
         margin-top: 0;
       }
-      /* ★★★ 追加: 凡例パネルのスタイル ★★★ */
+      /* 凡例パネルのスタイル */
       #legendPanel {
         position: fixed; /* 画面に対して固定 */
         bottom: 10px; /* 画面下からの距離 */
@@ -145,26 +145,83 @@
         font-size: 0.75em;
       }
       .legend-color-box {
-        width: 12px;
-        height: 12px;
-        border: 1px solid #ccc;
-        margin-right: 4px;
+        width: 24px;
+        height: 24px;
+        border: 2px solid #555;
+        margin-right: 8px;
         display: inline-block;
+        border-radius: 4px;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+      .legend-color-box:hover {
+        border-color: #333;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
       }
       .legend-label {
         white-space: nowrap;
+        font-weight: 500;
+        color: #333;
       }
       /* 色付けモード用追加スタイル */
       .element-color-settings {
         display: none;
         margin-top: 10px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+        border: 1px solid #e9ecef;
       }
       .schema-color-settings {
         display: none;
         margin-top: 10px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+        border: 1px solid #e9ecef;
+      }
+      .importance-color-settings {
+        display: none;
+        margin-top: 10px;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+        border: 1px solid #e9ecef;
       }
       .color-setting-label {
-        font-size: 0.9em;
+        font-size: 1em;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 8px;
+        display: block;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        font-size: 0.85em;
+        margin-bottom: 8px;
+        padding: 4px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+      }
+      .legend-item:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+      }
+      /* 色プレビュー表示の改善 */
+      .color-preview {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+        margin-left: 8px;
+        display: inline-block;
+      }
+      .color-setting-help {
+        font-size: 0.8em;
+        color: #666;
+        margin-bottom: 8px;
+        font-style: italic;
       }
       .margin-left-8 {
         margin-left: 8px;
@@ -193,318 +250,914 @@
         display: inline-block;
       }
       /* ★★★ 色分けUI用スタイルここまで ★★★ */
+
+      /* ★★★ アコーディオンスタイル ★★★ */
+      .accordion-section {
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        margin-bottom: 8px;
+        background: #fff;
+        overflow: hidden;
+      }
+
+      .accordion-header {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border-bottom: 1px solid #dee2e6;
+        padding: 12px 15px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-weight: 600;
+        color: #495057;
+        transition: all 0.2s ease;
+        user-select: none;
+      }
+
+      .accordion-header:hover {
+        background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+        color: #212529;
+      }
+
+      .accordion-header span:first-child {
+        display: flex;
+        align-items: center;
+        font-size: 0.95em;
+      }
+
+      .accordion-arrow {
+        font-size: 0.8em;
+        transition: transform 0.3s ease;
+        color: #6c757d;
+      }
+
+      .accordion-header.collapsed .accordion-arrow {
+        transform: rotate(-90deg);
+      }
+
+      .accordion-content {
+        padding: 15px;
+        background: #fff;
+        transition: all 0.3s ease;
+        max-height: 1000px;
+        overflow: hidden;
+      }
+
+      .accordion-content.collapsed {
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        opacity: 0;
+      }
+
+      /* アコーディオン内の要素の調整 */
+      .accordion-content hr {
+        margin: 15px 0;
+        border: none;
+        border-top: 1px solid #dee2e6;
+      }
+
+      .accordion-content label {
+        margin-bottom: 8px;
+        font-size: 0.9em;
+      }
+
+      .accordion-content select,
+      .accordion-content input[type="file"],
+      .accordion-content button {
+        margin-bottom: 10px;
+      }
+
+      .accordion-content button {
+        font-size: 0.85em;
+        padding: 8px 12px;
+      }
+
+      /* 初期表示で開いているセクションの調整 */
+      .accordion-section:first-child .accordion-content,
+      .accordion-section:nth-child(2) .accordion-content,
+      .accordion-section:nth-child(3) .accordion-content {
+        /* ファイル読み込み、表示設定、要素表示設定は初期表示で開く */
+      }
+      /* ★★★ アコーディオンスタイル終了 ★★★ */
+
+      /* ★★★ 差分比較UI用スタイル ★★★ */
+      .diff-comparison-intro p {
+        font-size: 0.9em;
+        color: #666;
+        margin: 0 0 10px 0;
+      }
+
+      .btn-primary.compare-button {
+        background: #007bff;
+        color: white;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 5px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+
+      .btn-primary.compare-button:hover {
+        background: #0056b3;
+      }
+
+      #diff-summary {
+        display: none;
+        margin-top: 15px;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 5px;
+        border-left: 4px solid #007bff;
+      }
+
+      .diff-summary-title {
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #495057;
+      }
+
+      #diff-summary-content {
+        font-size: 0.9em;
+        color: #666;
+      }
+
+      .diff-stat-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 4px;
+        padding: 2px 0;
+      }
+
+      .diff-stat-value {
+        font-weight: 600;
+        color: #495057;
+      }
+
+      .diff-stat-matched {
+        color: #007bff;
+      }
+
+      .diff-stat-only-a {
+        color: #28a745;
+      }
+
+      .diff-stat-only-b {
+        color: #dc3545;
+      }
+      .diff-mode-description {
+        font-size: 0.9em;
+        color: #666;
+        margin-bottom: 8px;
+      }
+
+      .legend-description {
+        font-size: 0.9em;
+        color: #666;
+      }
+
+      /* ★★★ 差分比較UI用スタイル終了 ★★★ */
+
+      /* ★★★ クリッピング範囲調整スタイル ★★★ */
+      .clipping-group {
+        margin-bottom: 20px;
+      }
+
+      .clip-range-controls {
+        margin-top: 10px;
+        padding: 12px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border: 1px solid #e9ecef;
+        animation: slideDown 0.3s ease;
+      }
+
+      @keyframes slideDown {
+        from {
+          opacity: 0;
+          max-height: 0;
+          padding-top: 0;
+          padding-bottom: 0;
+        }
+        to {
+          opacity: 1;
+          max-height: 100px;
+          padding-top: 12px;
+          padding-bottom: 12px;
+        }
+      }
+
+      .range-control-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .range-control-group label {
+        font-size: 0.85em;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 4px;
+      }
+
+      .range-slider-container {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .range-label {
+        font-size: 0.75em;
+        color: #6c757d;
+        white-space: nowrap;
+        min-width: 30px;
+        text-align: center;
+      }
+
+      .clip-range-slider {
+        flex: 1;
+        height: 6px;
+        background: #dee2e6;
+        border-radius: 3px;
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+
+      .clip-range-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        background: #007bff;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transition: all 0.2s ease;
+      }
+
+      .clip-range-slider::-webkit-slider-thumb:hover {
+        background: #0056b3;
+        transform: scale(1.1);
+      }
+
+      .clip-range-slider::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        background: #007bff;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        transition: all 0.2s ease;
+      }
+
+      .clip-range-slider::-moz-range-thumb:hover {
+        background: #0056b3;
+        transform: scale(1.1);
+      }
+
+      .range-value-display {
+        text-align: center;
+        font-size: 0.9em;
+        font-weight: 600;
+        color: #495057;
+        background: #fff;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+        min-width: 60px;
+      }
+
+      .clip-apply-btn {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        margin-top: 5px;
+      }
+
+      .clip-apply-btn:hover {
+        background: #218838;
+      }
+
+      .clip-apply-btn:active {
+        background: #1e7e34;
+      }
+
+      .clear-clip-btn {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+      }
+
+      .clear-clip-btn:hover {
+        background: #c82333;
+      }
+
+      .preview-clip-btn {
+        background: #17a2b8;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        cursor: pointer;
+        transition: background-color 0.2s ease;
+        margin-left: 8px;
+      }
+
+      .preview-clip-btn:hover {
+        background: #138496;
+      }
+
+      .clipping-controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 10px;
+      }
+
+      /* クリッピング状態インジケーター */
+      .clipping-active {
+        border-left: 4px solid #28a745;
+        background: linear-gradient(135deg, #f8fff9 0%, #f1f9f1 100%);
+      }
+
+      .clipping-group.active .clip-apply-btn {
+        background: #ffc107;
+        color: #212529;
+      }
+
+      .clipping-group.active .clip-apply-btn:hover {
+        background: #e0a800;
+      }
+      /* ★★★ クリッピング範囲調整スタイル終了 ★★★ */
     </style>
   </head>
   <body>
     <div id="overlay">
-      <label for="fileA">モデルA</label>
-      <input type="file" id="fileA" accept=".stb,.xml" />
-      <label for="fileB">モデルB</label>
-      <input type="file" id="fileB" accept=".stb,.xml" />
-      <!-- ★★★ ボタンのテキストを更新 ★★★ -->
-      <button id="compareButton">モデル読み込み・表示</button>
-
-      <hr />
-
-      <!-- ★★★ 色付けモード選択UI ★★★ -->
-      <div id="color-mode-controls">
-        <label><strong>色付けモード</strong></label
-        ><br />
-        <select
-          id="colorModeSelector"
-          class="form-control"
-          title="色付けモードを選択"
-        >
-          <option value="diff">差分表示（デフォルト）</option>
-          <option value="element">部材別色付け</option>
-          <option value="schema">スキーマエラー表示</option>
-        </select>
-
-        <!-- 部材別色付け設定 -->
-        <div id="element-color-settings" class="element-color-settings">
-          <label class="color-setting-label"
-            ><strong>部材色設定:</strong></label
-          >
-          <div class="color-legend-container" id="element-color-controls">
-            <!-- 動的に生成される -->
-          </div>
+      <!-- ファイル読み込みセクション -->
+      <div class="accordion-section">
+        <div class="accordion-header" data-target="file-loading">
+          <span>📊 モデル差分比較</span>
+          <span class="accordion-arrow">▼</span>
         </div>
+        <div class="accordion-content" id="file-loading">
+          <div class="diff-comparison-intro">
+            <p>2つのSTBモデルを比較して差分を確認します</p>
+          </div>
+          <label for="fileA"><strong>比較元モデル (A)</strong></label>
+          <input type="file" id="fileA" accept=".stb,.xml" />
+          <label for="fileB"><strong>比較先モデル (B)</strong></label>
+          <input type="file" id="fileB" accept=".stb,.xml" />
+          <button id="compareButton" class="btn-primary compare-button">
+            🔍 差分比較を実行
+          </button>
 
-        <!-- スキーマエラー色設定 -->
-        <div id="schema-color-settings" class="schema-color-settings">
-          <label class="color-setting-label"
-            ><strong>スキーマエラー色設定:</strong></label
-          >
-          <div class="color-legend-container">
-            <div class="legend-item">
-              <input
-                type="color"
-                id="schema-valid-color"
-                value="#00aaff"
-                class="legend-color-box"
-              />
-              <span class="legend-label">正常要素</span>
-            </div>
-            <div class="legend-item">
-              <input
-                type="color"
-                id="schema-error-color"
-                value="#ff0000"
-                class="legend-color-box"
-              />
-              <span class="legend-label">エラー要素</span>
+          <!-- 差分結果サマリー表示エリア -->
+          <div id="diff-summary">
+            <div class="diff-summary-title">📈 差分サマリー</div>
+            <div id="diff-summary-content">
+              <!-- 動的に生成される差分統計 -->
             </div>
           </div>
         </div>
       </div>
 
-      <hr />
+      <!-- 表示設定セクション -->
+      <div class="accordion-section">
+        <div class="accordion-header" data-target="display-settings">
+          <span>🎨 差分表示設定</span>
+          <span class="accordion-arrow">▼</span>
+        </div>
+        <div class="accordion-content" id="display-settings">
+          <!-- 色付けモード選択UI -->
+          <div id="color-mode-controls">
+            <label><strong>表示モード</strong></label>
+            <div class="diff-mode-description">
+              差分確認には「差分表示」を推奨します
+            </div>
+            <select
+              id="colorModeSelector"
+              class="form-control"
+              title="色付けモードを選択"
+            >
+              <option value="diff">🔍 差分表示（推奨）</option>
+              <option value="element">🏗️ 部材別色付け</option>
+              <option value="schema">⚠️ スキーマエラー表示</option>
+              <option value="importance">🏷️ 重要度別色付け</option>
+            </select>
 
-      <label>比較/表示する要素</label>
-      <div id="elementSelector">
-        <label>
-          <input
-            type="checkbox"
-            id="toggleModelA"
-            name="modelVisibility"
-            value="A"
-            checked
-          />
-          モデルAを表示
-        </label>
-        <br />
-        <label>
-          <input
-            type="checkbox"
-            id="toggleModelB"
-            name="modelVisibility"
-            value="B"
-            checked
-          />
-          モデルBを表示
-        </label>
-        <hr />
-        <!-- 区切り線を追加 -->
-        <label>比較/表示する要素</label> <br />
-        <!-- 改行を追加 -->
-        <label>
-          <input
-            type="checkbox"
-            name="elements"
-            value="Node"
-            id="toggleNodeView"
-            checked
-          />
-          節点 (Node)
-        </label>
-        <label for="toggleLabel-Node">
-          <input
-            type="checkbox"
-            name="labelToggle"
-            value="Node"
-            id="toggleLabel-Node"
-          />
-          ID
-        </label>
-        <br />
-        <label>
-          <input type="checkbox" name="elements" value="Column" checked /> 柱
-          (Column)
-        </label>
-        <!-- ▼柱表示切替UI追加▼ -->
-        <label for="toggleColumnView" class="margin-left-8">
-          <input type="checkbox" id="toggleColumnView" name="columnViewMode" />
-          立体表示
-        </label>
-        <!-- ▲柱表示切替UI追加▲ -->
-        <label for="toggleLabel-Column" class="margin-left-8">
-          <input
-            type="checkbox"
-            name="labelToggle"
-            value="Column"
-            id="toggleLabel-Column"
-          />
-          ID
-        </label>
-        <br />
-        <label>
-          <input type="checkbox" name="elements" value="Girder" checked /> 大梁
-          (Girder)
-        </label>
-        <label for="toggleGirderView" class="margin-left-8">
-          <input type="checkbox" id="toggleGirderView" name="girderViewMode" />
-          立体表示
-        </label>
-        <label for="toggleLabel-Girder" class="margin-left-8">
-          <input
-            type="checkbox"
-            name="labelToggle"
-            value="Girder"
-            id="toggleLabel-Girder"
-          />
-          ID
-        </label>
-        <br />
-        <label>
-          <input type="checkbox" name="elements" value="Beam" checked /> 小梁
-          (Beam)
-        </label>
-        <label for="toggleLabel-Beam">
-          <input
-            type="checkbox"
-            name="labelToggle"
-            value="Beam"
-            id="toggleLabel-Beam"
-          />
-          ID
-        </label>
-        <br />
-        <label>
-          <input
-            type="checkbox"
-            name="elements"
-            value="Brace"
-            id="toggleBraceView"
-            checked
-          />
-          ブレース (Brace)
-        </label>
-        <label for="toggleLabel-Brace">
-          <input
-            type="checkbox"
-            name="labelToggle"
-            value="Brace"
-            id="toggleLabel-Brace"
-          />
-          ID
-        </label>
-        <br />
-        <label>
-          <input
-            type="checkbox"
-            name="elements"
-            value="Slab"
-            id="toggleSlabView"
-            checked
-          />
-          スラブ (Slab)
-        </label>
-        <label for="toggleLabel-Slab">
-          <input
-            type="checkbox"
-            name="labelToggle"
-            value="Slab"
-            id="toggleLabel-Slab"
-          />
-          ID
-        </label>
-        <br />
-        <label>
-          <input
-            type="checkbox"
-            name="elements"
-            value="Wall"
-            id="toggleWallView"
-            checked
-          />
-          壁 (Wall)
-        </label>
-        <label for="toggleLabel-Wall">
-          <input
-            type="checkbox"
-            name="labelToggle"
-            value="Wall"
-            id="toggleLabel-Wall"
-          />
-          ID
-        </label>
-        <br />
-        <label>
-          <input
-            type="checkbox"
-            name="elements"
-            value="Axis"
-            id="toggleAxisView"
-            checked
-          />
-          通り芯 (Axis)
-        </label>
-        <label for="toggleLabel-Axis">
-          <input
-            type="checkbox"
-            name="labelToggle"
-            value="Axis"
-            id="toggleLabel-Axis"
-            checked
-          />
-          名称
-        </label>
-        <br />
-        <label>
-          <input
-            type="checkbox"
-            name="elements"
-            value="Story"
-            id="toggleStoryView"
-            checked
-          />
-          階 (Story)
-        </label>
-        <label for="toggleLabel-Story">
-          <input
-            type="checkbox"
-            name="labelToggle"
-            value="Story"
-            id="toggleLabel-Story"
-            checked
-          />
-          名称/高さ
-        </label>
-        <!-- 他の要素 (Story, Axis) は現状未対応 -->
-      </div>
-      <hr />
+            <!-- 色付けモード状況メッセージ -->
+            <div id="color-mode-status" class="color-mode-status hidden">
+              <span id="color-mode-status-text"></span>
+            </div>
 
-      <label for="storySelector">階の表示制限</label>
-      <select id="storySelector"></select>
-      <div id="storyButtons">
-        <!-- ★★★ onclick 属性を削除 ★★★ -->
-        <button id="applyStoryClipButton">この階の±1mでクリップ</button>
-        <!-- ★★★ 追加: X軸選択とクリップボタン ★★★ -->
-        <label for="xAxisSelector">X軸選択:</label>
-        <select id="xAxisSelector"></select>
-        <!-- ★★★ onclick 属性を削除し、IDを追加 ★★★ -->
-        <button id="applyXAxisClipButton">X軸でクリップ</button>
-        <!-- ★★★ 追加: Y軸選択とクリップボタン ★★★ -->
-        <label for="yAxisSelector">Y軸選択:</label>
-        <select id="yAxisSelector"></select>
-        <!-- ★★★ onclick 属性を削除し、IDを追加 ★★★ -->
-        <button id="applyYAxisClipButton">Y軸でクリップ</button>
-        <!-- ★★★ 変更: クリッピング解除ボタンのテキストを汎用的に ★★★ -->
-        <button id="clearClipButton">クリッピング解除</button>
+            <!-- 部材別色付け設定 -->
+            <div id="element-color-settings" class="element-color-settings">
+              <label class="color-setting-label">部材色設定:</label>
+              <div class="color-setting-help">
+                ※ 色ボックスをクリックして各部材の表示色を変更できます
+              </div>
+              <div class="color-legend-container" id="element-color-controls">
+                <!-- 動的に生成される -->
+              </div>
+            </div>
+
+            <!-- スキーマエラー色設定 -->
+            <div id="schema-color-settings" class="schema-color-settings">
+              <label class="color-setting-label">スキーマエラー色設定:</label>
+              <div class="color-setting-help">
+                ※ スキーマ検証の結果に応じて要素に色付けします
+              </div>
+              <div class="color-legend-container">
+                <div class="legend-item">
+                  <input
+                    type="color"
+                    id="schema-valid-color"
+                    value="#00aaff"
+                    class="legend-color-box"
+                    title="正常要素の色を変更"
+                  />
+                  <span class="legend-label">正常要素</span>
+                  <span
+                    class="color-preview"
+                    id="schema-valid-preview"
+                    title="現在の色: #00aaff"
+                  ></span>
+                </div>
+                <div class="legend-item">
+                  <input
+                    type="color"
+                    id="schema-error-color"
+                    value="#ff0000"
+                    class="legend-color-box"
+                    title="エラー要素の色を変更"
+                  />
+                  <span class="legend-label">エラー要素</span>
+                  <span
+                    class="color-preview"
+                    id="schema-error-preview"
+                    title="現在の色: #ff0000"
+                  ></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- 重要度色設定 -->
+            <div
+              id="importance-color-settings"
+              class="importance-color-settings"
+            >
+              <label class="color-setting-label">重要度色設定:</label>
+              <div class="color-setting-help">
+                ※ 各重要度レベルの表示色を変更できます
+              </div>
+              <div
+                class="color-legend-container"
+                id="importance-color-controls"
+              >
+                <!-- 動的に生成される -->
+              </div>
+            </div>
+          </div>
+
+          <hr style="margin: 15px 0" />
+
+          <!-- ラベル表示内容設定 -->
+          <div id="label-content-controls">
+            <label><strong>ラベル表示内容</strong></label
+            ><br />
+            <select
+              id="labelContentSelector"
+              class="form-control"
+              title="ラベルに表示する内容を選択"
+            >
+              <option value="id">ID（デフォルト）</option>
+              <option value="name">インスタンス名（Name）</option>
+              <option value="section">断面名（Section）</option>
+            </select>
+          </div>
+        </div>
       </div>
 
-      <hr />
+      <!-- 要素表示設定セクション -->
+      <div class="accordion-section">
+        <div class="accordion-header" data-target="element-settings">
+          <span>🏗️ 要素表示設定</span>
+          <span class="accordion-arrow">▼</span>
+        </div>
+        <div class="accordion-content" id="element-settings">
+          <div id="elementSelector">
+            <label><strong>モデル表示</strong></label>
+            <label>
+              <input
+                type="checkbox"
+                id="toggleModelA"
+                name="modelVisibility"
+                value="A"
+                checked
+              />
+              モデルAを表示
+            </label>
+            <br />
+            <label>
+              <input
+                type="checkbox"
+                id="toggleModelB"
+                name="modelVisibility"
+                value="B"
+                checked
+              />
+              モデルBを表示
+            </label>
 
-      <button id="toggleLegendBtn">凡例・マウス操作を表示</button>
-      <!-- Add this button -->
+            <hr style="margin: 15px 0" />
+
+            <label><strong>比較/表示する要素</strong></label>
+            <label>
+              <input
+                type="checkbox"
+                name="elements"
+                value="Node"
+                id="toggleNodeView"
+                checked
+              />
+              節点 (Node)
+            </label>
+            <label for="toggleLabel-Node">
+              <input
+                type="checkbox"
+                name="labelToggle"
+                value="Node"
+                id="toggleLabel-Node"
+              />
+              ID
+            </label>
+            <br />
+            <label>
+              <input type="checkbox" name="elements" value="Column" checked />
+              柱 (Column)
+            </label>
+            <label for="toggleColumnView" class="margin-left-8">
+              <input
+                type="checkbox"
+                id="toggleColumnView"
+                name="columnViewMode"
+              />
+              立体表示
+            </label>
+            <label for="toggleLabel-Column" class="margin-left-8">
+              <input
+                type="checkbox"
+                name="labelToggle"
+                value="Column"
+                id="toggleLabel-Column"
+              />
+              ID
+            </label>
+            <br />
+            <label>
+              <input type="checkbox" name="elements" value="Girder" checked />
+              大梁 (Girder)
+            </label>
+            <label for="toggleGirderView" class="margin-left-8">
+              <input
+                type="checkbox"
+                id="toggleGirderView"
+                name="girderViewMode"
+              />
+              立体表示
+            </label>
+            <label for="toggleLabel-Girder" class="margin-left-8">
+              <input
+                type="checkbox"
+                name="labelToggle"
+                value="Girder"
+                id="toggleLabel-Girder"
+              />
+              ID
+            </label>
+            <br />
+            <label>
+              <input type="checkbox" name="elements" value="Beam" checked />
+              小梁 (Beam)
+            </label>
+            <label for="toggleLabel-Beam">
+              <input
+                type="checkbox"
+                name="labelToggle"
+                value="Beam"
+                id="toggleLabel-Beam"
+              />
+              ID
+            </label>
+            <br />
+            <label>
+              <input
+                type="checkbox"
+                name="elements"
+                value="Brace"
+                id="toggleBraceView"
+                checked
+              />
+              ブレース (Brace)
+            </label>
+            <label for="toggleLabel-Brace">
+              <input
+                type="checkbox"
+                name="labelToggle"
+                value="Brace"
+                id="toggleLabel-Brace"
+              />
+              ID
+            </label>
+            <br />
+            <label>
+              <input
+                type="checkbox"
+                name="elements"
+                value="Slab"
+                id="toggleSlabView"
+                checked
+              />
+              スラブ (Slab)
+            </label>
+            <label for="toggleLabel-Slab">
+              <input
+                type="checkbox"
+                name="labelToggle"
+                value="Slab"
+                id="toggleLabel-Slab"
+              />
+              ID
+            </label>
+            <br />
+            <label>
+              <input
+                type="checkbox"
+                name="elements"
+                value="Wall"
+                id="toggleWallView"
+                checked
+              />
+              壁 (Wall)
+            </label>
+            <label for="toggleLabel-Wall">
+              <input
+                type="checkbox"
+                name="labelToggle"
+                value="Wall"
+                id="toggleLabel-Wall"
+              />
+              ID
+            </label>
+            <br />
+            <label>
+              <input
+                type="checkbox"
+                name="elements"
+                value="Axis"
+                id="toggleAxisView"
+                checked
+              />
+              通り芯 (Axis)
+            </label>
+            <label for="toggleLabel-Axis">
+              <input
+                type="checkbox"
+                name="labelToggle"
+                value="Axis"
+                id="toggleLabel-Axis"
+                checked
+              />
+              名称
+            </label>
+            <br />
+            <label>
+              <input
+                type="checkbox"
+                name="elements"
+                value="Story"
+                id="toggleStoryView"
+                checked
+              />
+              階 (Story)
+            </label>
+            <label for="toggleLabel-Story">
+              <input
+                type="checkbox"
+                name="labelToggle"
+                value="Story"
+                id="toggleLabel-Story"
+                checked
+              />
+              名称/高さ
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- クリッピング設定セクション -->
+      <div class="accordion-section">
+        <div class="accordion-header" data-target="clipping-settings">
+          <span>✂️ クリッピング設定</span>
+          <span class="accordion-arrow">▼</span>
+        </div>
+        <div class="accordion-content collapsed" id="clipping-settings">
+          <!-- 階クリッピング設定 -->
+          <div class="clipping-group">
+            <label for="storySelector"><strong>階の表示制限</strong></label>
+            <select id="storySelector"></select>
+            <button id="applyStoryClipButton" class="clip-apply-btn">
+              この階でクリップ
+            </button>
+
+            <!-- 階クリッピング範囲調整 -->
+            <div
+              id="storyClipControls"
+              class="clip-range-controls"
+              style="display: none"
+            >
+              <div class="range-control-group">
+                <label for="storyClipRange">クリッピング範囲:</label>
+                <div class="range-slider-container">
+                  <span class="range-label">狭い</span>
+                  <input
+                    type="range"
+                    id="storyClipRange"
+                    min="500"
+                    max="5000"
+                    value="1000"
+                    step="100"
+                    class="clip-range-slider"
+                  />
+                  <span class="range-label">広い</span>
+                </div>
+                <div class="range-value-display">
+                  ±<span id="storyRangeValue">1.0</span>m
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <hr style="margin: 15px 0" />
+
+          <!-- X軸クリッピング設定 -->
+          <div class="clipping-group">
+            <label for="xAxisSelector"><strong>X軸選択</strong></label>
+            <select id="xAxisSelector"></select>
+            <button id="applyXAxisClipButton" class="clip-apply-btn">
+              X軸でクリップ
+            </button>
+
+            <!-- X軸クリッピング範囲調整 -->
+            <div
+              id="xAxisClipControls"
+              class="clip-range-controls"
+              style="display: none"
+            >
+              <div class="range-control-group">
+                <label for="xAxisClipRange">クリッピング範囲:</label>
+                <div class="range-slider-container">
+                  <span class="range-label">狭い</span>
+                  <input
+                    type="range"
+                    id="xAxisClipRange"
+                    min="500"
+                    max="10000"
+                    value="2000"
+                    step="250"
+                    class="clip-range-slider"
+                  />
+                  <span class="range-label">広い</span>
+                </div>
+                <div class="range-value-display">
+                  ±<span id="xAxisRangeValue">2.0</span>m
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <hr style="margin: 15px 0" />
+
+          <!-- Y軸クリッピング設定 -->
+          <div class="clipping-group">
+            <label for="yAxisSelector"><strong>Y軸選択</strong></label>
+            <select id="yAxisSelector"></select>
+            <button id="applyYAxisClipButton" class="clip-apply-btn">
+              Y軸でクリップ
+            </button>
+
+            <!-- Y軸クリッピング範囲調整 -->
+            <div
+              id="yAxisClipControls"
+              class="clip-range-controls"
+              style="display: none"
+            >
+              <div class="range-control-group">
+                <label for="yAxisClipRange">クリッピング範囲:</label>
+                <div class="range-slider-container">
+                  <span class="range-label">狭い</span>
+                  <input
+                    type="range"
+                    id="yAxisClipRange"
+                    min="500"
+                    max="10000"
+                    value="2000"
+                    step="250"
+                    class="clip-range-slider"
+                  />
+                  <span class="range-label">広い</span>
+                </div>
+                <div class="range-value-display">
+                  ±<span id="yAxisRangeValue">2.0</span>m
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <hr style="margin: 15px 0" />
+
+          <!-- クリッピング制御ボタン -->
+          <div class="clipping-controls">
+            <button id="clearClipButton" class="clear-clip-btn">
+              クリッピング解除
+            </button>
+            <button
+              id="previewClipButton"
+              class="preview-clip-btn"
+              style="display: none"
+            >
+              プレビュー表示
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 重要度設定セクション -->
+      <div class="accordion-section">
+        <div class="accordion-header" data-target="importance-settings">
+          <span>🏷️ 重要度設定</span>
+          <span class="accordion-arrow">▼</span>
+        </div>
+        <div class="accordion-content collapsed" id="importance-settings">
+          <button id="toggleImportanceBtn">重要度パネル表示</button>
+          <button onclick="window.toggleImportanceStatistics()">
+            統計表示
+          </button>
+          <button onclick="window.toggleBulkOperations()">一括操作</button>
+          <button onclick="window.toggleImportanceFilter()">
+            フィルタ切替
+          </button>
+        </div>
+      </div>
+
+      <!-- その他設定セクション -->
+      <div class="accordion-section">
+        <div class="accordion-header" data-target="other-settings">
+          <span>⚙️ その他設定</span>
+          <span class="accordion-arrow">▼</span>
+        </div>
+        <div class="accordion-content collapsed" id="other-settings">
+          <button id="toggleLegendBtn">🔍 差分凡例・操作方法を表示</button>
+        </div>
+      </div>
     </div>
 
     <!-- ここに凡例パネルのHTMLを追加 -->
     <div id="legendPanel" class="panel legend-panel-hidden">
       <!-- 初期状態は非表示 -->
-      <div class="panel-header">凡例</div>
+      <div class="panel-header">🔍 差分比較凡例</div>
       <div class="legend-content">
         <div class="legend-item">
           <span class="legend-color legend-color-matched"></span>
-          <span>一致要素</span>
+          <span><strong>一致要素</strong></span>
         </div>
         <div class="legend-item">
           <span class="legend-color legend-color-onlya"></span>
-          <span>モデルAのみ</span>
+          <span><strong>モデルA専用</strong></span>
         </div>
         <div class="legend-item">
           <span class="legend-color legend-color-onlyb"></span>
-          <span>モデルBのみ</span>
+          <span><strong>モデルB専用</strong></span>
+        </div>
+        <hr />
+        <div class="legend-item">
+          <span class="legend-description">
+            色分けで差分を直感的に確認できます
+          </span>
         </div>
         <hr />
         <div class="legend-item">
@@ -526,17 +1179,29 @@
     <!-- ★★★ 追加: 要素情報表示パネル ★★★ -->
     <div id="component-info" class="panel info-panel">
       <!-- 編集機能UI (最小化) -->
-      <div id="editing-controls" style="font-size: 0.8em; opacity: 0.7; margin-bottom: 8px;">
+      <div
+        id="editing-controls"
+        style="font-size: 0.8em; opacity: 0.7; margin-bottom: 8px"
+      >
         <button
           id="edit-mode-button"
           class="btn btn-sm"
-          style="font-size: 0.7em; padding: 2px 6px; background: #f8f9fa; border: 1px solid #dee2e6; color: #6c757d;"
+          style="
+            font-size: 0.7em;
+            padding: 2px 6px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            color: #6c757d;
+          "
           onclick="window.toggleEditMode()"
           title="高度な編集機能（開発者向け）"
         >
           編集
         </button>
-        <span id="editing-summary" style="font-size: 0.7em; color: #6c757d; margin-left: 5px;">
+        <span
+          id="editing-summary"
+          style="font-size: 0.7em; color: #6c757d; margin-left: 5px"
+        >
           修正: 0件
         </span>
       </div>
@@ -547,23 +1212,47 @@
     <canvas id="three-canvas"></canvas>
 
     <!-- 開発者向けリンク (本番環境では削除) -->
-    <div id="dev-tools" style="position: fixed; bottom: 10px; right: 10px; z-index: 1000; display: none;">
-      <a href="test.html" 
-         style="background: #666; color: white; padding: 4px 8px; text-decoration: none; 
-                border-radius: 3px; font-size: 11px; opacity: 0.7;"
-         title="開発者向けテスト環境">
+    <div
+      id="dev-tools"
+      style="
+        position: fixed;
+        bottom: 10px;
+        right: 10px;
+        z-index: 1000;
+        display: none;
+      "
+    >
+      <a
+        href="test.html"
+        style="
+          background: #666;
+          color: white;
+          padding: 4px 8px;
+          text-decoration: none;
+          border-radius: 3px;
+          font-size: 11px;
+          opacity: 0.7;
+        "
+        title="開発者向けテスト環境"
+      >
         🧪 Tests
       </a>
     </div>
-    
+
     <!-- 開発環境でのみテストリンクを表示 -->
     <script>
-      if (window.location.hostname === 'localhost' || 
-          window.location.hostname === '127.0.0.1' ||
-          window.location.search.includes('dev=true')) {
-        document.getElementById('dev-tools').style.display = 'block';
+      if (
+        window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1" ||
+        window.location.search.includes("dev=true")
+      ) {
+        document.getElementById("dev-tools").style.display = "block";
       }
     </script>
+
+    <!-- ★★★ 開発用テストヘルパー ★★★ -->
+    <script type="module" src="test/browser-test-helper.js"></script>
+    <script type="module" src="test/axisStoryWireframeTest.js"></script>
 
     <!-- ★★★ パスを js/main.js に変更 ★★★ -->
     <script type="module" src="js/main.js"></script>

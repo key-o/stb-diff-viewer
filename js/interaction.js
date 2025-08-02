@@ -34,7 +34,7 @@ export function resetSelection() {
     }
     selectedObject = null;
     originalMaterial = null;
-    displayElementInfo(null, null, null);
+    displayElementInfo(null, null, null, null);
   }
 }
 
@@ -160,7 +160,7 @@ export function processElementSelection(event, scheduleRender) {
         } else if (modelSource === "B") {
           idB = userData.elementId;
         }
-        displayElementInfo(idA, idB, "Column");
+        displayElementInfo(idA, idB, "Column", modelSource);
       }
       // その他のハイライト対象要素の情報表示
       else {
@@ -177,17 +177,21 @@ export function processElementSelection(event, scheduleRender) {
           idA = userData.elementId;
         }
         if (idA || idB) {
-          console.log(`Calling displayElementInfo for ${elementType}:`, { idA, idB, elementType }); // デバッグ用
-          displayElementInfo(idA, idB, elementType);
+          console.log(`Calling displayElementInfo for ${elementType}:`, {
+            idA,
+            idB,
+            elementType,
+          }); // デバッグ用
+          displayElementInfo(idA, idB, elementType, modelSource);
         } else {
           console.log(`No valid ID found for ${elementType}, clearing display`); // デバッグ用
-          displayElementInfo(null, null, null);
+          displayElementInfo(null, null, null, null);
         }
       }
     } else if (elementType === "Axis" || elementType === "Story") {
       // Axis/Story がクリックされた場合: ハイライトせず、情報パネルをクリア
       console.log(`Clicked on ${elementType}, skipping highlight.`);
-      displayElementInfo(null, null, null);
+      displayElementInfo(null, null, null, null);
     }
   }
 

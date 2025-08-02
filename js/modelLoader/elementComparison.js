@@ -14,6 +14,7 @@ import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module
 import { parseElements } from "../parser/stbXmlParser.js";
 import {
   compareElements,
+  compareElementsWithImportance,
   lineElementKeyExtractor,
   polyElementKeyExtractor,
   nodeElementKeyExtractor,
@@ -24,9 +25,12 @@ import { SUPPORTED_ELEMENTS } from "../viewer/index.js";
  * Process element comparison for all supported element types
  * @param {Object} modelData - Model data from processing
  * @param {Array<string>} selectedElementTypes - Selected element types
+ * @param {Object} options - Comparison options
+ * @param {boolean} [options.useImportanceFiltering=true] - Use importance-based filtering
+ * @param {string[]} [options.targetImportanceLevels=null] - Target importance levels for filtering
  * @returns {Object} Comparison results
  */
-export function processElementComparison(modelData, selectedElementTypes) {
+export function processElementComparison(modelData, selectedElementTypes, options = {}) {
   const {
     modelADocument,
     modelBDocument,
@@ -46,25 +50,30 @@ export function processElementComparison(modelData, selectedElementTypes) {
     const isSelected = selectedElementTypes.includes(elementType);
     console.log(`--- Processing ${elementType} (Selected: ${isSelected}) ---`);
 
+    let elementsA = [];
+    let elementsB = [];
+
     try {
       // Parse elements from both models
-      const elementsA = parseElements(modelADocument, "Stb" + elementType);
-      const elementsB = parseElements(modelBDocument, "Stb" + elementType);
+      elementsA = parseElements(modelADocument, "Stb" + elementType);
+      elementsB = parseElements(modelBDocument, "Stb" + elementType);
 
       console.log(`${elementType} - Model A: ${elementsA.length}, Model B: ${elementsB.length}`);
 
-      // Perform comparison
+      // Perform comparison with importance options
       const comparisonResult = compareElementsByType(
         elementType,
         elementsA,
         elementsB,
         nodeMapA,
-        nodeMapB
+        nodeMapB,
+        options
       );
 
       // Store comparison result
       comparisonResults.set(elementType, {
         ...comparisonResult,
+        elementType,
         isSelected,
         elementsA,
         elementsB
@@ -78,13 +87,19 @@ export function processElementComparison(modelData, selectedElementTypes) {
 
     } catch (error) {
       console.error(`Error processing ${elementType}:`, error);
+      console.error(`Error stack:`, error.stack);
+      console.error(`Elements A length: ${elementsA ? elementsA.length : 'undefined'}`);
+      console.error(`Elements B length: ${elementsB ? elementsB.length : 'undefined'}`);
+      console.error(`Node map A size: ${nodeMapA ? nodeMapA.size : 'undefined'}`);
+      console.error(`Node map B size: ${nodeMapB ? nodeMapB.size : 'undefined'}`);
       comparisonResults.set(elementType, {
         matched: [],
         onlyA: [],
         onlyB: [],
+        elementType,
         isSelected,
-        elementsA: [],
-        elementsB: [],
+        elementsA: elementsA || [],
+        elementsB: elementsB || [],
         error: error.message
       });
     }
@@ -105,71 +120,93 @@ export function processElementComparison(modelData, selectedElementTypes) {
  * @param {Array} elementsB - Elements from model B
  * @param {Map} nodeMapA - Node map for model A
  * @param {Map} nodeMapB - Node map for model B
+ * @param {Object} options - Comparison options
+ * @param {boolean} [options.useImportanceFiltering=true] - Use importance-based filtering
+ * @param {string[]} [options.targetImportanceLevels=null] - Target importance levels for filtering
  * @returns {Object} Comparison result
  */
-function compareElementsByType(elementType, elementsA, elementsB, nodeMapA, nodeMapB) {
+function compareElementsByType(elementType, elementsA, elementsB, nodeMapA, nodeMapB, options = {}) {
+  const { 
+    useImportanceFiltering = true,
+    targetImportanceLevels = null 
+  } = options;
+  
   let comparisonResult = null;
 
-  switch (elementType) {
-    case "Node":
-      comparisonResult = compareElements(
-        elementsA,
-        elementsB,
-        nodeMapA,
-        nodeMapB,
-        nodeElementKeyExtractor
-      );
-      break;
+  console.log(`compareElementsByType called for ${elementType}:`, {
+    elementsACount: elementsA.length,
+    elementsBCount: elementsB.length,
+    useImportanceFiltering,
+    targetImportanceLevels
+  });
 
-    case "Column":
-      comparisonResult = compareElements(
-        elementsA,
-        elementsB,
-        nodeMapA,
-        nodeMapB,
-        (el, nm) => lineElementKeyExtractor(el, nm, "id_node_bottom", "id_node_top")
-      );
-      break;
+  // Create comparison function based on importance filtering setting
+  const performComparison = (keyExtractor) => {
+    try {
+      if (useImportanceFiltering) {
+        console.log(`Using importance-based comparison for ${elementType}`);
+        return compareElementsWithImportance(
+          elementsA, elementsB, nodeMapA, nodeMapB, 
+          keyExtractor, "Stb" + elementType, { targetImportanceLevels }
+        );
+      } else {
+        console.log(`Using basic comparison for ${elementType}`);
+        return compareElements(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor);
+      }
+    } catch (error) {
+      console.error(`Error in performComparison for ${elementType}:`, error);
+      throw error;
+    }
+  };
 
-    case "Girder":
-    case "Beam":
-      comparisonResult = compareElements(
-        elementsA,
-        elementsB,
-        nodeMapA,
-        nodeMapB,
-        (el, nm) => lineElementKeyExtractor(el, nm, "id_node_start", "id_node_end")
-      );
-      break;
+  try {
+    switch (elementType) {
+      case "Node":
+        console.log(`Processing Node elements`);
+        comparisonResult = performComparison(nodeElementKeyExtractor);
+        break;
 
-    case "Brace":
-      comparisonResult = compareElements(
-        elementsA,
-        elementsB,
-        nodeMapA,
-        nodeMapB,
-        (el, nm) => lineElementKeyExtractor(el, nm, "id_node_start", "id_node_end")
-      );
-      break;
+      case "Column":
+        console.log(`Processing Column elements with bottom/top nodes`);
+        comparisonResult = performComparison(
+          (el, nm) => lineElementKeyExtractor(el, nm, "id_node_bottom", "id_node_top")
+        );
+        break;
 
-    case "Slab":
-    case "Wall":
-      comparisonResult = compareElements(
-        elementsA,
-        elementsB,
-        nodeMapA,
-        nodeMapB,
-        (el, nm) => polyElementKeyExtractor(el, nm, "StbNodeIdOrder")
-      );
-      break;
+      case "Girder":
+      case "Beam":
+        console.log(`Processing ${elementType} elements with start/end nodes`);
+        comparisonResult = performComparison(
+          (el, nm) => lineElementKeyExtractor(el, nm, "id_node_start", "id_node_end")
+        );
+        break;
 
-    default:
-      console.warn(`Unknown element type for comparison: ${elementType}`);
-      comparisonResult = {
-        matched: [],
-        onlyA: [...elementsA],
-        onlyB: [...elementsB]
-      };
+      case "Brace":
+        console.log(`Processing Brace elements with start/end nodes`);
+        comparisonResult = performComparison(
+          (el, nm) => lineElementKeyExtractor(el, nm, "id_node_start", "id_node_end")
+        );
+        break;
+
+      case "Slab":
+      case "Wall":
+        console.log(`Processing ${elementType} elements with node order`);
+        comparisonResult = performComparison(
+          (el, nm) => polyElementKeyExtractor(el, nm, "StbNodeIdOrder")
+        );
+        break;
+
+      default:
+        console.warn(`Unknown element type for comparison: ${elementType}`);
+        comparisonResult = {
+          matched: [],
+          onlyA: [...elementsA],
+          onlyB: [...elementsB]
+        };
+    }
+  } catch (error) {
+    console.error(`Error in switch statement for ${elementType}:`, error);
+    throw error;
   }
 
   return comparisonResult || {

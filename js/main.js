@@ -31,6 +31,7 @@ import { compareModels } from "./modelLoader.js";
 import { setupInteractionListeners } from "./interaction.js";
 import { setupViewModeListeners } from "./viewModes.js";
 import { setupColorModeListeners } from "./colorModes.js";
+import { updateUnifiedLabelVisibility } from "./ui/unifiedLabelManager.js";
 import {
   setupUIEventListeners,
   toggleLegend,
@@ -38,12 +39,28 @@ import {
   applyAxisClip,
 } from "./ui.js";
 import { displayElementInfo } from "./viewer/ui/elementInfoDisplay.js";
-import { 
-  setState, 
-  getState, 
+import { regenerateAllLabels } from "./ui/labelRegeneration.js";
+import {
+  setState,
+  getState,
   registerGlobalFunction,
-  enableStateDebug
+  enableStateDebug,
 } from "./core/globalState.js";
+import { initializeSettingsManager } from "./core/settingsManager.js";
+import { initializeGlobalMessenger } from "./core/moduleMessaging.js";
+import { initializeImportanceManager } from "./core/importanceManager.js";
+import {
+  initializeImportancePanel,
+  getImportancePanel,
+} from "./ui/importancePanel.js";
+import { initializeImportanceFilterSystem } from "./ui/importanceFilter.js";
+import { initializeImportanceStatistics } from "./ui/statistics.js";
+import { initializeBulkImportanceOperations } from "./ui/bulkImportanceOperations.js";
+import { initializeOutlineSystem } from "./viewer/rendering/outlines.js";
+import {
+  setupDiffSummaryEventListeners,
+  clearDiffSummary,
+} from "./ui/diffSummary.js";
 
 // --- 初期化フラグ ---
 let rendererInitialized = false;
@@ -63,13 +80,20 @@ function scheduleRender() {
 
 // --- グローバル状態管理とレガシー互換性 ---
 // 新しい状態管理システムに登録
-registerGlobalFunction('scheduleRender', scheduleRender);
-registerGlobalFunction('requestRender', scheduleRender);
-setState('rendering.scheduleRender', scheduleRender);
-setState('rendering.requestRender', scheduleRender);
+registerGlobalFunction("scheduleRender", scheduleRender);
+registerGlobalFunction("requestRender", scheduleRender);
+setState("rendering.scheduleRender", scheduleRender);
+setState("rendering.requestRender", scheduleRender);
 
 // レガシー互換性のため
 window.requestRender = scheduleRender;
+
+// --- 重要度パネル表示切り替え関数 ---
+function toggleImportancePanel() {
+  const panel = getImportancePanel();
+  panel.toggle();
+}
+window.toggleImportancePanel = toggleImportancePanel;
 
 // --- compareModelsをHTMLから呼び出せるようにグローバルに設定 ---
 window.compareModels = async function () {
@@ -81,16 +105,27 @@ window.compareModels = async function () {
 
   // モデルの読み込みと比較処理
   await compareModels(scheduleRender, { camera, controls });
+
+  // 少し待ってからラベル表示状態をチェックボックスに基づいて更新
+  // （ラベル作成処理の完了を待つ）
+  console.log("Initializing label visibility based on checkbox states...");
+  setTimeout(() => {
+    updateUnifiedLabelVisibility();
+    // 再描画
+    if (typeof window.requestRender === "function") window.requestRender();
+  }, 100);
 };
 
 // --- アプリケーション開始関数 ---
 function startApp() {
   // グローバル関数を状態管理システムに登録
-  registerGlobalFunction('toggleLegend', toggleLegend);
-  registerGlobalFunction('applyStoryClip', applyStoryClip);
-  registerGlobalFunction('applyAxisClip', applyAxisClip);
-  registerGlobalFunction('displayElementInfo', displayElementInfo);
-  registerGlobalFunction('clearClippingPlanes', clearClippingPlanes);
+  registerGlobalFunction("toggleLegend", toggleLegend);
+  registerGlobalFunction("applyStoryClip", applyStoryClip);
+  registerGlobalFunction("applyAxisClip", applyAxisClip);
+  registerGlobalFunction("displayElementInfo", displayElementInfo);
+  registerGlobalFunction("clearClippingPlanes", clearClippingPlanes);
+  registerGlobalFunction("regenerateAllLabels", regenerateAllLabels);
+  registerGlobalFunction("toggleImportancePanel", toggleImportancePanel);
 
   // レガシー互換性のためwindowにも登録
   window.toggleLegend = toggleLegend;
@@ -100,8 +135,23 @@ function startApp() {
   window.clearClippingPlanes = clearClippingPlanes;
 
   // 状態管理システムの初期化
-  setState('rendering.rendererInitialized', rendererInitialized);
+  setState("rendering.rendererInitialized", rendererInitialized);
+  // 要素グループをグローバル状態に登録（重要度モードで使用）
+  setState("elementGroups", elementGroups);
   enableStateDebug(true); // 開発時はデバッグ有効
+
+  // 高度な機能の初期化
+  initializeSettingsManager();
+  initializeGlobalMessenger();
+
+  // 重要度管理システムの初期化
+  initializeImportanceManager()
+    .then(() => {
+      console.log("ImportanceManager initialized");
+    })
+    .catch((error) => {
+      console.error("Failed to initialize ImportanceManager:", error);
+    });
 
   // 初期化処理
   setupUIEventListeners();
@@ -109,6 +159,7 @@ function startApp() {
   setupInteractionListeners(scheduleRender);
   setupViewModeListeners(scheduleRender);
   setupColorModeListeners(); // 色付けモードの初期化
+  setupDiffSummaryEventListeners(); // 差分サマリー機能の初期化
   controls.target.set(0, 0, 0);
   controls.update();
   animate(controls, scene, camera);
@@ -119,9 +170,18 @@ function startApp() {
 document.addEventListener("DOMContentLoaded", () => {
   if (initRenderer()) {
     rendererInitialized = true;
-    setState('rendering.rendererInitialized', true);
+    setState("rendering.rendererInitialized", true);
     updateMaterialClippingPlanes();
     console.log("Renderer initialized successfully via DOMContentLoaded.");
+
+    // 統合ラベル管理システムを初期化
+    import("./ui/unifiedLabelManager.js").then(
+      ({ initializeUnifiedLabelManager }) => {
+        initializeUnifiedLabelManager();
+        console.log("Unified label management system initialized");
+      }
+    );
+
     startApp();
   } else {
     console.error("Renderer initialization failed. Cannot start application.");
@@ -136,50 +196,54 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error("Compare button not found.");
   }
 
-  // クリッピング関連ボタンのリスナー設定
-  const clearButton = document.getElementById("clearClipButton");
-  if (clearButton) {
-    clearButton.addEventListener("click", clearClippingPlanes);
+  // クリッピング関連ボタンのリスナーは ui/events.js で設定
+
+  // 重要度設定ボタンのイベントリスナー
+  const importanceBtn = document.getElementById("toggleImportanceBtn");
+  if (importanceBtn) {
+    importanceBtn.addEventListener("click", toggleImportancePanel);
+  } else {
+    console.error("Importance button not found.");
   }
 
-  const storyClipButton = document.getElementById("applyStoryClipButton");
-  if (storyClipButton) {
-    storyClipButton.addEventListener("click", () => {
-      const storySelector = document.getElementById("storySelector");
-      if (storySelector && storySelector.value !== "all") {
-        applyStoryClip(storySelector.value);
-        if (scheduleRender) scheduleRender();
-      } else {
-        alert("階を選択してください");
-      }
-    });
-  }
+  // 重要度統合機能の初期化
+  initializeImportancePanel(document.body);
 
-  const xAxisClipButton = document.getElementById("applyXAxisClipButton");
-  if (xAxisClipButton) {
-    xAxisClipButton.addEventListener("click", () => {
-      const xAxisSelector = document.getElementById("xAxisSelector");
-      if (xAxisSelector && xAxisSelector.value !== "all") {
-        applyAxisClip("X", xAxisSelector.value);
-        if (scheduleRender) scheduleRender();
-      } else {
-        alert("X軸を選択してください");
-      }
-    });
-  }
+  // 重要度関連システムの初期化
+  const { filter, indicator } = initializeImportanceFilterSystem(document.body);
+  const statistics = initializeImportanceStatistics(document.body);
+  const bulkOperations = initializeBulkImportanceOperations(document.body);
 
-  const yAxisClipButton = document.getElementById("applyYAxisClipButton");
-  if (yAxisClipButton) {
-    yAxisClipButton.addEventListener("click", () => {
-      const yAxisSelector = document.getElementById("yAxisSelector");
-      if (yAxisSelector && yAxisSelector.value !== "all") {
-        applyAxisClip("Y", yAxisSelector.value);
-        if (scheduleRender) scheduleRender();
-      } else {
-        alert("Y軸を選択してください");
-      }
-    });
-  }
+  // アウトラインシステム初期化
+  initializeOutlineSystem();
+
+  // グローバル状態に登録
+  setState("importanceSystem.filter", filter);
+  setState("importanceSystem.statistics", statistics);
+  setState("importanceSystem.bulkOperations", bulkOperations);
+  setState("importanceSystem.filterIndicator", indicator);
+
+  console.log("Importance integration system initialized");
+
+  // 統合機能のテスト用グローバル関数を追加
+  window.toggleImportanceStatistics = () => statistics.toggle();
+  window.toggleBulkOperations = () => bulkOperations.toggle();
+  window.toggleImportanceFilter = () => filter.setEnabled(!filter.isEnabled);
+
+  // パフォーマンス統計表示関数とリセット関数を追加
+  import("./colorModes.js").then(
+    ({
+      showImportancePerformanceStats,
+      resetImportanceColors,
+      resetElementColors,
+      resetSchemaColors,
+    }) => {
+      window.showImportancePerformanceStats = showImportancePerformanceStats;
+      window.resetImportanceColors = resetImportanceColors;
+      window.resetElementColors = resetElementColors;
+      window.resetSchemaColors = resetSchemaColors;
+    }
+  );
 
   // 凡例ボタンはui/events.jsで設定済み
 });

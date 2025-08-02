@@ -156,3 +156,19 @@ canvas {
   margin-top: 1em;
   margin-bottom: 0.5em;
 }
+
+/* 色付けモード状況表示 */
+.color-mode-status {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  background-color: #e3f2fd;
+  border: 1px solid #bbdefb;
+  color: #1976d2;
+  text-align: center;
+}
+
+.color-mode-status.hidden {
+  display: none;
+}

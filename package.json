@@ -1,0 +1,23 @@
+{
+  "name": "stb-diff-viewer",
+  "version": "2.0.0",
+  "type": "module",
+  "description": "STB/XML format 3D architectural model comparison viewer",
+  "main": "js/main.js",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "test": "node verify-refactoring.js",
+    "dev": "python -m http.server 8000"
+  },
+  "keywords": [
+    "stb",
+    "xml",
+    "3d",
+    "architecture",
+    "model",
+    "comparison",
+    "three.js"
+  ],
+  "author": "STB Diff Viewer Project",
+  "license": "MIT"
+}

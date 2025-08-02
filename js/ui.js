@@ -1,20 +1,20 @@
 /**
- * @fileoverview UI coordination module (refactored)
+ * @fileoverview UI coordination module (v2.0)
  *
  * This module serves as the main coordination point for UI functionality:
  * - Exports functions from specialized UI modules
- * - Maintains backward compatibility with existing imports
  * - Coordinates interaction between UI modules
+ * - Provides a unified interface for UI operations
  *
  * The original 620-line ui.js has been split into focused modules:
  * - ui/state.js - Global state management
- * - ui/selectors.js - Story/axis selector management  
- * - ui/labelManager.js - Label visibility management
+ * - ui/selectors.js - Story/axis selector management
+ * - ui/unifiedLabelManager.js - Unified label management
  * - ui/events.js - Event listener setup and handling
  * - ui/clipping.js - Clipping plane operations
  */
 
-// Re-export functions from specialized modules for backward compatibility
+// Export functions from specialized modules
 export {
   setGlobalStateForUI,
   getGlobalUIState,
@@ -28,7 +28,7 @@ export {
   updateAxesData,
   addStateChangeListener,
   removeStateChangeListener,
-  getStateStatistics
+  getStateStatistics,
 } from "./ui/state.js";
 
 export {
@@ -42,19 +42,11 @@ export {
   setYAxisSelection,
   resetSelectorsToDefault,
   getSelectorStatistics,
-  validateSelectorElements
+  validateSelectorElements,
 } from "./ui/selectors.js";
 
-export {
-  updateAllLabelVisibility,
-  requestLabelVisibilityUpdate,
-  showAllLabels,
-  hideAllLabels,
-  filterLabelsByElementType,
-  filterLabelsByStory,
-  getLabelVisibilityStatistics,
-  optimizeLabelsByDistance
-} from "./ui/labelManager.js";
+import { updateUnifiedLabelVisibility } from "./ui/unifiedLabelManager.js";
+export { updateUnifiedLabelVisibility };
 
 export {
   setupUIEventListeners,
@@ -62,7 +54,7 @@ export {
   toggleModelBVisibility,
   toggleLegend,
   resetAllSelectors,
-  getEventListenerStatus
+  getEventListenerStatus,
 } from "./ui/events.js";
 
 export {
@@ -72,7 +64,10 @@ export {
   getClippingStatus,
   applyCustomClippingPlanes,
   createClippingPlaneFromPointAndNormal,
-  createBoxClippingPlanes
+  createBoxClippingPlanes,
+  getCurrentClippingState,
+  updateClippingRange,
+  restoreCameraView,
 } from "./ui/clipping.js";
 
 /**
@@ -81,23 +76,22 @@ export {
  */
 export function initializeUI() {
   console.log("Initializing UI modules...");
-  
+
   try {
     // Validate that required DOM elements exist
     const validation = validateSelectorElements();
     if (!validation.isValid) {
       console.warn("Some UI elements are missing:", validation.missing);
     }
-    
+
     // Setup event listeners
     setupUIEventListeners();
-    
+
     // Initialize state change coordination
     initializeStateChangeCoordination();
-    
+
     console.log("UI modules initialized successfully");
     return true;
-    
   } catch (error) {
     console.error("Failed to initialize UI modules:", error);
     return false;
@@ -111,10 +105,10 @@ function initializeStateChangeCoordination() {
   // Listen for state changes and coordinate updates between modules
   addStateChangeListener((newState) => {
     console.log("UI state changed, coordinating module updates");
-    
+
     // Trigger label visibility update when state changes
-    requestLabelVisibilityUpdate();
-    
+    updateUnifiedLabelVisibility();
+
     // Could add other coordination logic here
   });
 }
@@ -130,7 +124,7 @@ export function getUIStatus() {
     labels: getLabelVisibilityStatistics(),
     events: getEventListenerStatus(),
     clipping: getClippingStatus(),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -139,22 +133,21 @@ export function getUIStatus() {
  */
 export function resetAllUI() {
   console.log("Resetting all UI modules to default state");
-  
+
   try {
     // Clear state
     clearUIState();
-    
+
     // Reset selectors
     resetSelectorsToDefault();
-    
+
     // Clear clipping
     clearAllClippingPlanes();
-    
+
     // Hide all labels initially
-    hideAllLabels();
-    
+    // Labels will be hidden automatically by the unified manager
+
     console.log("All UI modules reset successfully");
-    
   } catch (error) {
     console.error("Error resetting UI modules:", error);
   }
@@ -163,22 +156,3 @@ export function resetAllUI() {
 // Import validation and other utilities
 import { validateSelectorElements } from "./ui/selectors.js";
 import { setupUIEventListeners } from "./ui/events.js";
-import { 
-  addStateChangeListener, 
-  getStateStatistics,
-  clearUIState 
-} from "./ui/state.js";
-import { 
-  getSelectorStatistics,
-  resetSelectorsToDefault 
-} from "./ui/selectors.js";
-import { 
-  getLabelVisibilityStatistics,
-  requestLabelVisibilityUpdate,
-  hideAllLabels 
-} from "./ui/labelManager.js";
-import { getEventListenerStatus } from "./ui/events.js";
-import { 
-  getClippingStatus,
-  clearAllClippingPlanes 
-} from "./ui/clipping.js";

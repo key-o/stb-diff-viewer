@@ -13,6 +13,8 @@
  * コードの再利用性と保守性を高めます。
  */
 
+import { getState } from "../../core/globalState.js";
+
 import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
 import {
   renderer,
@@ -323,9 +325,6 @@ export function applyClipPlanes(planes) {
   );
 
   // ★★★ 再描画要求は呼び出し元で行うため、ここでは不要 ★★★
-  // if (window.scheduleRender) {
-  //     window.scheduleRender();
-  // }
 }
 
 /**
@@ -371,8 +370,9 @@ export function updateMaterialClippingPlanes() {
   });
   console.log("Updated clipping planes for all materials.");
   // 再描画を要求
-  if (window.scheduleRender) {
-    window.scheduleRender();
+  const scheduleRender = getState('rendering.scheduleRender');
+  if (scheduleRender) {
+    scheduleRender();
   }
 }
 
@@ -421,4 +421,48 @@ export async function loadStbXmlAutoEncoding(src) {
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlText, "application/xml");
   return xmlDoc;
+}
+
+/**
+ * Get current model bounds from scene elements
+ * @returns {THREE.Box3|null} Model bounding box or null if no elements
+ */
+export function getModelBounds() {
+  if (!scene || !elementGroups) {
+    console.warn("Scene or elementGroups not available for bounds calculation");
+    return null;
+  }
+
+  const box = new THREE.Box3();
+  let hasElements = false;
+
+  // Calculate bounds from all element groups
+  for (const groupName in elementGroups) {
+    const group = elementGroups[groupName];
+    if (group && group.children.length > 0) {
+      const groupBox = new THREE.Box3().setFromObject(group);
+      if (!groupBox.isEmpty()) {
+        if (!hasElements) {
+          box.copy(groupBox);
+          hasElements = true;
+        } else {
+          box.union(groupBox);
+        }
+      }
+    }
+  }
+
+  if (!hasElements) {
+    console.warn("No elements found for bounds calculation");
+    return null;
+  }
+
+  console.log("Model bounds calculated:", {
+    min: box.min,
+    max: box.max,
+    center: box.getCenter(new THREE.Vector3()),
+    size: box.getSize(new THREE.Vector3())
+  });
+
+  return box;
 }

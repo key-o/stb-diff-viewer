@@ -50,12 +50,17 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
     }
     ctx.clearRect(0, 0, labelCanvasWidth, labelCanvasHeight);
     ctx.font = `bold ${labelFontSize}px sans-serif`;
+    // テキストを描画（透明背景）
     ctx.fillStyle = "black";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+
+    // より太い白い縁取りでテキストの視認性を向上
     ctx.strokeStyle = "white";
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 5; // 縁取りを元の太さに戻す
     ctx.strokeText(text, labelOffsetX, labelOffsetY);
+
+    // 黒いテキストを描画
     ctx.fillText(text, labelOffsetX, labelOffsetY);
 
     const texture = new THREE.CanvasTexture(canvas);
@@ -81,38 +86,32 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
     sprite.userData.elementType = elementType;
     sprite.userData.originalPosition = position.clone();
 
-    sprite.position.copy(position);
+    // ラベルを要素から少し前面にオフセット
+    const labelOffset = new THREE.Vector3(0, 0, 50); // Z方向に50mm前面に移動（元に戻す）
+    const offsetPosition = position.clone().add(labelOffset);
+    sprite.position.copy(offsetPosition);
 
     sprite.onBeforeRender = function (rendererInstance, scene, cameraInstance) {
       const originalPos = this.userData.originalPosition;
       const elementType = this.userData.elementType;
-      let currentPos = originalPos.clone();
+
+      let currentPos;
+
+      // 全要素でカメラ方向に基づいた動的オフセットを適用
+      const cameraDirection = new THREE.Vector3();
+      cameraInstance.getWorldDirection(cameraDirection);
+      cameraDirection.normalize();
+
+      // カメラの方向に50mmオフセット
+      const dynamicOffset = cameraDirection.clone().multiplyScalar(-50);
+      currentPos = originalPos.clone().add(dynamicOffset);
+
       const initialVisibility = this.visible; // UIによる表示状態
       let shouldBeVisible = initialVisibility; // 基本的にUIの状態に従う
-      // let isClipped = false; // クリッピング判定フラグ (削除またはコメントアウト)
       let isOutsideView = false;
 
-      // --- クリッピングチェック (削除またはコメントアウト) ---
-      /*
-      if (rendererInstance.localClippingEnabled && rendererInstance.clippingPlanes.length > 0) {
-        const planes = rendererInstance.clippingPlanes;
-        for (const plane of planes) {
-          // ラベルの元の位置がクリップ平面の外側ならフラグを立てる
-          if (plane.distanceToPoint(originalPos) < 0) {
-            isClipped = true;
-            break;
-          }
-        }
-        // AxisとStory以外のラベルで、クリップされていたら非表示にする
-        if (isClipped && elementType !== 'Story' && elementType !== 'Axis') {
-          shouldBeVisible = false;
-        }
-      }
-      */
-      // --- ここまでクリッピングチェック削除 ---
-
       // --- ビュー範囲 (Frustum) チェック ---
-      // ★★★ shouldBeVisible が true で、かつ Story/Axis 以外の場合のみチェック ★★★
+      // shouldBeVisible が true で、かつ Story/Axis 以外の場合のみチェック
       if (
         shouldBeVisible &&
         elementType !== "Story" &&
@@ -149,12 +148,12 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
 
       // --- 最終設定 ---
       this.position.copy(currentPos);
-      // ★★★ UIによる表示状態とビュー範囲外判定のみで表示を決定 ★★★
+      // UIによる表示状態とビュー範囲外判定のみで表示を決定
       this.visible = initialVisibility && shouldBeVisible;
 
       // --- スケール調整 ---
       if (this.visible) {
-        // ... (scale adjustment logic - unchanged) ...
+        // 全要素で動的スケール調整を適用
         const spriteWorldPosition = new THREE.Vector3();
         this.getWorldPosition(spriteWorldPosition);
         const distance = spriteWorldPosition.distanceTo(
@@ -168,6 +167,17 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
         this.scale.copy(this.userData.baseScale).multiplyScalar(scaleFactor);
       }
     };
+
+    // 初期状態をチェックボックスの状態に基づいて設定
+    const labelCheckbox = document.getElementById(`toggleLabel-${elementType}`);
+    const shouldBeVisible = labelCheckbox ? labelCheckbox.checked : false;
+    sprite.visible = shouldBeVisible;
+
+    console.log(
+      `LabelSprite created for ${elementType}: initial visibility = ${shouldBeVisible} (checkbox checked: ${
+        labelCheckbox ? labelCheckbox.checked : "not found"
+      })`
+    );
 
     if (spriteGroup) {
       spriteGroup.add(sprite);
@@ -191,7 +201,6 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
  * @param {Object} [options={}] - オプション (fontSize, colorなど)
  * @returns {THREE.Sprite} 作成されたラベルスプライト
  */
-// ★★★ 関数名を createLabel に変更し、export を追加 ★★★
 export function createLabel(
   text,
   x,
@@ -205,9 +214,10 @@ export function createLabel(
   const fontSize = options.fontSize || 16;
   const fontFamily = options.fontFamily || "Arial";
   const textColor = options.color || "rgba(0, 0, 0, 1)"; // デフォルトは黒
-  const backgroundColor = options.backgroundColor || "rgba(255, 255, 255, 0.7)"; // デフォルトは半透明白
-  const padding = options.padding || 4;
-  const borderRadius = options.borderRadius || 2;
+  const backgroundColor = options.backgroundColor || "rgba(255, 255, 255, 0)"; // 透明背景
+  const borderColor = options.borderColor || "rgba(0, 0, 0, 0)"; // 境界線も透明
+  const padding = options.padding || 6; // パディングを少し増加
+  const borderRadius = options.borderRadius || 4; // 角丸を少し大きく
 
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
@@ -221,36 +231,20 @@ export function createLabel(
   canvas.width = textWidth + padding * 2;
   canvas.height = fontSize + padding * 2; // 高さもフォントサイズとパディング基準に
 
-  // 背景を描画
-  context.fillStyle = backgroundColor;
-  // 角丸矩形を描画 (オプション)
-  if (borderRadius > 0) {
-    context.beginPath();
-    context.moveTo(borderRadius, 0);
-    context.lineTo(canvas.width - borderRadius, 0);
-    context.quadraticCurveTo(canvas.width, 0, canvas.width, borderRadius);
-    context.lineTo(canvas.width, canvas.height - borderRadius);
-    context.quadraticCurveTo(
-      canvas.width,
-      canvas.height,
-      canvas.width - borderRadius,
-      canvas.height
-    );
-    context.lineTo(borderRadius, canvas.height);
-    context.quadraticCurveTo(0, canvas.height, 0, canvas.height - borderRadius);
-    context.lineTo(0, borderRadius);
-    context.quadraticCurveTo(0, 0, borderRadius, 0);
-    context.closePath();
-    context.fill();
-  } else {
-    context.fillRect(0, 0, canvas.width, canvas.height);
-  }
+  // 背景は透明のため描画をスキップ
+  // （透明背景のため背景と境界線の描画は不要）
 
   // テキストを描画
   context.font = `${fontSize}px ${fontFamily}`; // 再度フォント設定 (重要)
   context.fillStyle = textColor;
   context.textAlign = "center";
   context.textBaseline = "middle";
+
+  // より太い白い縁取りを追加（透明背景での視認性向上）
+  context.strokeStyle = "white";
+  context.lineWidth = 4; // 縁取りを太くして視認性向上
+  context.strokeText(text, canvas.width / 2, canvas.height / 2);
+
   context.fillText(text, canvas.width / 2, canvas.height / 2);
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -259,14 +253,16 @@ export function createLabel(
   const material = new THREE.SpriteMaterial({
     map: texture,
     transparent: true,
-    depthTest: false, // 他のオブジェクトに隠れないようにする (必要に応じて調整)
-    depthWrite: false,
+    depthTest: false, // 深度テスト無効化で常に前面表示
+    depthWrite: false, // 深度バッファ書き込み無効
+    alphaTest: 0.01, // 透明背景のため閾値を低く設定
+    // レンダー順序を高く設定してより前面に表示
+    renderOrder: 1000,
   });
 
   const sprite = new THREE.Sprite(material);
 
   // スプライトのスケールを調整して、画面上でのサイズ感を一定に保つ
-  // (カメラからの距離に応じてスケールを変えるなどの高度な処理も可能)
   const scaleFactor = 0.1; // この値を調整して基本サイズを決める
   sprite.scale.set(
     canvas.width * scaleFactor,
@@ -274,7 +270,12 @@ export function createLabel(
     1.0
   );
 
-  sprite.position.set(x, y, z);
+  // ラベルを要素から少し前面にオフセット
+  const labelOffset = new THREE.Vector3(0, 0, 25); // Z方向に25mm前面に移動
+  sprite.position.set(x + labelOffset.x, y + labelOffset.y, z + labelOffset.z);
+
+  // レンダー順序を設定
+  sprite.renderOrder = 1000;
 
   // ユーザーデータに情報を追加
   sprite.userData = {
@@ -286,8 +287,16 @@ export function createLabel(
     originalText: text, // 元のテキスト
   };
 
-  // 初期状態は非表示にする (ui.jsで制御)
-  sprite.visible = false;
+  // 初期状態はチェックボックスの状態に基づいて設定
+  const labelCheckbox = document.getElementById(`toggleLabel-${elementType}`);
+  const shouldBeVisible = labelCheckbox ? labelCheckbox.checked : false;
+  sprite.visible = shouldBeVisible;
+
+  console.log(
+    `Label created for ${elementType}: initial visibility = ${shouldBeVisible} (checkbox checked: ${
+      labelCheckbox ? labelCheckbox.checked : "not found"
+    })`
+  );
 
   return sprite;
 }

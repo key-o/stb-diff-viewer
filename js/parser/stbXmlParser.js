@@ -61,6 +61,10 @@ export function buildNodeMap(doc) {
     const z = parseFloat(node.getAttribute("Z"));
     if (id && !isNaN(x) && !isNaN(y) && !isNaN(z)) {
       nodeMap.set(id, { x, y, z });
+      // デバッグ出力（最初の5個のノードのみ）
+      if (nodeMap.size <= 5) {
+        console.log(`Node ${id}: X=${x}, Y=${y}, Z=${z} (mm)`);
+      }
     } else {
       console.warn(
         `Skipping invalid node data: id=${id}, X=${node.getAttribute(
@@ -70,6 +74,33 @@ export function buildNodeMap(doc) {
     }
   }
   console.log(`Built node map with ${nodeMap.size} nodes (in mm).`);
+
+  // デバッグ用：ノード座標の範囲を出力
+  if (nodeMap.size > 0) {
+    const coords = Array.from(nodeMap.values());
+    const xRange = {
+      min: Math.min(...coords.map((c) => c.x)),
+      max: Math.max(...coords.map((c) => c.x)),
+    };
+    const yRange = {
+      min: Math.min(...coords.map((c) => c.y)),
+      max: Math.max(...coords.map((c) => c.y)),
+    };
+    const zRange = {
+      min: Math.min(...coords.map((c) => c.z)),
+      max: Math.max(...coords.map((c) => c.z)),
+    };
+    console.log(
+      `Node coordinate ranges: X:[${xRange.min.toFixed(
+        0
+      )}, ${xRange.max.toFixed(0)}], Y:[${yRange.min.toFixed(
+        0
+      )}, ${yRange.max.toFixed(0)}], Z:[${zRange.min.toFixed(
+        0
+      )}, ${zRange.max.toFixed(0)}] (mm)`
+    );
+  }
+
   return nodeMap;
 }
 
@@ -95,7 +126,28 @@ export function parseStories(doc) {
       };
     })
     .filter((s) => !isNaN(s.height)); // heightが有効なものだけフィルタリング
+
+  // デバッグ出力（最初の3個の階のみ）
+  parsed.slice(0, 3).forEach((story) => {
+    console.log(`Story ${story.name}: height=${story.height} (mm)`);
+  });
+
   console.log(`Parsed ${parsed.length} stories (in mm).`);
+
+  // デバッグ用：階の高さ範囲を出力
+  if (parsed.length > 0) {
+    const heights = parsed.map((story) => story.height);
+    const heightRange = {
+      min: Math.min(...heights),
+      max: Math.max(...heights),
+    };
+    console.log(
+      `Story height range: [${heightRange.min.toFixed(
+        0
+      )}, ${heightRange.max.toFixed(0)}] (mm)`
+    );
+  }
+
   return parsed.sort((a, b) => a.height - b.height);
 }
 
@@ -128,15 +180,24 @@ export function parseAxes(doc) {
 
     for (let j = 0; j < axisElements.length; j++) {
       const axis = axisElements[j];
+      const id = axis.getAttribute("id") || `${groupName}_${j}`;
       const name = axis.getAttribute("name");
       // ★★★ スケーリングを削除 ★★★
       const distance = parseFloat(axis.getAttribute("distance"));
 
       if (name && !isNaN(distance)) {
         if (groupName === "X") {
-          xAxes.push({ name, distance });
+          xAxes.push({ id, name, distance });
+          // デバッグ出力（最初の3個の軸のみ）
+          if (xAxes.length <= 3) {
+            console.log(`X-Axis ${name}: distance=${distance} (mm)`);
+          }
         } else if (groupName === "Y") {
-          yAxes.push({ name, distance });
+          yAxes.push({ id, name, distance });
+          // デバッグ出力（最初の3個の軸のみ）
+          if (yAxes.length <= 3) {
+            console.log(`Y-Axis ${name}: distance=${distance} (mm)`);
+          }
         }
       } else {
         console.warn(
@@ -155,6 +216,33 @@ export function parseAxes(doc) {
   console.log(
     `Parsed ${xAxes.length} X-Axes and ${yAxes.length} Y-Axes (in mm).`
   );
+
+  // デバッグ用：軸の座標範囲を出力
+  if (xAxes.length > 0) {
+    const xDistances = xAxes.map((axis) => axis.distance);
+    const xRange = {
+      min: Math.min(...xDistances),
+      max: Math.max(...xDistances),
+    };
+    console.log(
+      `X-axis distance range: [${xRange.min.toFixed(0)}, ${xRange.max.toFixed(
+        0
+      )}] (mm)`
+    );
+  }
+  if (yAxes.length > 0) {
+    const yDistances = yAxes.map((axis) => axis.distance);
+    const yRange = {
+      min: Math.min(...yDistances),
+      max: Math.max(...yDistances),
+    };
+    console.log(
+      `Y-axis distance range: [${yRange.min.toFixed(0)}, ${yRange.max.toFixed(
+        0
+      )}] (mm)`
+    );
+  }
+
   return { xAxes, yAxes };
 }
 
@@ -223,83 +311,8 @@ export function extractSteelSections(xmlDoc) {
   return steelSections;
 }
 
-// --- 柱断面データ抽出関数 ---
-/**
- * 柱断面データを抽出する
- * @param {Document} xmlDoc - パース済みのXMLドキュメント
- * @return {Map} 断面IDをキーとする断面データのマップ
- */
-export function extractColumnSections(xmlDoc) {
-  const columnSections = new Map();
-  // 柱断面要素を取得 (名前空間は考慮しないquerySelectorAllを使用)
-  const secColumnElements = xmlDoc.querySelectorAll(
-    "StbSecColumn_RC, StbSecColumn_S, StbSecColumn_SRC, StbSecColumn_CFT"
-  );
-
-  for (const secEl of secColumnElements) {
-    const id = secEl.getAttribute("id");
-    if (!id) {
-      console.warn(
-        "Skipping column section due to missing id attribute:",
-        secEl
-      );
-      continue; // IDがない場合はスキップ
-    }
-
-    const sectionType = secEl.tagName;
-    let shapeName = null;
-    let concreteShapeData = null;
-
-    try {
-      // エラーハンドリングを追加
-      if (
-        sectionType === "StbSecColumn_S" ||
-        sectionType === "StbSecColumn_CFT"
-      ) {
-        const figureEl = secEl.querySelector(
-          "StbSecSteelFigureColumn_S, StbSecSteelFigureColumn_CFT"
-        );
-        const shapeEl = figureEl?.querySelector("*[shape]"); // shape属性を持つ要素を探す
-        shapeName = shapeEl?.getAttribute("shape");
-      } else if (sectionType === "StbSecColumn_SRC") {
-        const figureSteelEl = secEl.querySelector(
-          "StbSecSteelFigureColumn_SRC"
-        );
-        const shapeSteelEl = figureSteelEl?.querySelector("*[shape]");
-        shapeName = shapeSteelEl?.getAttribute("shape");
-
-        const figureRcEl = secEl.querySelector("StbSecFigureColumn_SRC");
-        const shapeRcEl = figureRcEl?.firstElementChild; // 最初の要素を取得
-        if (shapeRcEl) {
-          concreteShapeData = { type: shapeRcEl.tagName };
-          for (const attr of shapeRcEl.attributes) {
-            concreteShapeData[attr.name] = attr.value;
-          }
-        }
-      } else if (sectionType === "StbSecColumn_RC") {
-        const figureRcEl = secEl.querySelector("StbSecFigureColumn_RC");
-        const shapeRcEl = figureRcEl?.firstElementChild; // 最初の要素を取得
-        if (shapeRcEl) {
-          concreteShapeData = { type: shapeRcEl.tagName };
-          for (const attr of shapeRcEl.attributes) {
-            concreteShapeData[attr.name] = attr.value;
-          }
-        }
-      }
-
-      columnSections.set(id, {
-        id: id,
-        sectionType: sectionType,
-        shapeName: shapeName, // 鋼材形状名 (S, SRC, CFT の場合)
-        concreteShapeData: concreteShapeData, // コンクリート形状データ (RC, SRC の場合)
-      });
-    } catch (error) {
-      console.error(`Error processing column section id=${id}:`, error, secEl);
-    }
-  }
-  console.log(`Extracted ${columnSections.size} column sections.`);
-  return columnSections;
-}
+// --- 統一断面抽出エンジンのエクスポート ---
+export { extractAllSections } from "./sectionExtractor.js";
 
 // --- 柱要素データ抽出関数 ---
 /**
@@ -317,8 +330,7 @@ export function extractColumnElements(xmlDoc) {
     const idNodeBottom = colEl.getAttribute("id_node_bottom");
     const idNodeTop = colEl.getAttribute("id_node_top");
     const idSection = colEl.getAttribute("id_section");
-    // 必要に応じて他の属性も取得 (例)
-    // const name = colEl.getAttribute("name");
+    const name = colEl.getAttribute("name");
     // const kind = colEl.getAttribute("kind"); // 例: KIND_COLUMN
     // const rotate = colEl.getAttribute("rotate"); // 回転角 (degree)
     // const offset_x = colEl.getAttribute("offset_x"); // オフセット (mm)
@@ -330,8 +342,7 @@ export function extractColumnElements(xmlDoc) {
         id_node_bottom: idNodeBottom,
         id_node_top: idNodeTop,
         id_section: idSection,
-        // 他の属性もここに追加
-        // name: name,
+        name: name,
         // kind: kind,
         // rotate: rotate ? parseFloat(rotate) : 0,
         // offset_x: offset_x ? parseFloat(offset_x) : 0,
@@ -358,19 +369,21 @@ export function extractColumnElements(xmlDoc) {
 function extractBeamLikeElements(xmlDoc, elementType) {
   const elementsData = [];
   const elements = parseElements(xmlDoc, elementType);
-  
+
   for (const el of elements) {
     const id = el.getAttribute("id");
     const idNodeStart = el.getAttribute("id_node_start");
     const idNodeEnd = el.getAttribute("id_node_end");
     const idSection = el.getAttribute("id_section");
-    
+    const name = el.getAttribute("name");
+
     if (id && idNodeStart && idNodeEnd && idSection) {
       elementsData.push({
         id: id,
         id_node_start: idNodeStart,
         id_node_end: idNodeEnd,
         id_section: idSection,
+        name: name,
       });
     } else {
       console.warn(
@@ -379,7 +392,7 @@ function extractBeamLikeElements(xmlDoc, elementType) {
       );
     }
   }
-  
+
   console.log(`Extracted ${elementsData.length} ${elementType} elements.`);
   return elementsData;
 }
@@ -400,73 +413,4 @@ export function extractBeamElements(xmlDoc) {
  */
 export function extractGirderElements(xmlDoc) {
   return extractBeamLikeElements(xmlDoc, "StbGirder");
-}
-
-/**
- * 梁断面データを抽出する
- * @param {Document} xmlDoc - パース済みのXMLドキュメント
- * @return {Map} 断面IDをキーとする断面データのマップ
- */
-export function extractBeamSections(xmlDoc) {
-  const beamSections = new Map();
-  // StbSecGirder, StbSecBeam 両方取得
-  const secElements = xmlDoc.querySelectorAll(
-    "StbSecGirder_RC, StbSecGirder_S, StbSecGirder_SRC, StbSecBeam_RC, StbSecBeam_S, StbSecBeam_SRC"
-  );
-  for (const secEl of secElements) {
-    const id = secEl.getAttribute("id");
-    if (!id) {
-      console.warn("Skipping beam section due to missing id attribute:", secEl);
-      continue;
-    }
-    const sectionType = secEl.tagName;
-    let shapeName = null;
-    // 鋼材名取得
-    if (sectionType === "StbSecGirder_S" || sectionType === "StbSecBeam_S") {
-      const figureEl = secEl.querySelector(
-        "StbSecSteelFigureGirder_S, StbSecSteelFigureBeam_S"
-      );
-      const shapeEl = figureEl?.querySelector("*[shape]");
-      shapeName = shapeEl?.getAttribute("shape");
-    } else if (
-      sectionType === "StbSecGirder_SRC" ||
-      sectionType === "StbSecBeam_SRC"
-    ) {
-      const figureSteelEl = secEl.querySelector(
-        "StbSecSteelFigureGirder_SRC, StbSecSteelFigureBeam_SRC"
-      );
-      const shapeSteelEl = figureSteelEl?.querySelector("*[shape]");
-      shapeName = shapeSteelEl?.getAttribute("shape");
-      // RC部材情報も必要なら追加
-    } else if (
-      sectionType === "StbSecGirder_RC" ||
-      sectionType === "StbSecBeam_RC"
-    ) {
-      const figureRcEl = secEl.querySelector("StbSecFigureBeam_RC");
-      const shapeRcEl = figureRcEl?.firstElementChild;
-      let concreteShapeData = null;
-      if (shapeRcEl) {
-        concreteShapeData = { type: shapeRcEl.tagName };
-        for (const attr of shapeRcEl.attributes) {
-          concreteShapeData[attr.name] = attr.value;
-        }
-      }
-      beamSections.set(id, {
-        id: id,
-        sectionType: sectionType,
-        shapeName: null,
-        concreteShapeData: concreteShapeData,
-      });
-      continue;
-    }
-    // RC/SRC/その他の属性も必要に応じて追加
-    beamSections.set(id, {
-      id: id,
-      sectionType: sectionType,
-      shapeName: shapeName,
-      // 必要に応じて concreteShapeData など追加
-    });
-  }
-  console.log(`Extracted ${beamSections.size} beam sections.`);
-  return beamSections;
 }
