@@ -104,7 +104,8 @@ export function initRenderer() {
     // ★★★ コントロールの設定をインスタンス化後に行う ★★★
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
-    controls.screenSpacePanning = false;
+    // ★★★ screenSpacePanning を true に設定してマウス前後移動を画面上下移動にマッピング ★★★
+    controls.screenSpacePanning = true;
     // ★★★ minDistance/maxDistance を mm スケールに調整 ★★★
     controls.minDistance = 100; // 100mm (10cm)
     controls.maxDistance = 100000; // 100m (必要ならさらに大きく)
@@ -112,7 +113,7 @@ export function initRenderer() {
 
     // マウス操作の割り当てを変更
     // デフォルト: 左クリック=回転, 右クリック=パン, ホイール=ズーム
-    // 変更後: パン操作でマウス前後移動を上下移動にマッピング
+    // 変更後: パン操作でマウス前後移動を画面上下移動にマッピング
     controls.mouseButtons = {
       LEFT: THREE.MOUSE.ROTATE, // 左クリック: 回転
       MIDDLE: THREE.MOUSE.DOLLY, // 中クリック: ズーム

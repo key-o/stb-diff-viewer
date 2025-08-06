@@ -175,6 +175,16 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     ({ modelADocument, modelBDocument, nodeMapA, nodeMapB, stories, axesData } =
       processingResult);
 
+    // Save model documents to global state for IFC conversion
+    setState("models.documentA", modelADocument);
+    setState("models.documentB", modelBDocument);
+    setState("models.nodeMapA", nodeMapA);
+    setState("models.nodeMapB", nodeMapB);
+    setState("models.stories", stories);
+    setState("models.axesData", axesData);
+
+    console.log("Model documents saved to global state for IFC conversion");
+
     // Phase 3: Element Comparison
     console.log("=== Phase 3: Element Comparison ===");
     const comparisonOptions = {

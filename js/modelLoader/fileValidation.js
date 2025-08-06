@@ -25,6 +25,32 @@ export function validateAndGetFiles() {
     return { isValid: false, fileA: null, fileB: null };
   }
 
+  // 元のSTBファイルをグローバル状態に保存（IFC変換用）
+  // グローバル状態システムが利用可能な場合のみ保存
+  if (typeof window !== 'undefined' && window.globalState && window.globalState.setState) {
+    if (fileA) {
+      window.globalState.setState("files.originalFileA", fileA);
+      console.log("元のSTBファイルA を保存:", fileA.name);
+    }
+    if (fileB) {
+      window.globalState.setState("files.originalFileB", fileB);
+      console.log("元のSTBファイルB を保存:", fileB.name);
+    }
+  } else {
+    // フォールバック: windowオブジェクトに直接保存
+    if (!window.originalSTBFiles) {
+      window.originalSTBFiles = {};
+    }
+    if (fileA) {
+      window.originalSTBFiles.fileA = fileA;
+      console.log("元のSTBファイルA をフォールバック保存:", fileA.name);
+    }
+    if (fileB) {
+      window.originalSTBFiles.fileB = fileB;
+      console.log("元のSTBファイルB をフォールバック保存:", fileB.name);
+    }
+  }
+
   return { isValid: true, fileA, fileB };
 }
 

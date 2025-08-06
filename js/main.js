@@ -48,6 +48,7 @@ import {
 } from "./core/globalState.js";
 import { initializeSettingsManager } from "./core/settingsManager.js";
 import { initializeGlobalMessenger } from "./core/moduleMessaging.js";
+import { IFCConverter, IFCConverterUI } from "./api/ifcConverter.js";
 import { initializeImportanceManager } from "./core/importanceManager.js";
 import {
   initializeImportancePanel,
@@ -133,6 +134,11 @@ function startApp() {
   window.applyAxisClip = applyAxisClip;
   window.displayElementInfo = displayElementInfo;
   window.clearClippingPlanes = clearClippingPlanes;
+
+  // IFC変換機能の初期化
+  const ifcConverter = new IFCConverter();
+  const ifcConverterUI = new IFCConverterUI(ifcConverter);
+  window.ifcConverter = ifcConverter; // グローバルアクセス用
 
   // 状態管理システムの初期化
   setState("rendering.rendererInitialized", rendererInitialized);

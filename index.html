@@ -603,6 +603,44 @@
         background: #e0a800;
       }
       /* ★★★ クリッピング範囲調整スタイル終了 ★★★ */
+
+      /* ★★★ CORS問題対応UI ★★★ */
+      .cors-warning {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 4px;
+        padding: 10px;
+        margin: 10px 0;
+        font-size: 0.9em;
+        color: #856404;
+        display: none;
+      }
+
+      .cors-warning .warning-title {
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #d63031;
+      }
+
+      .cors-solutions {
+        margin-top: 8px;
+      }
+
+      .cors-solutions ol {
+        margin: 8px 0;
+        padding-left: 20px;
+      }
+
+      .cors-solutions li {
+        margin-bottom: 4px;
+      }
+
+      .cors-link {
+        color: #007bff;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      /* ★★★ CORS問題対応UI終了 ★★★ */
     </style>
   </head>
   <body>
@@ -1132,6 +1170,34 @@
         </div>
         <div class="accordion-content collapsed" id="other-settings">
           <button id="toggleLegendBtn">🔍 差分凡例・操作方法を表示</button>
+
+          <!-- CORS問題対応セクション -->
+          <div id="cors-warning" class="cors-warning">
+            <div class="warning-title">⚠️ IFC変換API接続問題</div>
+            <p>Google Cloud RunのAPIサーバーでCORS設定に問題があります。</p>
+            <div class="cors-solutions">
+              <strong>解決方法:</strong>
+              <ol>
+                <li>ブラウザのCORS制限を無効化（開発者向け）</li>
+                <li>ローカルプロキシサーバーの使用</li>
+                <li>
+                  <span
+                    class="cors-link"
+                    onclick="window.open('https://cors-anywhere.herokuapp.com/corsdemo')"
+                    >CORS Anywhere デモ</span
+                  >を有効化
+                </li>
+                <li>サーバー管理者にCORS設定の修正を依頼</li>
+              </ol>
+              <button
+                id="try-cors-proxy"
+                class="btn btn-warning"
+                onclick="window.enableCorsProxy()"
+              >
+                CORS プロキシを試行
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1248,6 +1314,23 @@
       ) {
         document.getElementById("dev-tools").style.display = "block";
       }
+
+      // CORS プロキシ有効化関数
+      window.enableCorsProxy = function () {
+        if (window.ifcConverter) {
+          // CORS プロキシを使用するように設定を変更
+          const originalUrl = window.ifcConverter.apiBaseUrl;
+          window.ifcConverter.apiBaseUrl =
+            window.ifcConverter.getApiUrlWithProxy();
+
+          alert(
+            `CORS プロキシが有効化されました。\n\n新しいURL: ${window.ifcConverter.apiBaseUrl}\n\n注意: このサービスは実験的で、本番使用は推奨されません。`
+          );
+
+          // 警告を非表示
+          window.ifcConverter.hideCorsWarning();
+        }
+      };
     </script>
 
     <!-- ★★★ 開発用テストヘルパー ★★★ -->

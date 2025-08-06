@@ -68,6 +68,12 @@ class ApplicationState {
         evaluationResults: null,
         currentMode: 'default',
         filterSettings: {}
+      },
+
+      // ファイル関連（IFC変換用）
+      files: {
+        originalFileA: null,
+        originalFileB: null
       }
     };
 
@@ -245,6 +251,10 @@ class ApplicationState {
         evaluationResults: null,
         currentMode: 'default',
         filterSettings: {}
+      },
+      files: {
+        originalFileA: null,
+        originalFileB: null
       }
     };
 
