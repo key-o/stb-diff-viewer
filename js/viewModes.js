@@ -13,28 +13,35 @@
  */
 
 import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import { createLogger } from "./utils/logger.js";
 import {
   materials,
   elementGroups,
   SUPPORTED_ELEMENTS,
 } from "./viewer/index.js";
-import { createColumnMeshes } from "./viewer/geometry/columnGenerator.js";
-import { createBeamMeshes } from "./viewer/geometry/beamGenerator.js";
+// プロファイルベース実装に移行
+import { ProfileBasedBraceGenerator } from "./viewer/geometry/ProfileBasedBraceGenerator.js";
+import { ProfileBasedColumnGenerator } from "./viewer/geometry/ProfileBasedColumnGenerator.js";
+import { ProfileBasedBeamGenerator } from "./viewer/geometry/ProfileBasedBeamGenerator.js";
 import { parseElements } from "./parser/stbXmlParser.js";
 import { parseStbFile } from "./viewer/geometry/stbStructureReader.js";
 import { compareElements, lineElementKeyExtractor } from "./comparator.js";
 import { drawLineElements } from "./viewer/index.js";
-import { updateUnifiedLabelVisibility } from "./ui/unifiedLabelManager.js";
+import { updateLabelVisibility } from "./ui/unifiedLabelManager.js";
 import { removeLabelsForElementType, addLabelsToGlobalState } from "./ui.js";
 import { createLabelSprite } from "./viewer/ui/labels.js";
-import { generateUnifiedLabelText } from "./ui/unifiedLabelManager.js";
+import { generateLabelText } from "./ui/unifiedLabelManager.js";
 import { attachElementDataToLabel } from "./ui/labelRegeneration.js";
 
 // 表示モード状態
 let columnViewMode = "line"; // "line" または "solid"
 let beamViewMode = "line"; // "line" または "solid"
+let braceViewMode = "line"; // "line" または "solid"
 let isModelAVisible = true;
 let isModelBVisible = true;
+
+// ロガー
+const log = createLogger("viewModes");
 
 // モデル情報の参照
 let modelBounds = null;
@@ -72,6 +79,14 @@ export function getBeamViewMode() {
 }
 
 /**
+ * ブレースの表示モードを取得
+ * @returns {string} 現在のブレース表示モード
+ */
+export function getBraceViewMode() {
+  return braceViewMode;
+}
+
+/**
  * 柱の表示モードを設定
  * @param {string} mode - "line" または "solid"
  * @param {Function} scheduleRender - 再描画要求関数
@@ -91,6 +106,17 @@ export function setBeamViewMode(mode, scheduleRender) {
   if (mode !== "line" && mode !== "solid") return;
   beamViewMode = mode;
   redrawBeamsForViewMode(scheduleRender);
+}
+
+/**
+ * ブレースの表示モードを設定
+ * @param {string} mode - "line" または "solid"
+ * @param {Function} scheduleRender - 再描画要求関数
+ */
+export function setBraceViewMode(mode, scheduleRender) {
+  if (mode !== "line" && mode !== "solid") return;
+  braceViewMode = mode;
+  redrawBracesForViewMode(scheduleRender);
 }
 
 /**
@@ -127,7 +153,7 @@ export function getModelVisibility(model) {
  */
 export function redrawColumnsForViewMode(scheduleRender) {
   // 必要なデータが揃っているかチェック
-  if (!docA && !docB) return;
+  if (!modelADocument && !modelBDocument) return;
 
   // どちらか一方のモデルを使う（A優先）
   const doc = modelADocument || modelBDocument;
@@ -138,9 +164,9 @@ export function redrawColumnsForViewMode(scheduleRender) {
   group.clear(); // 柱グループのみクリア
 
   if (columnViewMode === "solid") {
-    // 立体表示
+    // 立体表示（ProfileBased方式に移行）
     const stbData = parseStbFile(doc);
-    const meshes = createColumnMeshes(
+    const meshes = ProfileBasedColumnGenerator.createColumnMeshes(
       stbData.columnElements,
       stbData.nodes,
       stbData.columnSections,
@@ -162,8 +188,8 @@ export function redrawColumnsForViewMode(scheduleRender) {
     }
   } else {
     // 線表示（従来通り）
-    const elementsA = parseElements(docA, "StbColumn");
-    const elementsB = parseElements(docB, "StbColumn");
+    const elementsA = parseElements(modelADocument, "StbColumn");
+    const elementsB = parseElements(modelBDocument, "StbColumn");
     const comparisonResult = compareElements(
       elementsA,
       elementsB,
@@ -191,7 +217,7 @@ export function redrawColumnsForViewMode(scheduleRender) {
 
   // 柱の表示モード切り替え後にラベルの表示/非表示を更新（非同期で実行）
   setTimeout(() => {
-    updateUnifiedLabelVisibility();
+    updateLabelVisibility();
     if (scheduleRender) scheduleRender();
   }, 10);
 }
@@ -213,7 +239,7 @@ function createLabelsForSolidElements(elements, nodes, elementType) {
     if (elementType === "Column") {
       startNode = nodes.get(element.id_node_bottom);
       endNode = nodes.get(element.id_node_top);
-      labelText = generateUnifiedLabelText(element, elementType);
+      labelText = generateLabelText(element, elementType);
       if (startNode && endNode) {
         centerPosition = new THREE.Vector3()
           .addVectors(startNode, endNode)
@@ -222,7 +248,7 @@ function createLabelsForSolidElements(elements, nodes, elementType) {
     } else if (elementType === "Girder" || elementType === "Beam") {
       startNode = nodes.get(element.id_node_start);
       endNode = nodes.get(element.id_node_end);
-      labelText = generateUnifiedLabelText(element, elementType);
+      labelText = generateLabelText(element, elementType);
       if (startNode && endNode) {
         centerPosition = new THREE.Vector3()
           .addVectors(startNode, endNode)
@@ -231,7 +257,7 @@ function createLabelsForSolidElements(elements, nodes, elementType) {
     } else if (elementType === "Brace") {
       startNode = nodes.get(element.id_node_start);
       endNode = nodes.get(element.id_node_end);
-      labelText = generateUnifiedLabelText(element, elementType);
+      labelText = generateLabelText(element, elementType);
       if (startNode && endNode) {
         centerPosition = new THREE.Vector3()
           .addVectors(startNode, endNode)
@@ -270,7 +296,7 @@ function createLabelsForSolidElements(elements, nodes, elementType) {
  */
 export function redrawBeamsForViewMode(scheduleRender) {
   // 必要なデータが揃っているかチェック
-  if (!docA && !docB) return;
+  if (!modelADocument && !modelBDocument) return;
 
   // どちらか一方のモデルを使う（A優先）
   const doc = modelADocument || modelBDocument;
@@ -284,10 +310,10 @@ export function redrawBeamsForViewMode(scheduleRender) {
   beamGroup.clear(); // 小梁グループをクリア
 
   if (beamViewMode === "solid") {
-    // 立体表示
+    // 立体表示（ProfileBased方式に移行）
     const stbData = parseStbFile(doc);
     // 大梁
-    const girderMeshes = createBeamMeshes(
+    const girderMeshes = ProfileBasedBeamGenerator.createBeamMeshes(
       stbData.girderElements,
       stbData.nodes,
       stbData.beamSections,
@@ -312,7 +338,7 @@ export function redrawBeamsForViewMode(scheduleRender) {
     }
 
     // 小梁
-    const beamMeshes = createBeamMeshes(
+    const beamMeshes = ProfileBasedBeamGenerator.createBeamMeshes(
       stbData.beamElements,
       stbData.nodes,
       stbData.beamSections,
@@ -338,8 +364,8 @@ export function redrawBeamsForViewMode(scheduleRender) {
   } else {
     // 線表示（従来通り）
     // 大梁
-    const girdersA = parseElements(docA, "StbGirder");
-    const girdersB = parseElements(docB, "StbGirder");
+    const girdersA = parseElements(modelADocument, "StbGirder");
+    const girdersB = parseElements(modelBDocument, "StbGirder");
     const girderComparison = compareElements(
       girdersA,
       girdersB,
@@ -367,8 +393,8 @@ export function redrawBeamsForViewMode(scheduleRender) {
     }
 
     // 小梁
-    const beamsA = parseElements(docA, "StbBeam");
-    const beamsB = parseElements(docB, "StbBeam");
+    const beamsA = parseElements(modelADocument, "StbBeam");
+    const beamsB = parseElements(modelBDocument, "StbBeam");
     const beamComparison = compareElements(
       beamsA,
       beamsB,
@@ -398,7 +424,87 @@ export function redrawBeamsForViewMode(scheduleRender) {
 
   // 梁の表示モード切り替え後にラベルの表示/非表示を更新（非同期で実行）
   setTimeout(() => {
-    updateUnifiedLabelVisibility();
+    updateLabelVisibility();
+    if (scheduleRender) scheduleRender();
+  }, 10);
+}
+
+/**
+ * ブレースの再描画処理
+ * @param {Function} scheduleRender - 再描画要求関数
+ */
+export function redrawBracesForViewMode(scheduleRender) {
+  // 必要なデータが揃っているかチェック
+  if (!modelADocument && !modelBDocument) return;
+
+  // どちらか一方のモデルを使う（A優先）
+  const doc = modelADocument || modelBDocument;
+  const braceGroup = elementGroups["Brace"];
+
+  // 既存のラベルを削除
+  removeLabelsForElementType("Brace");
+  braceGroup.clear(); // ブレースグループをクリア
+
+  if (braceViewMode === "solid") {
+    // 立体表示（ProfileBased方式に移行）
+    const stbData = parseStbFile(doc);
+    const braceMeshes = ProfileBasedBraceGenerator.createBraceMeshes(
+      stbData.braceElements,
+      stbData.nodes,
+      stbData.braceSections,
+      stbData.steelSections,
+      "Brace" // elementType を渡す
+    );
+    braceMeshes.forEach((mesh) => braceGroup.add(mesh));
+
+    // ブレースのラベルを作成
+    const braceLabelCheckbox = document.getElementById("toggleLabel-Brace");
+    const createBraceLabels = braceLabelCheckbox
+      ? braceLabelCheckbox.checked
+      : false;
+    if (createBraceLabels) {
+      const braceLabels = createLabelsForSolidElements(
+        stbData.braceElements,
+        stbData.nodes,
+        "Brace"
+      );
+      braceLabels.forEach((label) => braceGroup.add(label));
+      addLabelsToGlobalState(braceLabels);
+    }
+  } else {
+    // 線表示（従来通り）
+    const bracesA = parseElements(modelADocument, "StbBrace");
+    const bracesB = parseElements(modelBDocument, "StbBrace");
+    const braceComparison = compareElements(
+      bracesA,
+      bracesB,
+      nodeMapA,
+      nodeMapB,
+      (el, nm) =>
+        lineElementKeyExtractor(el, nm, "id_node_start", "id_node_end")
+    );
+    // ラベル表示設定を確認
+    const braceLabelCheckbox = document.getElementById("toggleLabel-Brace");
+    const createBraceLabels = braceLabelCheckbox
+      ? braceLabelCheckbox.checked
+      : false;
+    const createdBraceLabels = drawLineElements(
+      braceComparison,
+      materials,
+      braceGroup,
+      "Brace",
+      createBraceLabels,
+      modelBounds
+    );
+    // 作成されたラベルをグローバル状態に追加
+    if (createdBraceLabels && createdBraceLabels.length > 0) {
+      addLabelsToGlobalState(createdBraceLabels);
+    }
+  }
+
+  // ブレースの表示モード切り替え後にラベルの表示/非表示を更新（非同期で実行）
+  setTimeout(() => {
+    updateLabelVisibility();
     if (scheduleRender) scheduleRender();
   }, 10);
 }
@@ -408,7 +514,7 @@ export function redrawBeamsForViewMode(scheduleRender) {
  * @param {Function} scheduleRender - 再描画要求関数
  */
 export function updateModelVisibility(scheduleRender) {
-  console.log(
+  log.debug(
     `Updating model visibility: A=${isModelAVisible}, B=${isModelBVisible}`
   );
 
@@ -454,7 +560,7 @@ export function updateModelVisibility(scheduleRender) {
   });
 
   // ラベルの表示状態も更新
-  updateUnifiedLabelVisibility();
+  updateLabelVisibility();
 
   // 再描画を要求
   if (scheduleRender) scheduleRender();
@@ -472,7 +578,7 @@ export function setupViewModeListeners(scheduleRender) {
       // チェックが入っている場合は立体表示、そうでなければ線表示
       columnViewMode = this.checked ? "solid" : "line";
       redrawColumnsForViewMode(scheduleRender);
-      console.log("柱表示モード:", columnViewMode);
+      log.info("柱表示モード:", columnViewMode);
     });
   }
 
@@ -483,7 +589,30 @@ export function setupViewModeListeners(scheduleRender) {
       // チェックが入っている場合は立体表示、そうでなければ線表示
       beamViewMode = this.checked ? "solid" : "line";
       redrawBeamsForViewMode(scheduleRender);
-      console.log("梁表示モード:", beamViewMode);
+      log.info("梁表示モード:", beamViewMode);
+    });
+  }
+
+  // ブレース表示モード切替リスナー
+  const toggleBrace3DViewCheckbox =
+    document.getElementById("toggleBrace3DView");
+  if (toggleBrace3DViewCheckbox) {
+    toggleBrace3DViewCheckbox.addEventListener("change", function () {
+      // チェックが入っている場合は立体表示、そうでなければ線表示
+      braceViewMode = this.checked ? "solid" : "line";
+      redrawBracesForViewMode(scheduleRender);
+      log.info("ブレース表示モード:", braceViewMode);
+    });
+  }
+
+  // 梁3D表示モード切替リスナー
+  const toggleBeam3DViewCheckbox = document.getElementById("toggleBeam3DView");
+  if (toggleBeam3DViewCheckbox) {
+    toggleBeam3DViewCheckbox.addEventListener("change", function () {
+      // チェックが入っている場合は立体表示、そうでなければ線表示
+      beamViewMode = this.checked ? "solid" : "line";
+      redrawBeamsForViewMode(scheduleRender);
+      log.info("梁3D表示モード:", beamViewMode);
     });
   }
 
@@ -494,7 +623,7 @@ export function setupViewModeListeners(scheduleRender) {
       const nodeGroup = elementGroups["Node"];
       if (nodeGroup) {
         nodeGroup.visible = this.checked;
-        console.log("節点表示:", this.checked);
+        log.debug("節点表示:", this.checked);
         if (scheduleRender) scheduleRender();
       }
     });
@@ -516,7 +645,7 @@ export function setupViewModeListeners(scheduleRender) {
         const elementGroup = elementGroups[type];
         if (elementGroup) {
           elementGroup.visible = this.checked;
-          console.log(`${name}表示:`, this.checked);
+          log.debug(`${name}表示:`, this.checked);
           if (scheduleRender) scheduleRender();
         }
       });
@@ -528,7 +657,7 @@ export function setupViewModeListeners(scheduleRender) {
   if (toggleModelACheckbox) {
     toggleModelACheckbox.addEventListener("change", function () {
       isModelAVisible = this.checked;
-      console.log("Model A visibility changed:", isModelAVisible);
+      log.info("Model A visibility changed:", isModelAVisible);
       updateModelVisibility(scheduleRender);
     });
   }
@@ -537,7 +666,7 @@ export function setupViewModeListeners(scheduleRender) {
   if (toggleModelBCheckbox) {
     toggleModelBCheckbox.addEventListener("change", function () {
       isModelBVisible = this.checked;
-      console.log("Model B visibility changed:", isModelBVisible);
+      log.info("Model B visibility changed:", isModelBVisible);
       updateModelVisibility(scheduleRender);
     });
   }

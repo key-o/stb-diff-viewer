@@ -8,6 +8,13 @@
  * - 属性の型情報とデフォルト値の取得
  * - 必須属性と任意属性の判定
  * - 属性の説明文やドキュメントの取得
+ * 
+ * **パラメータ比較機能用途**:
+ * - モデルA/B間の属性値比較時のバリデーション
+ * - 属性値の型チェックと制約違反検出
+ * - 必須属性の未設定エラー検出
+ * - 列挙値・パターン制約の正当性確認
+ * - パラメータ編集UIでのリアルタイムバリデーション
  */
 
 // グローバルにスキーマ情報を保持
@@ -21,17 +28,43 @@ let elementDefinitions = new Map();
  */
 export async function loadXsdSchema(xsdUrl) {
   try {
-    console.log(`Loading XSD schema from: ${xsdUrl}`);
-    const response = await fetch(xsdUrl);
-    console.log(
-      `Fetch response status: ${response.status}, ok: ${response.ok}`
-    );
+    console.log(`[XSD] Loading XSD schema from: ${xsdUrl}`);
+    
+    // 複数のパス候補を試す
+    const pathCandidates = [
+      xsdUrl,
+      `./schemas/ST-Bridge202.xsd`,
+      `../schemas/ST-Bridge202.xsd`,
+      `./materials/ST-Bridge202.xsd`,
+      `../materials/ST-Bridge202.xsd`
+    ];
+    
+    let response = null;
+    let successUrl = null;
+    
+    for (const candidate of pathCandidates) {
+      try {
+        console.log(`[XSD] Trying path: ${candidate}`);
+        response = await fetch(candidate);
+        console.log(`[XSD] Fetch response for ${candidate}: status=${response.status}, ok=${response.ok}`);
+        
+        if (response.ok) {
+          successUrl = candidate;
+          break;
+        }
+      } catch (fetchError) {
+        console.log(`[XSD] Fetch failed for ${candidate}: ${fetchError.message}`);
+        continue;
+      }
+    }
 
-    if (!response.ok) {
+    if (!response || !response.ok) {
       throw new Error(
-        `Failed to fetch XSD: ${response.status} ${response.statusText}`
+        `Failed to fetch XSD from any candidate paths. Last status: ${response?.status} ${response?.statusText}`
       );
     }
+    
+    console.log(`[XSD] Successfully loaded from: ${successUrl}`);
 
     const xsdText = await response.text();
     console.log(`XSD text loaded, length: ${xsdText.length} characters`);
@@ -436,30 +469,9 @@ export function getAvailableElements() {
   return Array.from(elementDefinitions.keys());
 }
 
-/**
- * スキーマ情報をクリア（テスト用）
- */
-export function clearSchema() {
-  xsdSchema = null;
-  elementDefinitions.clear();
-}
+// clearSchema関数は削除されました（未使用のため）
 
-/**
- * デバッグ用：スキーマ情報をコンソールに出力
- */
-export function debugPrintSchema() {
-  console.log("=== XSD Schema Debug Info ===");
-  console.log(`Schema loaded: ${isSchemaLoaded()}`);
-  console.log(`Element definitions count: ${elementDefinitions.size}`);
-
-  elementDefinitions.forEach((definition, elementName) => {
-    console.log(`\n--- ${elementName} ---`);
-    console.log(`Attributes count: ${definition.attributes.size}`);
-    definition.attributes.forEach((attr, attrName) => {
-      console.log(`  ${attrName}: ${attr.type} (required: ${attr.required})`);
-    });
-  });
-}
+// debugPrintSchema関数は削除されました（未使用のため）
 
 /**
  * 属性値がXSDスキーマの型定義に適合するかチェック
@@ -572,35 +584,7 @@ function getEnumerationValues(typeName) {
     .filter((v) => v);
 }
 
-/**
- * 指定された要素タイプ・属性名の詳細な型情報を取得
- * @param {string} elementType - 要素タイプ名 (StbColumn等)
- * @param {string} attributeName - 属性名
- * @returns {Object|null} 型情報オブジェクト
- */
-export function getAttributeTypeInfo(elementType, attributeName) {
-  const attrInfo = getAttributeInfo(elementType, attributeName);
-  if (!attrInfo) return null;
-
-  const typeInfo = {
-    type: attrInfo.type,
-    required: attrInfo.required,
-    default: attrInfo.default,
-    fixed: attrInfo.fixed,
-    documentation: attrInfo.documentation
-  };
-
-  // 列挙値の場合は値も含める
-  if (attrInfo.type) {
-    const enumValues = getEnumerationValues(attrInfo.type);
-    if (enumValues.length > 0) {
-      typeInfo.isEnumeration = true;
-      typeInfo.enumerationValues = enumValues;
-    }
-  }
-
-  return typeInfo;
-}
+// getAttributeTypeInfo関数は削除されました（未使用のため）
 
 /**
  * 指定された要素タイプ・属性名が列挙値を持つかチェック
@@ -616,37 +600,7 @@ export function hasEnumerationValues(elementType, attributeName) {
   return enumValues.length > 0;
 }
 
-/**
- * 指定された要素タイプ・属性名の制約情報を取得
- * @param {string} elementType - 要素タイプ名 (StbColumn等)
- * @param {string} attributeName - 属性名
- * @returns {Object|null} 制約情報オブジェクト
- */
-export function getAttributeConstraints(elementType, attributeName) {
-  const attrInfo = getAttributeInfo(elementType, attributeName);
-  if (!attrInfo) return null;
-
-  const constraints = {
-    required: attrInfo.required,
-    type: attrInfo.type,
-    default: attrInfo.default,
-    fixed: attrInfo.fixed
-  };
-
-  // 列挙値制約
-  if (attrInfo.type) {
-    const enumValues = getEnumerationValues(attrInfo.type);
-    if (enumValues.length > 0) {
-      constraints.enumValues = enumValues;
-      constraints.restrictionType = 'enumeration';
-    }
-  }
-
-  // その他の制約（パターン、長さ等）
-  // TODO: 必要に応じて拡張
-
-  return constraints;
-}
+// getAttributeConstraints関数は削除されました（未使用のため）
 
 /**
  * 要素の必須属性が全て設定されているかチェック

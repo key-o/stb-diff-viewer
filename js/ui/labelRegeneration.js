@@ -9,9 +9,9 @@
  */
 
 import { getAllLabels, setAllLabels } from "./state.js";
-import { generateUnifiedLabelText } from "./unifiedLabelManager.js";
+import { generateLabelText } from "./unifiedLabelManager.js";
 import { createLabelSprite } from "../viewer/ui/labels.js";
-import { updateUnifiedLabelVisibility } from "./unifiedLabelManager.js";
+import { updateLabelVisibility } from "./unifiedLabelManager.js";
 import { elementGroups } from "../viewer/index.js";
 
 /**
@@ -44,7 +44,7 @@ export function regenerateAllLabels() {
     setAllLabels(newLabels);
 
     // ラベル表示状態を更新
-    updateUnifiedLabelVisibility();
+    updateLabelVisibility();
 
     console.log(
       `Label regeneration completed: ${newLabels.length} labels updated`
@@ -117,7 +117,7 @@ function createUpdatedLabels(labelInfo) {
         `Using original element data for ${info.elementType}:`,
         info.originalElement
       );
-      labelText = generateUnifiedLabelText(
+      labelText = generateLabelText(
         info.originalElement,
         info.elementType
       );
@@ -197,7 +197,7 @@ export function regenerateLabelsForElementType(elementType) {
     setAllLabels([...otherLabels, ...newLabels]);
 
     // ラベル表示状態を更新
-    updateUnifiedLabelVisibility();
+    updateLabelVisibility();
 
     console.log(
       `Label regeneration completed for ${elementType}: ${newLabels.length} labels updated`

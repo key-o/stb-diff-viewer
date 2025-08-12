@@ -71,6 +71,32 @@ export const materials = {
     metalness: 0.1,
     side: THREE.DoubleSide,
   }),
+  // 立体表示（ProfileBased 生成）用の不透明メッシュマテリアル
+  // 既存の matched/onlyA/onlyB と同等だが、用途を明示するため別名を用意
+  matchedMesh: new THREE.MeshStandardMaterial({
+    color: 0x00aaff,
+    roughness: 0.6,
+    metalness: 0.1,
+    side: THREE.DoubleSide,
+    transparent: false,
+    opacity: 1.0,
+  }),
+  onlyAMesh: new THREE.MeshStandardMaterial({
+    color: 0x00ff00,
+    roughness: 0.6,
+    metalness: 0.1,
+    side: THREE.DoubleSide,
+    transparent: false,
+    opacity: 1.0,
+  }),
+  onlyBMesh: new THREE.MeshStandardMaterial({
+    color: 0xff0000,
+    roughness: 0.6,
+    metalness: 0.1,
+    side: THREE.DoubleSide,
+    transparent: false,
+    opacity: 1.0,
+  }),
   lineMatched: new THREE.LineBasicMaterial({ color: 0x00aaff }),
   lineOnlyA: new THREE.LineBasicMaterial({ color: 0x00ff00 }),
   lineOnlyB: new THREE.LineBasicMaterial({ color: 0xff0000 }),
@@ -129,6 +155,14 @@ export const materials = {
   }), // メッシュ要素（節点、スラブ、壁）用
   // ★★★ 変更: ハイライト線の太さを増やす ★★★
   highlightLine: new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 5 }), // 線要素（柱、梁）用 (linewidth を 3 から 5 に変更)
+  // 立体表示時の配置基準線（軸）用ラインマテリアル
+  placementLine: new THREE.LineBasicMaterial({
+    color: 0x333333,
+    linewidth: 1,
+    transparent: true,
+    opacity: 0.85,
+    depthTest: false, // メッシュ越しでも視認できるように
+  }),
 };
 
 /**

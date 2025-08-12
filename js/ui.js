@@ -45,8 +45,8 @@ export {
   validateSelectorElements,
 } from "./ui/selectors.js";
 
-import { updateUnifiedLabelVisibility } from "./ui/unifiedLabelManager.js";
-export { updateUnifiedLabelVisibility };
+import { updateLabelVisibility } from "./ui/unifiedLabelManager.js";
+export { updateLabelVisibility };
 
 export {
   setupUIEventListeners,
@@ -107,7 +107,7 @@ function initializeStateChangeCoordination() {
     console.log("UI state changed, coordinating module updates");
 
     // Trigger label visibility update when state changes
-    updateUnifiedLabelVisibility();
+    updateLabelVisibility();
 
     // Could add other coordination logic here
   });

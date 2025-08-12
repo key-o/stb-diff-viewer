@@ -2,11 +2,17 @@
  * @fileoverview 要素情報表示モジュール
  *
  * このファイルは、選択された構造要素の詳細情報を表示する機能を提供します:
- * - モデルA/B間での要素属性の比較表示
+ *
+ * **パラメータ比較機能**:
+ * - モデルA/B間での属性値の詳細比較表示
+ * - 差分あり属性のハイライト表示
+ * - 数値パラメータの差分率表示
+ * - 列挙値・文字列属性の値変更表示
+ *
+ * **スキーマ連携機能**:
  * - XSDスキーマに基づく完全な属性リストの表示
  * - STB要素の詳細属性と子要素の表示
  * - 断面情報と形状データの表示
- * - 差分のハイライト表示
  * - 折りたたみ可能な階層表示
  *
  * このモジュールは、ユーザーが選択した要素の詳細を分析するための
@@ -62,17 +68,31 @@ let currentEditingElement = null;
 async function initializeSchema() {
   if (schemaInitialized) return;
 
+  // まず既に読み込まれているかチェック
+  if (isSchemaLoaded()) {
+    console.log(
+      "[ElementInfoDisplay] XSD schema already loaded by another module"
+    );
+    schemaInitialized = true;
+    return;
+  }
+
   try {
-    // ST-Bridge202.xsdファイルを使用
+    // ST-Bridge202.xsdファイルを使用（相対パスで指定）
     const xsdPath = "./schemas/ST-Bridge202.xsd";
     const success = await loadXsdSchema(xsdPath);
     if (success) {
-      console.log("XSD schema initialized successfully");
+      console.log("[ElementInfoDisplay] XSD schema initialized successfully");
     } else {
-      console.warn("XSD schema initialization failed, using fallback mode");
+      console.warn(
+        "[ElementInfoDisplay] XSD schema initialization failed, using fallback mode"
+      );
     }
   } catch (error) {
-    console.warn("XSD schema initialization error:", error);
+    console.warn(
+      "[ElementInfoDisplay] XSD schema initialization error:",
+      error
+    );
   } finally {
     schemaInitialized = true;
   }
@@ -279,6 +299,75 @@ export async function displayElementInfo(
   if (!panel || !contentDiv) {
     console.error("Component info panel or content div not found!");
     return;
+  }
+
+  // ---------------- 単一モデル / XML未ロード時のフォールバック ----------------
+  // STB XML ドキュメント (docA/docB) が無い場合でも three.js メッシュの userData から最低限の情報を表示
+  if (elementType && !window.docA && !window.docB) {
+    // シーン上で該当 ID のメッシュを探索
+    try {
+      const scene = window?.viewer?.scene || window?.scene;
+      if (scene) {
+        let targetMesh = null;
+        scene.traverse((o) => {
+          if (targetMesh) return;
+          if (
+            o.isMesh &&
+            o.userData &&
+            o.userData.elementType === elementType
+          ) {
+            const eid = o.userData.elementId;
+            if (eid && (eid === idA || eid === idB || (!idA && !idB))) {
+              targetMesh = o;
+            }
+          }
+        });
+        if (targetMesh) {
+          const ud = targetMesh.userData || {};
+          const sec =
+            ud.sectionDataOriginal ||
+            ud.beamData?.section ||
+            ud.columnData?.section ||
+            {};
+          const dims = sec.dimensions || sec;
+          const dimPairs = Object.entries(dims)
+            .filter(
+              ([k, v]) =>
+                typeof v === "number" ||
+                (typeof v === "string" && v.match(/^\d+(?:\.\d+)?$/))
+            )
+            .map(([k, v]) => `${k}: ${v}`)
+            .slice(0, 24)
+            .join("<br>");
+          const metaPairs = Object.entries(ud.profileMeta || {})
+            .map(([k, v]) => `${k}: ${v}`)
+            .join("<br>");
+          contentDiv.innerHTML = `
+            <div style="font-weight:bold;margin-bottom:4px;">${elementType} (Mesh UserData)</div>
+            <div><strong>ID:</strong> ${ud.elementId || "-"}</div>
+            <div><strong>Section Type:</strong> ${
+              ud.sectionType || ud.profileMeta?.sectionTypeResolved || "-"
+            }</div>
+            <div><strong>Profile Source:</strong> ${
+              ud.profileMeta?.profileSource || "-"
+            }</div>
+            <div style="margin-top:6px;"><strong>Dimensions (from enriched section):</strong><br>${
+              dimPairs || "-"
+            }</div>
+            <div style="margin-top:6px;"><strong>Profile Meta:</strong><br>${
+              metaPairs || "-"
+            }</div>
+            <div style="margin-top:6px;"><strong>Raw shapeName:</strong> ${
+              sec.shapeName || ud.shapeName || "-"
+            }</div>
+          `;
+          panel.style.display = "block";
+          return; // フォールバック表示完了
+        }
+      }
+    } catch (e) {
+      console.warn("Fallback element info display failed:", e);
+    }
   }
 
   // --- パネル幅の設定と保持機能 ---

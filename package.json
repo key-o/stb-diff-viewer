@@ -1,23 +1,68 @@
 {
   "name": "stb-diff-viewer",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "type": "module",
-  "description": "STB/XML format 3D architectural model comparison viewer",
+  "description": "STB (ST-Bridge) Diff Viewer - Web-based 3D building model comparison tool",
   "main": "js/main.js",
   "scripts": {
     "start": "python -m http.server 8000",
-    "test": "node verify-refactoring.js",
-    "dev": "python -m http.server 8000"
+    "test": "node test/regression_test.js test",
+    "test:smoke": "node test/cli_smoke_tests.js",
+    "test:required": "node test/regression_test.js test --required-only",
+    "test:create-baseline": "node test/regression_test.js create-baseline",
+    "test:create-baseline-required": "node test/regression_test.js create-baseline required",
+    "test:create-baseline-comprehensive": "node test/regression_test.js create-baseline comprehensive",
+    "test:regression": "npm run test",
+    "test:legacy": "node verify-refactoring.js",
+    "serve": "python -m http.server 8000",
+    "serve:node": "npx serve .",
+    "dev": "python -m http.server 8000",
+    "lint": "eslint js/**/*.js",
+    "lint:fix": "eslint js/**/*.js --fix",
+    "validate": "html-validate index.html",
+    "build:docs": "jsdoc -c jsdoc.conf.json"
   },
   "keywords": [
     "stb",
+    "st-bridge",
     "xml",
     "3d",
     "architecture",
-    "model",
+    "building-model",
     "comparison",
-    "three.js"
+    "diff",
+    "three.js",
+    "bim",
+    "ifc",
+    "viewer"
   ],
-  "author": "STB Diff Viewer Project",
-  "license": "MIT"
+  "author": "StbDiffUpGrade Project",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "glob": "^10.3.10",
+    "html-validate": "^8.9.1",
+    "jsdoc": "^4.0.2",
+    "playwright": "^1.40.1",
+    "serve": "^14.2.1"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "browserslist": [
+    "defaults",
+    "not ie < 11"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/StbDiffUpGrade.git",
+    "directory": "StbDiffViewer"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/StbDiffUpGrade/issues"
+  },
+  "homepage": "https://github.com/your-org/StbDiffUpGrade/tree/main/StbDiffViewer#readme"
 }

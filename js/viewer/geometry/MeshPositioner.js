@@ -132,7 +132,11 @@ export class MeshPositioner {
    */
   static getReferenceAxis(geometry, elementType) {
     if (geometry instanceof THREE.CylinderGeometry) {
-      // CylinderGeometry: Y軸が高さ方向（長軸）なので、正しくY軸を基準軸とする
+      // ブレース用CylinderGeometry: 事前にZ軸方向に回転済みなのでZ軸を基準軸とする
+      // 柱用の場合は従来通りY軸を使用
+      if (elementType === 'brace') {
+        return new THREE.Vector3(0, 0, 1);
+      }
       // RC円形柱などが正しく節点間の方向に配置されるように
       return new THREE.Vector3(0, 1, 0);
     } else if (geometry instanceof THREE.ExtrudeGeometry) {
@@ -154,6 +158,12 @@ export class MeshPositioner {
    * @param {string} elementType - Element type
    */
   static applyElementSpecificRotation(mesh, direction, elementType) {
+    // ブレース要素特有の回転処理
+    if (elementType === "brace") {
+      this.applyBraceRotation(mesh, direction);
+      return;
+    }
+
     // ExtrudeGeometry（H型鋼など）の場合は建築的な向きのための追加回転を適用
     if (mesh.geometry instanceof THREE.ExtrudeGeometry) {
       // H型鋼などのExtrudeGeometryは、XY平面で断面が定義され、Z軸方向に押し出される
@@ -182,6 +192,38 @@ export class MeshPositioner {
       console.log(
         `Element ${elementType} positioned along direction:`,
         direction.toArray().map((v) => v.toFixed(3))
+      );
+    }
+  }
+
+  /**
+   * Apply brace-specific rotation logic
+   * @param {THREE.Mesh} mesh - Brace mesh to rotate
+   * @param {THREE.Vector3} direction - Brace direction vector
+   */
+  static applyBraceRotation(mesh, direction) {
+    // ブレースの場合、ジオメトリタイプに応じて適切な回転を適用
+    if (mesh.geometry instanceof THREE.CylinderGeometry) {
+      // CylinderGeometry: Y軸が高さ方向なので、directionに合わせる
+      // 既にsetFromUnitVectorsで正しい方向に回転済み
+      // 追加の回転は不要
+      
+    } else if (mesh.geometry instanceof THREE.ExtrudeGeometry) {
+      // ExtrudeGeometry: Z軸が押し出し方向
+      // ブレースのH型鋼やL型鋼の場合、断面の向きを調整
+      const rollQuaternion = new THREE.Quaternion();
+      rollQuaternion.setFromAxisAngle(direction, Math.PI / 4); // 45度回転
+      mesh.quaternion.multiply(rollQuaternion);
+      
+    } else if (mesh.geometry instanceof THREE.BoxGeometry) {
+      // BoxGeometry: 角形鋼管ブレースなど
+      // Z軸が長軸として設定されているので、追加回転不要
+    }
+
+    // デバッグログ
+    if (Math.random() < 0.05) { // 5%の確率でブレースログ
+      console.log(
+        `Brace rotation applied: geometry=${mesh.geometry.constructor.name}, direction=(${direction.x.toFixed(3)}, ${direction.y.toFixed(3)}, ${direction.z.toFixed(3)})`
       );
     }
   }

@@ -132,7 +132,7 @@ async function processModelFile(file, modelId) {
     // Extract section data (unified)
     const sectionMaps = extractAllSections(document);
 
-    // Set global reference for legacy compatibility
+    // Set global reference for model access
     if (modelId === 'A') {
       window.docA = document;
     } else {

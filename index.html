@@ -249,7 +249,12 @@
         margin-right: 4px;
         display: inline-block;
       }
-      /* ★★★ 色分けUI用スタイルここまで ★★★ */
+      .placement-line-control {
+        margin-left: 20px;
+        margin-top: 8px;
+        font-size: 0.9em;
+        color: #666;
+      }
 
       /* ★★★ アコーディオンスタイル ★★★ */
       .accordion-section {
@@ -892,7 +897,15 @@
               <input type="checkbox" name="elements" value="Beam" checked />
               小梁 (Beam)
             </label>
-            <label for="toggleLabel-Beam">
+            <label for="toggleBeam3DView" class="margin-left-8">
+              <input
+                type="checkbox"
+                id="toggleBeam3DView"
+                name="beam3DViewMode"
+              />
+              立体表示
+            </label>
+            <label for="toggleLabel-Beam" class="margin-left-8">
               <input
                 type="checkbox"
                 name="labelToggle"
@@ -901,6 +914,16 @@
               />
               ID
             </label>
+            <br />
+
+            <!-- 配置基準線表示切り替え -->
+            <div class="placement-line-control">
+              <label for="togglePlacementLines">
+                <input type="checkbox" id="togglePlacementLines" checked />
+                立体表示時の配置基準線を表示
+              </label>
+            </div>
+
             <br />
             <label>
               <input
@@ -912,7 +935,15 @@
               />
               ブレース (Brace)
             </label>
-            <label for="toggleLabel-Brace">
+            <label for="toggleBrace3DView" class="margin-left-8">
+              <input
+                type="checkbox"
+                id="toggleBrace3DView"
+                name="brace3DViewMode"
+              />
+              立体表示
+            </label>
+            <label for="toggleLabel-Brace" class="margin-left-8">
               <input
                 type="checkbox"
                 name="labelToggle"
@@ -1305,32 +1336,78 @@
       </a>
     </div>
 
-    <!-- 開発環境でのみテストリンクを表示 -->
-    <script>
-      if (
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1" ||
-        window.location.search.includes("dev=true")
-      ) {
-        document.getElementById("dev-tools").style.display = "block";
+    <!-- 環境設定管理 -->
+    <script type="module">
+      import {
+        getEnvironmentConfig,
+        isFeatureEnabled,
+        displayEnvironmentInfo,
+      } from "./js/config/environment.js";
+
+      // 環境設定を非同期で初期化
+      async function initializeEnvironment() {
+        try {
+          window.envConfig = await getEnvironmentConfig();
+
+          // 開発環境でのみテストリンクとデバッグ情報を表示
+          if (window.envConfig.features.devTools) {
+            document.getElementById("dev-tools").style.display = "block";
+            await displayEnvironmentInfo();
+          }
+
+          // 統一ロガーが読み込まれる前でも安全なように try/catch
+          try {
+            window.AppLogger?.setLevel &&
+              window.AppLogger.setLevel(window.envConfig?.logLevel || "warn");
+          } catch (e) {}
+          console.log("✅ 環境設定初期化完了:", window.envConfig.environment);
+        } catch (error) {
+          console.error("❌ 環境設定初期化エラー:", error);
+          // フォールバック設定
+          window.envConfig = {
+            environment: "production",
+            stb2ifc: {
+              apiBaseUrl: "https://stb2ifc-api-e23mdd6kwq-an.a.run.app",
+            },
+            features: { devTools: false },
+          };
+        }
       }
 
-      // CORS プロキシ有効化関数
-      window.enableCorsProxy = function () {
+      // CORS プロキシ有効化関数（環境設定を使用）
+      window.enableCorsProxy = async function () {
         if (window.ifcConverter) {
-          // CORS プロキシを使用するように設定を変更
-          const originalUrl = window.ifcConverter.apiBaseUrl;
-          window.ifcConverter.apiBaseUrl =
-            window.ifcConverter.getApiUrlWithProxy();
+          try {
+            if (!window.envConfig) {
+              window.envConfig = await getEnvironmentConfig();
+            }
 
-          alert(
-            `CORS プロキシが有効化されました。\n\n新しいURL: ${window.ifcConverter.apiBaseUrl}\n\n注意: このサービスは実験的で、本番使用は推奨されません。`
-          );
+            const originalUrl = window.ifcConverter.apiBaseUrl;
+            window.ifcConverter.apiBaseUrl =
+              window.envConfig.corsProxy.proxyUrl +
+              window.envConfig.stb2ifc.apiBaseUrl;
 
-          // 警告を非表示
-          window.ifcConverter.hideCorsWarning();
+            alert(
+              `CORS プロキシが有効化されました。\n\n新しいURL: ${window.ifcConverter.apiBaseUrl}\n\n注意: このサービスは実験的で、本番使用は推奨されません。`
+            );
+
+            // 警告を非表示
+            if (window.ifcConverter.hideCorsWarning) {
+              window.ifcConverter.hideCorsWarning();
+            }
+          } catch (error) {
+            console.error("CORS プロキシ設定エラー:", error);
+            alert("CORS プロキシの設定に失敗しました。");
+          }
         }
       };
+
+      // グローバルに非同期版関数を公開
+      window.isFeatureEnabled = isFeatureEnabled;
+      window.getEnvironmentConfig = getEnvironmentConfig;
+
+      // ページロード時に初期化
+      initializeEnvironment();
     </script>
 
     <!-- ★★★ 開発用テストヘルパー ★★★ -->
@@ -1339,6 +1416,9 @@
 
     <!-- ★★★ パスを js/main.js に変更 ★★★ -->
     <script type="module" src="js/main.js"></script>
+
+    <!-- 開発用: 断面差異診断ユーティリティ -->
+    <script type="module" src="js/diagnostics/geometryInspector.js"></script>
 
     <!-- ★★★ 追加: selectComponentInfo.js の script タグは不要 (main.js から import されるため) ★★★ -->
     <!-- <script type="module" src="selectComponentInfo.js"></script> -->

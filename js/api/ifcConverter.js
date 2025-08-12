@@ -2,13 +2,46 @@
  * @fileoverview IFC変換API連携モジュール
  *
  * JavaScriptからPythonのIFC変換機能を呼び出すためのAPIクライアント
+ * 環境設定に基づいてAPIエンドポイントを動的に決定
  */
 
+import { getEnvironmentConfig, getApiEndpoint } from "../config/environment.js";
+
 export class IFCConverter {
-  constructor(apiBaseUrl = "https://stb2ifc-api-e23mdd6kwq-an.a.run.app") {
-    this.apiBaseUrl = apiBaseUrl;
+  constructor(apiBaseUrl = null) {
+    this.apiBaseUrl = apiBaseUrl; // nullの場合は環境設定から取得
     this.isServerRunning = false;
-    this.corsProxyUrl = "https://cors-anywhere.herokuapp.com/"; // CORS プロキシ（代替案）
+    this.corsProxyUrl = "https://cors-anywhere.herokuapp.com/"; // フォールバック
+    this.config = null;
+
+    // 環境設定の初期化
+    this.initializeConfig();
+  }
+
+  /**
+   * 環境設定の初期化
+   */
+  async initializeConfig() {
+    try {
+      this.config = await getEnvironmentConfig();
+
+      // APIベースURLが指定されていない場合は環境設定から取得
+      if (!this.apiBaseUrl) {
+        this.apiBaseUrl = this.config.stb2ifc.apiBaseUrl;
+      }
+
+      // CORS プロキシURLも環境設定から取得
+      if (this.config.corsProxy?.proxyUrl) {
+        this.corsProxyUrl = this.config.corsProxy.proxyUrl;
+      }
+
+      console.log(`🔧 IFCConverter initialized with API: ${this.apiBaseUrl}`);
+    } catch (error) {
+      console.warn("環境設定の読み込みに失敗、デフォルト設定を使用:", error);
+      // フォールバック
+      this.apiBaseUrl =
+        this.apiBaseUrl || "https://stb2ifc-api-e23mdd6kwq-an.a.run.app";
+    }
   }
 
   /**

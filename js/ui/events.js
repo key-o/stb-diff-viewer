@@ -10,7 +10,7 @@
  * Split from the large ui.js module for better organization.
  */
 
-import { updateUnifiedLabelVisibility } from "./unifiedLabelManager.js";
+import { updateLabelVisibility } from "./unifiedLabelManager.js";
 import {
   applyStoryClip,
   applyAxisClip,
@@ -122,7 +122,7 @@ function setupLabelToggleListeners() {
         triggerViewModeRedraw(elementType);
       } else {
         // 通常のラベル表示更新
-        updateUnifiedLabelVisibility();
+        updateLabelVisibility();
         // Request render if available
         if (typeof window.requestRender === "function") {
           window.requestRender();
@@ -170,7 +170,7 @@ function triggerViewModeRedraw(elementType) {
     .catch((error) => {
       console.error("Failed to import view mode functions:", error);
       // Fallback to normal label update
-      updateUnifiedLabelVisibility();
+      updateLabelVisibility();
       if (typeof window.requestRender === "function") {
         window.requestRender();
       }
@@ -253,7 +253,7 @@ function handleStorySelectionChange(event) {
   }
 
   // Update label visibility
-  updateUnifiedLabelVisibility();
+  updateLabelVisibility();
 
   // Request render update
   if (typeof window.requestRender === "function") {
@@ -275,7 +275,7 @@ function handleXAxisSelectionChange(event) {
   }
 
   // Update label visibility
-  updateUnifiedLabelVisibility();
+  updateLabelVisibility();
 
   // Request render update
   if (typeof window.requestRender === "function") {
@@ -297,7 +297,7 @@ function handleYAxisSelectionChange(event) {
   }
 
   // Update label visibility
-  updateUnifiedLabelVisibility();
+  updateLabelVisibility();
 
   // Request render update
   if (typeof window.requestRender === "function") {
@@ -435,7 +435,7 @@ export function resetAllSelectors() {
   }
 
   // Update label visibility
-  updateUnifiedLabelVisibility();
+  updateLabelVisibility();
 
   // Request render update
   if (typeof window.requestRender === "function") {

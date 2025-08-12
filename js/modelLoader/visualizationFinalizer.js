@@ -15,7 +15,7 @@ import {
   setGlobalStateForUI,
   updateStorySelector,
   updateAxisSelectors,
-  updateUnifiedLabelVisibility,
+  updateLabelVisibility,
 } from "../ui.js";
 import { initViewModes, updateModelVisibility } from "../viewModes.js";
 import {
@@ -131,7 +131,7 @@ function updateLabelDisplay() {
   console.log("Updating label visibility...");
 
   try {
-    updateUnifiedLabelVisibility();
+    updateLabelVisibility();
     console.log("Label visibility updated successfully");
   } catch (error) {
     console.error("Failed to update label visibility:", error);

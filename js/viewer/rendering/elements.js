@@ -13,11 +13,14 @@
  */
 
 import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import { createLogger } from "../../utils/logger.js";
 import { createLabelSprite } from "../ui/labels.js";
-import { generateUnifiedLabelText } from "../../ui/unifiedLabelManager.js";
+import { generateLabelText } from "../../ui/unifiedLabelManager.js";
 import { attachElementDataToLabel } from "../../ui/labelRegeneration.js";
 import { getMaterialForElementWithMode } from "./materials.js";
 import { IMPORTANCE_LEVELS } from "../../core/importanceManager.js";
+
+const log = createLogger("viewer:elements");
 
 /**
  * 重要度に基づいて要素の視覚的調整を適用する
@@ -77,7 +80,7 @@ export function drawLineElements(
   const createdLabels = [];
   const labelOffsetAmount = 150;
 
-  console.log(`Drawing line elements for ${elementType}:`, {
+  log.info(`Drawing line elements for ${elementType}:`, {
     matched: comparisonResult.matched.length,
     onlyA: comparisonResult.onlyA.length,
     onlyB: comparisonResult.onlyB.length,
@@ -92,13 +95,13 @@ export function drawLineElements(
 
     if (index < 3) {
       // 最初の3つの要素について詳細ログを出力
-      console.log(`Processing matched item ${index}:`, {
+      log.debug(`Processing matched item ${index}:`, {
         dataA,
         dataB,
         importance,
       });
-      console.log("dataA.startCoords:", dataA.startCoords);
-      console.log("dataA.endCoords:", dataA.endCoords);
+      log.trace("dataA.startCoords:", dataA.startCoords);
+      log.trace("dataA.endCoords:", dataA.endCoords);
     }
 
     processedCount++;
@@ -127,7 +130,7 @@ export function drawLineElements(
 
       // デバッグ出力（最初の3個の一致要素のみ）
       if (index < 3) {
-        console.log(
+        log.debug(
           `${elementType} matched element ${index}: Start=(${startCoords.x.toFixed(
             0
           )}, ${startCoords.y.toFixed(0)}, ${startCoords.z.toFixed(
@@ -150,7 +153,7 @@ export function drawLineElements(
         idA
       );
       if (index < 3) {
-        console.log(`Material for matched item ${index}:`, material);
+        log.trace(`Material for matched item ${index}:`, material);
       }
 
       const line = new THREE.Line(geometry, material);
@@ -180,12 +183,9 @@ export function drawLineElements(
       };
 
       if (index < 3) {
-        console.log(`Created line object ${index}:`, line);
-        console.log(`Line importance:`, importance);
-        console.log(
-          `Line geometry points:`,
-          geometry.attributes.position.array
-        );
+        log.trace(`Created line object ${index}:`, line);
+        log.trace(`Line importance:`, importance);
+        log.trace(`Line geometry points:`, geometry.attributes.position.array);
       }
 
       // 重要度による視覚調整を適用
@@ -195,7 +195,7 @@ export function drawLineElements(
       addedToGroupCount++;
 
       if (index < 3) {
-        console.log(
+        log.debug(
           `Added line ${index} to group. Group children count:`,
           group.children.length
         );
@@ -246,7 +246,7 @@ export function drawLineElements(
       }
     } else {
       skippedCount++;
-      console.warn(
+      log.warn(
         `Skipping matched line due to invalid coords: A=${idA}, B=${idB}`
       );
     }
@@ -274,7 +274,7 @@ export function drawLineElements(
 
       // デバッグ出力（最初の2個のOnlyA要素のみ）
       if (onlyACount < 2) {
-        console.log(
+        log.debug(
           `${elementType} onlyA element ${onlyACount}: Start=(${startCoords.x.toFixed(
             0
           )}, ${startCoords.y.toFixed(0)}, ${startCoords.z.toFixed(
@@ -330,7 +330,7 @@ export function drawLineElements(
           displayText = element.name;
         } else if (contentType === "section") {
           // 断面名表示の場合、統合ラベル管理システムを使用
-          displayText = generateUnifiedLabelText(element, elementType);
+          displayText = generateLabelText(element, elementType);
         }
 
         const labelText = `A: ${displayText}`;
@@ -353,7 +353,7 @@ export function drawLineElements(
         }
       }
     } else {
-      console.warn(`Skipping onlyA line due to invalid coords: ID=${id}`);
+      log.warn(`Skipping onlyA line due to invalid coords: ID=${id}`);
     }
   });
 
@@ -420,7 +420,7 @@ export function drawLineElements(
           displayText = element.name;
         } else if (contentType === "section") {
           // 断面名表示の場合、統合ラベル管理システムを使用
-          displayText = generateUnifiedLabelText(element, elementType);
+          displayText = generateLabelText(element, elementType);
         }
 
         const labelText = `B: ${displayText}`;
@@ -443,11 +443,11 @@ export function drawLineElements(
         }
       }
     } else {
-      console.warn(`Skipping onlyB line due to invalid coords: ID=${id}`);
+      log.warn(`Skipping onlyB line due to invalid coords: ID=${id}`);
     }
   });
 
-  console.log(`${elementType} line rendering summary:`, {
+  log.info(`${elementType} line rendering summary:`, {
     processedCount,
     skippedCount,
     addedToGroupCount,
@@ -479,7 +479,7 @@ export function drawPolyElements(
 
   const elementType = group.userData.elementType;
   if (!elementType) {
-    console.error(
+    log.error(
       "elementType is missing in group userData or name for drawPolyElements:",
       group
     );
@@ -500,7 +500,7 @@ export function drawPolyElements(
         ) {
           points.push(new THREE.Vector3(p.x, p.y, p.z));
         } else {
-          console.warn("Skipping polygon due to invalid vertex coord:", p);
+          log.warn("Skipping polygon due to invalid vertex coord:", p);
           validPoints = false;
           break;
         }
@@ -691,7 +691,7 @@ export function drawNodes(
         }
       }
     } else {
-      console.warn(
+      log.warn(
         `Skipping matched node due to invalid coords: A=${idA}, B=${idB}`
       );
     }
@@ -733,7 +733,7 @@ export function drawNodes(
         }
       }
     } else {
-      console.warn(`Skipping onlyA node due to invalid coords: ID=${id}`);
+      log.warn(`Skipping onlyA node due to invalid coords: ID=${id}`);
     }
   });
 
@@ -773,7 +773,7 @@ export function drawNodes(
         }
       }
     } else {
-      console.warn(`Skipping onlyB node due to invalid coords: ID=${id}`);
+      log.warn(`Skipping onlyB node due to invalid coords: ID=${id}`);
     }
   });
   return createdLabels;

@@ -1,5 +1,5 @@
 /**
- * @fileoverview 統合ラベル管理モジュール
+ * @fileoverview ラベル管理モジュール
  *
  * このファイルは、ラベル関連の全ての機能を統合管理します:
  * - ラベル内容の生成と管理
@@ -8,7 +8,7 @@
  * - パフォーマンス最適化されたバッチ処理
  * - 一元化されたラベル設定API
  *
- * この統合により、ラベル関連のコードの重複を排除し、
+ * このシステムにより、ラベル関連のコードの重複を排除し、
  * 保守性とパフォーマンスを向上させます。
  */
 
@@ -41,9 +41,9 @@ const CONTENT_TYPE_DESCRIPTIONS = {
 /**
  * 統合ラベル管理システムを初期化
  */
-export function initializeUnifiedLabelManager() {
+export function initializeLabelManager() {
   console.log(
-    "[UnifiedLabelManager] Initializing unified label management system"
+    "[LabelManager] Initializing label management system"
   );
 
   // ラベル内容選択リスナーを設定
@@ -53,7 +53,7 @@ export function initializeUnifiedLabelManager() {
   setupLabelToggleListeners();
 
   console.log(
-    "[UnifiedLabelManager] Unified label management system initialized"
+    "[LabelManager] Label management system initialized"
   );
 }
 
@@ -65,9 +65,9 @@ function setupLabelContentListener() {
 
   if (labelContentSelector) {
     labelContentSelector.addEventListener("change", handleLabelContentChange);
-    console.log("[UnifiedLabelManager] Label content listener setup complete");
+    console.log("[LabelManager] Label content listener setup complete");
   } else {
-    console.warn("[UnifiedLabelManager] Label content selector not found");
+    console.warn("[LabelManager] Label content selector not found");
   }
 }
 
@@ -94,7 +94,7 @@ function setupLabelToggleListeners() {
     }
   });
 
-  console.log("[UnifiedLabelManager] Label toggle listeners setup complete");
+  console.log("[LabelManager] Label toggle listeners setup complete");
 }
 
 /**
@@ -104,7 +104,7 @@ function setupLabelToggleListeners() {
 function handleLabelContentChange(event) {
   const newContentType = event.target.value;
   console.log(
-    `[UnifiedLabelManager] Label content changed to: ${newContentType}`
+    `[LabelManager] Label content changed to: ${newContentType}`
   );
 
   // グローバル状態を更新
@@ -119,7 +119,7 @@ function handleLabelContentChange(event) {
  * @param {string} elementType - 要素タイプ
  */
 function handleLabelToggleChange(elementType) {
-  console.log(`[UnifiedLabelManager] Label toggle changed for: ${elementType}`);
+  console.log(`[LabelManager] Label toggle changed for: ${elementType}`);
 
   // 該当要素タイプのラベル表示を更新
   updateLabelVisibilityForType(elementType);
@@ -131,7 +131,7 @@ function handleLabelToggleChange(elementType) {
  * @param {string} elementType - 要素タイプ
  * @returns {string} ラベルに表示するテキスト
  */
-export function generateUnifiedLabelText(element, elementType) {
+export function generateLabelText(element, elementType) {
   const contentType = getState("ui.labelContentType") || LABEL_CONTENT_TYPES.ID;
 
   try {
@@ -144,13 +144,13 @@ export function generateUnifiedLabelText(element, elementType) {
         return generateSectionLabel(element, elementType);
       default:
         console.warn(
-          `[UnifiedLabelManager] Unknown content type: ${contentType}, falling back to ID`
+          `[LabelManager] Unknown content type: ${contentType}, falling back to ID`
         );
         return generateIdLabel(element, elementType);
     }
   } catch (error) {
     console.error(
-      `[UnifiedLabelManager] Error generating label for ${elementType}:`,
+      `[LabelManager] Error generating label for ${elementType}:`,
       error
     );
     return element.id || elementType;
@@ -242,7 +242,7 @@ function generateSectionLabel(element, elementType) {
 /**
  * 全ラベルの表示状態を統合的に更新
  */
-export function updateUnifiedLabelVisibility() {
+export function updateLabelVisibility() {
   if (labelUpdateScheduled) {
     return; // 既にスケジュール済み
   }
@@ -263,12 +263,12 @@ function performLabelVisibilityUpdate() {
   const allLabels = getAllLabels();
 
   if (allLabels.length === 0) {
-    console.log("[UnifiedLabelManager] No labels to update");
+    console.log("[LabelManager] No labels to update");
     return;
   }
 
   console.log(
-    `[UnifiedLabelManager] Updating visibility for ${allLabels.length} labels`
+    `[LabelManager] Updating visibility for ${allLabels.length} labels`
   );
 
   let visibleCount = 0;
@@ -290,7 +290,7 @@ function performLabelVisibilityUpdate() {
   });
 
   console.log(
-    `[UnifiedLabelManager] Updated: ${visibleCount} shown, ${hiddenCount} hidden`
+    `[LabelManager] Updated: ${visibleCount} shown, ${hiddenCount} hidden`
   );
 
   // 再描画をリクエスト
@@ -320,7 +320,7 @@ function updateLabelVisibilityForType(elementType) {
   });
 
   console.log(
-    `[UnifiedLabelManager] Updated ${
+    `[LabelManager] Updated ${
       typeLabels.length
     } ${elementType} labels to ${isVisible ? "visible" : "hidden"}`
   );
@@ -418,7 +418,7 @@ function isLabelModelVisible(label) {
  * 全ラベルを再生成
  */
 export function regenerateAllLabels() {
-  console.log("[UnifiedLabelManager] Regenerating all labels");
+  console.log("[LabelManager] Regenerating all labels");
 
   // ラベル再生成ロジック
   import("./labelRegeneration.js").then(
@@ -428,7 +428,7 @@ export function regenerateAllLabels() {
       }
 
       // 再生成後に表示状態を更新
-      updateUnifiedLabelVisibility();
+      updateLabelVisibility();
     }
   );
 }
@@ -455,10 +455,10 @@ export function getAvailableLabelContentTypes() {
  * この関数は colorModes.js から呼び出される
  */
 export function handleColorModeChange() {
-  console.log("[UnifiedLabelManager] Handling color mode change");
+  console.log("[LabelManager] Handling color mode change");
 
   // ラベルの表示状態を再計算
-  updateUnifiedLabelVisibility();
+  updateLabelVisibility();
 
   // 必要に応じてラベル内容も更新
   // （色付けモードによってはラベル内容も変更される可能性）

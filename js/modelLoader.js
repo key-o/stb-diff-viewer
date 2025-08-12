@@ -45,10 +45,12 @@ import {
   setGlobalStateForUI,
   updateStorySelector,
   updateAxisSelectors,
-  updateUnifiedLabelVisibility,
+  updateLabelVisibility,
 } from "./ui.js";
 import { initViewModes, updateModelVisibility } from "./viewModes.js";
 import { setState, getState } from "./core/globalState.js";
+import { JsonDisplayIntegration } from "./viewer/integration/jsonDisplayIntegration.js";
+import { processJsonIntegratedModels, detectJsonIntegrationSupport } from "./modelLoader/jsonIntegration.js";
 
 // Refactored modules
 import {
@@ -131,6 +133,10 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
 
   const { fileA, fileB } = fileValidation;
   const selectedElementTypes = getSelectedElementTypes();
+  
+  // JSON統合機能の検出とサポート
+  const jsonSupport = detectJsonIntegrationSupport(fileA, fileB);
+  const { hasJsonFiles, isJsonFileA, isJsonFileB } = jsonSupport;
 
   // Validate comparison parameters
   const paramValidation = validateComparisonParameters({
@@ -165,6 +171,34 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
   try {
     // Phase 2: Model Document Processing
     console.log("=== Phase 2: Model Processing ===");
+    
+    // JSON統合処理
+    if (hasJsonFiles) {
+      const jsonIntegration = new JsonDisplayIntegration();
+      console.log("JsonDisplayIntegration初期化完了 - ProfileBased生成器使用");
+      
+      // JSON統合表示システムを活用した処理
+      const jsonDisplayResult = await processJsonIntegratedModels(
+        fileA, fileB, isJsonFileA, isJsonFileB, jsonIntegration
+      );
+      
+      if (jsonDisplayResult.success) {
+        console.log("JSON統合処理完了 - ProfileBased表示システム使用");
+        console.log(`生成統計: ${JSON.stringify(jsonDisplayResult.statistics)}`);
+        
+        // UI更新（必要に応じて）
+        if (scheduleRender) {
+          scheduleRender();
+        }
+        
+        return jsonDisplayResult.result;
+      } else {
+        console.error("JSON統合処理失敗:", jsonDisplayResult.error);
+        alert(`JSON統合処理エラー: ${jsonDisplayResult.error}`);
+        return false;
+      }
+    }
+    
     const processingResult = await processModelDocuments(fileA, fileB);
 
     if (!processingResult.success) {

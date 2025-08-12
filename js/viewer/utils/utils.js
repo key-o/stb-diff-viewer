@@ -14,6 +14,7 @@
  */
 
 import { getState } from "../../core/globalState.js";
+import { createLogger } from "../../utils/logger.js";
 
 import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
 import {
@@ -24,6 +25,8 @@ import {
   elementGroups,
 } from "../core/core.js"; // elementGroups もインポート
 import { materials } from "../rendering/materials.js"; // materials をインポート
+
+const log = createLogger("viewer:utils");
 
 // animate 関数は core.js で定義されているため、utils.js からは削除
 
@@ -102,7 +105,7 @@ export function createOrUpdateGridHelper(modelBounds) {
   // ★★★ グリッドサイズと分割数を mm 単位で調整 ★★★
   const gridSize = Math.max(size.x, size.y, 20000) * 1.5; // 最小20m
   const divisions = Math.max(10, Math.floor(gridSize / 1000)); // 1m間隔程度を目安に
-  console.log(
+  log.info(
     `Creating grid: Size=${gridSize.toFixed(
       0
     )}mm, Divisions=${divisions}, Center(XY)=(${center.x.toFixed(
@@ -127,9 +130,19 @@ export function createOrUpdateGridHelper(modelBounds) {
  */
 export function adjustCameraToFitModel(modelBounds, camera, controls) {
   if (modelBounds.isEmpty()) {
-    controls.target.set(0, 0, 0);
+    // モデルが空の場合のみ、controls.targetを原点にリセット
+    // ただし、既にユーザーが設定した回転中心がある場合は保持する
+    const currentTarget = controls.target.clone();
+    const isDefaultTarget = currentTarget.equals(new THREE.Vector3(0, 0, 0));
+
+    if (isDefaultTarget) {
+      controls.target.set(0, 0, 0);
+    }
     // ★★★ デフォルト位置も mm 単位に ★★★
     camera.position.set(10000, 10000, 20000); // 10m, 10m, 20m
+    // 広いモデルでも自由に回せるよう、回転制限を緩和
+    if ("minAzimuthAngle" in controls) controls.minAzimuthAngle = -Infinity;
+    if ("maxAzimuthAngle" in controls) controls.maxAzimuthAngle = Infinity;
     controls.update();
     return;
   }
@@ -173,7 +186,7 @@ export function adjustCameraToFitModel(modelBounds, camera, controls) {
     center.z + cameraDist
   );
   controls.target.copy(center);
-  console.log(
+  log.info(
     `Adjusting Camera: Position=(${camera.position.x.toFixed(
       0
     )}mm, ${camera.position.y.toFixed(0)}mm, ${camera.position.z.toFixed(
@@ -182,6 +195,9 @@ export function adjustCameraToFitModel(modelBounds, camera, controls) {
       0
     )}mm, ${controls.target.y.toFixed(0)}mm, ${controls.target.z.toFixed(0)}mm)`
   );
+  // 広いモデルでも自由に回せるよう、回転制限を緩和
+  if ("minAzimuthAngle" in controls) controls.minAzimuthAngle = -Infinity;
+  if ("maxAzimuthAngle" in controls) controls.maxAzimuthAngle = Infinity;
   controls.update();
 
   // ファークリップ面を再調整
@@ -199,15 +215,15 @@ export function adjustCameraToFitModel(modelBounds, camera, controls) {
  */
 export function applyClipping(axis, centerCoord, range = 1000) {
   // ★★★ デフォルト値は 1000 (1m) のまま ★★★
-  console.log(
+  log.debug(
     `applyClipping called for axis ${axis} at ${centerCoord}mm with range ${range}mm. Checking renderer state...` // ログの単位を明確化
   );
   if (!renderer) {
-    console.error("Renderer is not initialized when applyClipping was called!");
+    log.error("Renderer is not initialized when applyClipping was called!");
     alert("クリッピングエラー: レンダラーが初期化されていません。");
     return;
   }
-  console.log("Renderer found in applyClipping:", renderer);
+  log.trace("Renderer found in applyClipping:", renderer);
   try {
     let planeNormal1 = new THREE.Vector3();
     let planeNormal2 = new THREE.Vector3();
@@ -248,13 +264,13 @@ export function applyClipping(axis, centerCoord, range = 1000) {
     // renderer.localClippingEnabled = true;
     applyClipPlanes(clipPlanes); // 既存の applyClipPlanes 関数を再利用
 
-    console.log(
+    log.info(
       `Clipping planes set via applyClipPlanes for ${axis}-axis at ${centerCoord.toFixed(
         0
       )}mm ± ${range.toFixed(0)}mm.`
     );
   } catch (error) {
-    console.error("Error setting clipping planes:", error);
+    log.error("Error setting clipping planes:", error);
     alert("クリッピング中にエラーが発生しました。");
   }
 }
@@ -264,25 +280,25 @@ export function applyClipping(axis, centerCoord, range = 1000) {
  * - clippingPlanesを空にし、localClippingEnabledをfalseに
  */
 export function clearClippingPlanes() {
-  console.log("clearClippingPlanes called. Checking renderer state...");
+  log.debug("clearClippingPlanes called. Checking renderer state...");
   if (!renderer) {
-    console.error(
+    log.error(
       "Renderer is not initialized when clearClippingPlanes was called!"
     );
     alert("クリッピング解除エラー: レンダラーが初期化されていません。");
     return;
   }
-  console.log("Renderer found in clearClippingPlanes:", renderer);
+  log.trace("Renderer found in clearClippingPlanes:", renderer);
   try {
-    console.log("Attempting to clear clipping...");
+    log.trace("Attempting to clear clipping...");
     renderer.clippingPlanes.length = 0;
     renderer.localClippingEnabled = false;
-    console.log(
+    log.info(
       "Clipping planes cleared. localClippingEnabled:",
       renderer.localClippingEnabled
     );
   } catch (error) {
-    console.error("Error clearing clipping planes:", error);
+    log.error("Error clearing clipping planes:", error);
     alert("クリッピング解除中にエラーが発生しました。");
   }
 }
@@ -295,20 +311,20 @@ export function clearClippingPlanes() {
  */
 export function applyClipPlanes(planes) {
   if (!renderer) {
-    console.error("Renderer not available in applyClipPlanes.");
+    log.error("Renderer not available in applyClipPlanes.");
     return;
   }
   if (!planes || planes.length === 0) {
-    console.warn("No planes provided to applyClipPlanes.");
+    log.warn("No planes provided to applyClipPlanes.");
     // Optionally clear existing planes if none are provided
     // clearClippingPlanes();
     return;
   }
 
   // ★★★ 設定する平面の詳細をログ出力 ★★★
-  console.log(`Applying ${planes.length} clipping planes to renderer:`);
+  log.debug(`Applying ${planes.length} clipping planes to renderer:`);
   planes.forEach((plane, index) => {
-    console.log(
+    log.trace(
       `  Plane ${index}: Normal=(${plane.normal.x.toFixed(
         3
       )}, ${plane.normal.y.toFixed(3)}, ${plane.normal.z.toFixed(
@@ -320,7 +336,7 @@ export function applyClipPlanes(planes) {
   renderer.clippingPlanes = planes;
   renderer.localClippingEnabled = true; // ローカルクリッピングを有効化
 
-  console.log(
+  log.info(
     `Applied ${planes.length} clipping planes. localClippingEnabled: ${renderer.localClippingEnabled}`
   );
 
@@ -368,9 +384,9 @@ export function updateMaterialClippingPlanes() {
       }
     });
   });
-  console.log("Updated clipping planes for all materials.");
+  log.info("Updated clipping planes for all materials.");
   // 再描画を要求
-  const scheduleRender = getState('rendering.scheduleRender');
+  const scheduleRender = getState("rendering.scheduleRender");
   if (scheduleRender) {
     scheduleRender();
   }
@@ -429,7 +445,7 @@ export async function loadStbXmlAutoEncoding(src) {
  */
 export function getModelBounds() {
   if (!scene || !elementGroups) {
-    console.warn("Scene or elementGroups not available for bounds calculation");
+    log.warn("Scene or elementGroups not available for bounds calculation");
     return null;
   }
 
@@ -453,15 +469,15 @@ export function getModelBounds() {
   }
 
   if (!hasElements) {
-    console.warn("No elements found for bounds calculation");
+    log.warn("No elements found for bounds calculation");
     return null;
   }
 
-  console.log("Model bounds calculated:", {
+  log.info("Model bounds calculated:", {
     min: box.min,
     max: box.max,
     center: box.getCenter(new THREE.Vector3()),
-    size: box.getSize(new THREE.Vector3())
+    size: box.getSize(new THREE.Vector3()),
   });
 
   return box;

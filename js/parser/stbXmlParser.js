@@ -15,37 +15,18 @@
 // --- 定数 ---
 const STB_NAMESPACE = "https://www.building-smart.or.jp/dl";
 
-export function parseSTB(fileContent) {
-  // STBファイルのパースロジックを実装
-  // パースデータを返す
-}
-
 // --- XMLパース関数 ---
-/**
- * XML文字列をDOMオブジェクトにパースする。
- * @param {string} xmlText - パースするXML文字列。
- * @returns {Document|null} パースされたXMLドキュメント、またはエラー時にnull。
- */
-export function parseXml(xmlText) {
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(xmlText, "application/xml");
-    const errorNode = doc.querySelector("parsererror");
-    if (errorNode) {
-      console.error("XML Parse Error:", errorNode.textContent);
-      throw new Error("XMLファイルのパースに失敗しました。");
-    }
-    return doc;
-  } catch (error) {
-    console.error("XML パース中にエラー:", error);
-    alert(`エラー: ${error.message}`);
-    return null;
-  }
-}
+// parseXml関数は削除されました（未使用のため）
 
 // --- ノードマップ構築関数 ---
 /**
  * XMLドキュメントからノード情報を読み取り、ノードIDと座標のマッピングを作成する。
+ *
+ * **用途**:
+ * - 3D立体表示: 柱・梁・ブレースのメッシュ配置座標として使用
+ * - 線分表示: 構造線の端点座標として使用
+ * - 要素間接続: 構造要素の結合部解析に使用
+ *
  * @param {Document} doc - パースされたXMLドキュメント。
  * @returns {Map<string, {x: number, y: number, z: number}>} ノードIDをキー、座標オブジェクト(mm単位)を値とするMap。
  */
@@ -107,6 +88,12 @@ export function buildNodeMap(doc) {
 // --- 階情報パース関数 ---
 /**
  * XMLドキュメントから階情報をパースする。
+ *
+ * **用途**:
+ * - 3D立体表示: 階レベル平面の立体表示・クリッピング平面設定
+ * - 線分表示: 階高線・レベル線の2D表示
+ * - UI制御: 階セレクターでの階別表示切り替え
+ *
  * この関数で取得した階情報（名前、高さ）は、ビュー上に階名やレベル線を表示するために使用できます。
  * @param {Document} doc - パースされたXMLドキュメント。
  * @returns {Array<{id: string, name: string, height: number}>} 階情報の配列（高さ(mm単位)でソート済み）。
@@ -154,6 +141,12 @@ export function parseStories(doc) {
 // --- 通り芯情報パース関数 ---
 /**
  * ST-Bridge XMLドキュメントから通り芯データをパースする。
+ *
+ * **用途**:
+ * - 3D立体表示: 通り芯の立体グリッド表示・参照平面設定
+ * - 線分表示: 通り芯線の2D表示・建築図面風表示
+ * - UI制御: 軸セレクターでの軸別表示切り替え
+ *
  * <StbParallelAxes>内の<StbParallelAxis>を検索するように修正。
  * @param {XMLDocument} doc - パース済みのXMLドキュメント。
  * @returns {object} 軸データ ({ xAxes: [], yAxes: [] }) (距離はmm単位)。
@@ -249,6 +242,12 @@ export function parseAxes(doc) {
 // --- 要素パース関数 (汎用) ---
 /**
  * 指定された要素タイプの要素をXMLドキュメントから取得する。
+ *
+ * **用途**:
+ * - 3D立体表示: メッシュジオメトリ生成の基礎データ
+ * - 線分表示: 構造線生成の基礎データ
+ * - 比較処理: モデルA・B間の要素差分解析
+ *
  * @param {Document} doc - パースされたXMLドキュメント。
  * @param {string} elementType - 取得する要素のタグ名 (例: "StbColumn")。
  * @returns {Array<Element>} 取得した要素の配列。
@@ -258,26 +257,32 @@ export function parseElements(doc, elementType) {
   return [...doc.getElementsByTagNameNS(STB_NAMESPACE, elementType)];
 }
 
-export function parseXML(fileContent) {
-  // XMLファイルのパースロジックを実装
-  // パースデータを返す
-}
-
-export function extractRelevantData(parsedData) {
-  // パースデータから関連データを抽出するロジックを実装
-  // 抽出データを返す
-}
-
 // --- 鋼材形状データ抽出関数 ---
 /**
  * 鋼材形状データを抽出する
+ *
+ * **用途**:
+ * - 3D立体表示: H鋼・角鋼管などの正確な断面形状メッシュ生成
+ * - 線分表示: 簡略化された構造線の太さ・スタイル設定
+ * - 断面設計: 構造計算・断面性能表示
+ *
  * @param {Document} xmlDoc - パース済みのXMLドキュメント
  * @return {Map} 鋼材名をキーとする形状データのマップ
  */
 export function extractSteelSections(xmlDoc) {
   const steelSections = new Map();
-  // StbSecSteel 要素を取得 (名前空間は考慮しないquerySelectorを使用)
-  const steelSectionList = xmlDoc.querySelector("StbSecSteel");
+  // xmlDoc 安全性チェック
+  if (!xmlDoc) {
+    console.warn("extractSteelSections: xmlDoc is null or undefined");
+    return steelSections;
+  }
+  // StbSecSteel 要素を取得（まずは querySelector、なければ NS 検索にフォールバック）
+  let steelSectionList =
+    (typeof xmlDoc.querySelector === "function" &&
+      xmlDoc.querySelector("StbSecSteel")) ||
+    (typeof xmlDoc.getElementsByTagNameNS === "function" &&
+      xmlDoc.getElementsByTagNameNS(STB_NAMESPACE, "StbSecSteel")[0]) ||
+    null;
 
   if (steelSectionList) {
     for (const steelEl of steelSectionList.children) {
@@ -295,6 +300,20 @@ export function extractSteelSections(xmlDoc) {
             sectionData[attr.name] = attr.value;
           }
         }
+
+        // 形状タイプ(kind_struct)をタグ/属性から推定
+        const tag = (sectionData.elementTag || "").toUpperCase();
+        let kind = undefined;
+        if (tag.includes("-H")) kind = "H";
+        else if (tag.includes("-BOX")) kind = "BOX";
+        else if (tag.includes("PIPE")) kind = "PIPE";
+        else if (tag.includes("-C")) kind = "C";
+        else if (tag.includes("-L")) kind = "L";
+        else if (tag.includes("-T")) kind = "T";
+        // type属性で判別できる場合の簡易対応（例: BCR は角形鋼管系としてBOXとみなす）
+        const typeAttr = (sectionData.shapeTypeAttr || "").toUpperCase();
+        if (!kind && typeAttr === "BCR") kind = "BOX";
+        if (kind) sectionData.kind_struct = kind;
 
         steelSections.set(name, sectionData);
       } else {
@@ -317,6 +336,12 @@ export { extractAllSections } from "./sectionExtractor.js";
 // --- 柱要素データ抽出関数 ---
 /**
  * 柱要素データを抽出する
+ *
+ * **用途**:
+ * - 3D立体表示: 縦方向メッシュ（底部ノード→頂部ノード）生成
+ * - 線分表示: 垂直構造線（Z軸方向ライン）生成
+ * - 構造解析: 柱の軸力・曲げ解析用データ
+ *
  * @param {Document} xmlDoc - パース済みのXMLドキュメント
  * @return {Array} 柱要素データの配列
  */
@@ -336,6 +361,12 @@ export function extractColumnElements(xmlDoc) {
     // const offset_x = colEl.getAttribute("offset_x"); // オフセット (mm)
     // const offset_y = colEl.getAttribute("offset_y"); // オフセット (mm)
 
+    // ST-Bridgeのインスタンスオフセット（柱用: bottom/top, X/Y）
+    const offset_bottom_X = colEl.getAttribute("offset_bottom_X");
+    const offset_bottom_Y = colEl.getAttribute("offset_bottom_Y");
+    const offset_top_X = colEl.getAttribute("offset_top_X");
+    const offset_top_Y = colEl.getAttribute("offset_top_Y");
+
     if (id && idNodeBottom && idNodeTop && idSection) {
       const elementData = {
         id: id,
@@ -347,6 +378,11 @@ export function extractColumnElements(xmlDoc) {
         // rotate: rotate ? parseFloat(rotate) : 0,
         // offset_x: offset_x ? parseFloat(offset_x) : 0,
         // offset_y: offset_y ? parseFloat(offset_y) : 0,
+        // インスタンスオフセット（存在すれば数値で格納、なければ0）
+        offset_bottom_X: offset_bottom_X ? parseFloat(offset_bottom_X) : 0,
+        offset_bottom_Y: offset_bottom_Y ? parseFloat(offset_bottom_Y) : 0,
+        offset_top_X: offset_top_X ? parseFloat(offset_top_X) : 0,
+        offset_top_Y: offset_top_Y ? parseFloat(offset_top_Y) : 0,
       };
       columnElementsData.push(elementData);
     } else {
@@ -362,6 +398,12 @@ export function extractColumnElements(xmlDoc) {
 
 /**
  * 梁要素データを抽出する（汎用関数）
+ *
+ * **用途**:
+ * - 3D立体表示: 水平方向メッシュ（始点ノード→終点ノード）生成
+ * - 線分表示: 水平構造線（XY平面ライン）生成
+ * - 構造解析: 梁のせん断・曲げ解析用データ
+ *
  * @param {Document} xmlDoc - パース済みのXMLドキュメント
  * @param {string} elementType - 要素タイプ（"StbBeam" または "StbGirder"）
  * @return {Array} 梁要素データの配列
@@ -377,14 +419,41 @@ function extractBeamLikeElements(xmlDoc, elementType) {
     const idSection = el.getAttribute("id_section");
     const name = el.getAttribute("name");
 
+    // ST-Bridgeのインスタンスオフセット（梁・大梁・ブレースで共通的に現れる可能性あり）
+    const offset_start_X = el.getAttribute("offset_start_X");
+    const offset_start_Y = el.getAttribute("offset_start_Y");
+    const offset_start_Z = el.getAttribute("offset_start_Z");
+    const offset_end_X = el.getAttribute("offset_end_X");
+    const offset_end_Y = el.getAttribute("offset_end_Y");
+    const offset_end_Z = el.getAttribute("offset_end_Z");
+
     if (id && idNodeStart && idNodeEnd && idSection) {
-      elementsData.push({
+      const data = {
         id: id,
         id_node_start: idNodeStart,
         id_node_end: idNodeEnd,
         id_section: idSection,
         name: name,
-      });
+      };
+
+      // オフセット属性が1つでも存在すれば数値化して格納
+      if (
+        offset_start_X !== null ||
+        offset_start_Y !== null ||
+        offset_start_Z !== null ||
+        offset_end_X !== null ||
+        offset_end_Y !== null ||
+        offset_end_Z !== null
+      ) {
+        data.offset_start_X = offset_start_X ? parseFloat(offset_start_X) : 0;
+        data.offset_start_Y = offset_start_Y ? parseFloat(offset_start_Y) : 0;
+        data.offset_start_Z = offset_start_Z ? parseFloat(offset_start_Z) : 0;
+        data.offset_end_X = offset_end_X ? parseFloat(offset_end_X) : 0;
+        data.offset_end_Y = offset_end_Y ? parseFloat(offset_end_Y) : 0;
+        data.offset_end_Z = offset_end_Z ? parseFloat(offset_end_Z) : 0;
+      }
+
+      elementsData.push(data);
     } else {
       console.warn(
         `Skipping ${elementType} element due to missing required attributes: id=${id}`,
@@ -399,6 +468,10 @@ function extractBeamLikeElements(xmlDoc, elementType) {
 
 /**
  * 梁要素データを抽出する
+ *
+ * **対象**: 小梁（構造的に主要でない水平要素）
+ * **用途**: BeamLike要素として extractBeamLikeElements() により処理
+ *
  * @param {Document} xmlDoc - パース済みのXMLドキュメント
  * @return {Array} 梁要素データの配列
  */
@@ -408,9 +481,29 @@ export function extractBeamElements(xmlDoc) {
 
 /**
  * 大梁要素データを抽出する
+ *
+ * **対象**: 大梁（構造的に主要な水平要素）
+ * **用途**: BeamLike要素として extractBeamLikeElements() により処理
+ *
  * @param {Document} xmlDoc - パース済みのXMLドキュメント
  * @return {Array} 大梁要素データの配列
  */
 export function extractGirderElements(xmlDoc) {
   return extractBeamLikeElements(xmlDoc, "StbGirder");
+}
+
+/**
+ * ブレース要素データを抽出する
+ *
+ * **対象**: 斜材・筋交い（耐震・耐風要素）
+ * **用途**:
+ * - 3D立体表示: 斜方向メッシュ（任意角度ライン）生成
+ * - 線分表示: 斜構造線（対角ライン）生成
+ * - 構造解析: ブレースの軸力解析用データ
+ *
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} ブレース要素データの配列
+ */
+export function extractBraceElements(xmlDoc) {
+  return extractBeamLikeElements(xmlDoc, "StbBrace");
 }

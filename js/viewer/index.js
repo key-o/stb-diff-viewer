@@ -12,6 +12,7 @@ import {
   initRenderer,
   animate,
   setupViewportResizeHandler,
+  setSkipControlsUpdate,
 } from "./core/core.js";
 import { materials } from "./rendering/materials.js";
 import {
@@ -45,6 +46,7 @@ export {
   initRenderer,
   animate,
   setupViewportResizeHandler,
+  setSkipControlsUpdate,
   materials,
   drawLineElements,
   drawPolyElements,
