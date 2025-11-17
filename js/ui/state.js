@@ -1,13 +1,13 @@
 /**
- * @fileoverview UI state management module
+ * @fileoverview UI状態管理モジュール
  *
- * This module manages global UI state for the STB Diff Viewer:
- * - Global label storage and management
- * - Story data tracking
- * - Axis data tracking
- * - State synchronization between modules
+ * このモジュールはSTB Diff ViewerのグローバルUI状態を管理します：
+ * - グローバルラベル保存と管理
+ * - 階データ追跡
+ * - 軸データ追跡
+ * - モジュール間の状態同期
  *
- * Split from the large ui.js module for better organization.
+ * より良い整理のため、大きなui.jsモジュールから分割されました。
  */
 
 // --- Global UI State ---

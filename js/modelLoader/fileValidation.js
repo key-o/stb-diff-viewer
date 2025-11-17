@@ -1,13 +1,13 @@
 /**
- * @fileoverview File validation and input processing module
+ * @fileoverview ファイル検証・入力処理モジュール
  *
- * This module handles file validation and input processing for STB model comparison:
- * - File input validation and retrieval
- * - Element type selection validation
- * - UI state management for loading process
- * - Input parameter validation
+ * このモジュールはSTBモデル比較のファイル検証と入力処理を処理します：
+ * - ファイル入力検証と取得
+ * - 要素タイプ選択検証
+ * - 読み込みプロセスのUI状態管理
+ * - 入力パラメータ検証
  *
- * Extracted from the massive compareModels() function for better maintainability.
+ * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
 /**

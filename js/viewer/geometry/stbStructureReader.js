@@ -19,7 +19,7 @@
  * @requires ./stbXmlParser
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 // ★★★ stbXmlParser からインポートする関数を追加 ★★★
 import {
   buildNodeMap,
@@ -27,9 +27,13 @@ import {
   extractSteelSections,
   extractAllSections, // 統一断面抽出エンジン
   extractColumnElements,
+  extractPostElements,
   extractBeamElements,
   extractGirderElements,
   extractBraceElements,
+  extractPileElements, // 杭要素の抽出
+  extractFootingElements, // 基礎要素の抽出
+  extractFoundationColumnElements, // 基礎柱要素の抽出
 } from "../../parser/stbXmlParser.js";
 import { ensureUnifiedSectionType } from "../../common/sectionTypeUtil.js";
 
@@ -50,9 +54,11 @@ export function parseStbFile(xmlDoc) {
       nodes: new Map(),
       steelSections: emptyMap,
       columnSections: emptyMap,
+      postSections: emptyMap,
       beamSections: emptyMap,
       braceSections: emptyMap,
       columnElements: [],
+      postElements: [],
       beamElements: [],
       girderElements: [],
       braceElements: [],
@@ -74,26 +80,49 @@ export function parseStbFile(xmlDoc) {
   // 3. 統一断面抽出エンジンによる断面データ抽出
   const sectionMaps = extractAllSections(xmlDoc);
   const columnSections = sectionMaps.columnSections;
+  const postSections = sectionMaps.postSections;
   const beamSections = sectionMaps.beamSections;
   const braceSections = sectionMaps.braceSections;
+  const pileSections = sectionMaps.pileSections;
+  const footingSections = sectionMaps.footingSections;
+  const foundationColumnSections = sectionMaps.foundationcolumnSections;
   console.log(
     "Section Maps loaded - Column:",
     columnSections.size,
+    "Post:",
+    postSections.size,
     "Beam:",
     beamSections.size,
     "Brace:",
-    braceSections.size
+    braceSections.size,
+    "Pile:",
+    pileSections?.size || 0,
+    "Footing:",
+    footingSections?.size || 0,
+    "FoundationColumn:",
+    foundationColumnSections?.size || 0
   );
 
   // 追加: steelSections 情報を用いて抽出断面に寸法/種別を付加
   enrichSectionMapsWithSteelDimensions(
-    { columnSections, beamSections, braceSections },
+    {
+      columnSections,
+      postSections,
+      beamSections,
+      braceSections,
+      pileSections,
+      footingSections,
+      foundationColumnSections,
+    },
     steelSections
   );
 
   // 4. 要素データの抽出 (stbXmlParserから呼び出し)
   const columnElements = extractColumnElements(xmlDoc);
   console.log("Column Elements loaded:", columnElements.length);
+
+  const postElements = extractPostElements(xmlDoc);
+  console.log("Post Elements loaded:", postElements.length);
 
   const beamElements = extractBeamElements(xmlDoc);
   console.log("Beam Elements loaded:", beamElements.length);
@@ -104,18 +133,32 @@ export function parseStbFile(xmlDoc) {
   const braceElements = extractBraceElements(xmlDoc);
   console.log("Brace Elements loaded:", braceElements.length);
 
+  const pileElements = extractPileElements(xmlDoc);
+  console.log("Pile Elements loaded:", pileElements.length);
+
+  const footingElements = extractFootingElements(xmlDoc);
+  console.log("Footing Elements loaded:", footingElements.length);
+
+  const foundationColumnElements = extractFoundationColumnElements(xmlDoc);
+  console.log("Foundation Column Elements loaded:", foundationColumnElements.length);
+
   // 5. グローバル公開（診断/デバッグ用）
   if (typeof window !== "undefined") {
     window.stbParsedData = {
       nodes,
       steelSections,
       columnSections,
+      postSections,
       beamSections,
       braceSections,
       columnElements,
+      postElements,
       beamElements,
       girderElements,
       braceElements,
+      pileElements,
+      footingElements,
+      foundationColumnElements,
     };
     window.steelSections = steelSections; // 既存診断ロジック参照用
   }
@@ -124,12 +167,20 @@ export function parseStbFile(xmlDoc) {
     nodes, // THREE.Vector3 の Map
     steelSections, // 汎用データ
     columnSections, // 統一エンジンから抽出
+    postSections, // 統一エンジンから抽出（間柱）
     beamSections, // 統一エンジンから抽出
     braceSections, // 統一エンジンから抽出（新規追加）
+    pileSections, // 統一エンジンから抽出（杭断面）
+    footingSections, // 統一エンジンから抽出（基礎断面）
+    foundationColumnSections, // 統一エンジンから抽出（基礎柱断面）
     columnElements, // 汎用データ
+    postElements, // 間柱要素のデータ（新規追加）
     beamElements,
     girderElements, // 大梁要素のデータ
     braceElements, // ブレース要素のデータ（新規追加）
+    pileElements, // 杭要素のデータ（新規追加）
+    footingElements, // 基礎要素のデータ（新規追加）
+    foundationColumnElements, // 基礎柱要素のデータ（新規追加）
   };
 }
 
@@ -138,8 +189,12 @@ function enrichSectionMapsWithSteelDimensions(sectionMaps, steelSections) {
   if (!steelSections || !steelSections.size) return;
   const maps = [
     sectionMaps.columnSections,
+    sectionMaps.postSections,
     sectionMaps.beamSections,
     sectionMaps.braceSections,
+    sectionMaps.pileSections,
+    sectionMaps.footingSections,
+    sectionMaps.foundationColumnSections,
   ];
   for (const m of maps) {
     if (!m) continue;

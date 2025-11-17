@@ -12,7 +12,7 @@
  * 3Dシーンに追加するための中核的な描画機能を担当します。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 import { createLogger } from "../../utils/logger.js";
 import { createLabelSprite } from "../ui/labels.js";
 import { generateLabelText } from "../../ui/unifiedLabelManager.js";

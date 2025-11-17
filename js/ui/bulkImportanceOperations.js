@@ -15,6 +15,7 @@
 import { getImportanceManager, IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES, STB_ELEMENT_TABS } from '../core/importanceManager.js';
 import { IMPORTANCE_COLORS } from '../config/importanceConfig.js';
 import { getState, setState } from '../core/globalState.js';
+import { floatingWindowManager } from './floatingWindowManager.js';
 
 /**
  * 一括操作履歴エントリー
@@ -60,8 +61,33 @@ export class BulkImportanceOperations {
     this.containerElement = containerElement;
     this.createPanelHTML();
     this.bindEvents();
-    
+
+    // Windowマネージャに登録
+    this.registerWithWindowManager();
+
     console.log('BulkImportanceOperations initialized');
+  }
+
+  /**
+   * Windowマネージャに登録
+   */
+  registerWithWindowManager() {
+    floatingWindowManager.registerWindow({
+      windowId: 'bulk-operations-panel',
+      toggleButtonId: null, // ボタンは手動で管理
+      closeButtonId: 'bulk-operations-close',
+      headerId: 'bulk-operations-header',
+      draggable: true,
+      autoShow: false,
+      onShow: () => {
+        this.isVisible = true;
+        setState('ui.bulkOperationsPanelVisible', true);
+      },
+      onHide: () => {
+        this.isVisible = false;
+        setState('ui.bulkOperationsPanelVisible', false);
+      }
+    });
   }
 
   /**
@@ -69,13 +95,15 @@ export class BulkImportanceOperations {
    */
   createPanelHTML() {
     const panelHTML = `
-      <div id="bulk-operations-panel" class="bulk-operations-panel" style="display: none;">
-        <div class="panel-header">
-          <h3>一括操作</h3>
-          <button id="bulk-operations-close" class="close-button">×</button>
+      <div id="bulk-operations-panel" class="floating-window">
+        <div class="float-window-header" id="bulk-operations-header">
+          <span class="float-window-title">⚙️ 一括操作</span>
+          <div class="float-window-controls">
+            <button class="float-window-btn" id="bulk-operations-close">✕</button>
+          </div>
         </div>
-        
-        <div class="panel-content">
+
+        <div class="float-window-content">
           <!-- 要素タイプ別一括設定 -->
           <div class="operation-section">
             <div class="section-header">
@@ -240,9 +268,10 @@ export class BulkImportanceOperations {
             </div>
           </div>
         </div>
+        </div>
       </div>
     `;
-    
+
     this.containerElement.insertAdjacentHTML('beforeend', panelHTML);
     this.addStyles();
   }
@@ -267,6 +296,11 @@ export class BulkImportanceOperations {
           box-shadow: 0 4px 12px rgba(0,0,0,0.3);
           z-index: 1000;
           overflow-y: auto;
+          display: none;
+        }
+
+        .bulk-operations-panel.visible {
+          display: block;
         }
         
         .bulk-operations-panel .panel-header {
@@ -1342,29 +1376,21 @@ export class BulkImportanceOperations {
    * パネルを表示する
    */
   show() {
-    document.getElementById('bulk-operations-panel').style.display = 'block';
-    this.isVisible = true;
-    setState('ui.bulkOperationsPanelVisible', true);
+    floatingWindowManager.showWindow('bulk-operations-panel');
   }
 
   /**
    * パネルを非表示にする
    */
   hide() {
-    document.getElementById('bulk-operations-panel').style.display = 'none';
-    this.isVisible = false;
-    setState('ui.bulkOperationsPanelVisible', false);
+    floatingWindowManager.hideWindow('bulk-operations-panel');
   }
 
   /**
    * パネルの表示状態を切り替える
    */
   toggle() {
-    if (this.isVisible) {
-      this.hide();
-    } else {
-      this.show();
-    }
+    floatingWindowManager.toggleWindow('bulk-operations-panel');
   }
 }
 

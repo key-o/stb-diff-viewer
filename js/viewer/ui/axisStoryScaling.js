@@ -5,7 +5,7 @@
  * 常に見やすいサイズで表示するための機能を提供します。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 import { camera, scene } from "../core/core.js";
 
 // --- 設定定数 ---

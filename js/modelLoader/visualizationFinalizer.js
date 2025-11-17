@@ -1,14 +1,14 @@
 /**
- * @fileoverview Visualization finalization module
+ * @fileoverview 可視化最終処理モジュール
  *
- * This module handles final steps of model visualization:
- * - UI updates and state synchronization
- * - Camera positioning and view fitting
- * - Grid helper creation
- * - Model visibility management
- * - Global state updates
+ * このモジュールはモデル可視化の最終ステップを処理します：
+ * - UI更新と状態同期
+ * - カメラポジショニングとビューフィッティング
+ * - グリッドヘルパー作成
+ * - モデル可視性管理
+ * - グローバル状態更新
  *
- * Extracted from the massive compareModels() function for better maintainability.
+ * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
 import {
@@ -22,6 +22,7 @@ import {
   createOrUpdateGridHelper,
   adjustCameraToFitModel,
 } from "../viewer/index.js";
+import { adjustDepth2DClippingRangeFromModel } from "../ui/clipping2D.js";
 
 /**
  * Finalize visualization after rendering completion
@@ -179,6 +180,10 @@ function setupCameraAndGrid(modelBounds, cameraControls) {
     } else {
       console.warn("Camera controls not available for fitting");
     }
+
+    // Adjust 2D depth clipping range based on model bounds
+    adjustDepth2DClippingRangeFromModel(modelBounds);
+    console.log("2D depth clipping range adjusted to model bounds");
   } catch (error) {
     console.error("Failed to setup camera and grid:", error);
     throw error;

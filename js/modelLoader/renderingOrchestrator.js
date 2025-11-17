@@ -1,16 +1,16 @@
 /**
- * @fileoverview Rendering orchestration module
+ * @fileoverview レンダリング統制モジュール
  *
- * This module handles 3D rendering orchestration for model comparison:
- * - Element rendering coordination
- * - Label creation and management
- * - Material assignment
- * - Bounds calculation and camera fitting
+ * このモジュールはモデル比較の3Dレンダリング統制を処理します：
+ * - 要素レンダリング調整
+ * - ラベル作成と管理
+ * - 材料割り当て
+ * - 境界計算とカメラフィッティング
  *
- * Extracted from the massive compareModels() function for better maintainability.
+ * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 import {
   materials,
   elementGroups,
@@ -20,6 +20,9 @@ import {
   drawAxes,
   drawStories,
 } from "../viewer/index.js";
+import { PileGenerator } from "../viewer/geometry/PileGenerator.js";
+import { FootingGenerator } from "../viewer/geometry/FootingGenerator.js";
+import { ProfileBasedColumnGenerator } from "../viewer/geometry/ProfileBasedColumnGenerator.js";
 
 /**
  * Orchestrate rendering of all compared elements
@@ -28,13 +31,17 @@ import {
  * @param {Object} globalData - Global data (stories, axes, etc.)
  * @returns {Object} Rendering result
  */
-export function orchestrateElementRendering(comparisonResults, modelBounds, globalData) {
+export function orchestrateElementRendering(
+  comparisonResults,
+  modelBounds,
+  globalData
+) {
   console.log("=== Starting Element Rendering ===");
 
   const renderingResults = {
     nodeLabels: [],
     renderedElements: new Map(),
-    errors: []
+    errors: [],
   };
 
   // Process each element type for rendering
@@ -48,7 +55,7 @@ export function orchestrateElementRendering(comparisonResults, modelBounds, glob
       );
 
       renderingResults.renderedElements.set(elementType, elementRenderResult);
-      
+
       // Collect node labels
       if (elementRenderResult.labels) {
         renderingResults.nodeLabels.push(...elementRenderResult.labels);
@@ -56,14 +63,13 @@ export function orchestrateElementRendering(comparisonResults, modelBounds, glob
 
       console.log(`${elementType} rendering complete:`, {
         meshesCreated: elementRenderResult.meshCount,
-        labelsCreated: elementRenderResult.labels?.length || 0
+        labelsCreated: elementRenderResult.labels?.length || 0,
       });
-
     } catch (error) {
       console.error(`Error rendering ${elementType}:`, error);
       renderingResults.errors.push({
         elementType,
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -74,8 +80,8 @@ export function orchestrateElementRendering(comparisonResults, modelBounds, glob
   } catch (error) {
     console.error("Error rendering auxiliary elements:", error);
     renderingResults.errors.push({
-      elementType: 'auxiliary',
-      error: error.message
+      elementType: "auxiliary",
+      error: error.message,
     });
   }
 
@@ -93,7 +99,12 @@ export function orchestrateElementRendering(comparisonResults, modelBounds, glob
  * @param {Object} globalData - Global data
  * @returns {Object} Rendering result for this element type
  */
-function renderElementType(elementType, comparisonResult, modelBounds, globalData) {
+function renderElementType(
+  elementType,
+  comparisonResult,
+  modelBounds,
+  globalData
+) {
   const group = elementGroups[elementType];
   if (!group) {
     throw new Error(`Element group not found for type: ${elementType}`);
@@ -105,12 +116,14 @@ function renderElementType(elementType, comparisonResult, modelBounds, globalDat
   const result = {
     meshCount: 0,
     labels: [],
-    groupVisible: group.visible
+    groupVisible: group.visible,
   };
 
   // Skip rendering if error occurred during comparison
   if (comparisonResult.error) {
-    console.warn(`Skipping rendering for ${elementType} due to comparison error`);
+    console.warn(
+      `Skipping rendering for ${elementType} due to comparison error`
+    );
     return result;
   }
 
@@ -130,6 +143,7 @@ function renderElementType(elementType, comparisonResult, modelBounds, globalDat
       break;
 
     case "Column":
+    case "Post":
     case "Girder":
     case "Beam":
     case "Brace":
@@ -149,6 +163,21 @@ function renderElementType(elementType, comparisonResult, modelBounds, globalDat
         comparisonResult,
         materials,
         group,
+        createLabels,
+        modelBounds
+      );
+      break;
+
+    case "Pile":
+    case "Footing":
+    case "FoundationColumn":
+      // 杭・基礎・基礎柱は線分要素として描画
+      // 将来的には専用のジェネレーターを使った3D表示も可能
+      result.labels = drawLineElements(
+        comparisonResult,
+        materials,
+        group,
+        elementType,
         createLabels,
         modelBounds
       );
@@ -176,9 +205,16 @@ function renderAuxiliaryElements(globalData, renderingResults, modelBounds) {
   // Render axes
   if (axesData && (axesData.xAxes.length > 0 || axesData.yAxes.length > 0)) {
     try {
-      const axisLabels = drawAxes(axesData, elementGroups["Axis"], modelBounds, true);
+      const axisLabels = drawAxes(
+        axesData,
+        elementGroups["Axis"],
+        modelBounds,
+        true
+      );
       renderingResults.nodeLabels.push(...axisLabels);
-      console.log(`Rendered axes: X=${axesData.xAxes.length}, Y=${axesData.yAxes.length}`);
+      console.log(
+        `Rendered axes: X=${axesData.xAxes.length}, Y=${axesData.yAxes.length}`
+      );
     } catch (error) {
       console.error("Error rendering axes:", error);
     }
@@ -187,7 +223,12 @@ function renderAuxiliaryElements(globalData, renderingResults, modelBounds) {
   // Render stories
   if (stories && stories.length > 0) {
     try {
-      const storyLabels = drawStories(stories, elementGroups["Story"], modelBounds, true);
+      const storyLabels = drawStories(
+        stories,
+        elementGroups["Story"],
+        modelBounds,
+        true
+      );
       renderingResults.nodeLabels.push(...storyLabels);
       console.log(`Rendered ${stories.length} stories`);
     } catch (error) {
@@ -203,7 +244,7 @@ function renderAuxiliaryElements(globalData, renderingResults, modelBounds) {
  */
 function countMeshesInGroup(group) {
   let count = 0;
-  
+
   group.traverse((child) => {
     if (child instanceof THREE.Mesh) {
       count++;
@@ -265,7 +306,7 @@ export function getRenderingStatistics(renderingResults) {
       totalLabels: 0,
       elementTypes: {},
       errors: 0,
-      errorDetails: []
+      errorDetails: [],
     };
   }
 
@@ -274,17 +315,20 @@ export function getRenderingStatistics(renderingResults) {
     totalLabels: (renderingResults.nodeLabels || []).length,
     elementTypes: {},
     errors: (renderingResults.errors || []).length,
-    errorDetails: renderingResults.errors || []
+    errorDetails: renderingResults.errors || [],
   };
 
   // Safely iterate over rendered elements
   if (renderingResults.renderedElements) {
-    for (const [elementType, result] of renderingResults.renderedElements.entries()) {
+    for (const [
+      elementType,
+      result,
+    ] of renderingResults.renderedElements.entries()) {
       stats.elementTypes[elementType] = {
         meshCount: result?.meshCount || 0,
         labelCount: result?.labels?.length || 0,
         isVisible: !!result?.groupVisible,
-        hasError: !!result?.error
+        hasError: !!result?.error,
       };
 
       stats.totalMeshes += result?.meshCount || 0;

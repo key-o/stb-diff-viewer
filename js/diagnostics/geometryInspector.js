@@ -1,79 +1,36 @@
 import { createLogger } from "../utils/logger.js";
 import { ensureUnifiedSectionType } from "../common/sectionTypeUtil.js";
+import {
+  getWidth,
+  getHeight,
+  getDimensions,
+} from "../common/sectionDataAccessor.js";
 
 const log = createLogger("diagnostics:geom");
 const clog = createLogger("diagnostics:compare");
 
-/** 幅/高さ候補キー */
-const WIDTH_KEYS = [
-  "width",
-  "Width",
-  "WIDTH",
-  "outer_width",
-  "overall_width",
-  "flange_width",
-  "B",
-  "b",
-  "BX",
-  "Bx",
-  "bx",
-  "X",
-  "x",
-];
-const HEIGHT_KEYS = [
-  "height",
-  "Height",
-  "HEIGHT",
-  "outer_height",
-  "overall_height",
-  "overall_depth",
-  "depth",
-  "Depth",
-  "DEPTH",
-  "H",
-  "h",
-  "D",
-  "d",
-  "HY",
-  "Hy",
-  "hy",
-  "Y",
-  "y",
-];
-
-function pickFirstKey(obj, keys) {
-  if (!obj) return undefined;
-  for (const k of keys) {
-    if (Object.prototype.hasOwnProperty.call(obj, k)) {
-      const v = obj[k];
-      if (typeof v === "number" && !Number.isNaN(v)) return v;
-      if (typeof v === "string" && v.trim() !== "" && !isNaN(+v)) return +v;
-    }
-  }
-  return undefined;
-}
-
-function deriveFromNumericValues(obj) {
-  if (!obj || typeof obj !== "object") return {};
-  const nums = Object.values(obj)
-    .filter((v) => typeof v === "number" && isFinite(v))
-    .sort((a, b) => b - a); // 降順
-  if (nums.length === 0) return {};
-  if (nums.length === 1) return { width: nums[0], height: nums[0] };
-  return { width: nums[0], height: nums[1] };
-}
-
+/**
+ * 断面データから期待される寸法を解決
+ * sectionDataAccessorを使用して統一的にデータを取得し、
+ * 取得できない場合のみshapeNameやsteelSectionsからフォールバック
+ *
+ * @param {Object} sectionMeta - 断面メタデータ
+ * @returns {Object} { width, height, source } 解決された寸法と取得元
+ */
 function resolveExpectedDimensions(sectionMeta) {
-  if (!sectionMeta)
+  if (!sectionMeta) {
     return { width: undefined, height: undefined, source: "none" };
-  // 典型: { dimensions: {...} } もしくは直下
-  const dimObj = sectionMeta.dimensions || sectionMeta;
-  let w = pickFirstKey(dimObj, WIDTH_KEYS);
-  let h = pickFirstKey(dimObj, HEIGHT_KEYS);
-  let source = "keys";
+  }
+
+  // 1. sectionDataAccessorを使用して標準的な方法で取得を試みる
+  let w = getWidth(sectionMeta);
+  let h = getHeight(sectionMeta);
+  let source = "accessor";
+
+  // 2. 取得できない場合のみフォールバック処理
   if (w === undefined || h === undefined) {
     // shapeName からの抽出（H形鋼や□/BOX表記など）
-    // 例: "H-346x174x6x9" / "H-346x174x6x9x13" / "□-550x550x12x30" / "BOX-400x300x12" など
+    // 例: "H-346x174x6x9" / "□-550x550x12x30" / "BOX-400x300x12"
     const shapeName = sectionMeta.shapeName || sectionMeta.ShapeName;
     if (typeof shapeName === "string" && shapeName.length > 0) {
       // 全数値を抽出
@@ -84,7 +41,8 @@ function resolveExpectedDimensions(sectionMeta) {
         if (w === undefined) w = nums[1];
         source = "shapeName";
       }
-      // 追加: steelSections マップ（グローバル公開）から正規寸法を引き当てる
+
+      // steelSections マップから正規寸法を引き当てる
       if (
         (w === undefined || h === undefined) &&
         typeof window !== "undefined"
@@ -110,13 +68,7 @@ function resolveExpectedDimensions(sectionMeta) {
       }
     }
   }
-  if (w === undefined || h === undefined) {
-    // fallback: 数値値集合から推定
-    const guessed = deriveFromNumericValues(dimObj);
-    if (w === undefined) w = guessed.width;
-    if (h === undefined) h = guessed.height;
-    if (guessed.width || guessed.height) source = "numeric";
-  }
+
   return { width: w, height: h, source };
 }
 

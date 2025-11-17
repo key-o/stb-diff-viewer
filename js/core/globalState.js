@@ -30,6 +30,11 @@ class ApplicationState {
         modelBDocument: null,
         nodeMapA: new Map(),
         nodeMapB: new Map(),
+        sectionMaps: {
+          columnSections: new Map(),
+          beamSections: new Map(),
+          braceSections: new Map()
+        },
         modelsLoaded: false
       },
 
@@ -102,7 +107,7 @@ class ApplicationState {
     target[lastKey] = value;
 
     if (this.debug) {
-      console.log(`State changed: ${path}`, { oldValue, newValue: value });
+      console.log(`状態が変更されました: ${path}`, { oldValue, newValue: value });
     }
 
     // 変更通知
@@ -166,7 +171,7 @@ class ApplicationState {
         try {
           listener(newValue, oldValue, path);
         } catch (error) {
-          console.error(`Error in state listener for ${path}:`, error);
+          console.error(`${path}の状態リスナーでエラーが発生しました:`, error);
         }
       });
     }
@@ -202,7 +207,7 @@ class ApplicationState {
   setDebugMode(enabled) {
     this.debug = enabled;
     if (enabled) {
-      console.log('Global state debug mode enabled');
+      console.log('グローバル状態デバッグモードが有効になりました');
     }
   }
 
@@ -210,7 +215,7 @@ class ApplicationState {
    * 現在の状態をログ出力
    */
   logState() {
-    console.log('Current application state:', JSON.parse(JSON.stringify(this.state)));
+    console.log('現在のアプリケーション状態:', JSON.parse(JSON.stringify(this.state)));
   }
 
   /**
@@ -229,6 +234,11 @@ class ApplicationState {
         modelBDocument: null,
         nodeMapA: new Map(),
         nodeMapB: new Map(),
+        sectionMaps: {
+          columnSections: new Map(),
+          beamSections: new Map(),
+          braceSections: new Map()
+        },
         modelsLoaded: false
       },
       ui: {
@@ -259,7 +269,7 @@ class ApplicationState {
     };
 
     if (this.debug) {
-      console.log('Application state reset');
+      console.log('アプリケーション状態がリセットされました');
     }
   }
 }

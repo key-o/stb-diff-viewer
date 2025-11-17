@@ -1,16 +1,16 @@
 /**
- * @fileoverview Element comparison and processing module
+ * @fileoverview 要素比較・処理モジュール
  *
- * This module handles structural element comparison between models:
- * - Element parsing and extraction
- * - Model comparison logic execution
- * - Element categorization (common, onlyA, onlyB)
- * - Bounds calculation for rendering
+ * このモジュールはモデル間の構造要素比較を処理します：
+ * - 要素解析と抽出
+ * - モデル比較ロジック実行
+ * - 要素分類（共通、Aのみ、Bのみ）
+ * - レンダリング用境界計算
  *
- * Extracted from the massive compareModels() function for better maintainability.
+ * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 import { parseElements } from "../parser/stbXmlParser.js";
 import {
   compareElements,
@@ -20,6 +20,7 @@ import {
   nodeElementKeyExtractor,
 } from "../comparator.js";
 import { SUPPORTED_ELEMENTS } from "../viewer/index.js";
+import { COMPARISON_KEY_TYPE } from "../config/comparisonKeyConfig.js";
 
 /**
  * Process element comparison for all supported element types
@@ -28,21 +29,24 @@ import { SUPPORTED_ELEMENTS } from "../viewer/index.js";
  * @param {Object} options - Comparison options
  * @param {boolean} [options.useImportanceFiltering=true] - Use importance-based filtering
  * @param {string[]} [options.targetImportanceLevels=null] - Target importance levels for filtering
+ * @param {string} [options.comparisonKeyType] - Comparison key type (POSITION_BASED or GUID_BASED)
  * @returns {Object} Comparison results
  */
-export function processElementComparison(modelData, selectedElementTypes, options = {}) {
-  const {
-    modelADocument,
-    modelBDocument,
-    nodeMapA,
-    nodeMapB
-  } = modelData;
+export function processElementComparison(
+  modelData,
+  selectedElementTypes,
+  options = {}
+) {
+  const { modelADocument, modelBDocument, nodeMapA, nodeMapB } = modelData;
 
   const comparisonResults = new Map();
   let modelBounds = new THREE.Box3();
 
+  const { comparisonKeyType = COMPARISON_KEY_TYPE.POSITION_BASED } = options;
+
   console.log("=== Starting Element Comparison ===");
   console.log("Supported elements:", SUPPORTED_ELEMENTS);
+  console.log("Comparison key type:", comparisonKeyType);
 
   for (const elementType of SUPPORTED_ELEMENTS) {
     if (elementType === "Axis" || elementType === "Story") continue;
@@ -58,7 +62,9 @@ export function processElementComparison(modelData, selectedElementTypes, option
       elementsA = parseElements(modelADocument, "Stb" + elementType);
       elementsB = parseElements(modelBDocument, "Stb" + elementType);
 
-      console.log(`${elementType} - Model A: ${elementsA.length}, Model B: ${elementsB.length}`);
+      console.log(
+        `${elementType} - Model A: ${elementsA.length}, Model B: ${elementsB.length}`
+      );
 
       // Perform comparison with importance options
       const comparisonResult = compareElementsByType(
@@ -67,7 +73,7 @@ export function processElementComparison(modelData, selectedElementTypes, option
         elementsB,
         nodeMapA,
         nodeMapB,
-        options
+        { ...options, comparisonKeyType }
       );
 
       // Store comparison result
@@ -76,22 +82,29 @@ export function processElementComparison(modelData, selectedElementTypes, option
         elementType,
         isSelected,
         elementsA,
-        elementsB
+        elementsB,
       });
 
       console.log(`${elementType} comparison complete:`, {
         matched: comparisonResult.matched.length,
         onlyA: comparisonResult.onlyA.length,
-        onlyB: comparisonResult.onlyB.length
+        onlyB: comparisonResult.onlyB.length,
       });
-
     } catch (error) {
       console.error(`Error processing ${elementType}:`, error);
       console.error(`Error stack:`, error.stack);
-      console.error(`Elements A length: ${elementsA ? elementsA.length : 'undefined'}`);
-      console.error(`Elements B length: ${elementsB ? elementsB.length : 'undefined'}`);
-      console.error(`Node map A size: ${nodeMapA ? nodeMapA.size : 'undefined'}`);
-      console.error(`Node map B size: ${nodeMapB ? nodeMapB.size : 'undefined'}`);
+      console.error(
+        `Elements A length: ${elementsA ? elementsA.length : "undefined"}`
+      );
+      console.error(
+        `Elements B length: ${elementsB ? elementsB.length : "undefined"}`
+      );
+      console.error(
+        `Node map A size: ${nodeMapA ? nodeMapA.size : "undefined"}`
+      );
+      console.error(
+        `Node map B size: ${nodeMapB ? nodeMapB.size : "undefined"}`
+      );
       comparisonResults.set(elementType, {
         matched: [],
         onlyA: [],
@@ -100,7 +113,7 @@ export function processElementComparison(modelData, selectedElementTypes, option
         isSelected,
         elementsA: elementsA || [],
         elementsB: elementsB || [],
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -109,7 +122,7 @@ export function processElementComparison(modelData, selectedElementTypes, option
 
   return {
     comparisonResults,
-    modelBounds
+    modelBounds,
   };
 }
 
@@ -123,21 +136,30 @@ export function processElementComparison(modelData, selectedElementTypes, option
  * @param {Object} options - Comparison options
  * @param {boolean} [options.useImportanceFiltering=true] - Use importance-based filtering
  * @param {string[]} [options.targetImportanceLevels=null] - Target importance levels for filtering
+ * @param {string} [options.comparisonKeyType] - Comparison key type (POSITION_BASED or GUID_BASED)
  * @returns {Object} Comparison result
  */
-function compareElementsByType(elementType, elementsA, elementsB, nodeMapA, nodeMapB, options = {}) {
-  const { 
+function compareElementsByType(
+  elementType,
+  elementsA,
+  elementsB,
+  nodeMapA,
+  nodeMapB,
+  options = {}
+) {
+  const {
     useImportanceFiltering = true,
-    targetImportanceLevels = null 
+    targetImportanceLevels = null,
+    comparisonKeyType = COMPARISON_KEY_TYPE.POSITION_BASED,
   } = options;
-  
+
   let comparisonResult = null;
 
   console.log(`compareElementsByType called for ${elementType}:`, {
     elementsACount: elementsA.length,
     elementsBCount: elementsB.length,
     useImportanceFiltering,
-    targetImportanceLevels
+    targetImportanceLevels,
   });
 
   // Create comparison function based on importance filtering setting
@@ -146,12 +168,23 @@ function compareElementsByType(elementType, elementsA, elementsB, nodeMapA, node
       if (useImportanceFiltering) {
         console.log(`Using importance-based comparison for ${elementType}`);
         return compareElementsWithImportance(
-          elementsA, elementsB, nodeMapA, nodeMapB, 
-          keyExtractor, "Stb" + elementType, { targetImportanceLevels }
+          elementsA,
+          elementsB,
+          nodeMapA,
+          nodeMapB,
+          keyExtractor,
+          "Stb" + elementType,
+          { targetImportanceLevels }
         );
       } else {
         console.log(`Using basic comparison for ${elementType}`);
-        return compareElements(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor);
+        return compareElements(
+          elementsA,
+          elementsB,
+          nodeMapA,
+          nodeMapB,
+          keyExtractor
+        );
       }
     } catch (error) {
       console.error(`Error in performComparison for ${elementType}:`, error);
@@ -168,31 +201,49 @@ function compareElementsByType(elementType, elementsA, elementsB, nodeMapA, node
 
       case "Column":
         console.log(`Processing Column elements with bottom/top nodes`);
-        comparisonResult = performComparison(
-          (el, nm) => lineElementKeyExtractor(el, nm, "id_node_bottom", "id_node_top")
+        comparisonResult = performComparison((el, nm) =>
+          lineElementKeyExtractor(
+            el,
+            nm,
+            "id_node_bottom",
+            "id_node_top",
+            comparisonKeyType
+          )
         );
         break;
 
       case "Girder":
       case "Beam":
         console.log(`Processing ${elementType} elements with start/end nodes`);
-        comparisonResult = performComparison(
-          (el, nm) => lineElementKeyExtractor(el, nm, "id_node_start", "id_node_end")
+        comparisonResult = performComparison((el, nm) =>
+          lineElementKeyExtractor(
+            el,
+            nm,
+            "id_node_start",
+            "id_node_end",
+            comparisonKeyType
+          )
         );
         break;
 
       case "Brace":
         console.log(`Processing Brace elements with start/end nodes`);
-        comparisonResult = performComparison(
-          (el, nm) => lineElementKeyExtractor(el, nm, "id_node_start", "id_node_end")
+        comparisonResult = performComparison((el, nm) =>
+          lineElementKeyExtractor(
+            el,
+            nm,
+            "id_node_start",
+            "id_node_end",
+            comparisonKeyType
+          )
         );
         break;
 
       case "Slab":
       case "Wall":
         console.log(`Processing ${elementType} elements with node order`);
-        comparisonResult = performComparison(
-          (el, nm) => polyElementKeyExtractor(el, nm, "StbNodeIdOrder")
+        comparisonResult = performComparison((el, nm) =>
+          polyElementKeyExtractor(el, nm, "StbNodeIdOrder", comparisonKeyType)
         );
         break;
 
@@ -201,7 +252,7 @@ function compareElementsByType(elementType, elementsA, elementsB, nodeMapA, node
         comparisonResult = {
           matched: [],
           onlyA: [...elementsA],
-          onlyB: [...elementsB]
+          onlyB: [...elementsB],
         };
     }
   } catch (error) {
@@ -209,11 +260,13 @@ function compareElementsByType(elementType, elementsA, elementsB, nodeMapA, node
     throw error;
   }
 
-  return comparisonResult || {
-    matched: [],
-    onlyA: [],
-    onlyB: []
-  };
+  return (
+    comparisonResult || {
+      matched: [],
+      onlyA: [],
+      onlyB: [],
+    }
+  );
 }
 
 /**
@@ -258,7 +311,7 @@ export function getComparisonStatistics(comparisonResults) {
     onlyBElements: 0,
     elementTypes: {},
     selectedTypes: [],
-    errors: []
+    errors: [],
   };
 
   for (const [elementType, result] of comparisonResults.entries()) {
@@ -267,7 +320,7 @@ export function getComparisonStatistics(comparisonResults) {
       onlyA: result.onlyA.length,
       onlyB: result.onlyB.length,
       total: result.matched.length + result.onlyA.length + result.onlyB.length,
-      isSelected: result.isSelected
+      isSelected: result.isSelected,
     };
 
     stats.elementTypes[elementType] = typeStats;
@@ -283,7 +336,7 @@ export function getComparisonStatistics(comparisonResults) {
     if (result.error) {
       stats.errors.push({
         elementType,
-        error: result.error
+        error: result.error,
       });
     }
   }

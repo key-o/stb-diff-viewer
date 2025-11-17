@@ -19,6 +19,7 @@ import {
   getCurrentXAxisSelection,
   getCurrentYAxisSelection,
 } from "./selectors.js";
+import labelDisplayManager from "../viewer/rendering/labelDisplayManager.js";
 
 // ラベル更新のバッチ処理用
 let labelUpdateScheduled = false;
@@ -33,7 +34,7 @@ export const LABEL_CONTENT_TYPES = {
 
 // ラベル内容の説明
 const CONTENT_TYPE_DESCRIPTIONS = {
-  [LABEL_CONTENT_TYPES.ID]: "ID（デフォルト）",
+  [LABEL_CONTENT_TYPES.ID]: "タグ（デフォルト）",
   [LABEL_CONTENT_TYPES.NAME]: "インスタンス名（Name）",
   [LABEL_CONTENT_TYPES.SECTION]: "断面名（Section）",
 };
@@ -204,7 +205,7 @@ function generateSectionLabel(element, elementType) {
   }
 
   // 2. グローバル状態から断面マップを取得
-  const sectionMaps = getState("model.sectionMaps");
+  const sectionMaps = getState("models.sectionMaps");
   if (sectionMaps && element.id_section) {
     let sectionMap = null;
 
@@ -367,8 +368,9 @@ function calculateLabelVisibility(label) {
  * @returns {boolean} ラベル表示が有効かどうか
  */
 function isLabelTypeVisible(elementType) {
-  const checkbox = document.getElementById(`toggleLabel-${elementType}`);
-  return checkbox ? checkbox.checked : false;
+  // labelDisplayManagerと同期してから状態を取得
+  labelDisplayManager.syncWithCheckbox(elementType);
+  return labelDisplayManager.isLabelVisible(elementType);
 }
 
 /**

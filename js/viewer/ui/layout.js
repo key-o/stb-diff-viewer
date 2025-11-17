@@ -11,7 +11,7 @@
  * クリッピング機能と連携することで特定の通り芯や階での断面表示を可能にします。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 import { createLabelSprite } from "./labels.js";
 import { materials } from "../rendering/materials.js";
 

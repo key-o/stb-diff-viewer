@@ -1,50 +1,64 @@
 /**
- * @fileoverview IFC Profile Factory for IFC-compliant profile extrusion
+ * @fileoverview IFC準拠プロファイル押し出し用IFCプロファイルファクトリー
  *
- * This module provides IFC-standard profile creation compatible with IFC4/IFC4.3 specifications:
- * - IFC Profile definition following international standards
- * - Parametric profile creation for structural elements
- * - Support for IfcIShapeProfileDef, IfcRectangleProfileDef, IfcCircleProfileDef
- * - IFC-compliant coordinate systems and measurements
- * - Extrusion along arbitrary paths (linear and curved)
- * - Bridge between STB format and IFC profile standards
+ * このモジュールはIFC4/IFC4.3仕様に準拠したIFC標準プロファイル作成を提供します：
+ * - 国際標準に従ったIFCプロファイル定義
+ * - 構造要素用のパラメトリックプロファイル作成
+ * - IfcIShapeProfileDef、IfcRectangleProfileDef、IfcCircleProfileDefサポート
+ * - IFC準拠座標系と測定
+ * - 任意パス（線形および曲線）に沿った押し出し
+ * - STB形式とIFCプロファイル標準間のブリッジ
  *
- * This enables compatibility with international BIM workflows and IFC export/import.
+ * これにより国際BIMワークフローとIFCエクスポート/インポートとの互換性が実現されます。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
-import { normalizeSectionType } from "../../common/sectionTypeUtil.js";
+import * as THREE from "three";
 import {
   IFC_PROFILE_TYPES as MAP_IFC_PROFILE_TYPES,
   mapSTBToIFCProfileType,
   mapSTBParametersToIFC,
 } from "./IFCProfileMapping.js";
+import { normalizeSectionType } from "../../common/sectionTypeUtil.js";
+import {
+  calculate2LBackToBackProfile,
+  calculate2LFaceToFaceProfile,
+  calculate2CBackToBackProfile,
+  calculate2CFaceToFaceProfile,
+} from "./core/ProfileCalculator.js";
 
 /**
- * IFC Profile Types enumeration following IFC standard
+ * IFC標準に従ったIFCプロファイルタイプ列挙
  */
 export const IFC_PROFILE_TYPES = MAP_IFC_PROFILE_TYPES;
 
 /**
- * IFC Profile Factory for creating standardized profiles
+ * 標準化プロファイル作成用IFCプロファイルファクトリー
  */
 export class IFCProfileFactory {
   /**
-   * Create IFC profile from STB steel shape data
-   * @param {Object} stbSteelShape - STB steel shape parameters
-   * @param {string} stbShapeType - STB shape type identifier
-   * @returns {Object} IFC profile definition
+   * STB鋼材形状データからIFCプロファイルを作成
+   * @param {Object} stbSteelShape - STB鋼材形状パラメータ
+   * @param {string} stbShapeType - STB形状タイプ識別子
+   * @returns {Object} IFCプロファイル定義
    */
   static createProfileFromSTB(stbSteelShape, stbShapeType) {
     // 正規化: 呼び出し元から 'PIPE' / 'RECTANGLE' / 'CIRCLE' など大文字で渡されても対応
     const typeNorm = normalizeSectionType(stbShapeType) || stbShapeType;
 
-    // チャンネル材のデバッグ出力
-    if (stbSteelShape.name && stbSteelShape.name.includes("[-")) {
-      console.log(
-        `IFCProfileFactory - Channel steel: name=${stbSteelShape.name}, stbShapeType=${stbShapeType}, typeNorm=${typeNorm}`
-      );
+    // 組み合わせ断面のtype属性をチェック（BACKTOBACK, FACETOFACE, SINGLE）
+    const combinationType = stbSteelShape.shapeTypeAttr?.toUpperCase();
+
+    // 組み合わせ断面の場合は専用のプロファイルタイプを使用
+    if (combinationType === "BACKTOBACK" || combinationType === "FACETOFACE") {
+      const profileType = `${typeNorm}_${combinationType}`;
+      return {
+        ProfileType: profileType,
+        ProfileName: `STB_${profileType}_${stbSteelShape.name || "Custom"}`,
+        ProfileParameters: mapSTBParametersToIFC(stbSteelShape, typeNorm),
+        CombinationType: combinationType,
+      };
     }
+
     const ifcProfile = {
       ProfileType: mapSTBToIFCProfileType(typeNorm),
       ProfileName: `STB_${typeNorm}_${stbSteelShape.name || "Custom"}`,
@@ -80,6 +94,15 @@ export class IFCProfileFactory {
    * @returns {THREE.Shape|null} Generated THREE.Shape or null
    */
   static createGeometryFromProfile(ifcProfile, originType = "center") {
+    // 組み合わせ断面の処理
+    if (ifcProfile.ProfileType?.includes("_BACKTOBACK") ||
+        ifcProfile.ProfileType?.includes("_FACETOFACE")) {
+      return this.createCombinedSectionGeometry(
+        ifcProfile,
+        originType
+      );
+    }
+
     switch (ifcProfile.ProfileType) {
       case IFC_PROFILE_TYPES.I_SHAPE:
         return this.createIShapeGeometry(
@@ -127,6 +150,100 @@ export class IFCProfileFactory {
         console.warn(`Unsupported IFC profile type: ${ifcProfile.ProfileType}`);
         return null;
     }
+  }
+
+  /**
+   * Create combined section (2L/2C BACKTOBACK/FACETOFACE) profile geometry
+   * @param {Object} ifcProfile - IFC profile definition with CombinationType
+   * @param {string} originType - Origin type
+   * @returns {THREE.Shape} Generated shape
+   */
+  static createCombinedSectionGeometry(ifcProfile, originType) {
+    const profileType = ifcProfile.ProfileType;
+    const params = ifcProfile.ProfileParameters;
+
+    // L形鋼の組み合わせ断面
+    if (profileType === "L_BACKTOBACK") {
+      const profileData = calculate2LBackToBackProfile({
+        depth: params.Depth,
+        width: params.Width,
+        thickness: params.Thickness,
+        gap: 0,
+      });
+      return this.createShapeFromVertices(profileData, originType);
+    }
+
+    if (profileType === "L_FACETOFACE") {
+      const profileData = calculate2LFaceToFaceProfile({
+        depth: params.Depth,
+        width: params.Width,
+        thickness: params.Thickness,
+        gap: 0,
+      });
+      return this.createShapeFromVertices(profileData, originType);
+    }
+
+    // C形鋼の組み合わせ断面
+    if (profileType === "C_BACKTOBACK") {
+      const profileData = calculate2CBackToBackProfile({
+        overallDepth: params.Depth,
+        flangeWidth: params.FlangeWidth,
+        webThickness: params.WebThickness,
+        flangeThickness: params.FlangeThickness,
+        gap: 0,
+      });
+      return this.createShapeFromVertices(profileData, originType);
+    }
+
+    if (profileType === "C_FACETOFACE") {
+      const profileData = calculate2CFaceToFaceProfile({
+        overallDepth: params.Depth,
+        flangeWidth: params.FlangeWidth,
+        webThickness: params.WebThickness,
+        flangeThickness: params.FlangeThickness,
+        gap: 0,
+      });
+      return this.createShapeFromVertices(profileData, originType);
+    }
+
+    console.warn(`Unsupported combined section type: ${profileType}`);
+    return null;
+  }
+
+  /**
+   * Create THREE.Shape from vertices and holes
+   * @param {Object} profileData - Profile data with vertices and holes
+   * @param {string} originType - Origin type
+   * @returns {THREE.Shape} Generated shape
+   */
+  static createShapeFromVertices(profileData, originType) {
+    const shape = new THREE.Shape();
+    const { vertices, holes = [] } = profileData;
+
+    if (!vertices || vertices.length === 0) {
+      console.warn("No vertices provided for shape creation");
+      return null;
+    }
+
+    // 外周の頂点を設定
+    shape.moveTo(vertices[0].x, vertices[0].y);
+    for (let i = 1; i < vertices.length; i++) {
+      shape.lineTo(vertices[i].x, vertices[i].y);
+    }
+    shape.lineTo(vertices[0].x, vertices[0].y); // 閉じる
+
+    // 穴を追加
+    for (const holeVertices of holes) {
+      const holePath = new THREE.Path();
+      holePath.moveTo(holeVertices[0].x, holeVertices[0].y);
+      for (let i = 1; i < holeVertices.length; i++) {
+        holePath.lineTo(holeVertices[i].x, holeVertices[i].y);
+      }
+      holePath.lineTo(holeVertices[0].x, holeVertices[0].y); // 閉じる
+      shape.holes.push(holePath);
+    }
+
+    return shape;
   }
 
   /**
@@ -407,6 +524,110 @@ export class IFCProfileFactory {
    */
   static validatePositiveNumbers(params) {
     return params.every((p) => typeof p === "number" && p > 0 && !isNaN(p));
+  }
+
+  /**
+   * Create IFC profile from section type and dimensions
+   * @param {string} sectionType - Section type ('PIPE', 'RECTANGLE', etc.)
+   * @param {Object} dimensions - Section dimensions
+   * @returns {Object|null} IFC profile with points and metadata
+   */
+  static createProfile(sectionType, dimensions) {
+    try {
+      // Create STB steel shape format from dimensions
+      const stbSteelShape = {
+        name: `${sectionType}_profile`,
+        ...dimensions,
+      };
+
+      // Use existing method to create IFC profile
+      const ifcProfile = this.createProfileFromSTB(stbSteelShape, sectionType);
+
+      if (!ifcProfile) {
+        return null;
+      }
+
+      // Convert IFC profile to points for THREE.Shape
+      let points = [];
+
+      switch (ifcProfile.ProfileType) {
+        case IFC_PROFILE_TYPES.CIRCULAR_HOLLOW:
+          // For circular hollow (PIPE), create circle points
+          const radius = dimensions.outerDiameter
+            ? dimensions.outerDiameter / 2
+            : dimensions.radius || dimensions.D || 500;
+          points = this._createCirclePoints(radius, 64); // More points for smooth circle
+          break;
+
+        case IFC_PROFILE_TYPES.RECTANGLE:
+          // For rectangle, create rectangle points
+          const width = dimensions.width || dimensions.W || 500;
+          const height = dimensions.height || dimensions.H || 500;
+          points = this._createRectanglePoints(width, height);
+          break;
+
+        default:
+          // For other types, try to get points from profile parameters
+          if (
+            ifcProfile.ProfileParameters &&
+            ifcProfile.ProfileParameters.points
+          ) {
+            points = ifcProfile.ProfileParameters.points;
+          } else {
+            return null;
+          }
+      }
+
+      return {
+        points: points,
+        metadata: {
+          profileType: ifcProfile.ProfileType,
+          profileName: ifcProfile.ProfileName,
+        },
+      };
+    } catch (error) {
+      console.warn(
+        `IFCProfileFactory.createProfile failed for ${sectionType}:`,
+        error
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Create circle points for circular profiles
+   * @private
+   * @param {number} radius - Circle radius
+   * @param {number} segments - Number of segments (default: 32)
+   * @returns {Array} Array of THREE.Vector2 points
+   */
+  static _createCirclePoints(radius, segments = 32) {
+    const points = [];
+    for (let i = 0; i <= segments; i++) {
+      const angle = (i / segments) * Math.PI * 2;
+      points.push(
+        new THREE.Vector2(Math.cos(angle) * radius, Math.sin(angle) * radius)
+      );
+    }
+    return points;
+  }
+
+  /**
+   * Create rectangle points
+   * @private
+   * @param {number} width - Rectangle width
+   * @param {number} height - Rectangle height
+   * @returns {Array} Array of THREE.Vector2 points
+   */
+  static _createRectanglePoints(width, height) {
+    const halfWidth = width / 2;
+    const halfHeight = height / 2;
+    return [
+      new THREE.Vector2(-halfWidth, -halfHeight),
+      new THREE.Vector2(halfWidth, -halfHeight),
+      new THREE.Vector2(halfWidth, halfHeight),
+      new THREE.Vector2(-halfWidth, halfHeight),
+    ];
   }
 }
 

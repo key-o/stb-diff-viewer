@@ -13,7 +13,7 @@
  * 一貫した視覚的表現と効率的な更新を実現します。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 import { renderer } from "../core/core.js";
 import {
   getCurrentColorMode,
@@ -22,6 +22,7 @@ import {
 } from "../../colorModes.js";
 import { IMPORTANCE_LEVELS } from "../../core/importanceManager.js";
 import { IMPORTANCE_COLORS } from "../../config/importanceConfig.js";
+import { colorManager } from "./colorManager.js";
 
 // --- 重要度別視覚的スタイル定義 ---
 export const IMPORTANCE_VISUAL_STYLES = {
@@ -52,6 +53,10 @@ export const IMPORTANCE_VISUAL_STYLES = {
 };
 
 // --- マテリアル定義 (clippingPlanesは後で設定) ---
+// 注意: これらの固定マテリアルは、主に以下の用途で使用されます：
+// 1. ProfileBased*Generatorでメッシュ作成時の一時的なデフォルトマテリアル
+// 2. 特殊な要素（Axis、Story等）の表示用マテリアル
+// 通常の要素の色付けには、ColorManagerを使用することを推奨します。
 export const materials = {
   matched: new THREE.MeshStandardMaterial({
     color: 0x00aaff,
@@ -73,6 +78,7 @@ export const materials = {
   }),
   // 立体表示（ProfileBased 生成）用の不透明メッシュマテリアル
   // 既存の matched/onlyA/onlyB と同等だが、用途を明示するため別名を用意
+  // ProfileBased*Generatorで作成されたメッシュは、後でColorManagerにより適切なマテリアルに差し替えられます
   matchedMesh: new THREE.MeshStandardMaterial({
     color: 0x00aaff,
     roughness: 0.6,
@@ -198,95 +204,42 @@ export function getMaterialForElementWithMode(
 ) {
   const colorMode = getCurrentColorMode();
 
-  // 重要度モードの場合は特別処理
-  if (colorMode === COLOR_MODES.IMPORTANCE) {
-    // 重要度モードでは暫定的にデフォルト重要度マテリアルを返す
-    // 実際の重要度に基づくマテリアルは後で applyImportanceColorMode で設定される
-    return importanceMaterialCache.getMaterial(IMPORTANCE_LEVELS.REQUIRED);
+  // ColorManagerを使用してマテリアルを取得
+  let materialMode;
+  let materialParams = {
+    elementType,
+    comparisonState,
+    isLine,
+    isPoly,
+  };
+
+  // 色付けモードに応じてマテリアルモードを決定
+  switch (colorMode) {
+    case COLOR_MODES.IMPORTANCE:
+      materialMode = "importance";
+      // 重要度モードでは暫定的にデフォルト重要度を設定
+      // 実際の重要度は後で applyImportanceColorMode で設定される
+      materialParams.importanceLevel = IMPORTANCE_LEVELS.REQUIRED;
+      break;
+
+    case COLOR_MODES.ELEMENT:
+      materialMode = "element";
+      break;
+
+    case COLOR_MODES.SCHEMA:
+      materialMode = "schema";
+      // スキーマエラー情報を取得（後で実装）
+      materialParams.hasError = false; // デフォルトは正常
+      break;
+
+    case COLOR_MODES.DIFF:
+    default:
+      materialMode = "diff";
+      break;
   }
 
-  // 差分表示モード以外の場合は、専用マテリアルを取得
-  if (colorMode !== COLOR_MODES.DIFF) {
-    const customMaterial = getMaterialForElement(
-      elementType,
-      isLine,
-      elementId
-    );
-    if (customMaterial) {
-      // クリッピング平面を設定
-      customMaterial.clippingPlanes = renderer?.clippingPlanes || [];
-      customMaterial.needsUpdate = true;
-      return customMaterial;
-    }
-  }
-
-  // 差分表示モード（デフォルト）の場合は従来のマテリアルを使用
-  // Axis（通り芯）とStory（階）はワイヤーフレーム表示
-  const shouldUseWireframeForDiff =
-    elementType === "Axis" || elementType === "Story";
-
-  if (shouldUseWireframeForDiff && !isLine) {
-    // AxisとStoryの場合はワイヤーフレーム用マテリアルを動的に作成
-    let baseMaterial;
-    switch (comparisonState) {
-      case "matched":
-        baseMaterial = materials.matched;
-        break;
-      case "onlyA":
-        baseMaterial = materials.onlyA;
-        break;
-      case "onlyB":
-        baseMaterial = materials.onlyB;
-        break;
-      default:
-        baseMaterial = materials.matched;
-    }
-
-    // ワイヤーフレーム用のマテリアルを作成
-    return new THREE.MeshLambertMaterial({
-      color: baseMaterial.color,
-      transparent: baseMaterial.transparent,
-      opacity: baseMaterial.opacity,
-      wireframe: true,
-      side: THREE.DoubleSide,
-      clippingPlanes: renderer?.clippingPlanes || [],
-    });
-  }
-
-  if (isPoly) {
-    switch (comparisonState) {
-      case "matched":
-        return materials.polyMatched;
-      case "onlyA":
-        return materials.polyOnlyA;
-      case "onlyB":
-        return materials.polyOnlyB;
-      default:
-        return materials.polyMatched;
-    }
-  } else if (isLine) {
-    switch (comparisonState) {
-      case "matched":
-        return materials.lineMatched;
-      case "onlyA":
-        return materials.lineOnlyA;
-      case "onlyB":
-        return materials.lineOnlyB;
-      default:
-        return materials.lineMatched;
-    }
-  } else {
-    switch (comparisonState) {
-      case "matched":
-        return materials.matched;
-      case "onlyA":
-        return materials.onlyA;
-      case "onlyB":
-        return materials.onlyB;
-      default:
-        return materials.matched;
-    }
-  }
+  // ColorManagerからマテリアルを取得
+  return colorManager.getMaterial(materialMode, materialParams);
 }
 
 /**
@@ -536,44 +489,22 @@ const importanceMaterialCache = new ImportanceMaterialCache();
  * @returns {THREE.Material} マテリアル
  */
 export function createImportanceMaterial(importanceLevel, options = {}) {
-  // ランタイム色設定があれば使用、なければデフォルト色を使用
-  const runtimeColors = window.runtimeImportanceColors || IMPORTANCE_COLORS;
-  const color =
-    runtimeColors[importanceLevel] ||
-    IMPORTANCE_COLORS[IMPORTANCE_LEVELS.REQUIRED];
-  const visualStyle =
-    IMPORTANCE_VISUAL_STYLES[importanceLevel] ||
-    IMPORTANCE_VISUAL_STYLES[IMPORTANCE_LEVELS.REQUIRED];
+  // ColorManagerを使用してマテリアルを取得
+  const materialParams = {
+    elementType: options.elementType,
+    importanceLevel: importanceLevel,
+    wireframe: options.wireframe,
+    isLine: false,
+    isPoly: false,
+  };
 
   // デバッグ情報を出力（初回のみ）
   if (!createImportanceMaterial._debugLogged) {
-    console.log(`[CreateImportanceMaterial] Creating materials with colors:`, {
-      runtimeColors,
-      IMPORTANCE_COLORS,
-      currentLevel: importanceLevel,
-      selectedColor: color,
-      visualStyle,
-    });
+    console.log(`[CreateImportanceMaterial] Using ColorManager for materials`);
     createImportanceMaterial._debugLogged = true;
   }
 
-  // ワイヤーフレーム設定の決定
-  // Axis（通り芯）とStory（階）は重要度モードでワイヤーフレーム表示
-  const shouldUseWireframe =
-    options.wireframe ||
-    options.elementType === "Axis" ||
-    options.elementType === "Story";
-
-  const material = new THREE.MeshLambertMaterial({
-    color: new THREE.Color(color),
-    transparent: options.transparent !== false,
-    opacity:
-      options.opacity !== undefined ? options.opacity : visualStyle.opacity,
-    wireframe: shouldUseWireframe,
-    side: THREE.DoubleSide,
-    // Use renderer.clippingPlanes instead of undefined globalClippingPlanes
-    clippingPlanes: renderer?.clippingPlanes || [],
-  });
+  const material = colorManager.getMaterial("importance", materialParams);
 
   // マテリアル作成をログ出力（サンプリング）
   if (Math.random() < 0.1) {
@@ -581,10 +512,10 @@ export function createImportanceMaterial(importanceLevel, options = {}) {
     console.log(
       `[CreateImportanceMaterial] Created material for ${importanceLevel}:`,
       {
-        color: color,
+        color: colorManager.getImportanceColor(importanceLevel),
         materialColor: material.color.getHexString(),
         opacity: material.opacity,
-        wireframe: shouldUseWireframe,
+        wireframe: material.wireframe,
         elementType: options.elementType,
       }
     );
@@ -670,6 +601,8 @@ export function applyImportanceColorMode(object, options = {}) {
  */
 export function clearImportanceMaterialCache() {
   importanceMaterialCache.clear();
+  // ColorManagerのキャッシュもクリア
+  colorManager.clearMaterialCache();
 }
 
 /**
@@ -740,6 +673,9 @@ export function clearMaterialCache() {
 
   // 重要度マテリアルキャッシュをクリア
   clearImportanceMaterialCache();
+
+  // ColorManagerのキャッシュもクリア
+  colorManager.clearMaterialCache();
 
   // 他のマテリアルキャッシュもクリア（今後追加される可能性があるため）
   // 例：部材別色付けキャッシュ、スキーマエラーキャッシュなど

@@ -11,7 +11,7 @@
  * 新しい形状タイプの追加を容易にします。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 
 /**
  * 鋼材形状を生成するファクトリークラス

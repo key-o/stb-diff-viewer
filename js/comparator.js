@@ -23,6 +23,7 @@
  */
 
 import { getImportanceManager, IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from './core/importanceManager.js';
+import { COMPARISON_KEY_TYPE } from './config/comparisonKeyConfig.js';
 
 // --- 定数 ---
 const PRECISION = 3; // 座標比較時の小数点以下の桁数
@@ -87,6 +88,42 @@ function getPolyElementKey(
   return coordKeys.sort().join(",") + `|F:${floorId}|S:${sectionId}`;
 }
 
+// --- GUIDベースのキー生成関数 ---
+
+/**
+ * 要素のGUID属性からキーを生成する
+ * @param {Element} element - XML要素
+ * @returns {string|null} GUID文字列、またはGUID属性が無い場合はnull
+ */
+function getGuidKey(element) {
+  if (!element || !element.getAttribute) {
+    return null;
+  }
+  const guid = element.getAttribute('guid');
+  return guid && guid.trim() !== '' ? guid.trim() : null;
+}
+
+/**
+ * 要素から比較キーを生成する（キータイプに応じて位置ベースまたはGUIDベース）
+ * @param {Element} element - XML要素
+ * @param {string} keyType - 比較キータイプ（COMPARISON_KEY_TYPE.POSITION_BASED または GUID_BASED）
+ * @param {function} positionKeyGenerator - 位置ベースのキー生成関数
+ * @returns {string|null} 生成されたキー文字列
+ */
+function getElementKey(element, keyType, positionKeyGenerator) {
+  if (keyType === COMPARISON_KEY_TYPE.GUID_BASED) {
+    const guidKey = getGuidKey(element);
+    if (guidKey !== null) {
+      return `guid:${guidKey}`;
+    }
+    // GUIDが無い場合は位置ベースにフォールバック
+    console.warn(`GUID not found for element ${element.getAttribute('id')}, falling back to position-based key`);
+  }
+
+  // 位置ベースのキー生成
+  return positionKeyGenerator();
+}
+
 // --- 要素比較ロジック ---
 /**
  * 2つの要素リスト（モデルAとB）を比較し、一致、Aのみ、Bのみの要素を分類する。
@@ -148,20 +185,56 @@ export function compareElements(
  * @param {Map<string, {x: number, y: number, z: number}>} nodeMap - 対応するノードマップ。
  * @param {string} idStartAttr - 始点ノードIDの属性名。
  * @param {string} idEndAttr - 終点ノードIDの属性名。
+ * @param {string} [keyType] - 比較キータイプ（省略時はPOSITION_BASED）
  * @returns {{key: string|null, data: {startCoords: object, endCoords: object, id: string}|null}} キーとデータのオブジェクト。
  */
 export function lineElementKeyExtractor(
   element,
   nodeMap,
   idStartAttr,
-  idEndAttr
+  idEndAttr,
+  keyType = COMPARISON_KEY_TYPE.POSITION_BASED
 ) {
-  const startId = element.getAttribute(idStartAttr);
-  const endId = element.getAttribute(idEndAttr);
+  let startId = element.getAttribute(idStartAttr);
+  let endId = element.getAttribute(idEndAttr);
   const elementId = element.getAttribute("id");
-  const startCoords = nodeMap.get(startId);
-  const endCoords = nodeMap.get(endId);
-  
+  let startCoords = nodeMap.get(startId);
+  let endCoords = nodeMap.get(endId);
+
+  // 1-node format fallback (for Pile/Footing with id_node + level_top)
+  if ((!startCoords || !endCoords) && !startId && !endId) {
+    const idNode = element.getAttribute("id_node");
+    const levelTop = element.getAttribute("level_top");
+
+    if (idNode && levelTop && nodeMap.has(idNode)) {
+      const topNode = nodeMap.get(idNode);
+      const offsetX = parseFloat(element.getAttribute("offset_X")) || 0;
+      const offsetY = parseFloat(element.getAttribute("offset_Y")) || 0;
+      const levelTopValue = parseFloat(levelTop);
+
+      // Default pile length for line display (actual length from section data used in 3D)
+      const defaultPileLength = 5000; // 5000mm default
+
+      // Calculate top node position (id_node + offsets + level_top for Z)
+      endCoords = {
+        x: topNode.x + offsetX,
+        y: topNode.y + offsetY,
+        z: levelTopValue // level_top is the top Z coordinate
+      };
+
+      // Calculate bottom node (top - default pile length)
+      startCoords = {
+        x: endCoords.x,
+        y: endCoords.y,
+        z: levelTopValue - defaultPileLength // Bottom is below top
+      };
+
+      // Use synthetic IDs for 1-node format
+      startId = `${idNode}_bottom`;
+      endId = idNode;
+    }
+  }
+
   if (startCoords && endCoords) {
     // 要素の全属性を取得してelement objectを作成
     const elementData = {
@@ -169,24 +242,34 @@ export function lineElementKeyExtractor(
       [idStartAttr]: startId,
       [idEndAttr]: endId
     };
-    
+
     // name属性やその他の属性も取得
     const name = element.getAttribute("name");
     if (name) elementData.name = name;
-    
+
     const idSection = element.getAttribute("id_section");
     if (idSection) elementData.id_section = idSection;
-    
+
     const kindStructure = element.getAttribute("kind_structure");
     if (kindStructure) elementData.kind_structure = kindStructure;
-    
-    const key = getLineElementKey(startCoords, endCoords);
-    return { 
-      key, 
-      data: { 
-        startCoords, 
-        endCoords, 
+
+    // GUID属性も取得
+    const guid = element.getAttribute("guid");
+    if (guid) elementData.guid = guid;
+
+    // キータイプに応じたキー生成
+    const key = getElementKey(element, keyType, () =>
+      getLineElementKey(startCoords, endCoords)
+    );
+
+    return {
+      key,
+      data: {
+        startCoords,
+        endCoords,
         id: elementId,
+        name: name || undefined,  // ツリー表示用にトップレベルに追加
+        guid: guid || undefined,  // ツリー表示用にトップレベルに追加
         element: elementData // 要素データを追加
       }
     };
@@ -202,12 +285,14 @@ export function lineElementKeyExtractor(
  * @param {Element} element - ポリゴン要素のXML要素。
  * @param {Map<string, {x: number, y: number, z: number}>} nodeMap - 対応するノードマップ。
  * @param {string} [nodeOrderTag="StbNodeIdOrder"] - 頂点ノードIDリストが含まれるタグ名。
+ * @param {string} [keyType] - 比較キータイプ（省略時はPOSITION_BASED）
  * @returns {{key: string|null, data: {vertexCoordsList: Array<object>, id: string}|null}} キーとデータのオブジェクト。
  */
 export function polyElementKeyExtractor(
   element,
   nodeMap,
-  nodeOrderTag = "StbNodeIdOrder"
+  nodeOrderTag = "StbNodeIdOrder",
+  keyType = COMPARISON_KEY_TYPE.POSITION_BASED
 ) {
   const floorId = element.getAttribute("id_floor") || "";
   const sectionId = element.getAttribute("id_section") || "";
@@ -226,8 +311,24 @@ export function polyElementKeyExtractor(
       vertexCoordsList.length === nodeIds.length &&
       vertexCoordsList.length >= 3
     ) {
-      const key = getPolyElementKey(vertexCoordsList, floorId, sectionId);
-      return { key, data: { vertexCoordsList, id: elementId } };
+      // name属性とGUID属性を取得
+      const name = element.getAttribute("name");
+      const guid = element.getAttribute("guid");
+
+      // キータイプに応じたキー生成
+      const key = getElementKey(element, keyType, () =>
+        getPolyElementKey(vertexCoordsList, floorId, sectionId)
+      );
+
+      return {
+        key,
+        data: {
+          vertexCoordsList,
+          id: elementId,
+          name: name || undefined,  // ツリー表示用にトップレベルに追加
+          guid: guid || undefined   // ツリー表示用にトップレベルに追加
+        }
+      };
     } else {
       console.warn(
         `Missing node coords or insufficient vertices for poly element: ElementID=${elementId}, IDs=${nodeIds}, Found=${vertexCoordsList.length}`
@@ -251,8 +352,20 @@ export function nodeElementKeyExtractor(element, nodeMap) {
   const nodeId = element.getAttribute("id");
   const coords = nodeMap.get(nodeId);
   if (coords) {
+    // name属性とGUID属性を取得（Nodeには通常ないが、存在する場合に備えて）
+    const name = element.getAttribute("name");
+    const guid = element.getAttribute("guid");
+
     const key = getNodeCoordKey(coords);
-    return { key, data: { coords, id: nodeId } };
+    return {
+      key,
+      data: {
+        coords,
+        id: nodeId,
+        name: name || undefined,  // ツリー表示用にトップレベルに追加
+        guid: guid || undefined   // ツリー表示用にトップレベルに追加
+      }
+    };
   }
   return { key: null, data: null };
 }

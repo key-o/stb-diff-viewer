@@ -1,13 +1,13 @@
 /**
- * @fileoverview Model document processing module
+ * @fileoverview モデル文書処理モジュール
  *
- * This module handles STB model document processing and parsing:
- * - Model document loading and validation
- * - Node map construction
- * - Story and axis data extraction
- * - Document state management
+ * このモジュールはSTBモデル文書の処理と解析を処理します：
+ * - モデル文書読み込みと検証
+ * - ノードマップ構築
+ * - 階と軸データ抽出
+ * - 文書状態管理
  *
- * Extracted from the massive compareModels() function for better maintainability.
+ * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
 import { loadStbXmlAutoEncoding } from "../viewer/utils/utils.js";
@@ -64,8 +64,7 @@ export async function processModelDocuments(fileA, fileB) {
       mergeSectionMaps(sectionMaps, resultB.sectionMaps);
     }
 
-    // Store section maps in global state for label generation
-    setState('model.sectionMaps', sectionMaps);
+    // Section maps will be stored in global state by modelLoader.js as 'sectionsData'
     console.log(`Stored section maps: ${sectionMaps.columnSections.size} column sections, ${sectionMaps.beamSections.size} beam sections, ${sectionMaps.braceSections.size} brace sections`);
 
     // Remove duplicates from stories and sort by height

@@ -8,11 +8,7 @@
  * - エクスポート前のバリデーション
  */
 
-import {
-  validateElement,
-  getMissingRequiredAttributes,
-  isSchemaLoaded,
-} from "../parser/xsdSchemaParser.js";
+import { validateElement, isSchemaLoaded } from "../parser/xsdSchemaParser.js";
 
 /**
  * STBドキュメントを修正してエクスポート
@@ -154,8 +150,10 @@ function formatXml(xmlString) {
  */
 function downloadStbFile(xmlContent, filename) {
   // ファイル名の拡張子を.stbに確保
-  const stbFilename = filename.endsWith('.stb') ? filename : filename.replace(/\.[^.]*$/, '.stb');
-  
+  const stbFilename = filename.endsWith(".stb")
+    ? filename
+    : filename.replace(/\.[^.]*$/, ".stb");
+
   const blob = new Blob([xmlContent], { type: "application/xml" });
   const url = URL.createObjectURL(blob);
 

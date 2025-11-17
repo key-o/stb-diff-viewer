@@ -7,6 +7,9 @@
  */
 
 import { SECTION_CONFIG } from "../config/sectionConfig.js";
+import { deriveDimensionsFromAttributes } from "../common/dimensionNormalizer.js";
+import { ensureUnifiedSectionType } from "../common/sectionTypeUtil.js";
+import { SameNotSameProcessor } from "./SameNotSameProcessor.js";
 
 // STB 名前空間（querySelector がヒットしない場合にフォールバック）
 const STB_NS = "https://www.building-smart.or.jp/dl";
@@ -91,6 +94,7 @@ function extractSectionData(element, config) {
   const id = element.getAttribute("id");
   const name = element.getAttribute("name");
   const idSteel = element.getAttribute("id_steel");
+  const steelFigureInfo = extractSteelFigureVariants(element, config);
 
   // ID必須チェック
   if (!id) {
@@ -105,12 +109,29 @@ function extractSectionData(element, config) {
     id: id,
     name: name,
     sectionType: element.tagName,
-    shapeName: extractShapeName(element, config),
+    shapeName:
+      (steelFigureInfo?.primaryShape || steelFigureInfo?.fallbackShape || null) ??
+      extractShapeName(element, config),
   };
 
   if (idSteel) {
     sectionData.id_steel = idSteel;
     if (!sectionData.shapeName) sectionData.shapeName = idSteel;
+  }
+
+  if (steelFigureInfo) {
+    if (steelFigureInfo.variants && steelFigureInfo.variants.length > 0) {
+      sectionData.steelVariants = steelFigureInfo.variants;
+    }
+    if (steelFigureInfo.same || (steelFigureInfo.notSame && steelFigureInfo.notSame.length > 0)) {
+      sectionData.sameNotSamePattern = {
+        hasSame: Boolean(steelFigureInfo.same),
+        notSameCount: steelFigureInfo.notSame.length,
+      };
+    }
+
+    // 多断面ジオメトリ対応: mode と shapes フィールドを正規化
+    normalizeSectionMode(sectionData, steelFigureInfo);
   }
 
   // RC / SRC / CFT などコンクリート図形寸法の抽出
@@ -161,6 +182,9 @@ function extractSectionData(element, config) {
     );
   }
 
+  // 断面タイプの正規化（section_type, profile_type, sectionType の統一）
+  ensureUnifiedSectionType(sectionData);
+
   return sectionData;
 }
 
@@ -174,21 +198,12 @@ function extractShapeName(element, config) {
   // 鋼材図形から形状名を抽出
   if (config.steelFigures) {
     for (const figureSelector of config.steelFigures) {
-      let figureElement = null;
-      try {
-        figureElement = element.querySelector(figureSelector);
-      } catch (_) {
-        figureElement = null;
-      }
-      if (
-        !figureElement &&
-        typeof element.getElementsByTagNameNS === "function"
-      ) {
-        const nsList = element.getElementsByTagNameNS(STB_NS, figureSelector);
-        figureElement = nsList && nsList[0];
-      }
+      const figureElement = findFigureElement(element, figureSelector);
       if (figureElement) {
-        const shapeElement = figureElement.querySelector("*[shape]");
+        const shapeElement =
+          (typeof figureElement.querySelector === "function" &&
+            figureElement.querySelector("*[shape]")) ||
+          findFirstShapeElement(figureElement);
         if (shapeElement) {
           return shapeElement.getAttribute("shape");
         }
@@ -240,9 +255,19 @@ function extractConcreteDimensions(element, config) {
       const nsList = element.getElementsByTagNameNS(STB_NS, figSel);
       fig = nsList && nsList[0];
     }
+    if (!fig) {
+      // タグ名で直接検索を試みる（querySelector が失敗する場合のフォールバック）
+      const children = element.children;
+      for (let i = 0; i < children.length; i++) {
+        if (children[i].tagName === figSel || children[i].localName === figSel) {
+          fig = children[i];
+          break;
+        }
+      }
+    }
     if (!fig) continue;
     // 子要素内の shape を持つもの or 寸法属性を持つものを調査
-    const candidates = Array.from(fig.children);
+    const candidates = Array.from(fig.children || []);
     for (const c of candidates) {
       const d = deriveDimensionsFromAttributes(c.attributes);
       if (d) {
@@ -265,85 +290,146 @@ function extractConcreteDimensions(element, config) {
   return dims;
 }
 
-const WIDTH_ATTR_KEYS = [
-  "width",
-  "Width",
-  "WIDTH",
-  "B",
-  "b",
-  "outer_width",
-  "overall_width",
-  "X",
-  "x",
-];
-const HEIGHT_ATTR_KEYS = [
-  "height",
-  "Height",
-  "HEIGHT",
-  "H",
-  "h",
-  "overall_depth",
-  "overall_height",
-  "depth",
-  "Depth",
-  "Y",
-  "y",
-  "A",
-  "a",
-];
+function extractSteelFigureVariants(element, config) {
+  if (!config.steelFigures || config.steelFigures.length === 0) {
+    // フォールバック: 直接子要素から多断面パターンを検索
+    const processor = new SameNotSameProcessor(element);
+    return processor.expandSteelFigure();
+  }
 
-function deriveDimensionsFromAttributes(attrMap) {
-  if (!attrMap) return null;
-  let w, h, t;
-  for (const attr of Array.from(attrMap)) {
-    const name = attr.name;
-    const valStr = attr.value;
-    if (!valStr) continue;
-    const num = parseFloat(valStr);
-    if (!isFinite(num)) continue;
-    // 厳密一致 + 一部のパターン（width_X/width_Y, Width_X/Width_Y など）
-    if (w === undefined) {
-      if (WIDTH_ATTR_KEYS.includes(name)) {
-        w = num;
-      } else if (/^width_?X$/i.test(name)) {
-        w = num;
-      }
+  for (const figureSelector of config.steelFigures) {
+    const figureElement = findFigureElement(element, figureSelector);
+    if (!figureElement) continue;
+    const processor = new SameNotSameProcessor(figureElement);
+    const expanded = processor.expandSteelFigure();
+    if (expanded) {
+      return expanded;
     }
-    if (h === undefined) {
-      if (HEIGHT_ATTR_KEYS.includes(name)) {
-        h = num;
-      } else if (/^width_?Y$/i.test(name)) {
-        h = num;
-      }
+  }
+
+  // フォールバック: Figure要素が見つからない場合、element自体を直接調査
+  // (STB v2.0.2では多断面要素がFigure要素でラップされていない場合がある)
+  const processor = new SameNotSameProcessor(element);
+  return processor.expandSteelFigure();
+}
+
+function findFigureElement(element, selector) {
+  if (!element) return null;
+  let figureElement = null;
+  if (typeof element.querySelector === "function") {
+    try {
+      figureElement = element.querySelector(selector);
+    } catch (_) {
+      figureElement = null;
     }
-    // 円形直径 D
-    if (name === "D" || name === "d") {
-      // 直径は width/height としても扱うが、後続で直径としても利用できるよう両方設定
-      if (w === undefined) w = num;
-      if (h === undefined) h = num;
-      // 追加情報として diameter を格納（後で円判定に使用）
-      if (!attrMap.diameter) {
-        // attrMap はNamedNodeMapなので直接拡張せず、戻り値で設定
-      }
-      // 一時的にローカルスコープで保持し、返却時に追加
-      var diameter_local = num;
-      // 後段で out に追加
+    if (figureElement) return figureElement;
+  }
+  if (typeof element.getElementsByTagNameNS === "function") {
+    const nsList = element.getElementsByTagNameNS(STB_NS, selector);
+    if (nsList && nsList.length) {
+      return nsList[0];
     }
+  }
+  const children = element.children || [];
+  for (let i = 0; i < children.length; i++) {
     if (
-      t === undefined &&
-      (name === "t" || name === "thickness" || name === "t1")
-    )
-      t = num;
+      children[i].tagName === selector ||
+      children[i].localName === selector
+    ) {
+      return children[i];
+    }
   }
-  if (w === undefined && h === undefined) return null;
-  const out = {};
-  if (w !== undefined) out.width = w;
-  if (h !== undefined) out.height = h;
-  if (t !== undefined) out.thickness = t;
-  if (out.height && !out.overall_depth) out.overall_depth = out.height;
-  if (out.width && !out.overall_width) out.overall_width = out.width;
-  if (typeof diameter_local === "number") {
-    out.diameter = diameter_local;
+  return null;
+}
+
+function findFirstShapeElement(root) {
+  if (!root) return null;
+  const children = root.children || [];
+  for (let i = 0; i < children.length; i++) {
+    const child = children[i];
+    if (child.hasAttribute && child.hasAttribute("shape")) {
+      return child;
+    }
+    const nested = findFirstShapeElement(child);
+    if (nested) return nested;
   }
-  return out;
+  return null;
+}
+
+/**
+ * 断面データに mode と shapes フィールドを正規化して追加
+ * 多断面ジオメトリ生成に必要な構造を提供する
+ *
+ * @param {Object} sectionData - 断面データオブジェクト（変更される）
+ * @param {Object} steelFigureInfo - SameNotSameProcessor からの出力
+ */
+function normalizeSectionMode(sectionData, steelFigureInfo) {
+  if (!steelFigureInfo) return;
+
+  const { same, notSame, beamMultiSection } = steelFigureInfo;
+
+  // 1断面: Same が存在する
+  if (same) {
+    sectionData.mode = 'single';
+    sectionData.shapes = [{
+      pos: 'SAME',
+      shapeName: same.shape,
+      variant: same
+    }];
+    return;
+  }
+
+  // 多断面: 梁の特殊パターン (Haunch, Joint, FiveTypes)
+  if (beamMultiSection && beamMultiSection.length >= 2) {
+    sectionData.mode = beamMultiSection.length === 2 ? 'double' : 'multi';
+    sectionData.shapes = beamMultiSection.map(variant => ({
+      pos: variant.position || variant.pos || 'CENTER',
+      shapeName: variant.shape,
+      variant: variant
+    }));
+    // ハンチ等の種別を記録
+    if (beamMultiSection[0]?.sourceTag) {
+      sectionData.multiSectionType = beamMultiSection[0].sourceTag;
+    }
+    return;
+  }
+
+  // 多断面: NotSame が 2個以上
+  if (notSame && notSame.length >= 2) {
+    // 2断面 or 3+断面
+    sectionData.mode = notSame.length === 2 ? 'double' : 'multi';
+    sectionData.shapes = notSame.map(variant => ({
+      pos: variant.position || variant.pos || 'UNKNOWN',
+      shapeName: variant.shape,
+      variant: variant
+    }));
+    return;
+  }
+
+  // 単一の多断面要素（通常はありえないが、念のため）
+  if (beamMultiSection && beamMultiSection.length === 1) {
+    sectionData.mode = 'single';
+    sectionData.shapes = [{
+      pos: beamMultiSection[0].position || beamMultiSection[0].pos || 'CENTER',
+      shapeName: beamMultiSection[0].shape,
+      variant: beamMultiSection[0]
+    }];
+    return;
+  }
+
+  // NotSame が 1個のみ（通常はありえないが、念のため）
+  if (notSame && notSame.length === 1) {
+    sectionData.mode = 'single';
+    sectionData.shapes = [{
+      pos: notSame[0].position || notSame[0].pos || 'SAME',
+      shapeName: notSame[0].shape,
+      variant: notSame[0]
+    }];
+    return;
+  }
+
+  // デフォルト: mode を明示的に single に設定
+  if (!sectionData.mode) {
+    sectionData.mode = 'single';
+  }
 }

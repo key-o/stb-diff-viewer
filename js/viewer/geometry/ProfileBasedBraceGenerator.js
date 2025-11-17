@@ -9,7 +9,7 @@
  * STB2IFCのbrace_creator.pyと同じロジックを使用
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 import { materials } from "../rendering/materials.js";
 import { MeshPositioner } from "./MeshPositioner.js";
 import { IFCProfileFactory } from "./IFCProfileFactory.js";

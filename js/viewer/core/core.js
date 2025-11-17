@@ -14,15 +14,36 @@
  * 他のモジュールがこの上に構築される形で機能します。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 // CameraControls を使用（OrbitControls から移行）
-import CameraControls from "https://unpkg.com/camera-controls@3.1.0/dist/camera-controls.module.js";
-CameraControls.install({ THREE });
+// CameraControls is only needed in the browser. Dynamically import it there to avoid
+// attempting to load remote ESM modules in Node (which would fail the tests).
+let CameraControls = null;
+let CameraControlsPromise = null;
+if (typeof window !== "undefined") {
+  // Start loading CameraControls asynchronously and keep the promise so
+  // initRenderer can wait for it before instantiating controls.
+  CameraControlsPromise = import(
+    "https://unpkg.com/camera-controls@3.1.0/dist/camera-controls.module.js"
+  )
+    .then((mod) => {
+      CameraControls = mod.default || mod;
+      // install THREE reference into CameraControls (some distributions require this)
+      if (CameraControls && typeof CameraControls.install === "function") {
+        CameraControls.install({ THREE });
+      }
+    })
+    .catch((err) => {
+      console.warn("CameraControls の読み込みに失敗しました:", err);
+      CameraControls = null;
+    });
+}
 
 // --- 定数 ---
 export const SUPPORTED_ELEMENTS = [
   "Node",
   "Column",
+  "Post",
   "Girder",
   "Beam",
   "Brace",
@@ -30,30 +51,96 @@ export const SUPPORTED_ELEMENTS = [
   "Wall",
   "Axis",
   "Story",
+  "Pile",
+  "Footing",
+  "FoundationColumn",
 ];
 
-// --- Three.js シーン設定 ---
-export const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf0f0f0);
-
-// --- カメラ設定 ---
-export const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  // ★★★ near/far を mm スケールに調整 ★★★
-  10, // near: 10mm
-  50000000 // far: 50km (巨大なモデルも考慮)
-);
-// ★★★ 初期位置も mm スケールに ★★★
-camera.position.set(10000, 10000, 10000); // 10m, 10m, 10m
-camera.up.set(0, 0, 1); // Z軸を上に設定
-
-// --- レンダラー設定 (初期化は後で行う) ---
+// --- Three.js シーン / カメラ / レンダラー ---
+// エクスポートは必ず行うが、Node (tests) 環境ではブラウザ用初期化を行わない
+export let scene;
+export let camera; // PerspectiveCamera（デフォルト・3Dモード用）
+export let orthographicCamera; // OrthographicCamera（2Dモード用）
 export let renderer = null;
-
-// --- コントロール設定 ---
-// ★★★ 初期化を initRenderer に移動するため、null で宣言 ★★★
 export let controls = null;
+
+// --- アクティブカメラ管理 ---
+// 複数のカメラ（Perspective/Orthographic）を切り替え可能にする
+// デフォルトはPerspectiveCamera（3Dモード）
+export let activeCamera = null; // 初期化後にcameraを代入
+
+if (typeof window !== "undefined") {
+  // ブラウザ環境での初期化
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xf0f0f0);
+
+  camera = new THREE.PerspectiveCamera(
+    75,
+    window.innerWidth / window.innerHeight,
+    // ★★★ near/far を mm スケールに調整 ★★★
+    10, // near: 10mm
+    50000000 // far: 50km
+  );
+  camera.position.set(10000, 10000, 10000);
+  camera.up.set(0, 0, 1);
+
+  // OrthographicCamera を初期化（2Dモード用）
+  const aspect = window.innerWidth / window.innerHeight;
+  const frustumSize = 20000; // モデルサイズに応じて調整可能（デフォルト20m）
+  orthographicCamera = new THREE.OrthographicCamera(
+    -frustumSize * aspect / 2, // left
+    frustumSize * aspect / 2,  // right
+    frustumSize / 2,            // top
+    -frustumSize / 2,           // bottom
+    1,                          // near
+    50000000                    // far: 50km
+  );
+  orthographicCamera.position.set(0, 0, 20000); // 上から見下ろす位置
+  orthographicCamera.up.set(0, 1, 0); // Y軸が上
+
+  // アクティブカメラを初期化（デフォルトはPerspectiveCamera）
+  activeCamera = camera;
+
+  // renderer/controls は initRenderer で初期化する想定だが、ここではプレースホルダを用意
+  renderer = null;
+  controls = null;
+} else {
+  // Node 環境（テスト実行）向けの軽量な代替を用意
+  // Three.js の基本オブジェクトは Node でも動作するため簡易カメラとシーンを作成する
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, 1, 10, 50000000);
+
+  // OrthographicCamera（テスト環境用）
+  const frustumSize = 20000;
+  orthographicCamera = new THREE.OrthographicCamera(
+    -frustumSize / 2,
+    frustumSize / 2,
+    frustumSize / 2,
+    -frustumSize / 2,
+    1,
+    50000000
+  );
+
+  activeCamera = camera; // テスト環境でもactiveCameraを設定
+  renderer = null;
+  controls = null;
+}
+
+/**
+ * アクティブカメラを取得
+ * @returns {THREE.Camera} 現在アクティブなカメラ
+ */
+export function getActiveCamera() {
+  return activeCamera;
+}
+
+/**
+ * アクティブカメラを設定
+ * @param {THREE.Camera} newCamera - 新しいアクティブカメラ
+ */
+export function setActiveCamera(newCamera) {
+  activeCamera = newCamera;
+}
 
 // --- OrbitControls 互換の薄いラッパー（既存コードとの互換維持用） ---
 class TargetProxy extends THREE.Vector3 {
@@ -323,11 +410,11 @@ SUPPORTED_ELEMENTS.forEach((type) => {
  * レンダラーを初期化し、DOMに追加する
  * @returns {boolean} 初期化が成功したかどうか
  */
-export function initRenderer() {
+export async function initRenderer() {
   try {
     const canvas = document.getElementById("three-canvas");
     if (!canvas) {
-      console.error("Canvas element with id 'three-canvas' not found.");
+      console.error("ID 'three-canvas'のキャンバス要素が見つかりません。");
       return false;
     }
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
@@ -335,7 +422,21 @@ export function initRenderer() {
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.localClippingEnabled = true;
 
+    // CameraControls の読み込みが進行中であれば待機する
+    if (CameraControlsPromise) {
+      try {
+        await CameraControlsPromise;
+      } catch (e) {
+        // 既に警告は出しているが、ここではフォールバックとして続行
+        console.warn("CameraControls の初期化待機中にエラーが発生しました:", e);
+      }
+    }
+
     // ★★★ CameraControls ベースの互換ラッパーをインスタンス化 ★★★
+    if (!CameraControls) {
+      throw new Error("CameraControls が利用できません（ロード失敗）。");
+    }
+
     controls = new OrbitLikeControlsShim(camera, renderer.domElement);
 
     // グローバルアクセス用にwindowオブジェクトに設定
@@ -354,10 +455,10 @@ export function initRenderer() {
       RIGHT: THREE.MOUSE.PAN,
     };
 
-    console.log("Renderer initialized.");
+    console.log("レンダラーが初期化されました。");
     return true;
   } catch (error) {
-    console.error("Failed to initialize renderer:", error);
+    console.error("レンダラーの初期化に失敗しました:", error);
     controls = null; // エラー時は controls も null に戻す
     return false;
   }
@@ -370,6 +471,12 @@ export function setSkipControlsUpdate(skip) {
 }
 
 // --- アニメーションループ ---
+/**
+ * アニメーションループを開始
+ * @param {Object} controls - カメラコントロール
+ * @param {THREE.Scene} scene - レンダリングするシーン
+ * @param {THREE.Camera} [camera] - 使用するカメラ（省略時はactiveCameraを使用）
+ */
 export function animate(controls, scene, camera) {
   // delta を渡して CameraControls を更新
   const _animate = () => {
@@ -380,7 +487,9 @@ export function animate(controls, scene, camera) {
       const dt = _clock.getDelta();
       controls.update(dt);
     }
-    renderer.render(scene, camera);
+    // カメラが指定されていない場合はactiveCameraを使用
+    const renderCamera = camera || activeCamera;
+    renderer.render(scene, renderCamera);
   };
   // アニメーション開始（多重開始防止のため、1回目の呼び出しでループセット）
   if (!_animating) {
@@ -395,13 +504,35 @@ let _animating = false;
 let _clock = new THREE.Clock();
 
 // --- ウィンドウリサイズ処理 ---
-export function setupViewportResizeHandler(camera) {
+/**
+ * ビューポートリサイズハンドラーを設定
+ * PerspectiveCameraとOrthographicCameraの両方に対応
+ * @param {THREE.Camera} defaultCamera - デフォルトカメラ（後方互換性のため）
+ */
+export function setupViewportResizeHandler(defaultCamera) {
   window.addEventListener(
     "resize",
     () => {
       if (!renderer) return;
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
+
+      const aspect = window.innerWidth / window.innerHeight;
+
+      // PerspectiveCamera の更新
+      if (camera && camera.aspect !== undefined) {
+        camera.aspect = aspect;
+        camera.updateProjectionMatrix();
+      }
+
+      // OrthographicCamera の更新（frustumサイズを維持してアスペクト比を調整）
+      if (orthographicCamera) {
+        const frustumSize = orthographicCamera.top * 2; // 現在のfrustumサイズを取得
+        orthographicCamera.left = -frustumSize * aspect / 2;
+        orthographicCamera.right = frustumSize * aspect / 2;
+        orthographicCamera.top = frustumSize / 2;
+        orthographicCamera.bottom = -frustumSize / 2;
+        orthographicCamera.updateProjectionMatrix();
+      }
+
       renderer.setSize(window.innerWidth, window.innerHeight);
     },
     false

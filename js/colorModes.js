@@ -7,9 +7,10 @@
  * 3. スキーマエラー表示モード - スキーマチェックエラーを表示
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 import { getState } from "./core/globalState.js";
 import { applyImportanceColorMode } from "./viewer/rendering/materials.js";
+import { colorManager } from "./viewer/rendering/colorManager.js";
 
 // 色付けモードの定数
 export const COLOR_MODES = {
@@ -37,15 +38,38 @@ const DEFAULT_SCHEMA_COLORS = {
   error: "#ff0000", // エラー要素（赤色）
 };
 
-// 部材別色設定（デフォルト値 - 視認性重視）
-const elementColors = { ...DEFAULT_ELEMENT_COLORS };
+// 部材別色設定（ColorManagerと同期するため、getterを使用）
+const elementColors = new Proxy(
+  {},
+  {
+    get(target, prop) {
+      return colorManager.getElementColor(prop);
+    },
+    set(target, prop, value) {
+      colorManager.setElementColor(prop, value);
+      return true;
+    },
+  }
+);
 
-// スキーマエラー色設定
-const schemaColors = { ...DEFAULT_SCHEMA_COLORS };
-
-// 部材別マテリアルキャッシュ
-const elementMaterials = {};
-const elementLineMaterials = {};
+// スキーマエラー色設定（ColorManagerと同期するため、getterを使用）
+const schemaColors = new Proxy(
+  {
+    get valid() {
+      return colorManager.getSchemaColor(false);
+    },
+    set valid(value) {
+      colorManager.setSchemaColor("valid", value);
+    },
+    get error() {
+      return colorManager.getSchemaColor(true);
+    },
+    set error(value) {
+      colorManager.setSchemaColor("error", value);
+    },
+  },
+  {}
+);
 
 // スキーマエラー情報を保存するマップ
 const schemaErrorMap = new Map();
@@ -129,6 +153,9 @@ function updateColorModeUI() {
   const importanceSettings = document.getElementById(
     "importance-color-settings"
   );
+  const comparisonKeySettings = document.getElementById(
+    "comparison-key-settings"
+  );
 
   if (elementSettings && schemaSettings && importanceSettings) {
     // 全ての設定パネルを非表示にする
@@ -149,6 +176,11 @@ function updateColorModeUI() {
         break;
       // DIFF モードはデフォルトなので特別な表示は不要
     }
+  }
+
+  if (comparisonKeySettings) {
+    const shouldShowComparisonKey = currentColorMode === COLOR_MODES.DIFF;
+    comparisonKeySettings.classList.toggle("hidden", !shouldShowComparisonKey);
   }
 }
 
@@ -177,13 +209,14 @@ export function initializeElementColorControls() {
 
     const colorInput = document.createElement("input");
     colorInput.type = "color";
-    colorInput.value = elementColors[type];
+    colorInput.value = colorManager.getElementColor(type);
     colorInput.className = "legend-color-box";
     colorInput.id = `element-color-${type}`;
     colorInput.title = `${elementNames[type] || type}の色を変更`;
 
     colorInput.addEventListener("change", (e) => {
-      elementColors[type] = e.target.value;
+      // ColorManagerを使用して色を更新
+      colorManager.setElementColor(type, e.target.value);
       updateElementMaterials();
 
       // 色プレビューも更新
@@ -203,8 +236,9 @@ export function initializeElementColorControls() {
     // 色プレビューを追加
     const colorPreview = document.createElement("span");
     colorPreview.className = "color-preview";
-    colorPreview.style.backgroundColor = elementColors[type];
-    colorPreview.title = `現在の色: ${elementColors[type]}`;
+    const currentColor = colorManager.getElementColor(type);
+    colorPreview.style.backgroundColor = currentColor;
+    colorPreview.title = `現在の色: ${currentColor}`;
 
     div.appendChild(colorInput);
     div.appendChild(label);
@@ -212,16 +246,22 @@ export function initializeElementColorControls() {
     container.appendChild(div);
   });
 
-  // リセットボタンを追加
-  const resetButton = document.createElement("button");
-  resetButton.textContent = "デフォルト色に戻す";
-  resetButton.className = "btn btn-sm";
-  resetButton.style.cssText =
-    "margin-top: 10px; font-size: 0.8em; width: 100%;";
-  resetButton.addEventListener("click", () => {
-    resetElementColors();
+  // リセットボタンを追加 (ButtonManagerを使用)
+  import("./ui/buttonManager.js").then(({ buttonManager }) => {
+    const resetButton = buttonManager.createButton({
+      type: "reset",
+      text: "デフォルト色に戻す",
+      onClick: () => resetElementColors(),
+      ariaLabel: "部材色をデフォルトに戻す",
+      title: "部材色をデフォルト設定に戻します",
+      customStyle: {
+        marginTop: "10px",
+        fontSize: "0.8em",
+        width: "100%",
+      },
+    });
+    container.appendChild(resetButton);
   });
-  container.appendChild(resetButton);
 }
 
 /**
@@ -236,15 +276,15 @@ export function initializeSchemaColorControls() {
   const errorPreview = document.getElementById("schema-error-preview");
 
   if (validPreview) {
-    validPreview.style.backgroundColor = schemaColors.valid;
+    validPreview.style.backgroundColor = colorManager.getSchemaColor(false);
   }
   if (errorPreview) {
-    errorPreview.style.backgroundColor = schemaColors.error;
+    errorPreview.style.backgroundColor = colorManager.getSchemaColor(true);
   }
 
   if (validColorInput) {
     validColorInput.addEventListener("change", (e) => {
-      schemaColors.valid = e.target.value;
+      colorManager.setSchemaColor("valid", e.target.value);
       updateSchemaErrorMaterials();
 
       // 色プレビューを更新
@@ -260,7 +300,7 @@ export function initializeSchemaColorControls() {
 
   if (errorColorInput) {
     errorColorInput.addEventListener("change", (e) => {
-      schemaColors.error = e.target.value;
+      colorManager.setSchemaColor("error", e.target.value);
       updateSchemaErrorMaterials();
 
       // 色プレビューを更新
@@ -274,19 +314,24 @@ export function initializeSchemaColorControls() {
     });
   }
 
-  // リセットボタンを追加
-  const resetButton = document.createElement("button");
-  resetButton.textContent = "デフォルト色に戻す";
-  resetButton.className = "btn btn-sm";
-  resetButton.style.cssText =
-    "margin-top: 10px; font-size: 0.8em; width: 100%;";
-  resetButton.addEventListener("click", () => {
-    resetSchemaColors();
-  });
-
+  // リセットボタンを追加 (ButtonManagerを使用)
   const container = document.getElementById("schema-color-settings");
   if (container) {
-    container.appendChild(resetButton);
+    import("./ui/buttonManager.js").then(({ buttonManager }) => {
+      const resetButton = buttonManager.createButton({
+        type: "reset",
+        text: "デフォルト色に戻す",
+        onClick: () => resetSchemaColors(),
+        ariaLabel: "スキーマ色をデフォルトに戻す",
+        title: "スキーマエラー色をデフォルト設定に戻します",
+        customStyle: {
+          marginTop: "10px",
+          fontSize: "0.8em",
+          width: "100%",
+        },
+      });
+      container.appendChild(resetButton);
+    });
   }
 }
 
@@ -294,38 +339,18 @@ export function initializeSchemaColorControls() {
  * 部材別マテリアルを更新
  */
 function updateElementMaterials() {
-  Object.keys(elementColors).forEach((type) => {
-    const color = new THREE.Color(elementColors[type]);
-
-    // メッシュマテリアル
-    if (!elementMaterials[type]) {
-      elementMaterials[type] = new THREE.MeshStandardMaterial({
-        color: color,
-        roughness: 0.6,
-        metalness: 0.1,
-        side: THREE.DoubleSide,
-      });
-    } else {
-      elementMaterials[type].color = color;
-    }
-
-    // ラインマテリアル
-    if (!elementLineMaterials[type]) {
-      elementLineMaterials[type] = new THREE.LineBasicMaterial({
-        color: color,
-      });
-    } else {
-      elementLineMaterials[type].color = color;
-    }
-  });
+  // ColorManagerのキャッシュをクリアして再生成を促す
+  colorManager.clearMaterialCache();
+  console.log("[ColorMode] Element materials cache cleared");
 }
 
 /**
  * スキーマエラー用マテリアルを更新
  */
 function updateSchemaErrorMaterials() {
-  // 実装は後でスキーマチェック機能と連携
-  console.log("Schema error materials updated:", schemaColors);
+  // ColorManagerのキャッシュをクリアして再生成を促す
+  colorManager.clearMaterialCache();
+  console.log("[ColorMode] Schema error materials cache cleared");
 }
 
 /**
@@ -340,59 +365,35 @@ export function getMaterialForElement(
   isLine = false,
   elementId = null
 ) {
-  switch (currentColorMode) {
+  const colorMode = getCurrentColorMode();
+
+  // ColorManagerを使用してマテリアルを取得
+  switch (colorMode) {
     case COLOR_MODES.ELEMENT:
-      // Axis（通り芯）とStory（階）はワイヤーフレーム表示
-      const shouldUseWireframeForElement =
-        elementType === "Axis" || elementType === "Story";
+      // 部材別色付けモード
+      return colorManager.getMaterial("element", {
+        elementType,
+        isLine,
+        wireframe: elementType === "Axis" || elementType === "Story",
+      });
 
-      if (isLine) {
-        return (
-          elementLineMaterials[elementType] ||
-          new THREE.LineBasicMaterial({ color: 0x888888 })
-        );
-      } else {
-        const baseMaterial =
-          elementMaterials[elementType] ||
-          new THREE.MeshStandardMaterial({ color: 0x888888 });
-
-        if (shouldUseWireframeForElement) {
-          // ワイヤーフレーム用のマテリアルを作成
-          return new THREE.MeshStandardMaterial({
-            color: baseMaterial.color,
-            wireframe: true,
-            side: THREE.DoubleSide,
-          });
-        }
-        return baseMaterial;
-      }
     case COLOR_MODES.SCHEMA:
       // スキーマエラーチェック結果に基づく色付け
       const errorInfo = elementId
         ? getSchemaError(elementId)
         : { hasError: false };
-      const color = errorInfo.hasError
-        ? schemaColors.error
-        : schemaColors.valid;
 
-      // Axis（通り芯）とStory（階）はワイヤーフレーム表示
-      const shouldUseWireframeForSchema =
-        elementType === "Axis" || elementType === "Story";
+      return colorManager.getMaterial("schema", {
+        elementType,
+        isLine,
+        hasError: errorInfo.hasError,
+        wireframe: elementType === "Axis" || elementType === "Story",
+      });
 
-      if (isLine) {
-        return new THREE.LineBasicMaterial({ color: color });
-      } else {
-        return new THREE.MeshStandardMaterial({
-          color: color,
-          roughness: 0.6,
-          metalness: 0.1,
-          side: THREE.DoubleSide,
-          wireframe: shouldUseWireframeForSchema,
-        });
-      }
     case COLOR_MODES.IMPORTANCE:
       // 重要度モードは materials.js で処理するため null を返す
       return null;
+
     case COLOR_MODES.DIFF:
     default:
       // デフォルトの差分表示モードは既存の材料システムを使用
@@ -549,16 +550,24 @@ function initializeImportanceColorControls() {
           });
         });
 
-        // リセットボタンを追加
-        const resetButton = document.createElement("button");
-        resetButton.textContent = "デフォルト色に戻す";
-        resetButton.className = "btn btn-sm";
-        resetButton.style.cssText =
-          "margin-top: 10px; font-size: 0.8em; width: 100%;";
-        resetButton.addEventListener("click", () => {
-          resetImportanceColors();
-        });
-        container.appendChild(resetButton);
+        // リセットボタンを追加 (ButtonManagerを使用)
+        import("./ui/buttonManager.js").then(
+          ({ buttonManager: importanceBtnManager }) => {
+            const resetButton = importanceBtnManager.createButton({
+              type: "reset",
+              text: "デフォルト色に戻す",
+              onClick: () => resetImportanceColors(),
+              ariaLabel: "重要度色をデフォルトに戻す",
+              title: "重要度色をデフォルト設定に戻します",
+              customStyle: {
+                marginTop: "10px",
+                fontSize: "0.8em",
+                width: "100%",
+              },
+            });
+            container.appendChild(resetButton);
+          }
+        );
       });
     }
   );
@@ -569,6 +578,11 @@ function initializeImportanceColorControls() {
  */
 export function resetImportanceColors() {
   import("./config/importanceConfig.js").then(({ IMPORTANCE_COLORS }) => {
+    // ColorManagerを使用して色をリセット
+    Object.entries(IMPORTANCE_COLORS).forEach(([level, color]) => {
+      colorManager.setImportanceColor(level, color);
+    });
+
     // ランタイム色設定をデフォルトに戻す
     window.runtimeImportanceColors = { ...IMPORTANCE_COLORS };
 
@@ -593,8 +607,10 @@ export function resetImportanceColors() {
  * 部材別色設定をデフォルトにリセット
  */
 export function resetElementColors() {
-  // 色設定をデフォルトに戻す
-  Object.assign(elementColors, DEFAULT_ELEMENT_COLORS);
+  // ColorManagerを使用して色をリセット
+  Object.entries(DEFAULT_ELEMENT_COLORS).forEach(([type, color]) => {
+    colorManager.setElementColor(type, color);
+  });
 
   // UIの色設定コントロールを更新
   initializeElementColorControls();
@@ -612,8 +628,9 @@ export function resetElementColors() {
  * スキーマエラー色設定をデフォルトにリセット
  */
 export function resetSchemaColors() {
-  // 色設定をデフォルトに戻す
-  Object.assign(schemaColors, DEFAULT_SCHEMA_COLORS);
+  // ColorManagerを使用して色をリセット
+  colorManager.setSchemaColor("valid", DEFAULT_SCHEMA_COLORS.valid);
+  colorManager.setSchemaColor("error", DEFAULT_SCHEMA_COLORS.error);
 
   // UIの色設定コントロールを更新
   initializeSchemaColorControls();
@@ -672,27 +689,21 @@ export function showImportancePerformanceStats() {
  * @param {string} color - 新しい色
  */
 function updateImportanceColor(importanceLevel, color) {
-  // 動的に色設定を更新
-  import("./config/importanceConfig.js").then(({ IMPORTANCE_COLORS }) => {
-    // 色設定を更新（実際には実行時の色設定として保存）
-    if (!window.runtimeImportanceColors) {
-      window.runtimeImportanceColors = { ...IMPORTANCE_COLORS };
-    }
-    window.runtimeImportanceColors[importanceLevel] = color;
+  // ColorManagerを使用して色を更新
+  colorManager.setImportanceColor(importanceLevel, color);
 
-    console.log(`Importance color updated: ${importanceLevel} -> ${color}`);
+  console.log(`Importance color updated: ${importanceLevel} -> ${color}`);
 
-    // 重要度モードが有効な場合は即座に適用
-    if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
-      // マテリアルキャッシュをクリアして再生成
-      import("./viewer/rendering/materials.js").then(
-        ({ clearImportanceMaterialCache }) => {
-          clearImportanceMaterialCache();
-          updateElementsForColorMode();
-        }
-      );
-    }
-  });
+  // 重要度モードが有効な場合は即座に適用
+  if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
+    // マテリアルキャッシュをクリアして再生成
+    import("./viewer/rendering/materials.js").then(
+      ({ clearImportanceMaterialCache }) => {
+        clearImportanceMaterialCache();
+        updateElementsForColorMode();
+      }
+    );
+  }
 }
 
 /**
@@ -852,12 +863,14 @@ function rebuildScene() {
 }
 
 /**
- * 全要素に部材別色分けを適用
+ * 共通: 全要素にマテリアルを適用
+ * @param {string} modeName - モード名（ログ用）
+ * @private
  */
-function applyElementColorModeToAll() {
+function applyColorModeToAllObjects(modeName) {
   const elementGroups = getState("elementGroups");
   if (!elementGroups) {
-    console.warn("[ElementColorMode] elementGroups not found in global state");
+    console.warn(`[${modeName}] elementGroups not found in global state`);
     return;
   }
 
@@ -867,7 +880,7 @@ function applyElementColorModeToAll() {
     ? elementGroups
     : Object.values(elementGroups);
 
-  console.log(`[ElementColorMode] Processing ${groups.length} groups`);
+  console.log(`[${modeName}] Processing ${groups.length} groups`);
 
   groups.forEach((group) => {
     group.traverse((object) => {
@@ -877,9 +890,9 @@ function applyElementColorModeToAll() {
     });
   });
 
-  console.log(`[ElementColorMode] Found ${allObjects.length} objects to color`);
+  console.log(`[${modeName}] Found ${allObjects.length} objects to color`);
 
-  // 部材別色分けマテリアルを適用
+  // マテリアルを適用（現在のカラーモードに基づいて自動選択される）
   import("./viewer/rendering/materials.js").then(
     ({ getMaterialForElementWithMode }) => {
       allObjects.forEach((object) => {
@@ -903,126 +916,31 @@ function applyElementColorModeToAll() {
       });
 
       console.log(
-        `[ElementColorMode] Applied element coloring to ${allObjects.length} objects`
+        `[${modeName}] Applied coloring to ${allObjects.length} objects`
       );
     }
   );
+}
+
+/**
+ * 全要素に部材別色分けを適用
+ */
+function applyElementColorModeToAll() {
+  applyColorModeToAllObjects("ElementColorMode");
 }
 
 /**
  * 全要素にスキーマエラー色分けを適用
  */
 function applySchemaColorModeToAll() {
-  const elementGroups = getState("elementGroups");
-  if (!elementGroups) {
-    console.warn("[SchemaColorMode] elementGroups not found in global state");
-    return;
-  }
-
-  // 全オブジェクトを収集
-  const allObjects = [];
-  const groups = Array.isArray(elementGroups)
-    ? elementGroups
-    : Object.values(elementGroups);
-
-  console.log(`[SchemaColorMode] Processing ${groups.length} groups`);
-
-  groups.forEach((group) => {
-    group.traverse((object) => {
-      if (object.isMesh && object.userData && object.userData.elementType) {
-        allObjects.push(object);
-      }
-    });
-  });
-
-  console.log(`[SchemaColorMode] Found ${allObjects.length} objects to color`);
-
-  // スキーマエラー色分けマテリアルを適用
-  import("./viewer/rendering/materials.js").then(
-    ({ getMaterialForElementWithMode }) => {
-      allObjects.forEach((object) => {
-        const elementType = object.userData.elementType;
-        const comparisonState = object.userData.modelSource || "matched";
-        const isLine = object.userData.isLine || false;
-        const isPoly = object.userData.isPoly || false;
-        const elementId = object.userData.elementId || null;
-
-        const newMaterial = getMaterialForElementWithMode(
-          elementType,
-          comparisonState,
-          isLine,
-          isPoly,
-          elementId
-        );
-
-        if (newMaterial) {
-          object.material = newMaterial;
-        }
-      });
-
-      console.log(
-        `[SchemaColorMode] Applied schema coloring to ${allObjects.length} objects`
-      );
-    }
-  );
+  applyColorModeToAllObjects("SchemaColorMode");
 }
 
 /**
  * 全要素に差分色分けを適用
  */
 function applyDiffColorModeToAll() {
-  const elementGroups = getState("elementGroups");
-  if (!elementGroups) {
-    console.warn("[DiffColorMode] elementGroups not found in global state");
-    return;
-  }
-
-  // 全オブジェクトを収集
-  const allObjects = [];
-  const groups = Array.isArray(elementGroups)
-    ? elementGroups
-    : Object.values(elementGroups);
-
-  console.log(`[DiffColorMode] Processing ${groups.length} groups`);
-
-  groups.forEach((group) => {
-    group.traverse((object) => {
-      if (object.isMesh && object.userData && object.userData.elementType) {
-        allObjects.push(object);
-      }
-    });
-  });
-
-  console.log(`[DiffColorMode] Found ${allObjects.length} objects to color`);
-
-  // 差分色分けマテリアルを適用
-  import("./viewer/rendering/materials.js").then(
-    ({ getMaterialForElementWithMode }) => {
-      allObjects.forEach((object) => {
-        const elementType = object.userData.elementType;
-        const comparisonState = object.userData.modelSource || "matched";
-        const isLine = object.userData.isLine || false;
-        const isPoly = object.userData.isPoly || false;
-        const elementId = object.userData.elementId || null;
-
-        const newMaterial = getMaterialForElementWithMode(
-          elementType,
-          comparisonState,
-          isLine,
-          isPoly,
-          elementId
-        );
-
-        if (newMaterial) {
-          object.material = newMaterial;
-        }
-      });
-
-      console.log(
-        `[DiffColorMode] Applied diff coloring to ${allObjects.length} objects`
-      );
-    }
-  );
+  applyColorModeToAllObjects("DiffColorMode");
 }
 
 /**
@@ -1121,12 +1039,20 @@ function applyImportanceColorModeToAll() {
 
 // 部材色設定の取得
 export function getElementColors() {
-  return { ...elementColors };
+  // ColorManagerから最新の色設定を取得
+  const colors = {};
+  Object.keys(DEFAULT_ELEMENT_COLORS).forEach((type) => {
+    colors[type] = colorManager.getElementColor(type);
+  });
+  return colors;
 }
 
 // スキーマ色設定の取得
 export function getSchemaColors() {
-  return { ...schemaColors };
+  return {
+    valid: colorManager.getSchemaColor(false),
+    error: colorManager.getSchemaColor(true),
+  };
 }
 
 /**

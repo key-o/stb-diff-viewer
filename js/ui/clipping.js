@@ -1,16 +1,16 @@
 /**
- * @fileoverview Clipping plane management module
+ * @fileoverview クリッピング平面管理モジュール
  *
- * This module manages 3D clipping plane operations:
- * - Story-based clipping plane application
- * - Axis-based clipping plane application
- * - Clipping plane clearing and reset
- * - Clipping plane coordinate calculations
+ * このモジュールは3Dクリッピング平面操作を管理します：
+ * - 階ベースのクリッピング平面適用
+ * - 軸ベースのクリッピング平面適用
+ * - クリッピング平面のクリアとリセット
+ * - クリッピング平面座標計算
  *
- * Split from the large ui.js module for better organization.
+ * より良い整理のため、大きなui.jsモジュールから分割されました。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 import { getCurrentStories, getCurrentAxesData } from "./state.js";
 
 import { clearClippingPlanes, applyClipPlanes } from "../viewer/index.js";
@@ -20,27 +20,16 @@ let currentClippingState = {
   type: null, // 'story', 'xAxis', 'yAxis'
   id: null,
   range: null,
-  bounds: null
+  bounds: null,
 };
 
 // Camera state for restoration
 let previousCameraState = {
   position: null,
   target: null,
-  saved: false
+  saved: false,
 };
 
-// Original camera controls settings for restoration
-let originalControlsSettings = {
-  enableRotate: true,
-  enableZoom: true,
-  enablePan: true,
-  minPolarAngle: 0,
-  maxPolarAngle: Math.PI,
-  screenSpacePanning: true,
-  mouseButtons: null,
-  saved: false
-};
 
 /**
  * Apply story-based clipping plane
@@ -55,8 +44,8 @@ export function applyStoryClip(storyId = null, customRange = null) {
   }
 
   const stories = getCurrentStories();
-  const selectedStory = stories.find(story => story.id === storyId);
-  
+  const selectedStory = stories.find((story) => story.id === storyId);
+
   if (!selectedStory) {
     console.warn(`Story with ID ${storyId} not found`);
     return;
@@ -64,57 +53,66 @@ export function applyStoryClip(storyId = null, customRange = null) {
 
   // Use custom range or default
   const range = customRange || 1000; // Default 1m
-  console.log(`Applying story clipping for: ${selectedStory.name} (height: ${selectedStory.height}mm, range: ±${range}mm)`);
+  console.log(
+    `Applying story clipping for: ${selectedStory.name} (height: ${selectedStory.height}mm, range: ±${range}mm)`
+  );
 
   // Calculate clipping bounds for the story with custom range
-  const storyBounds = calculateStoryBoundsWithRange(selectedStory, stories, range);
-  
+  const storyBounds = calculateStoryBoundsWithRange(
+    selectedStory,
+    stories,
+    range
+  );
+
   if (storyBounds) {
     const clippingPlanes = createStoryClippingPlanes(storyBounds);
-    
+
     if (applyClipPlanes && clippingPlanes.length > 0) {
       applyClipPlanes(clippingPlanes);
-      
+
       // Update current clipping state
       currentClippingState = {
-        type: 'story',
+        type: "story",
         id: storyId,
         range: range,
-        bounds: storyBounds
+        bounds: storyBounds,
       };
-      
+
       console.log(`Applied ${clippingPlanes.length} story clipping planes`);
-      showClippingControls('story');
-      
-      // Set optimal camera view for clipping
-      setCameraForClipping('story', storyBounds);
+      showClippingControls("story");
     }
   }
 }
 
 /**
  * Apply axis-based clipping plane
- * @param {string} axisType - "X" or "Y"  
+ * @param {string} axisType - "X" or "Y"
  * @param {string} axisId - Axis ID to clip to (optional)
  * @param {number} customRange - Custom range in mm (optional)
  */
 export function applyAxisClip(axisType, axisId = null, customRange = null) {
   console.log(`=== AXIS CLIPPING DEBUG ===`);
-  console.log(`applyAxisClip called with: axisType=${axisType}, axisId=${axisId}, customRange=${customRange}`);
-  
+  console.log(
+    `applyAxisClip called with: axisType=${axisType}, axisId=${axisId}, customRange=${customRange}`
+  );
+
   // First, check what's in the dropdown selector
   const selectorId = axisType === "X" ? "xAxisSelector" : "yAxisSelector";
   const selector = document.getElementById(selectorId);
   if (selector) {
-    console.log(`${axisType}-axis selector found with ${selector.options.length} options:`);
+    console.log(
+      `${axisType}-axis selector found with ${selector.options.length} options:`
+    );
     Array.from(selector.options).forEach((option, index) => {
-      console.log(`  Option ${index}: value="${option.value}", text="${option.textContent}"`);
+      console.log(
+        `  Option ${index}: value="${option.value}", text="${option.textContent}"`
+      );
     });
     console.log(`Currently selected: "${selector.value}"`);
   } else {
     console.warn(`${axisType}-axis selector not found in DOM`);
   }
-  
+
   if (!axisId || axisId === "all") {
     console.log(`Clearing ${axisType}-axis clipping`);
     clearCurrentClipping();
@@ -123,20 +121,27 @@ export function applyAxisClip(axisType, axisId = null, customRange = null) {
 
   const axesData = getCurrentAxesData();
   console.log(`Current axes data from state:`, axesData);
-  console.log(`X-axes count: ${axesData.xAxes.length}, Y-axes count: ${axesData.yAxes.length}`);
-  
+  console.log(
+    `X-axes count: ${axesData.xAxes.length}, Y-axes count: ${axesData.yAxes.length}`
+  );
+
   const axes = axisType === "X" ? axesData.xAxes : axesData.yAxes;
   console.log(`${axisType}-axes array from state:`, axes);
-  
-  const selectedAxis = axes.find(axis => axis.id === axisId);
+
+  const selectedAxis = axes.find((axis) => axis.id === axisId);
   console.log(`Selected axis for ID ${axisId}:`, selectedAxis);
-  
+
   if (!selectedAxis) {
-    console.warn(`${axisType}-axis with ID ${axisId} not found in axes array:`, axes);
-    
+    console.warn(
+      `${axisType}-axis with ID ${axisId} not found in axes array:`,
+      axes
+    );
+
     // Check if axes data is empty
     if (axes.length === 0) {
-      alert(`${axisType}軸データが読み込まれていません。STBファイルに軸情報が含まれているか確認してください。`);
+      alert(
+        `${axisType}軸データが読み込まれていません。STBファイルに軸情報が含まれているか確認してください。`
+      );
     } else {
       alert(`選択された${axisType}軸（ID: ${axisId}）が見つかりません。`);
     }
@@ -145,34 +150,45 @@ export function applyAxisClip(axisType, axisId = null, customRange = null) {
 
   // Use custom range or default
   const range = customRange || 2000; // Default 2m for axes
-  console.log(`Applying ${axisType}-axis clipping for: ${selectedAxis.name} (distance: ${selectedAxis.distance}mm, range: ±${range}mm)`);
+  console.log(
+    `Applying ${axisType}-axis clipping for: ${selectedAxis.name} (distance: ${selectedAxis.distance}mm, range: ±${range}mm)`
+  );
 
   // Calculate clipping bounds for the axis with custom range
-  const axisBounds = calculateAxisBoundsWithRange(selectedAxis, axisType, axes, range);
+  const axisBounds = calculateAxisBoundsWithRange(
+    selectedAxis,
+    axisType,
+    axes,
+    range
+  );
   console.log(`Calculated axis bounds:`, axisBounds);
-  
+
   if (axisBounds) {
     const clippingPlanes = createAxisClippingPlanes(axisBounds, axisType);
-    console.log(`Created ${clippingPlanes.length} clipping planes:`, clippingPlanes);
-    
+    console.log(
+      `Created ${clippingPlanes.length} clipping planes:`,
+      clippingPlanes
+    );
+
     if (applyClipPlanes && clippingPlanes.length > 0) {
       applyClipPlanes(clippingPlanes);
-      
+
       // Update current clipping state
       currentClippingState = {
-        type: axisType.toLowerCase() + 'Axis',
+        type: axisType.toLowerCase() + "Axis",
         id: axisId,
         range: range,
-        bounds: axisBounds
+        bounds: axisBounds,
       };
-      
-      console.log(`Applied ${clippingPlanes.length} ${axisType}-axis clipping planes`);
-      showClippingControls(axisType.toLowerCase() + 'Axis');
-      
-      // Set optimal camera view for clipping
-      setCameraForClipping(axisType.toLowerCase() + 'Axis', axisBounds);
+
+      console.log(
+        `Applied ${clippingPlanes.length} ${axisType}-axis clipping planes`
+      );
+      showClippingControls(axisType.toLowerCase() + "Axis");
     } else {
-      console.error(`Failed to apply clipping planes. applyClipPlanes function available: ${!!applyClipPlanes}`);
+      console.error(
+        `Failed to apply clipping planes. applyClipPlanes function available: ${!!applyClipPlanes}`
+      );
     }
   } else {
     console.error(`Failed to calculate axis bounds for ${axisType}-axis`);
@@ -189,13 +205,15 @@ export function applyAxisClip(axisType, axisId = null, customRange = null) {
 function calculateStoryBounds(selectedStory, allStories) {
   try {
     const storyHeight = selectedStory.height;
-    
+
     // Find adjacent stories to determine bounds
     const sortedStories = [...allStories].sort((a, b) => a.height - b.height);
-    const currentIndex = sortedStories.findIndex(story => story.id === selectedStory.id);
-    
+    const currentIndex = sortedStories.findIndex(
+      (story) => story.id === selectedStory.id
+    );
+
     let lowerBound, upperBound;
-    
+
     if (currentIndex > 0) {
       // Use height of story below as lower bound
       lowerBound = sortedStories[currentIndex - 1].height;
@@ -203,7 +221,7 @@ function calculateStoryBounds(selectedStory, allStories) {
       // First story - use some offset below current height
       lowerBound = storyHeight - 3000; // 3m below
     }
-    
+
     if (currentIndex < sortedStories.length - 1) {
       // Use height of story above as upper bound
       upperBound = sortedStories[currentIndex + 1].height;
@@ -213,14 +231,13 @@ function calculateStoryBounds(selectedStory, allStories) {
     }
 
     return {
-      type: 'story',
+      type: "story",
       storyId: selectedStory.id,
       storyName: selectedStory.name,
       height: storyHeight,
       lowerBound,
-      upperBound
+      upperBound,
     };
-    
   } catch (error) {
     console.error("Error calculating story bounds:", error);
     return null;
@@ -237,13 +254,15 @@ function calculateStoryBounds(selectedStory, allStories) {
 function calculateAxisBounds(selectedAxis, axisType, allAxes) {
   try {
     const axisDistance = selectedAxis.distance;
-    
+
     // Find adjacent axes to determine bounds
     const sortedAxes = [...allAxes].sort((a, b) => a.distance - b.distance);
-    const currentIndex = sortedAxes.findIndex(axis => axis.id === selectedAxis.id);
-    
+    const currentIndex = sortedAxes.findIndex(
+      (axis) => axis.id === selectedAxis.id
+    );
+
     let lowerBound, upperBound;
-    
+
     if (currentIndex > 0) {
       // Use distance of previous axis as lower bound
       const prevDistance = sortedAxes[currentIndex - 1].distance;
@@ -252,7 +271,7 @@ function calculateAxisBounds(selectedAxis, axisType, allAxes) {
       // First axis - use some offset
       lowerBound = axisDistance - 1000; // 1m before
     }
-    
+
     if (currentIndex < sortedAxes.length - 1) {
       // Use distance of next axis as upper bound
       const nextDistance = sortedAxes[currentIndex + 1].distance;
@@ -263,15 +282,14 @@ function calculateAxisBounds(selectedAxis, axisType, allAxes) {
     }
 
     return {
-      type: 'axis',
+      type: "axis",
       axisType,
       axisId: selectedAxis.id,
       axisName: selectedAxis.name,
       distance: axisDistance,
       lowerBound,
-      upperBound
+      upperBound,
     };
-    
   } catch (error) {
     console.error("Error calculating axis bounds:", error);
     return null;
@@ -285,28 +303,29 @@ function calculateAxisBounds(selectedAxis, axisType, allAxes) {
  */
 function createStoryClippingPlanes(storyBounds) {
   const planes = [];
-  
+
   try {
     // Lower clipping plane (normal pointing up)
     const lowerPlane = new THREE.Plane(
       new THREE.Vector3(0, 0, 1), // Normal pointing up (positive Z)
-      -storyBounds.lowerBound     // Distance (negative because plane equation)
+      -storyBounds.lowerBound // Distance (negative because plane equation)
     );
     planes.push(lowerPlane);
-    
+
     // Upper clipping plane (normal pointing down)
     const upperPlane = new THREE.Plane(
       new THREE.Vector3(0, 0, -1), // Normal pointing down (negative Z)
-      storyBounds.upperBound      // Distance
+      storyBounds.upperBound // Distance
     );
     planes.push(upperPlane);
-    
-    console.log(`Created story clipping planes: Z between ${storyBounds.lowerBound} and ${storyBounds.upperBound}`);
-    
+
+    console.log(
+      `Created story clipping planes: Z between ${storyBounds.lowerBound} and ${storyBounds.upperBound}`
+    );
   } catch (error) {
     console.error("Error creating story clipping planes:", error);
   }
-  
+
   return planes;
 }
 
@@ -318,51 +337,53 @@ function createStoryClippingPlanes(storyBounds) {
  */
 function createAxisClippingPlanes(axisBounds, axisType) {
   const planes = [];
-  
+
   try {
     if (axisType === "X") {
       // X-axis clipping (perpendicular to X-axis)
-      
+
       // Lower clipping plane (normal pointing in positive X)
       const lowerPlane = new THREE.Plane(
-        new THREE.Vector3(1, 0, 0),  // Normal pointing in positive X
-        -axisBounds.lowerBound       // Distance
+        new THREE.Vector3(1, 0, 0), // Normal pointing in positive X
+        -axisBounds.lowerBound // Distance
       );
       planes.push(lowerPlane);
-      
+
       // Upper clipping plane (normal pointing in negative X)
       const upperPlane = new THREE.Plane(
         new THREE.Vector3(-1, 0, 0), // Normal pointing in negative X
-        axisBounds.upperBound        // Distance
+        axisBounds.upperBound // Distance
       );
       planes.push(upperPlane);
-      
-      console.log(`Created X-axis clipping planes: X between ${axisBounds.lowerBound} and ${axisBounds.upperBound}`);
-      
+
+      console.log(
+        `Created X-axis clipping planes: X between ${axisBounds.lowerBound} and ${axisBounds.upperBound}`
+      );
     } else if (axisType === "Y") {
       // Y-axis clipping (perpendicular to Y-axis)
-      
+
       // Lower clipping plane (normal pointing in positive Y)
       const lowerPlane = new THREE.Plane(
-        new THREE.Vector3(0, 1, 0),  // Normal pointing in positive Y
-        -axisBounds.lowerBound       // Distance
+        new THREE.Vector3(0, 1, 0), // Normal pointing in positive Y
+        -axisBounds.lowerBound // Distance
       );
       planes.push(lowerPlane);
-      
+
       // Upper clipping plane (normal pointing in negative Y)
       const upperPlane = new THREE.Plane(
         new THREE.Vector3(0, -1, 0), // Normal pointing in negative Y
-        axisBounds.upperBound        // Distance
+        axisBounds.upperBound // Distance
       );
       planes.push(upperPlane);
-      
-      console.log(`Created Y-axis clipping planes: Y between ${axisBounds.lowerBound} and ${axisBounds.upperBound}`);
+
+      console.log(
+        `Created Y-axis clipping planes: Y between ${axisBounds.lowerBound} and ${axisBounds.upperBound}`
+      );
     }
-    
   } catch (error) {
     console.error("Error creating axis clipping planes:", error);
   }
-  
+
   return planes;
 }
 
@@ -385,7 +406,7 @@ export function getClippingStatus() {
     hasActiveClipping: false, // Would check actual state
     planeCount: 0,
     type: null, // 'story', 'axis', or 'custom'
-    bounds: null
+    bounds: null,
   };
 }
 
@@ -398,9 +419,9 @@ export function applyCustomClippingPlanes(planes) {
     console.warn("Invalid clipping planes provided");
     return;
   }
-  
+
   console.log(`Applying ${planes.length} custom clipping planes`);
-  
+
   if (applyClipPlanes) {
     applyClipPlanes(planes);
   } else {
@@ -429,15 +450,15 @@ export function createBoxClippingPlanes(box) {
   const planes = [];
   const min = box.min;
   const max = box.max;
-  
+
   // 6 planes for a box (one for each face)
-  planes.push(new THREE.Plane(new THREE.Vector3(1, 0, 0), -min.x));   // Left
-  planes.push(new THREE.Plane(new THREE.Vector3(-1, 0, 0), max.x));   // Right
-  planes.push(new THREE.Plane(new THREE.Vector3(0, 1, 0), -min.y));   // Bottom
-  planes.push(new THREE.Plane(new THREE.Vector3(0, -1, 0), max.y));   // Top
-  planes.push(new THREE.Plane(new THREE.Vector3(0, 0, 1), -min.z));   // Near
-  planes.push(new THREE.Plane(new THREE.Vector3(0, 0, -1), max.z));   // Far
-  
+  planes.push(new THREE.Plane(new THREE.Vector3(1, 0, 0), -min.x)); // Left
+  planes.push(new THREE.Plane(new THREE.Vector3(-1, 0, 0), max.x)); // Right
+  planes.push(new THREE.Plane(new THREE.Vector3(0, 1, 0), -min.y)); // Bottom
+  planes.push(new THREE.Plane(new THREE.Vector3(0, -1, 0), max.y)); // Top
+  planes.push(new THREE.Plane(new THREE.Vector3(0, 0, 1), -min.z)); // Near
+  planes.push(new THREE.Plane(new THREE.Vector3(0, 0, -1), max.z)); // Far
+
   return planes;
 }
 
@@ -453,14 +474,14 @@ export function createBoxClippingPlanes(box) {
 function calculateStoryBoundsWithRange(selectedStory, allStories, range) {
   try {
     const storyHeight = selectedStory.height;
-    
+
     return {
-      type: 'story',
+      type: "story",
       storyId: selectedStory.id,
       storyName: selectedStory.name,
       height: storyHeight,
       lowerBound: storyHeight - range,
-      upperBound: storyHeight + range
+      upperBound: storyHeight + range,
     };
   } catch (error) {
     console.error("Error calculating story bounds with range:", error);
@@ -479,15 +500,15 @@ function calculateStoryBoundsWithRange(selectedStory, allStories, range) {
 function calculateAxisBoundsWithRange(selectedAxis, axisType, allAxes, range) {
   try {
     const axisDistance = selectedAxis.distance;
-    
+
     return {
-      type: 'axis',
+      type: "axis",
       axisType,
       axisId: selectedAxis.id,
       axisName: selectedAxis.name,
       distance: axisDistance,
       lowerBound: axisDistance - range,
-      upperBound: axisDistance + range
+      upperBound: axisDistance + range,
     };
   } catch (error) {
     console.error("Error calculating axis bounds with range:", error);
@@ -501,22 +522,26 @@ function calculateAxisBoundsWithRange(selectedAxis, axisType, allAxes, range) {
  */
 function showClippingControls(type) {
   // Hide all controls first
-  const controlIds = ['storyClipControls', 'xAxisClipControls', 'yAxisClipControls'];
-  controlIds.forEach(id => {
+  const controlIds = [
+    "storyClipControls",
+    "xAxisClipControls",
+    "yAxisClipControls",
+  ];
+  controlIds.forEach((id) => {
     const element = document.getElementById(id);
-    if (element) element.style.display = 'none';
+    if (element) element.style.display = "none";
   });
-  
+
   // Show the relevant control
-  const controlId = type + 'ClipControls';
+  const controlId = type + "ClipControls";
   const controlElement = document.getElementById(controlId);
   if (controlElement) {
-    controlElement.style.display = 'block';
-    
+    controlElement.style.display = "block";
+
     // Mark the group as active
-    const groupElement = controlElement.closest('.clipping-group');
+    const groupElement = controlElement.closest(".clipping-group");
     if (groupElement) {
-      groupElement.classList.add('active', 'clipping-active');
+      groupElement.classList.add("active", "clipping-active");
     }
   }
 }
@@ -525,16 +550,20 @@ function showClippingControls(type) {
  * Hide all clipping range controls
  */
 function hideAllClippingControls() {
-  const controlIds = ['storyClipControls', 'xAxisClipControls', 'yAxisClipControls'];
-  controlIds.forEach(id => {
+  const controlIds = [
+    "storyClipControls",
+    "xAxisClipControls",
+    "yAxisClipControls",
+  ];
+  controlIds.forEach((id) => {
     const element = document.getElementById(id);
-    if (element) element.style.display = 'none';
+    if (element) element.style.display = "none";
   });
-  
+
   // Remove active states
-  const groups = document.querySelectorAll('.clipping-group');
-  groups.forEach(group => {
-    group.classList.remove('active', 'clipping-active');
+  const groups = document.querySelectorAll(".clipping-group");
+  groups.forEach((group) => {
+    group.classList.remove("active", "clipping-active");
   });
 }
 
@@ -543,30 +572,30 @@ function hideAllClippingControls() {
  */
 async function clearCurrentClipping() {
   console.log("Clearing current clipping state and UI");
-  
+
   // Restore camera view if saved
   await restorePreviousCameraView();
-  
+
   if (clearClippingPlanes) {
     clearClippingPlanes();
   } else {
     console.warn("clearClippingPlanes function not available");
   }
-  
+
   currentClippingState = {
     type: null,
     id: null,
     range: null,
-    bounds: null
+    bounds: null,
   };
-  
+
   hideAllClippingControls();
-  
+
   // Reset selector values to "all"
   const storySelector = document.getElementById("storySelector");
   const xAxisSelector = document.getElementById("xAxisSelector");
   const yAxisSelector = document.getElementById("yAxisSelector");
-  
+
   if (storySelector && storySelector.value !== "all") {
     storySelector.value = "all";
   }
@@ -576,16 +605,18 @@ async function clearCurrentClipping() {
   if (yAxisSelector && yAxisSelector.value !== "all") {
     yAxisSelector.value = "all";
   }
-  
+
   // Request render update with multiple fallback methods
-  if (typeof window.requestRender === 'function') {
+  if (typeof window.requestRender === "function") {
     window.requestRender();
-  } else if (typeof window.scheduleRender === 'function') {
+  } else if (typeof window.scheduleRender === "function") {
     window.scheduleRender();
   } else {
     // Direct render fallback
     try {
-      const { scene, camera, renderer, controls } = await import('../viewer/index.js');
+      const { scene, camera, renderer, controls } = await import(
+        "../viewer/index.js"
+      );
       if (renderer && scene && camera) {
         if (controls) controls.update();
         renderer.render(scene, camera);
@@ -606,18 +637,18 @@ export function updateClippingRange(newRange) {
     console.warn("No active clipping to update");
     return;
   }
-  
+
   const { type, id } = currentClippingState;
-  
+
   switch (type) {
-    case 'story':
+    case "story":
       applyStoryClip(id, newRange);
       break;
-    case 'xAxis':
-      applyAxisClip('X', id, newRange);
+    case "xAxis":
+      applyAxisClip("X", id, newRange);
       break;
-    case 'yAxis':
-      applyAxisClip('Y', id, newRange);
+    case "yAxis":
+      applyAxisClip("Y", id, newRange);
       break;
   }
 }
@@ -650,11 +681,11 @@ function saveCameraState(camera, controls) {
     previousCameraState = {
       position: camera.position.clone(),
       target: controls.target.clone(),
-      saved: true
+      saved: true,
     };
     console.log("Camera state saved:", {
       position: previousCameraState.position,
-      target: previousCameraState.target
+      target: previousCameraState.target,
     });
   }
 }
@@ -667,17 +698,16 @@ function saveCameraState(camera, controls) {
  */
 function restoreCameraState(camera, controls, animate = true) {
   if (!previousCameraState.saved || !camera || !controls) {
-    console.warn("Cannot restore camera state: no saved state or missing camera/controls");
+    console.warn(
+      "Cannot restore camera state: no saved state or missing camera/controls"
+    );
     return;
   }
-
-  // Restore original camera controls settings
-  restoreOriginalCameraControls(controls);
 
   if (animate) {
     animateCameraTo(camera, controls, {
       position: previousCameraState.position,
-      target: previousCameraState.target
+      target: previousCameraState.target,
     });
   } else {
     camera.position.copy(previousCameraState.position);
@@ -695,20 +725,27 @@ function restoreCameraState(camera, controls, animate = true) {
  * @param {THREE.Camera} camera - Camera to adjust
  * @param {OrbitControls} controls - Camera controls
  */
-function setOptimalClippingView(clippingType, clippingBounds, camera, controls) {
+function setOptimalClippingView(
+  clippingType,
+  clippingBounds,
+  camera,
+  controls
+) {
   if (!camera || !controls || !clippingBounds) {
-    console.warn("Cannot set optimal view: missing camera, controls, or bounds");
+    console.warn(
+      "Cannot set optimal view: missing camera, controls, or bounds"
+    );
     return;
   }
 
   // Save current state before changing
   saveCameraState(camera, controls);
 
-  const { position, target, up } = calculateOptimalCameraPosition(clippingType, clippingBounds);
-  
-  // Set camera controls restrictions for clipping mode
-  setClippingCameraControls(controls, clippingType);
-  
+  const { position, target, up } = calculateOptimalCameraPosition(
+    clippingType,
+    clippingBounds
+  );
+
   // Animate to new position
   animateCameraTo(camera, controls, { position, target, up });
 }
@@ -723,7 +760,7 @@ async function calculateOptimalCameraPosition(clippingType, bounds) {
   // Get model center from the viewer
   let modelCenter = new THREE.Vector3(0, 0, 0);
   try {
-    const { getModelBounds } = await import('../viewer/index.js');
+    const { getModelBounds } = await import("../viewer/index.js");
     if (getModelBounds) {
       const modelBounds = getModelBounds();
       if (modelBounds) {
@@ -739,24 +776,48 @@ async function calculateOptimalCameraPosition(clippingType, bounds) {
   let position, target, up;
 
   switch (clippingType) {
-    case 'story':
+    case "story":
       // Top-down view for story clipping (平面図)
-      target = new THREE.Vector3(modelCenter.x, modelCenter.y, bounds.height || modelCenter.z);
-      position = new THREE.Vector3(modelCenter.x, modelCenter.y, (bounds.height || modelCenter.z) + distance);
+      target = new THREE.Vector3(
+        modelCenter.x,
+        modelCenter.y,
+        bounds.height || modelCenter.z
+      );
+      position = new THREE.Vector3(
+        modelCenter.x,
+        modelCenter.y,
+        (bounds.height || modelCenter.z) + distance
+      );
       up = new THREE.Vector3(0, 1, 0); // Y is up in plan view
       break;
 
-    case 'xAxis':
+    case "xAxis":
       // Side view looking along X-axis (YZ平面図)
-      target = new THREE.Vector3(bounds.distance || modelCenter.x, modelCenter.y, modelCenter.z);
-      position = new THREE.Vector3((bounds.distance || modelCenter.x) + distance, modelCenter.y, modelCenter.z);
+      target = new THREE.Vector3(
+        bounds.distance || modelCenter.x,
+        modelCenter.y,
+        modelCenter.z
+      );
+      position = new THREE.Vector3(
+        (bounds.distance || modelCenter.x) + distance,
+        modelCenter.y,
+        modelCenter.z
+      );
       up = new THREE.Vector3(0, 0, 1); // Z is up in elevation view
       break;
 
-    case 'yAxis':
+    case "yAxis":
       // Side view looking along Y-axis (XZ平面図)
-      target = new THREE.Vector3(modelCenter.x, bounds.distance || modelCenter.y, modelCenter.z);
-      position = new THREE.Vector3(modelCenter.x, (bounds.distance || modelCenter.y) + distance, modelCenter.z);
+      target = new THREE.Vector3(
+        modelCenter.x,
+        bounds.distance || modelCenter.y,
+        modelCenter.z
+      );
+      position = new THREE.Vector3(
+        modelCenter.x,
+        (bounds.distance || modelCenter.y) + distance,
+        modelCenter.z
+      );
       up = new THREE.Vector3(0, 0, 1); // Z is up in elevation view
       break;
 
@@ -775,21 +836,23 @@ async function calculateOptimalCameraPosition(clippingType, bounds) {
  */
 async function setCameraForClipping(clippingType, bounds) {
   try {
-    const { camera, controls } = await import('../viewer/index.js');
+    const { camera, controls } = await import("../viewer/index.js");
     if (camera && controls) {
-      const cameraSettings = await calculateOptimalCameraPosition(clippingType, bounds);
+      const cameraSettings = await calculateOptimalCameraPosition(
+        clippingType,
+        bounds
+      );
       if (cameraSettings) {
         // Save current state before changing
         saveCameraState(camera, controls);
-        
-        // Set camera controls restrictions for clipping mode
-        setClippingCameraControls(controls, clippingType);
-        
+
         // Animate to new position
         animateCameraTo(camera, controls, cameraSettings);
       }
     } else {
-      console.warn("Camera or controls not available for optimal view adjustment");
+      console.warn(
+        "Camera or controls not available for optimal view adjustment"
+      );
     }
   } catch (error) {
     console.warn("Could not set optimal camera view:", error);
@@ -801,7 +864,7 @@ async function setCameraForClipping(clippingType, bounds) {
  */
 async function restorePreviousCameraView() {
   try {
-    const { camera, controls } = await import('../viewer/index.js');
+    const { camera, controls } = await import("../viewer/index.js");
     if (camera && controls) {
       restoreCameraState(camera, controls);
     } else {
@@ -821,7 +884,7 @@ async function restorePreviousCameraView() {
 function animateCameraTo(camera, controls, target) {
   const duration = 1000; // 1 second animation
   const startTime = Date.now();
-  
+
   const startPosition = camera.position.clone();
   const startTarget = controls.target.clone();
   const startUp = camera.up.clone();
@@ -829,21 +892,21 @@ function animateCameraTo(camera, controls, target) {
   function animate() {
     const elapsed = Date.now() - startTime;
     const progress = Math.min(elapsed / duration, 1);
-    
+
     // Smooth easing function
     const easeProgress = 1 - Math.pow(1 - progress, 3);
 
     // Interpolate position
     camera.position.lerpVectors(startPosition, target.position, easeProgress);
-    
+
     // Interpolate target
     controls.target.lerpVectors(startTarget, target.target, easeProgress);
-    
+
     // Interpolate up vector if provided
     if (target.up) {
       camera.up.lerpVectors(startUp, target.up, easeProgress);
     }
-    
+
     controls.update();
 
     if (progress < 1) {
@@ -854,77 +917,4 @@ function animateCameraTo(camera, controls, target) {
   }
 
   animate();
-}
-
-/**
- * Set camera controls restrictions for clipping mode
- * @param {OrbitControls} controls - Camera controls to modify
- * @param {string} clippingType - Type of clipping ('story', 'xAxis', 'yAxis')
- */
-function setClippingCameraControls(controls, clippingType) {
-  // Save original settings first
-  if (!originalControlsSettings.saved) {
-    originalControlsSettings = {
-      enableRotate: controls.enableRotate,
-      enableZoom: controls.enableZoom,
-      enablePan: controls.enablePan,
-      minPolarAngle: controls.minPolarAngle,
-      maxPolarAngle: controls.maxPolarAngle,
-      screenSpacePanning: controls.screenSpacePanning,
-      mouseButtons: { ...controls.mouseButtons },
-      saved: true
-    };
-    console.log("Original camera controls saved:", originalControlsSettings);
-  }
-
-  // Set restrictions based on clipping type
-  switch (clippingType) {
-    case 'story':
-      // Plan view: Allow panning and zooming, restrict rotation to maintain top-down view
-      controls.enableRotate = false;  // No rotation to maintain plan view
-      controls.enableZoom = true;     // Allow zooming in/out
-      controls.enablePan = true;      // Allow horizontal movement
-      console.log("Camera controls set for plan view (story clipping)");
-      break;
-
-    case 'xAxis':
-    case 'yAxis':
-      // Elevation view: Allow panning and zooming, restrict rotation to maintain elevation view
-      controls.enableRotate = false;  // No rotation to maintain elevation view
-      controls.enableZoom = true;     // Allow zooming in/out
-      controls.enablePan = true;      // Allow horizontal movement
-      console.log(`Camera controls set for elevation view (${clippingType} clipping)`);
-      break;
-
-    default:
-      console.warn("Unknown clipping type for camera controls:", clippingType);
-      break;
-  }
-
-  controls.update();
-}
-
-/**
- * Restore original camera controls settings
- * @param {OrbitControls} controls - Camera controls to restore
- */
-function restoreOriginalCameraControls(controls) {
-  if (!originalControlsSettings.saved) {
-    console.warn("No original camera controls settings to restore");
-    return;
-  }
-
-  controls.enableRotate = originalControlsSettings.enableRotate;
-  controls.enableZoom = originalControlsSettings.enableZoom;
-  controls.enablePan = originalControlsSettings.enablePan;
-  controls.minPolarAngle = originalControlsSettings.minPolarAngle;
-  controls.maxPolarAngle = originalControlsSettings.maxPolarAngle;
-  controls.screenSpacePanning = originalControlsSettings.screenSpacePanning;
-  
-  if (originalControlsSettings.mouseButtons) {
-    controls.mouseButtons = { ...originalControlsSettings.mouseButtons };
-  }
-
-  controls.update();
-  console.log("Original camera controls restored");
 }

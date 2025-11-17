@@ -16,13 +16,13 @@
 import { getState } from "../../core/globalState.js";
 import { createLogger } from "../../utils/logger.js";
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 import {
   renderer,
   scene,
   camera,
   controls,
-  elementGroups,
+  elementGroups as viewerElementGroups,
 } from "../core/core.js"; // elementGroups もインポート
 import { materials } from "../rendering/materials.js"; // materials をインポート
 
@@ -39,9 +39,20 @@ const log = createLogger("viewer:utils");
  * @param {Array<THREE.Sprite>} nodeLabels - クリア対象のラベル配列。
  * @returns {THREE.Box3} 新しい空のバウンディングボックス。
  */
-export function clearSceneContent(elementGroups, nodeLabels) {
-  for (const type in elementGroups) {
-    elementGroups[type].children.forEach((child) => {
+export function clearSceneContent(
+  groups = viewerElementGroups,
+  nodeLabels = []
+) {
+  if (!groups) {
+    console.warn(
+      "[viewer:utils] No element groups provided to clearSceneContent"
+    );
+    return new THREE.Box3();
+  }
+
+  for (const type in groups) {
+    if (!Object.prototype.hasOwnProperty.call(groups, type)) continue;
+    groups[type].children.forEach((child) => {
       if (child.geometry) child.geometry.dispose();
       if (child.material) {
         if (Array.isArray(child.material)) {
@@ -51,17 +62,19 @@ export function clearSceneContent(elementGroups, nodeLabels) {
         }
       }
     });
-    elementGroups[type].clear();
+    groups[type].clear();
   }
 
-  nodeLabels.forEach((label) => {
+  (nodeLabels || []).forEach((label) => {
     if (label.material.map) label.material.map.dispose();
     label.material.dispose();
     if (label.parent) {
       label.parent.remove(label);
     }
   });
-  nodeLabels.length = 0;
+  if (nodeLabels && typeof nodeLabels.length === "number") {
+    nodeLabels.length = 0;
+  }
 
   // グリッドヘルパーがあれば削除
   const existingGridHelper = scene.children.find(
@@ -357,7 +370,7 @@ export function updateMaterialClippingPlanes() {
     }
   });
   // 各要素グループ内のオブジェクトのマテリアルにも適用
-  Object.values(elementGroups).forEach((group) => {
+  Object.values(viewerElementGroups).forEach((group) => {
     group.children.forEach((child) => {
       if (child.material) {
         if (!Array.isArray(child.material)) {
@@ -440,8 +453,8 @@ export async function loadStbXmlAutoEncoding(src) {
 }
 
 /**
- * Get current model bounds from scene elements
- * @returns {THREE.Box3|null} Model bounding box or null if no elements
+ * シーン要素から現在のモデル境界を取得
+ * @returns {THREE.Box3|null} モデル境界ボックスまたは要素がない場合null
  */
 export function getModelBounds() {
   if (!scene || !elementGroups) {

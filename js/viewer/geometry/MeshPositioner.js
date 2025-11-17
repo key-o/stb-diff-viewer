@@ -1,16 +1,16 @@
 /**
- * @fileoverview Mesh positioning and orientation utility
+ * @fileoverview メッシュ配置・方向ユーティリティ
  *
- * This module provides unified mesh positioning logic to eliminate code duplication across:
- * - Column geometry generation
- * - Beam geometry generation
- * - Brace geometry generation
+ * このモジュールは以下のコード重複を除去するため、統一されたメッシュ配置ロジックを提供します：
+ * - 柱ジオメトリ生成
+ * - 梁ジオメトリ生成
+ * - ブレースジオメトリ生成
  *
- * Handles proper positioning and rotation for all linear structural elements,
- * supporting various geometry types and coordinate systems.
+ * 全ての線形構造要素の適切な配置と回転を処理し、
+ * 様々なジオメトリタイプと座標系をサポートします。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 
 /**
  * Unified mesh positioning utility for linear structural elements
@@ -134,7 +134,7 @@ export class MeshPositioner {
     if (geometry instanceof THREE.CylinderGeometry) {
       // ブレース用CylinderGeometry: 事前にZ軸方向に回転済みなのでZ軸を基準軸とする
       // 柱用の場合は従来通りY軸を使用
-      if (elementType === 'brace') {
+      if (elementType === "brace") {
         return new THREE.Vector3(0, 0, 1);
       }
       // RC円形柱などが正しく節点間の方向に配置されるように
@@ -207,23 +207,26 @@ export class MeshPositioner {
       // CylinderGeometry: Y軸が高さ方向なので、directionに合わせる
       // 既にsetFromUnitVectorsで正しい方向に回転済み
       // 追加の回転は不要
-      
     } else if (mesh.geometry instanceof THREE.ExtrudeGeometry) {
       // ExtrudeGeometry: Z軸が押し出し方向
       // ブレースのH型鋼やL型鋼の場合、断面の向きを調整
       const rollQuaternion = new THREE.Quaternion();
       rollQuaternion.setFromAxisAngle(direction, Math.PI / 4); // 45度回転
       mesh.quaternion.multiply(rollQuaternion);
-      
     } else if (mesh.geometry instanceof THREE.BoxGeometry) {
       // BoxGeometry: 角形鋼管ブレースなど
       // Z軸が長軸として設定されているので、追加回転不要
     }
 
     // デバッグログ
-    if (Math.random() < 0.05) { // 5%の確率でブレースログ
+    if (Math.random() < 0.05) {
+      // 5%の確率でブレースログ
       console.log(
-        `Brace rotation applied: geometry=${mesh.geometry.constructor.name}, direction=(${direction.x.toFixed(3)}, ${direction.y.toFixed(3)}, ${direction.z.toFixed(3)})`
+        `Brace rotation applied: geometry=${
+          mesh.geometry.constructor.name
+        }, direction=(${direction.x.toFixed(3)}, ${direction.y.toFixed(
+          3
+        )}, ${direction.z.toFixed(3)})`
       );
     }
   }

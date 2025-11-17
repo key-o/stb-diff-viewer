@@ -12,7 +12,7 @@
  * ユーザーの視点に合わせた読みやすいラベル表示を実現します。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 
 /**
  * 指定されたテキストと位置を持つラベルスプライトを作成し、指定されたグループに追加する。
@@ -156,14 +156,33 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
         // 全要素で動的スケール調整を適用
         const spriteWorldPosition = new THREE.Vector3();
         this.getWorldPosition(spriteWorldPosition);
-        const distance = spriteWorldPosition.distanceTo(
-          cameraInstance.position
-        );
-        let scaleFactor = distance / this.userData.referenceDistance;
-        scaleFactor = Math.max(
-          this.userData.minScaleFactor,
-          Math.min(scaleFactor, this.userData.maxScaleFactor)
-        );
+
+        let scaleFactor;
+
+        // 正投影カメラの場合はzoomプロパティを使用してスケールを調整
+        if (cameraInstance.isOrthographicCamera) {
+          // 正投影カメラではzoomが大きいほどオブジェクトが大きく見える
+          // ラベルもzoomに応じてスケールする必要がある
+          // zoom = 1.0 を基準として、zoomが2倍になればラベルも2倍小さくする
+          const baseZoom = 1.0;
+          scaleFactor = baseZoom / cameraInstance.zoom;
+          // 正投影カメラでも最小/最大スケールを適用
+          scaleFactor = Math.max(
+            this.userData.minScaleFactor,
+            Math.min(scaleFactor, this.userData.maxScaleFactor)
+          );
+        } else {
+          // 透視投影カメラの場合は従来通り距離ベースでスケール
+          const distance = spriteWorldPosition.distanceTo(
+            cameraInstance.position
+          );
+          scaleFactor = distance / this.userData.referenceDistance;
+          scaleFactor = Math.max(
+            this.userData.minScaleFactor,
+            Math.min(scaleFactor, this.userData.maxScaleFactor)
+          );
+        }
+
         this.scale.copy(this.userData.baseScale).multiplyScalar(scaleFactor);
       }
     };

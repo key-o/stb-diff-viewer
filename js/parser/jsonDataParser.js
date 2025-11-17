@@ -11,6 +11,19 @@
  * - 3Dレンダリング用データ構造への変換
  */
 
+import { ensureUnifiedSectionType } from '../common/sectionTypeUtil.js';
+import {
+  deriveDimensionsFromAttributes,
+  extractDimensions,
+  getWidth,
+  getHeight,
+  getDiameter,
+  getRadius,
+  isCircularProfile,
+  isRectangularProfile,
+  validateDimensions,
+} from '../common/dimensionNormalizer.js';
+
 /**
  * JSON統合データパーサークラス
  */
@@ -498,38 +511,46 @@ export class JsonDataParser {
    */
   _normalizeSection(section) {
     const normalized = { ...section };
-    // 断面タイプ統一 (profile_type / sectionType の alias を section_type に集約)
-    // 上位で util を static import していない場合はフォールバック
-    let util;
-    try {
-      // eslint-disable-next-line no-undef
-      util = require ? null : null; // ダミー (Bundler対策)
-    } catch (_) {}
-    try {
-      // eslint-disable-next-line import/no-relative-packages
-      // static import 版: 事前に編集で挿入予定
-    } catch (_) {}
-    // フォールバックロジック: util がグローバルにない場合簡易正規化
-    if (typeof ensureUnifiedSectionType === "function") {
-      ensureUnifiedSectionType(normalized);
-      if (normalized.section_type)
-        normalized.profile_type = normalized.section_type;
-    } else {
-      normalized.section_type = (
-        normalized.section_type ||
-        normalized.profile_type ||
-        normalized.sectionType ||
-        ""
-      ).toUpperCase();
+
+    // 断面タイプの統一（profile_type / sectionType の alias を section_type に集約）
+    ensureUnifiedSectionType(normalized);
+
+    // profile_type も同期（後方互換性のため）
+    if (normalized.section_type) {
       normalized.profile_type = normalized.section_type;
     }
 
-    // 断面寸法の正規化
+    // 断面寸法の正規化（dimensionNormalizerを使用）
     if (section.dimensions) {
-      normalized.dimensions = { ...section.dimensions };
+      // オブジェクト形式の寸法データをNamedNodeMap風に変換
+      const normalizedDims = deriveDimensionsFromAttributes(section.dimensions);
+
+      if (normalizedDims) {
+        // 既存の寸法データとマージ（正規化された値を優先）
+        normalized.dimensions = {
+          ...section.dimensions,
+          ...normalizedDims,
+        };
+
+        // 寸法データの検証
+        const validation = validateDimensions(normalized.dimensions);
+        if (!validation.valid) {
+          console.warn(
+            `JsonDataParser: Section dimension validation failed:`,
+            validation.errors
+          );
+        }
+
+        // デバッグ情報（開発時のみ）
+        if (validation.warnings.length > 0) {
+          console.debug(
+            `JsonDataParser: Section dimension warnings:`,
+            validation.warnings
+          );
+        }
+      }
 
       // 単位はmm単位を前提（Python JSONと同一）
-      // 寸法値の検証
       const dimensionKeys = Object.keys(normalized.dimensions);
       if (dimensionKeys.length > 0) {
         console.debug(

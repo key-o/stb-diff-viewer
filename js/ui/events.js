@@ -1,13 +1,13 @@
 /**
- * @fileoverview UI event handling module
+ * @fileoverview UIイベント処理モジュール
  *
- * This module manages UI event listeners and interactions:
- * - Event listener setup and management
- * - UI interaction handling
- * - Event delegation and coordination
- * - Model visibility toggle handling
+ * このモジュールはUIイベントリスナーと相互作用を管理します：
+ * - イベントリスナー設定と管理
+ * - UI相互作用処理
+ * - イベント委譲と調整
+ * - モデル可視性切り替え処理
  *
- * Split from the large ui.js module for better organization.
+ * より良い整理のため、大きなui.jsモジュールから分割されました。
  */
 
 import { updateLabelVisibility } from "./unifiedLabelManager.js";
@@ -18,6 +18,8 @@ import {
   clearAllClippingPlanes,
 } from "./clipping.js";
 import { setState } from "../core/globalState.js";
+import displayModeManager from "../viewer/rendering/displayModeManager.js";
+import labelDisplayManager from "../viewer/rendering/labelDisplayManager.js";
 
 // --- UI Element References ---
 const toggleModelACheckbox = document.getElementById("toggleModelA");
@@ -35,11 +37,16 @@ export const IMPORTANCE_EVENTS = {
   LEVEL_CHANGED: "importance:levelChanged",
 };
 
+// --- 比較キー関連イベント定数 ---
+export const COMPARISON_KEY_EVENTS = {
+  KEY_TYPE_CHANGED: "comparisonKey:typeChanged",
+};
+
 /**
  * Setup all UI event listeners
  */
 export function setupUIEventListeners() {
-  console.log("Setting up UI event listeners...");
+  console.log("UIイベントリスナーを設定中...");
 
   try {
     setupModelVisibilityListeners();
@@ -53,9 +60,9 @@ export function setupUIEventListeners() {
     setupKeyboardShortcuts();
     setupWindowResizeListener();
 
-    console.log("UI event listeners setup completed");
+    console.log("UIイベントリスナーの設定が完了しました");
   } catch (error) {
-    console.error("Error setting up UI event listeners:", error);
+    console.error("UIイベントリスナーの設定中にエラーが発生しました:", error);
   }
 }
 
@@ -65,16 +72,16 @@ export function setupUIEventListeners() {
 function setupModelVisibilityListeners() {
   if (toggleModelACheckbox) {
     toggleModelACheckbox.addEventListener("change", handleModelAToggle);
-    console.log("Model A toggle listener setup");
+    console.log("モデルA切り替えリスナーを設定しました");
   } else {
-    console.warn("Model A toggle checkbox not found");
+    console.warn("モデルA切り替えチェックボックスが見つかりません");
   }
 
   if (toggleModelBCheckbox) {
     toggleModelBCheckbox.addEventListener("change", handleModelBToggle);
-    console.log("Model B toggle listener setup");
+    console.log("モデルB切り替えリスナーを設定しました");
   } else {
-    console.warn("Model B toggle checkbox not found");
+    console.warn("モデルB切り替えチェックボックスが見つかりません");
   }
 }
 
@@ -88,12 +95,12 @@ function setupSelectorChangeListeners() {
 
   if (storySelector) {
     storySelector.addEventListener("change", handleStorySelectionChange);
-    console.log("Story selector listener setup");
+    console.log("階セレクターリスナーを設定しました");
   }
 
   if (xAxisSelector) {
     xAxisSelector.addEventListener("change", handleXAxisSelectionChange);
-    console.log("X-axis selector listener setup");
+    console.log("X軸セレクターリスナーを設定しました");
   }
 
   if (yAxisSelector) {
@@ -113,6 +120,9 @@ function setupLabelToggleListeners() {
       console.log(
         `Label toggle changed: ${elementType} -> ${checkbox.checked}`
       );
+
+      // labelDisplayManagerと同期
+      labelDisplayManager.setLabelVisibility(elementType, checkbox.checked);
 
       // 立体表示モードの場合は再描画が必要
       const needsRedraw = checkIfRedrawNeeded(elementType);
@@ -141,12 +151,15 @@ function setupLabelToggleListeners() {
  * @returns {boolean} Whether redraw is needed
  */
 function checkIfRedrawNeeded(elementType) {
+  // displayModeManagerを使用して表示モードをチェック
+  // 立体表示モードの場合は常に再描画が必要
+  // 線表示モードでも、ラベルの再作成のために再描画を実行
   if (elementType === "Column") {
-    const columnViewCheckbox = document.getElementById("toggleColumnView");
-    return columnViewCheckbox && columnViewCheckbox.checked;
+    return true; // 常に再描画してラベルを確実に作成
   } else if (elementType === "Girder" || elementType === "Beam") {
-    const girderViewCheckbox = document.getElementById("toggleGirderView");
-    return girderViewCheckbox && girderViewCheckbox.checked;
+    return true;
+  } else if (elementType === "Brace") {
+    return true;
   }
   return false;
 }
@@ -158,13 +171,15 @@ function checkIfRedrawNeeded(elementType) {
 function triggerViewModeRedraw(elementType) {
   // Import redraw functions dynamically to avoid circular dependencies
   import("../viewModes.js")
-    .then(({ redrawColumnsForViewMode, redrawBeamsForViewMode }) => {
+    .then(({ redrawColumnsForViewMode, redrawBeamsForViewMode, redrawBracesForViewMode }) => {
       const scheduleRender = window.requestRender || (() => {});
 
       if (elementType === "Column") {
         redrawColumnsForViewMode(scheduleRender);
       } else if (elementType === "Girder" || elementType === "Beam") {
         redrawBeamsForViewMode(scheduleRender);
+      } else if (elementType === "Brace") {
+        redrawBracesForViewMode(scheduleRender);
       }
     })
     .catch((error) => {

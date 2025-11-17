@@ -1,0 +1,24 @@
+{
+  "environments": {
+    "development": {
+      "stb2ifc_api": "http://localhost:5001",
+      "cors_enabled": true,
+      "debug": true
+    },
+    "production": {
+      "stb2ifc_api": "https://stb2ifc-api-e23mdd6kwq-an.a.run.app",
+      "cors_enabled": false,
+      "debug": false
+    }
+  },
+  "fallback": {
+    "cors_proxy": "https://cors-anywhere.herokuapp.com/",
+    "timeout": 30000,
+    "retry_attempts": 3
+  },
+  "features": {
+    "ifc_conversion": true,
+    "schema_validation": true,
+    "importance_rating": true
+  }
+}

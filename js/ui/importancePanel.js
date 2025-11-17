@@ -9,6 +9,7 @@ import { getImportanceManager, IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES, STB_EL
 import { IMPORTANCE_COLORS } from '../config/importanceConfig.js';
 import { getState, setState } from '../core/globalState.js';
 import { updateComparisonResultImportance } from '../comparator.js';
+import { floatingWindowManager } from './floatingWindowManager.js';
 
 /**
  * 重要度設定パネルクラス
@@ -181,11 +182,38 @@ class ImportancePanel {
     this.createPanelHTML();
     this.bindEvents();
     this.updateStatistics();
-    
+
+    // Windowマネージャに登録
+    this.registerWithWindowManager();
+
     // 初期表示でCommonタブを選択
     this.switchTab('StbCommon');
-    
+
     console.log('ImportancePanel initialized');
+  }
+
+  /**
+   * Windowマネージャに登録
+   */
+  registerWithWindowManager() {
+    floatingWindowManager.registerWindow({
+      windowId: 'importance-panel',
+      toggleButtonId: null, // ボタンは手動で管理
+      closeButtonId: 'importance-panel-close',
+      headerId: 'importance-panel-header',
+      draggable: true,
+      autoShow: false,
+      onShow: () => {
+        this.isVisible = true;
+        this.updateStatistics();
+        this.refreshCurrentTab();
+        setState('ui.importancePanelVisible', true);
+      },
+      onHide: () => {
+        this.isVisible = false;
+        setState('ui.importancePanelVisible', false);
+      }
+    });
   }
 
   /**
@@ -193,11 +221,14 @@ class ImportancePanel {
    */
   createPanelHTML() {
     const panelHTML = `
-      <div id="importance-panel" class="importance-panel" style="display: none;">
-        <div class="panel-header">
-          <h3>重要度設定</h3>
-          <button id="importance-panel-close" class="close-button">×</button>
+      <div id="importance-panel" class="floating-window">
+        <div class="float-window-header" id="importance-panel-header">
+          <span class="float-window-title">🏷️ 重要度設定</span>
+          <div class="float-window-controls">
+            <button class="float-window-btn" id="importance-panel-close">✕</button>
+          </div>
         </div>
+        <div class="float-window-content">
         
         <div class="panel-controls">
           <div class="control-group">
@@ -251,9 +282,10 @@ class ImportancePanel {
             <!-- 要素一覧がここに表示される -->
           </div>
         </div>
+        </div>
       </div>
     `;
-    
+
     this.containerElement.insertAdjacentHTML('beforeend', panelHTML);
     this.elementContainer = document.getElementById('importance-elements');
     this.statisticsContainer = document.getElementById('importance-statistics');
@@ -315,35 +347,21 @@ class ImportancePanel {
    * パネルを表示する
    */
   show() {
-    document.getElementById('importance-panel').style.display = 'block';
-    this.isVisible = true;
-    this.updateStatistics();
-    this.refreshCurrentTab();
-    
-    // グローバル状態を更新
-    setState('ui.importancePanelVisible', true);
+    floatingWindowManager.showWindow('importance-panel');
   }
 
   /**
    * パネルを非表示にする
    */
   hide() {
-    document.getElementById('importance-panel').style.display = 'none';
-    this.isVisible = false;
-    
-    // グローバル状態を更新
-    setState('ui.importancePanelVisible', false);
+    floatingWindowManager.hideWindow('importance-panel');
   }
 
   /**
    * パネルの表示状態を切り替える
    */
   toggle() {
-    if (this.isVisible) {
-      this.hide();
-    } else {
-      this.show();
-    }
+    floatingWindowManager.toggleWindow('importance-panel');
   }
 
   /**
@@ -660,7 +678,7 @@ class ImportancePanel {
    */
   static addStyles() {
     if (document.getElementById('importance-panel-styles')) return;
-    
+
     const styles = `
       <style id="importance-panel-styles">
         .importance-panel {
@@ -674,8 +692,12 @@ class ImportancePanel {
           border-radius: 8px;
           box-shadow: 0 4px 12px rgba(0,0,0,0.3);
           z-index: 1000;
-          display: flex;
           flex-direction: column;
+          display: none;
+        }
+
+        .importance-panel.visible {
+          display: flex;
         }
         
         .importance-panel .panel-header {

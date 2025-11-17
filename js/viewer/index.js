@@ -13,6 +13,7 @@ import {
   animate,
   setupViewportResizeHandler,
   setSkipControlsUpdate,
+  getActiveCamera,
 } from "./core/core.js";
 import { materials } from "./rendering/materials.js";
 import {
@@ -47,6 +48,7 @@ export {
   animate,
   setupViewportResizeHandler,
   setSkipControlsUpdate,
+  getActiveCamera,
   materials,
   drawLineElements,
   drawPolyElements,

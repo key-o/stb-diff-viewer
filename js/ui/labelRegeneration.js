@@ -9,10 +9,12 @@
  */
 
 import { getAllLabels, setAllLabels } from "./state.js";
-import { generateLabelText } from "./unifiedLabelManager.js";
+import {
+  generateLabelText,
+  updateLabelVisibility,
+} from "./unifiedLabelManager.js";
 import { createLabelSprite } from "../viewer/ui/labels.js";
-import { updateLabelVisibility } from "./unifiedLabelManager.js";
-import { elementGroups } from "../viewer/index.js";
+import { getState } from "../core/globalState.js";
 
 /**
  * 全てのラベルを現在の設定で再生成する
@@ -117,10 +119,7 @@ function createUpdatedLabels(labelInfo) {
         `Using original element data for ${info.elementType}:`,
         info.originalElement
       );
-      labelText = generateLabelText(
-        info.originalElement,
-        info.elementType
-      );
+      labelText = generateLabelText(info.originalElement, info.elementType);
     } else {
       // 元のデータがない場合はIDを使用
       console.warn(
@@ -161,6 +160,131 @@ function createUpdatedLabels(labelInfo) {
   });
 
   return newLabels;
+}
+
+function disposeLabelSprite(label) {
+  if (!label) return;
+  if (label.parent) {
+    label.parent.remove(label);
+  }
+  if (label.material) {
+    if (label.material.map) {
+      label.material.map.dispose();
+    }
+    label.material.dispose();
+  }
+}
+
+function isMatchingLabel(label, elementType, elementId) {
+  if (!label || !label.userData) return false;
+  if (label.userData.elementType !== elementType) return false;
+
+  return [
+    label.userData.elementId,
+    label.userData.elementIdA,
+    label.userData.elementIdB,
+  ].some((id) => id === elementId);
+}
+
+function buildReplacementLabel(
+  originalLabel,
+  labelText,
+  elementType,
+  elementData
+) {
+  const parentGroup = originalLabel.parent || null;
+  const basePosition =
+    originalLabel.userData?.originalPosition?.clone() ||
+    originalLabel.position.clone();
+
+  const replacement = createLabelSprite(
+    labelText,
+    basePosition,
+    null,
+    elementType
+  );
+
+  if (!replacement) {
+    console.warn("Failed to create replacement label sprite", {
+      elementType,
+      labelText,
+    });
+    return originalLabel;
+  }
+
+  replacement.visible = originalLabel.visible;
+  replacement.userData = {
+    ...replacement.userData,
+    ...originalLabel.userData,
+    originalElement: elementData || originalLabel.userData.originalElement,
+  };
+
+  if (parentGroup) {
+    parentGroup.add(replacement);
+  }
+
+  disposeLabelSprite(originalLabel);
+
+  return replacement;
+}
+
+function determineLabelText(label, elementData, elementType) {
+  if (
+    label.userData?.modelSource === "matched" &&
+    label.userData.elementIdA &&
+    label.userData.elementIdB
+  ) {
+    return `${label.userData.elementIdA} / ${label.userData.elementIdB}`;
+  }
+
+  if (elementData) {
+    return generateLabelText(elementData, elementType);
+  }
+
+  return label.userData?.elementId || elementType;
+}
+
+/**
+ * 単一要素のラベルを更新
+ * @param {string} elementType
+ * @param {string} elementId
+ * @param {Object} elementData
+ * @returns {boolean} 更新が発生したか
+ */
+export function updateLabelsForElement(elementType, elementId, elementData) {
+  if (!elementType || !elementId) {
+    return false;
+  }
+
+  const labels = getAllLabels();
+  if (!labels || labels.length === 0) {
+    return false;
+  }
+
+  let updated = false;
+  const nextLabels = labels.map((label) => {
+    if (!isMatchingLabel(label, elementType, elementId)) {
+      return label;
+    }
+
+    const labelText = determineLabelText(label, elementData, elementType);
+    updated = true;
+    return buildReplacementLabel(label, labelText, elementType, elementData);
+  });
+
+  if (!updated) {
+    return false;
+  }
+
+  setAllLabels(nextLabels);
+  updateLabelVisibility();
+
+  const scheduleRender = getState("rendering.scheduleRender");
+  if (typeof scheduleRender === "function") {
+    scheduleRender();
+  }
+
+  return true;
 }
 
 /**

@@ -92,7 +92,7 @@ class ImportanceManager {
     try {
       // XSDコンテンツが提供されていない場合は、デフォルト設定を使用
       if (!xsdContent) {
-        console.warn('XSD content not provided, using default importance settings');
+        console.warn('XSDコンテンツが提供されていません。デフォルトの重要度設定を使用します');
         await this.loadDefaultSettings();
       } else {
         await this.parseXsdAndGenerateSettings(xsdContent);
@@ -101,10 +101,10 @@ class ImportanceManager {
       this.isInitialized = true;
       this.notifySettingsChanged();
       
-      console.log('ImportanceManager initialized successfully');
+      console.log('重要度マネージャーが正常に初期化されました');
       return true;
     } catch (error) {
-      console.error('Failed to initialize ImportanceManager:', error);
+      console.error('重要度マネージャーの初期化に失敗しました:', error);
       return false;
     }
   }
@@ -218,7 +218,7 @@ class ImportanceManager {
    */
   setImportanceLevel(elementPath, importanceLevel) {
     if (!Object.values(IMPORTANCE_LEVELS).includes(importanceLevel)) {
-      console.error(`Invalid importance level: ${importanceLevel}`);
+      console.error(`無効な重要度レベル: ${importanceLevel}`);
       return false;
     }
 
@@ -285,7 +285,7 @@ class ImportanceManager {
       this.notifySettingsChanged();
       return true;
     } catch (error) {
-      console.error('Failed to import CSV:', error);
+      console.error('CSVのインポートに失敗しました:', error);
       return false;
     }
   }

@@ -9,12 +9,16 @@
  * ブレースのProfileBasedBraceGeneratorと同じロジックを使用
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 import { materials } from "../rendering/materials.js";
 import { MeshPositioner } from "./MeshPositioner.js";
 import { IFCProfileFactory } from "./IFCProfileFactory.js";
 import { ensureUnifiedSectionType } from "../../common/sectionTypeUtil.js";
 import { createLogger } from "../../utils/logger.js";
+import {
+  createTaperedGeometry,
+  createMultiSectionGeometry,
+} from "./core/TaperedGeometryBuilder.js";
 
 const log = createLogger("viewer:profile:beam");
 
@@ -41,7 +45,7 @@ export class ProfileBasedBeamGenerator {
     isJsonInput = false
   ) {
     log.info(
-      `ProfileBasedBeamGenerator: Creating ${beamElements.length} beam meshes`
+      `ProfileBasedBeamGenerator: ${beamElements.length}個の梁メッシュを作成中`
     );
     const meshes = [];
 
@@ -60,12 +64,12 @@ export class ProfileBasedBeamGenerator {
           meshes.push(mesh);
         }
       } catch (error) {
-        log.error(`Error creating beam ${beam.id}:`, error);
+        log.error(`梁${beam.id}の作成中にエラーが発生しました:`, error);
       }
     }
 
     log.info(
-      `ProfileBasedBeamGenerator: Generated ${meshes.length} beam meshes`
+      `ProfileBasedBeamGenerator: ${meshes.length}個の梁メッシュを生成しました`
     );
     return meshes;
   }
@@ -85,7 +89,7 @@ export class ProfileBasedBeamGenerator {
     // 1. ノード位置の取得
     const nodePositions = this._getNodePositions(beam, nodes, isJsonInput);
     if (!nodePositions.startNode || !nodePositions.endNode) {
-      console.warn(`Skipping beam ${beam.id}: Missing node data`);
+      console.warn(`梁${beam.id}をスキップします: ノードデータがありません`);
       return null;
     }
 
@@ -94,36 +98,68 @@ export class ProfileBasedBeamGenerator {
       this._getSectionData(beam, beamSections, isJsonInput)
     );
     if (!sectionData) {
-      console.warn(`Skipping beam ${beam.id}: Missing section data`);
+      console.warn(`梁${beam.id}をスキップします: 断面データがありません`);
       return null;
     }
 
     // 3. 長さ計算
     const length = nodePositions.startNode.distanceTo(nodePositions.endNode);
     if (length <= 0) {
-      console.warn(`Skipping beam ${beam.id}: Invalid length ${length}`);
+      console.warn(`梁${beam.id}をスキップします: 無効な長さ ${length}`);
       return null;
     }
 
     log.debug(
       `Creating beam ${beam.id}: length=${length.toFixed(1)}mm, section_type=${
         sectionData.section_type || sectionData.profile_type || "unknown"
-      }`
+      }, mode=${sectionData.mode || "single"}`
     );
 
-    // 4. プロファイル（断面）形状を作成
-    const prof = this._createSectionProfile(sectionData, beam);
-    const profile = prof?.shape;
-    const profileMeta = prof?.meta;
-    if (!profile) {
-      console.warn(`Skipping beam ${beam.id}: Failed to create profile`);
-      return null;
+    // 4. ジオメトリ作成（断面モードに応じて分岐）
+    let geometry = null;
+    let profileMeta = null;
+    const mode = sectionData.mode || "single";
+
+    if (mode === "single") {
+      // ===== 既存の1断面処理 =====
+      const prof = this._createSectionProfile(sectionData, beam);
+      const profile = prof?.shape;
+      profileMeta = prof?.meta;
+      if (!profile) {
+        console.warn(
+          `梁${beam.id}をスキップします: プロファイルの作成に失敗しました`
+        );
+        return null;
+      }
+
+      geometry = this._createExtrudedGeometry(profile, length);
+      if (!geometry) {
+        console.warn(
+          `梁${beam.id}をスキップします: ジオメトリの作成に失敗しました`
+        );
+        return null;
+      }
+    } else if (mode === "double" || mode === "multi") {
+      // ===== 新規: 多断面処理 =====
+      geometry = this._createMultiSectionGeometry(
+        sectionData,
+        beam,
+        steelSections,
+        length
+      );
+      if (!geometry) {
+        console.warn(
+          `梁${beam.id}をスキップします: 多断面ジオメトリの作成に失敗しました`
+        );
+        return null;
+      }
+      profileMeta = { profileSource: "multi-section" };
     }
 
-    // 5. 押し出しジオメトリを作成
-    const geometry = this._createExtrudedGeometry(profile, length);
     if (!geometry) {
-      console.warn(`Skipping beam ${beam.id}: Failed to create geometry`);
+      console.warn(
+        `梁${beam.id}をスキップします: ジオメトリの作成に失敗しました`
+      );
       return null;
     }
 
@@ -163,7 +199,7 @@ export class ProfileBasedBeamGenerator {
         nodePositions.endNode
       );
     } catch (e) {
-      log.warn(`Beam ${beam.id}: failed to attach placement axis line`, e);
+      log.warn(`梁${beam.id}: 配置基準線のアタッチに失敗しました`, e);
     }
 
     return mesh;
@@ -688,21 +724,49 @@ export class ProfileBasedBeamGenerator {
         endNode.z + oez
       );
 
-      // 3. STBの天端基準に合わせて端点をグローバルZにシフト（Zオフセットが指定されていない場合のみ）
+      // 3. STBの天端基準に合わせて端点をローカルY軸方向にシフト
+      // オフセット（グローバル座標系）と天端調整（ローカル座標系）は独立して適用される
+      // 多断面梁の場合は、ジオメトリ生成時に既に天端基準で作成済みなのでスキップ
+      const mode = sectionData.mode || "single";
+      const isMultiSection = mode === "double" || mode === "multi";
+
       const sectionHeight =
         ProfileBasedBeamGenerator._getSectionHeight(sectionData);
-      const hasZOffsets =
-        (Number(beam?.offset_start_Z) || 0) !== 0 ||
-        (Number(beam?.offset_end_Z) || 0) !== 0;
       if (
+        !isMultiSection && // 多断面の場合はシフト不要
         sectionHeight &&
         isFinite(sectionHeight) &&
-        sectionHeight > 0 &&
-        !hasZOffsets
+        sectionHeight > 0
       ) {
-        const topAlignShift = new THREE.Vector3(0, 0, -sectionHeight / 2);
+        // 基底ベクトルを先に計算（天端基準調整のため）
+        const tempDirection = new THREE.Vector3()
+          .subVectors(endAdjusted, startAdjusted)
+          .normalize();
+        const { yAxis } = this._calculateBeamBasis(tempDirection);
+
+        // ローカルY軸方向（せい方向）に沿って調整
+        // STBでは天端基準なので、メッシュ中心配置するには-sectionHeight/2だけシフト
+        // この調整はoffset_Zとは独立（オフセットはグローバル座標、天端調整はローカル座標）
+        const topAlignShift = yAxis.clone().multiplyScalar(-sectionHeight / 2);
         startAdjusted.add(topAlignShift);
         endAdjusted.add(topAlignShift);
+
+        log.debug(
+          `Beam ${beam.id} top-align adjustment: ` +
+            `sectionHeight=${sectionHeight.toFixed(1)}mm, ` +
+            `yAxis=[${yAxis
+              .toArray()
+              .map((v) => v.toFixed(3))
+              .join(",")}], ` +
+            `shift=[${topAlignShift
+              .toArray()
+              .map((v) => v.toFixed(1))
+              .join(",")}]`
+        );
+      } else if (isMultiSection) {
+        log.debug(
+          `Beam ${beam.id}: 多断面梁のため天端シフトをスキップ（ジオメトリ生成時に適用済み）`
+        );
       }
 
       // 4. 調整後の中心と方向・長さを再計算
@@ -744,6 +808,82 @@ export class ProfileBasedBeamGenerator {
   }
 
   /**
+   * 梁の基底ベクトルを計算
+   *
+   * ST-Bridge座標系（Z軸が鉛直上向き）において、
+   * 梁の断面が正しい向きになるように基底ベクトルを計算します。
+   *
+   * 基底ベクトルの定義:
+   * - Z軸（zAxis）: 梁軸方向（始点→終点）
+   * - Y軸（yAxis）: せい方向（鉛直上向きに最も近い方向）
+   * - X軸（xAxis）: 幅方向（Y × Z の右手系）
+   *
+   * @param {THREE.Vector3} direction - 梁軸方向（正規化済み）
+   * @returns {Object} { xAxis, yAxis, zAxis }
+   * @private
+   */
+  static _calculateBeamBasis(direction) {
+    const zAxis = new THREE.Vector3().copy(direction).normalize();
+    const globalUp = new THREE.Vector3(0, 0, 1); // STB座標系での鉛直上向き
+
+    // 垂直梁の判定（梁軸が鉛直に近い場合）
+    const verticalDot = Math.abs(zAxis.dot(globalUp));
+    if (verticalDot > 0.99) {
+      // ほぼ垂直な梁の場合、X軸を水平方向に設定
+      const globalX = new THREE.Vector3(1, 0, 0);
+      const xAxis = new THREE.Vector3().copy(globalX).normalize();
+      const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis).normalize();
+      // 直交性を保証するため再計算
+      xAxis.crossVectors(yAxis, zAxis).normalize();
+
+      log.debug(
+        `Vertical beam basis: ` +
+          `x=[${xAxis
+            .toArray()
+            .map((v) => v.toFixed(3))
+            .join(",")}], ` +
+          `y=[${yAxis
+            .toArray()
+            .map((v) => v.toFixed(3))
+            .join(",")}], ` +
+          `z=[${zAxis
+            .toArray()
+            .map((v) => v.toFixed(3))
+            .join(",")}]`
+      );
+
+      return { xAxis, yAxis, zAxis };
+    }
+
+    // 一般的な梁（水平または斜め）の場合
+    // X軸: globalUp（鉛直）と zAxis（梁軸）に直交する方向 = 水平方向
+    const xAxis = new THREE.Vector3().crossVectors(globalUp, zAxis).normalize();
+
+    // Y軸: zAxis × xAxis（右手系を保証）= せい方向（鉛直に近い）
+    const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis).normalize();
+
+    // デバッグログ（詳細な基底ベクトル情報）
+    log.debug(
+      `General beam basis: ` +
+        `x=[${xAxis
+          .toArray()
+          .map((v) => v.toFixed(3))
+          .join(",")}], ` +
+        `y=[${yAxis
+          .toArray()
+          .map((v) => v.toFixed(3))
+          .join(",")}], ` +
+        `z=[${zAxis
+          .toArray()
+          .map((v) => v.toFixed(3))
+          .join(",")}], ` +
+        `yDotUp=${yAxis.dot(globalUp).toFixed(3)}`
+    );
+
+    return { xAxis, yAxis, zAxis };
+  }
+
+  /**
    * 建築座標系での梁配置（せい方向をZ方向に配置）
    * @private
    */
@@ -767,21 +907,9 @@ export class ProfileBasedBeamGenerator {
       rotationAngle = beam.angle;
     }
 
-    // stb2Ifc の参照方向ロジックに合わせて、断面基底（X:幅, Y:せい, Z:梁軸）を構築
-    // Z_local（梁軸）
-    const zAxis = new THREE.Vector3().copy(direction).normalize();
-    // X_local（幅方向）: [-dy, dx, 0]
-    const xAxis = new THREE.Vector3(-zAxis.y, zAxis.x, 0);
-    if (xAxis.lengthSq() < 1e-10) {
-      // 垂直梁などで水平成分がない場合は既定のXを使用
-      xAxis.set(1, 0, 0);
-    } else {
-      xAxis.normalize();
-    }
-    // Y_local（せい方向）
-    const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis).normalize();
-    // 直交再調整（数値誤差の抑制）
-    xAxis.crossVectors(yAxis, zAxis).normalize();
+    // 新しい基底ベクトル計算メソッドを使用
+    // せい方向（Y軸）が常に鉛直上向きに近くなるように計算
+    const { xAxis, yAxis, zAxis } = this._calculateBeamBasis(direction);
 
     // 基底から回転行列/クォータニオンを作成
     const basis = new THREE.Matrix4();
@@ -798,8 +926,8 @@ export class ProfileBasedBeamGenerator {
 
     // 天端合わせは _applyPrecisePlacement 内で端点に適用済み（ここでは位置シフトしない）
 
-    console.log(
-      `Beam ${beam.id} orientation(basis): sectionType=${sectionType}, ` +
+    log.info(
+      `Beam ${beam.id} orientation: sectionType=${sectionType}, ` +
         `dir=[${direction
           .toArray()
           .map((v) => v.toFixed(3))
@@ -854,6 +982,138 @@ export class ProfileBasedBeamGenerator {
       return dims.width; // 正方断面の推定
     }
     return 0;
+  }
+
+  /**
+   * 多断面ジオメトリを作成
+   * @private
+   * @param {Object} sectionData - 断面データ（mode='double'/'multi', shapes配列を含む）
+   * @param {Object} beam - 梁要素データ
+   * @param {Map} steelSections - 鋼材形状マップ
+   * @param {number} length - 要素長さ（mm）
+   * @returns {THREE.BufferGeometry} テーパージオメトリ
+   */
+  static _createMultiSectionGeometry(sectionData, beam, steelSections, length) {
+    if (!sectionData.shapes || sectionData.shapes.length < 2) {
+      log.error(
+        `Beam ${beam.id}: 多断面ジオメトリにはshapes配列（2要素以上）が必要です`
+      );
+      return null;
+    }
+
+    // 各断面のプロファイルを作成
+    const sections = [];
+    log.debug(
+      `Beam ${beam.id}: 多断面ジオメトリ生成開始 (${sectionData.shapes.length}断面)`
+    );
+
+    for (const shapeInfo of sectionData.shapes) {
+      const { pos, shapeName, variant } = shapeInfo;
+
+      // 仮の断面データを作成（各断面用）
+      const tempSectionData = {
+        shapeName: shapeName,
+        section_type: sectionData.section_type,
+        profile_type: sectionData.profile_type,
+      };
+
+      // steelSectionsから寸法情報を取得
+      const steelShape = steelSections?.get(shapeName);
+      if (steelShape) {
+        tempSectionData.steelShape = steelShape;
+        tempSectionData.dimensions = steelShape.dimensions || steelShape;
+      }
+
+      // variantから追加の属性情報をコピー（strength等）
+      if (variant && variant.attributes) {
+        tempSectionData.variantAttributes = variant.attributes;
+      }
+
+      log.debug(
+        `  断面[${pos}]: shape=${shapeName}, ` +
+          `dims=${JSON.stringify(tempSectionData.dimensions || {}).substring(
+            0,
+            100
+          )}, ` +
+          `variant=${variant ? "あり" : "なし"}`
+      );
+
+      // プロファイルを作成
+      const prof = this._createSectionProfile(tempSectionData, beam);
+      if (!prof || !prof.shape || !prof.shape.extractPoints) {
+        log.warn(
+          `Beam ${beam.id}: 断面 ${shapeName}（pos=${pos}）のプロファイル作成に失敗しました`
+        );
+        continue;
+      }
+
+      // extractPointsでプロファイルの頂点を取得
+      const points = prof.shape.extractPoints(12); // 12分割で円弧を近似
+      const vertices = points.shape;
+
+      if (!vertices || vertices.length < 3) {
+        log.warn(
+          `Beam ${beam.id}: 断面 ${shapeName}（pos=${pos}）の頂点が不十分です`
+        );
+        continue;
+      }
+
+      // STBの天端基準に合わせるため、各断面の天端（最大Y値）を y=0 に揃える
+      // これにより、断面高さが異なる場合でも天端が常に揃う
+      const currentMaxY = Math.max(...vertices.map((v) => v.y));
+      const shiftedVertices = vertices.map((v) => ({
+        x: v.x,
+        y: v.y - currentMaxY, // 天端をy=0に配置
+      }));
+
+      const sectionHeight = this._getSectionHeight(tempSectionData);
+      log.debug(
+        `  → プロファイル生成成功: 頂点数=${vertices.length}, ` +
+          `sectionHeight=${sectionHeight?.toFixed(1) || "N/A"}mm, ` +
+          `currentMaxY=${currentMaxY.toFixed(1)}mm, ` +
+          `shift=${(-currentMaxY).toFixed(1)}mm`
+      );
+
+      sections.push({
+        pos: pos,
+        profile: { vertices: shiftedVertices, holes: [] },
+      });
+    }
+
+    if (sections.length < 2) {
+      log.error(
+        `Beam ${beam.id}: 有効なプロファイルが2つ未満です（${sections.length}個）`
+      );
+      return null;
+    }
+
+    // ハンチ長さの取得
+    const haunchLengths = {
+      start: beam.haunch_start || 0,
+      end: beam.haunch_end || 0,
+    };
+
+    // ジオメトリ生成
+    try {
+      if (sections.length === 2) {
+        // 2断面: createTaperedGeometry
+        return createTaperedGeometry(
+          sections[0].profile,
+          sections[1].profile,
+          length,
+          { segments: 1 }
+        );
+      } else {
+        // 3断面以上: createMultiSectionGeometry
+        return createMultiSectionGeometry(sections, length, haunchLengths);
+      }
+    } catch (error) {
+      log.error(
+        `Beam ${beam.id}: テーパージオメトリの生成に失敗しました:`,
+        error
+      );
+      return null;
+    }
   }
 }
 

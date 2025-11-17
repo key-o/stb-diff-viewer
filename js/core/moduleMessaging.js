@@ -32,7 +32,7 @@ export class ModuleMessenger {
       errorRetryDelay: 100
     };
     
-    console.log('ModuleMessenger initialized');
+    console.log('モジュールメッセンジャーが初期化されました');
   }
   
   /**
@@ -44,11 +44,11 @@ export class ModuleMessenger {
    */
   subscribe(event, callback, options = {}) {
     if (typeof event !== 'string' || !event) {
-      throw new Error('Event name must be a non-empty string');
+      throw new Error('イベント名は空でない文字列である必要があります');
     }
     
     if (typeof callback !== 'function') {
-      throw new Error('Callback must be a function');
+      throw new Error('コールバックは関数である必要があります');
     }
     
     if (!this.subscribers.has(event)) {
@@ -67,7 +67,7 @@ export class ModuleMessenger {
     this.subscribers.get(event).add(subscription);
     
     if (this.config.enableDebugLogging) {
-      console.log(`Subscribed to event "${event}" with priority ${subscription.priority}`);
+      console.log(`イベント"${event}"を優先度${subscription.priority}で購読しました`);
     }
     
     // アンサブスクライブ関数を返す
@@ -81,7 +81,7 @@ export class ModuleMessenger {
       }
       
       if (this.config.enableDebugLogging) {
-        console.log(`Unsubscribed from event "${event}"`);
+        console.log(`イベント"${event}"の購読を解除しました`);
       }
     };
   }
@@ -106,7 +106,7 @@ export class ModuleMessenger {
    */
   publish(event, data, options = {}) {
     if (typeof event !== 'string' || !event) {
-      throw new Error('Event name must be a non-empty string');
+      throw new Error('イベント名は空でない文字列である必要があります');
     }
     
     const message = {
@@ -123,7 +123,7 @@ export class ModuleMessenger {
     this.stats.messagesPublished++;
     
     if (this.config.enableDebugLogging) {
-      console.log(`Publishing message for event "${event}"`, { 
+      console.log(`イベント"${event}"のメッセージを発行しています`, { 
         messageId: message.id, 
         async: message.async,
         priority: message.priority
@@ -145,7 +145,7 @@ export class ModuleMessenger {
   async enqueueMessage(message) {
     // キューサイズ制限チェック
     if (this.messageQueue.length >= this.config.maxQueueSize) {
-      console.warn(`Message queue full, dropping message for event "${message.event}"`);
+      console.warn(`メッセージキューが満杯です。イベント"${message.event}"のメッセージを破棄します`);
       this.stats.messagesDropped++;
       return false;
     }
@@ -172,7 +172,7 @@ export class ModuleMessenger {
     this.processing = true;
     
     if (this.config.enableDebugLogging) {
-      console.log(`Processing message queue (${this.messageQueue.length} messages)`);
+      console.log(`メッセージキューを処理中 (${this.messageQueue.length}件のメッセージ)`);
     }
     
     while (this.messageQueue.length > 0) {
@@ -187,12 +187,12 @@ export class ModuleMessenger {
         }
         
       } catch (error) {
-        console.error(`Error processing queued message:`, error);
+        console.error(`キューのメッセージ処理中にエラーが発生しました:`, error);
         
         // リトライ処理
         if (message.retryCount < message.maxRetries) {
           message.retryCount++;
-          console.log(`Retrying message delivery (attempt ${message.retryCount}/${message.maxRetries})`);
+          console.log(`メッセージ配信を再試行しています (試行回数 ${message.retryCount}/${message.maxRetries})`);
           
           // リトライ遅延
           await this.delay(this.config.errorRetryDelay * message.retryCount);
@@ -200,7 +200,7 @@ export class ModuleMessenger {
           // キューの先頭に再挿入
           this.messageQueue.unshift(message);
         } else {
-          console.error(`Max retries exceeded for message "${message.event}", dropping message`);
+          console.error(`メッセージ"${message.event}"の最大再試行回数を超えました。メッセージを破棄します`);
           this.stats.messagesDropped++;
         }
       }
@@ -219,7 +219,7 @@ export class ModuleMessenger {
     
     if (!subscribers || subscribers.size === 0) {
       if (this.config.enableDebugLogging) {
-        console.log(`No subscribers for event "${message.event}"`);
+        console.log(`イベント"${message.event}"の購読者がいません`);
       }
       return true;
     }
@@ -242,12 +242,12 @@ export class ModuleMessenger {
         }
         
       } catch (error) {
-        console.error(`Error executing callback for event "${message.event}":`, error);
+        console.error(`イベント"${message.event}"のコールバック実行中にエラーが発生しました:`, error);
         this.stats.errors++;
         
         // コンテキスト情報があればログに出力
         if (subscription.context) {
-          console.error(`Callback context:`, subscription.context);
+          console.error(`コールバックコンテキスト:`, subscription.context);
         }
       }
     }
@@ -268,13 +268,13 @@ export class ModuleMessenger {
       this.stats.messagesDelivered++;
       
       if (this.config.enableDebugLogging) {
-        console.log(`Message delivered to ${sortedSubscribers.length} subscribers for event "${message.event}"`);
+        console.log(`イベント"${message.event}"のメッセージを${sortedSubscribers.length}人の購読者に配信しました`);
       }
       
       return true;
       
     } catch (error) {
-      console.error(`Error in message delivery for event "${message.event}":`, error);
+      console.error(`イベント"${message.event}"のメッセージ配信中にエラーが発生しました:`, error);
       this.stats.errors++;
       throw error;
     }
@@ -306,12 +306,12 @@ export class ModuleMessenger {
       const executionTime = Date.now() - startTime;
       
       if (this.config.enableDebugLogging && executionTime > 100) {
-        console.warn(`Slow callback execution: ${executionTime}ms for event "${message.event}"`);
+        console.warn(`コールバックの実行が遅いです: イベント"${message.event}"で${executionTime}ms`);
       }
       
     } catch (error) {
       const executionTime = Date.now() - startTime;
-      console.error(`Callback execution failed after ${executionTime}ms:`, error);
+      console.error(`${executionTime}ms後にコールバックの実行が失敗しました:`, error);
       throw error;
     }
   }
@@ -323,13 +323,13 @@ export class ModuleMessenger {
   unsubscribeAll(event) {
     if (event) {
       this.subscribers.delete(event);
-      console.log(`All subscriptions for event "${event}" removed`);
+      console.log(`イベント"${event}"のすべての購読を削除しました`);
     } else {
       const totalSubscriptions = Array.from(this.subscribers.values())
         .reduce((sum, subscribers) => sum + subscribers.size, 0);
       
       this.subscribers.clear();
-      console.log(`All ${totalSubscriptions} subscriptions removed`);
+      console.log(`すべての${totalSubscriptions}件の購読を削除しました`);
     }
   }
   
@@ -360,18 +360,18 @@ export class ModuleMessenger {
    */
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
-    console.log('ModuleMessenger configuration updated:', this.config);
+    console.log('モジュールメッセンジャーの設定が更新されました:', this.config);
   }
   
   /**
    * デバッグ情報を出力する
    */
   debug() {
-    console.group('ModuleMessenger Debug Info');
-    console.log('Configuration:', this.config);
-    console.log('Statistics:', this.getStats());
-    console.log('Active Events:', Array.from(this.subscribers.keys()));
-    console.log('Queue Status:', {
+    console.group('モジュールメッセンジャーデバッグ情報');
+    console.log('設定:', this.config);
+    console.log('統計:', this.getStats());
+    console.log('アクティブイベント:', Array.from(this.subscribers.keys()));
+    console.log('キュー状態:', {
       size: this.messageQueue.length,
       processing: this.processing
     });
@@ -393,7 +393,7 @@ export class ModuleMessenger {
       startTime: Date.now()
     };
     
-    console.log('ModuleMessenger reset');
+    console.log('モジュールメッセンジャーがリセットされました');
   }
   
   /**
@@ -456,7 +456,7 @@ export function initializeGlobalMessenger(config = {}) {
     window.moduleMessenger = globalMessenger;
   }
   
-  console.log('Global module messenger initialized');
+  console.log('グローバルモジュールメッセンジャーが初期化されました');
   return globalMessenger;
 }
 

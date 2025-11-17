@@ -20,11 +20,11 @@ export class SettingsManager {
     this.userSettings = this.loadUserSettings();
     this.listeners = new Set();
     this.storageKey = 'stb-diff-viewer-importance-settings';
-    
+
     // 設定変更監視
     this.setupStorageListener();
-    
-    console.log('SettingsManager initialized');
+
+    console.log('設定マネージャーが初期化されました');
   }
   
   /**
@@ -95,11 +95,11 @@ export class SettingsManager {
       const saved = localStorage.getItem(this.storageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
-        console.log('User settings loaded from localStorage');
+        console.log('ユーザー設定をlocalStorageから読み込みました');
         return parsed;
       }
     } catch (error) {
-      console.warn('Failed to load user settings from localStorage:', error);
+      console.warn('localStorageからのユーザー設定の読み込みに失敗しました:', error);
     }
     
     return {
@@ -119,16 +119,16 @@ export class SettingsManager {
       this.userSettings.lastModified = new Date().toISOString();
       
       localStorage.setItem(this.storageKey, JSON.stringify(this.userSettings));
-      console.log('User settings saved to localStorage');
+      console.log('ユーザー設定をlocalStorageに保存しました');
       
       // 設定保存イベントを発行
       this.notifySettingsSaved();
       
     } catch (error) {
-      console.error('Failed to save user settings to localStorage:', error);
+      console.error('ユーザー設定のlocalStorageへの保存に失敗しました:', error);
       
       // 保存失敗イベントを発行
-      this.notifySettingsError('Failed to save settings', error);
+      this.notifySettingsError('設定の保存に失敗しました', error);
     }
   }
   
@@ -196,11 +196,11 @@ export class SettingsManager {
   setImportance(elementPath, importance) {
     // 入力検証
     if (!this.validateImportanceLevel(importance)) {
-      throw new Error(`Invalid importance level: ${importance}`);
+      throw new Error(`無効な重要度レベル: ${importance}`);
     }
     
     if (!this.validateElementPath(elementPath)) {
-      console.warn(`Potentially invalid element path: ${elementPath}`);
+      console.warn(`無効な可能性のある要素パス: ${elementPath}`);
     }
     
     // 設定カテゴリの判定
@@ -220,7 +220,7 @@ export class SettingsManager {
     // 変更通知
     this.notifyImportanceChanged(elementPath, importance, oldImportance);
     
-    console.log(`Importance set for ${elementPath}: ${oldImportance} -> ${importance}`);
+    console.log(`${elementPath}の重要度を設定しました: ${oldImportance} -> ${importance}`);
   }
   
   /**
@@ -277,7 +277,7 @@ export class SettingsManager {
     this.saveUserSettings();
     this.notifySettingsReset();
     
-    console.log('Settings reset to defaults');
+    console.log('設定をデフォルトにリセットしました');
   }
   
   /**
@@ -302,7 +302,7 @@ export class SettingsManager {
     try {
       // バージョンチェック
       if (settings.version !== '1.0') {
-        console.warn(`Unsupported settings version: ${settings.version}`);
+        console.warn(`サポートされていない設定バージョン: ${settings.version}`);
       }
       
       // 設定の妥当性チェック
@@ -311,14 +311,14 @@ export class SettingsManager {
         this.saveUserSettings();
         this.notifySettingsImported();
         
-        console.log('Settings imported successfully');
+        console.log('設定のインポートが成功しました');
         return true;
       } else {
-        throw new Error('Invalid settings format');
+        throw new Error('無効な設定フォーマット');
       }
     } catch (error) {
-      console.error('Failed to import settings:', error);
-      this.notifySettingsError('Failed to import settings', error);
+      console.error('設定のインポートに失敗しました:', error);
+      this.notifySettingsError('設定のインポートに失敗しました', error);
       return false;
     }
   }
@@ -356,7 +356,7 @@ export class SettingsManager {
   setupStorageListener() {
     window.addEventListener('storage', (event) => {
       if (event.key === this.storageKey) {
-        console.log('Settings changed in another tab, reloading...');
+        console.log('他のタブで設定が変更されました。再読み込みしています...');
         this.userSettings = this.loadUserSettings();
         this.notifySettingsReloaded();
       }
@@ -390,7 +390,7 @@ export class SettingsManager {
       try {
         listener(type, data);
       } catch (error) {
-        console.error('Error in settings listener:', error);
+        console.error('設定リスナーでエラーが発生しました:', error);
       }
     });
   }
@@ -493,7 +493,7 @@ export class SettingsManager {
    */
   getSettingsStatus() {
     return {
-      hasUserSettings: Object.keys(this.userSettings.elements).length > 0 || 
+      hasUserSettings: Object.keys(this.userSettings.elements).length > 0 ||
                       Object.keys(this.userSettings.attributes).length > 0,
       userElementsCount: Object.keys(this.userSettings.elements).length,
       userAttributesCount: Object.keys(this.userSettings.attributes).length,
@@ -530,7 +530,7 @@ export function initializeSettingsManager() {
     window.importanceSettingsManager = globalSettingsManager;
   }
   
-  console.log('Global settings manager initialized');
+  console.log('グローバル設定マネージャーが初期化されました');
   return globalSettingsManager;
 }
 

@@ -11,7 +11,7 @@
  * ユーザーがクリックした3D要素を特定し、適切な情報表示を行います。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
 import {
   scene,
   camera,
@@ -21,6 +21,7 @@ import {
   setSkipControlsUpdate,
 } from "./viewer/index.js";
 import { displayElementInfo } from "./viewer/ui/elementInfoDisplay.js";
+import { selectElementInTree } from "./ui/elementTreeView.js";
 
 // レイキャスト用オブジェクト
 const raycaster = new THREE.Raycaster();
@@ -129,6 +130,76 @@ export function resetSelection() {
   }
   // 回転中心ヘルパーも非表示
   hideOrbitCenterHelper();
+}
+
+/**
+ * 3Dオブジェクトを直接選択してハイライト表示する
+ * @param {THREE.Object3D} obj - 選択するThree.jsオブジェクト
+ * @param {Function} scheduleRender - 再描画要求関数
+ */
+export function selectElement3D(obj, scheduleRender) {
+  if (!obj || !obj.userData) {
+    console.warn('無効なオブジェクトが指定されました');
+    return;
+  }
+
+  const userData = obj.userData;
+  const elementType = userData.elementType || userData.stbNodeType;
+
+  // Axis と Story 以外の場合のみハイライト処理を実行
+  if (elementType && elementType !== "Axis" && elementType !== "Story") {
+    // 既存の選択を解除
+    resetSelection();
+
+    // ハイライト処理
+    selectedObject = obj;
+
+    // 元のマテリアルを保存
+    if (Array.isArray(selectedObject.material)) {
+      originalMaterial = selectedObject.material.map((mat) => mat.clone());
+    } else if (selectedObject.material) {
+      originalMaterial = selectedObject.material.clone();
+    } else {
+      originalMaterial = null;
+    }
+
+    // ハイライトマテリアルを適用
+    let highlightMat = null;
+    if (selectedObject instanceof THREE.Line) {
+      highlightMat = materials.highlightLine;
+    } else if (
+      selectedObject instanceof THREE.Mesh ||
+      selectedObject instanceof THREE.Sprite
+    ) {
+      highlightMat = materials.highlightMesh;
+    }
+
+    if (highlightMat && selectedObject.material) {
+      selectedObject.material = highlightMat;
+    }
+
+    // 回転中心を変更
+    try {
+      const mainObj = findSelectableAncestor(selectedObject) || selectedObject;
+      const box = new THREE.Box3().setFromObject(mainObj);
+      if (box && box.isBox3) {
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        if (controls && typeof controls.setOrbitPoint === "function") {
+          controls.stop?.();
+          controls.setOrbitPoint(center.x, center.y, center.z);
+        } else {
+          controls.target.copy(center);
+        }
+        createOrUpdateOrbitCenterHelper(center);
+      }
+    } catch (e) {
+      console.warn("Failed to compute selected object center:", e);
+    }
+
+    // 再描画
+    if (scheduleRender) scheduleRender();
+  }
 }
 
 /**
@@ -284,6 +355,12 @@ export function processElementSelection(event, scheduleRender) {
           idA = userData.elementId;
         }
         displayElementInfo(idA, idB, "Column", modelSource);
+
+        // ツリー表示を同期
+        const elementId = idA || idB;
+        if (elementId) {
+          selectElementInTree("Column", elementId, modelSource);
+        }
       }
       // その他のハイライト対象要素の情報表示
       else {
@@ -306,6 +383,12 @@ export function processElementSelection(event, scheduleRender) {
             elementType,
           }); // デバッグ用
           displayElementInfo(idA, idB, elementType, modelSource);
+
+          // ツリー表示を同期
+          const elementId = idA || idB;
+          if (elementId) {
+            selectElementInTree(elementType, elementId, modelSource);
+          }
         } else {
           console.log(`No valid ID found for ${elementType}, clearing display`); // デバッグ用
           displayElementInfo(null, null, null, null);

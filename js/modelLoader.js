@@ -13,7 +13,8 @@
  * 制御し、他のモジュールと連携してモデルデータを適切に扱います。
  */
 
-import * as THREE from "https://cdn.skypack.dev/three@0.128.0/build/three.module.js";
+import * as THREE from "three";
+import { createLogger } from "./utils/logger.js";
 import {
   clearSceneContent,
   createOrUpdateGridHelper,
@@ -29,6 +30,8 @@ import {
   adjustCameraToFitModel,
 } from "./viewer/index.js";
 import { loadStbXmlAutoEncoding } from "./viewer/utils/utils.js";
+
+const log = createLogger("ModelLoader");
 import {
   buildNodeMap,
   parseStories,
@@ -50,7 +53,11 @@ import {
 import { initViewModes, updateModelVisibility } from "./viewModes.js";
 import { setState, getState } from "./core/globalState.js";
 import { JsonDisplayIntegration } from "./viewer/integration/jsonDisplayIntegration.js";
-import { processJsonIntegratedModels, detectJsonIntegrationSupport } from "./modelLoader/jsonIntegration.js";
+import comparisonKeyManager from "./core/comparisonKeyManager.js";
+import {
+  processJsonIntegratedModels,
+  detectJsonIntegrationSupport,
+} from "./modelLoader/jsonIntegration.js";
 
 // Refactored modules
 import {
@@ -89,6 +96,7 @@ let axesData = { xAxes: [], yAxes: [] };
 let modelADocument = null;
 let modelBDocument = null;
 let modelsLoaded = false;
+let sectionMaps = null;  // 断面データ
 
 /**
  * モデルデータへの参照を取得
@@ -105,6 +113,7 @@ export function getModelData() {
     modelADocument,
     modelBDocument,
     modelsLoaded,
+    sectionMaps,
   };
 }
 
@@ -123,7 +132,7 @@ export function isModelLoaded() {
  * @returns {Promise<boolean>} 処理結果
  */
 export async function compareModels(scheduleRender, { camera, controls } = {}) {
-  console.log("=== STB Model Comparison Started ===");
+  console.log("=== STBモデル比較開始 ===");
 
   // Phase 1: Validation and Input Processing
   const fileValidation = validateAndGetFiles();
@@ -133,7 +142,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
 
   const { fileA, fileB } = fileValidation;
   const selectedElementTypes = getSelectedElementTypes();
-  
+
   // JSON統合機能の検出とサポート
   const jsonSupport = detectJsonIntegrationSupport(fileA, fileB);
   const { hasJsonFiles, isJsonFileA, isJsonFileB } = jsonSupport;
@@ -148,7 +157,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
   });
 
   if (!paramValidation.isValid) {
-    console.error("Parameter validation failed:", paramValidation.errors);
+    log.error("パラメータ検証に失敗:", paramValidation.errors);
     alert("パラメータ検証に失敗しました: " + paramValidation.errors.join(", "));
     return false;
   }
@@ -170,35 +179,41 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
 
   try {
     // Phase 2: Model Document Processing
-    console.log("=== Phase 2: Model Processing ===");
-    
+    console.log("=== フェーズ2: モデル処理 ===");
+
     // JSON統合処理
     if (hasJsonFiles) {
       const jsonIntegration = new JsonDisplayIntegration();
       console.log("JsonDisplayIntegration初期化完了 - ProfileBased生成器使用");
-      
+
       // JSON統合表示システムを活用した処理
       const jsonDisplayResult = await processJsonIntegratedModels(
-        fileA, fileB, isJsonFileA, isJsonFileB, jsonIntegration
+        fileA,
+        fileB,
+        isJsonFileA,
+        isJsonFileB,
+        jsonIntegration
       );
-      
+
       if (jsonDisplayResult.success) {
         console.log("JSON統合処理完了 - ProfileBased表示システム使用");
-        console.log(`生成統計: ${JSON.stringify(jsonDisplayResult.statistics)}`);
-        
+        console.log(
+          `生成統計: ${JSON.stringify(jsonDisplayResult.statistics)}`
+        );
+
         // UI更新（必要に応じて）
         if (scheduleRender) {
           scheduleRender();
         }
-        
+
         return jsonDisplayResult.result;
       } else {
-        console.error("JSON統合処理失敗:", jsonDisplayResult.error);
+        log.error("JSON統合処理失敗:", jsonDisplayResult.error);
         alert(`JSON統合処理エラー: ${jsonDisplayResult.error}`);
         return false;
       }
     }
-    
+
     const processingResult = await processModelDocuments(fileA, fileB);
 
     if (!processingResult.success) {
@@ -206,7 +221,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     }
 
     // Update local state with processed data
-    ({ modelADocument, modelBDocument, nodeMapA, nodeMapB, stories, axesData } =
+    ({ modelADocument, modelBDocument, nodeMapA, nodeMapB, stories, axesData, sectionMaps } =
       processingResult);
 
     // Save model documents to global state for IFC conversion
@@ -216,14 +231,19 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     setState("models.nodeMapB", nodeMapB);
     setState("models.stories", stories);
     setState("models.axesData", axesData);
+    setState("sectionsData", sectionMaps);  // 断面データを保存
 
-    console.log("Model documents saved to global state for IFC conversion");
+    console.log("IFC変換用にモデルドキュメントをグローバル状態に保存しました");
 
     // Phase 3: Element Comparison
-    console.log("=== Phase 3: Element Comparison ===");
+    console.log("=== フェーズ3: 要素比較 ===");
+    const comparisonKeyType = comparisonKeyManager.getKeyType();
+    console.log(`使用する比較キータイプ: ${comparisonKeyType}`);
+
     const comparisonOptions = {
       useImportanceFiltering: true,
       targetImportanceLevels: null, // null = all levels
+      comparisonKeyType: comparisonKeyType, // 比較キータイプを追加
     };
     const comparisonResult = processElementComparison(
       processingResult,
@@ -250,7 +270,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     modelBounds = calculateElementBounds(comparisonResults, nodeMapA, nodeMapB);
 
     // Phase 4: 3D Rendering
-    console.log("=== Phase 4: 3D Rendering ===");
+    console.log("=== フェーズ4: 3Dレンダリング ===");
     const renderingResult = orchestrateElementRendering(
       comparisonResults,
       modelBounds,
@@ -349,7 +369,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
 
     return true;
   } catch (error) {
-    console.error("Model comparison failed:", error);
+    log.error("モデル比較に失敗:", error);
     alert(`エラーが発生しました: ${error.message || "不明なエラー"}`);
 
     // Error cleanup
@@ -367,7 +387,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
       clearModelProcessingState();
       modelsLoaded = false;
     } catch (cleanupError) {
-      console.error("Error during state cleanup:", cleanupError);
+      log.error("状態クリーンアップ中のエラー:", cleanupError);
     }
 
     return false;
@@ -399,7 +419,7 @@ export function reapplyColorMode() {
       // 現在のシーンの全オブジェクトに新しいマテリアルを適用
       const scene = getState("rendering.scene");
       if (!scene) {
-        console.warn("[ModelLoader] Scene not available");
+        log.warn("シーンが利用できません");
         return;
       }
 
@@ -427,12 +447,12 @@ export function reapplyColorMode() {
           scheduleRender();
           console.log("[ModelLoader] All materials updated, redraw requested");
         } else {
-          console.warn("[ModelLoader] scheduleRender not available");
+          log.warn("scheduleRenderが利用できません");
         }
       });
     });
   } catch (error) {
-    console.error("[ModelLoader] Error reapplying color mode:", error);
+    log.error("カラーモード再適用中のエラー:", error);
   }
 }
 
@@ -444,41 +464,6 @@ export function reapplyColorMode() {
  */
 function updateObjectMaterialAsync(object, colorMode) {
   return import("./viewer/rendering/materials.js").then(
-    ({ getMaterialForElementWithMode }) => {
-      if (getMaterialForElementWithMode && object.userData) {
-        const elementType = object.userData.elementType;
-        const comparisonState = object.userData.modelSource || "matched";
-        const isLine = object.userData.isLine || false;
-        const isPoly = object.userData.isPoly || false;
-        const elementId = object.userData.elementId || null;
-
-        const newMaterial = getMaterialForElementWithMode(
-          elementType,
-          comparisonState,
-          isLine,
-          isPoly,
-          elementId
-        );
-
-        if (newMaterial && object.material !== newMaterial) {
-          object.material = newMaterial;
-          console.log(
-            `[ModelLoader] Updated material for ${elementType} (${elementId})`
-          );
-        }
-      }
-    }
-  );
-}
-
-/**
- * オブジェクトのマテリアルを色付けモードに応じて更新
- * @param {THREE.Object3D} object - 更新対象のオブジェクト
- * @param {string} colorMode - 色付けモード
- */
-function updateObjectMaterial(object, colorMode) {
-  // マテリアル更新ロジックをインポートして適用
-  import("./viewer/rendering/materials.js").then(
     ({ getMaterialForElementWithMode }) => {
       if (getMaterialForElementWithMode && object.userData) {
         const elementType = object.userData.elementType;

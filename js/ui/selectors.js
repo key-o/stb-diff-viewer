@@ -1,13 +1,13 @@
 /**
- * @fileoverview UI selectors management module
+ * @fileoverview UIセレクター管理モジュール
  *
- * This module manages story and axis selectors in the UI:
- * - Story selector population and updates
- * - X/Y axis selector population and updates
- * - Selector option generation
- * - Selector state management
+ * このモジュールはUI内の階と軸のセレクターを管理します：
+ * - 階セレクターの入力と更新
+ * - X/Y軸セレクターの入力と更新
+ * - セレクターオプション生成
+ * - セレクター状態管理
  *
- * Split from the large ui.js module for better organization.
+ * より良い整理のため、大きなui.jsモジュールから分割されました。
  */
 
 import { getCurrentStories, getCurrentAxesData } from "./state.js";

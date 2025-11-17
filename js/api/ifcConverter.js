@@ -5,7 +5,7 @@
  * 環境設定に基づいてAPIエンドポイントを動的に決定
  */
 
-import { getEnvironmentConfig, getApiEndpoint } from "../config/environment.js";
+import { getEnvironmentConfig } from "../config/environment.js";
 
 export class IFCConverter {
   constructor(apiBaseUrl = null) {
@@ -186,14 +186,17 @@ export class IFCConverter {
     };
 
     try {
-      const response = await fetch(`${this.apiBaseUrl}/convert/stb-to-ifc`, {
-        method: "POST",
-        mode: "cors",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        `${this.apiBaseUrl}/convert/stb-to-ifc/json`,
+        {
+          method: "POST",
+          mode: "cors",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();

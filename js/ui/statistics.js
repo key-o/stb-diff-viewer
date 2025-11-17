@@ -16,6 +16,7 @@ import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../core/importanceMan
 import { IMPORTANCE_COLORS } from '../config/importanceConfig.js';
 import { getState, setState } from '../core/globalState.js';
 import { generateImportanceSummary } from '../comparator.js';
+import { floatingWindowManager } from './floatingWindowManager.js';
 
 /**
  * 重要度別統計表示クラス
@@ -64,11 +65,37 @@ export class ImportanceStatistics {
     this.containerElement = containerElement;
     this.createStatisticsHTML();
     this.bindEvents();
-    
+
+    // Windowマネージャに登録
+    this.registerWithWindowManager();
+
     // 初回統計の生成
     this.refreshStatistics();
-    
+
     console.log('ImportanceStatistics initialized');
+  }
+
+  /**
+   * Windowマネージャに登録
+   */
+  registerWithWindowManager() {
+    floatingWindowManager.registerWindow({
+      windowId: 'importance-statistics-panel',
+      toggleButtonId: null, // ボタンは手動で管理
+      closeButtonId: 'statistics-close',
+      headerId: 'importance-statistics-header',
+      draggable: true,
+      autoShow: false,
+      onShow: () => {
+        this.isVisible = true;
+        this.refreshStatistics();
+        setState('ui.statisticsPanelVisible', true);
+      },
+      onHide: () => {
+        this.isVisible = false;
+        setState('ui.statisticsPanelVisible', false);
+      }
+    });
   }
 
   /**
@@ -76,15 +103,16 @@ export class ImportanceStatistics {
    */
   createStatisticsHTML() {
     const statisticsHTML = `
-      <div id="importance-statistics-panel" class="statistics-panel" style="display: none;">
-        <div class="statistics-header">
-          <h3>重要度別統計</h3>
-          <div class="statistics-controls">
-            <button id="statistics-refresh" class="btn btn-sm" title="統計を更新">🔄</button>
-            <button id="statistics-export" class="btn btn-sm" title="統計をエクスポート">📊</button>
-            <button id="statistics-close" class="close-button">×</button>
+      <div id="importance-statistics-panel" class="floating-window">
+        <div class="float-window-header" id="importance-statistics-header">
+          <span class="float-window-title">📊 重要度別統計</span>
+          <div class="float-window-controls">
+            <button class="float-window-btn" id="statistics-refresh" title="統計を更新">🔄</button>
+            <button class="float-window-btn" id="statistics-export" title="統計をエクスポート">💾</button>
+            <button class="float-window-btn" id="statistics-close">✕</button>
           </div>
         </div>
+        <div class="float-window-content">
         
         <div class="statistics-content">
           <!-- サマリーカード -->
@@ -182,9 +210,10 @@ export class ImportanceStatistics {
             </div>
           </div>
         </div>
+        </div>
       </div>
     `;
-    
+
     this.containerElement.insertAdjacentHTML('beforeend', statisticsHTML);
     this.chartCanvas = document.getElementById('importance-distribution-chart');
     
@@ -196,61 +225,16 @@ export class ImportanceStatistics {
    */
   addStyles() {
     if (document.getElementById('importance-statistics-styles')) return;
-    
+
     const styles = `
       <style id="importance-statistics-styles">
-        .statistics-panel {
-          position: fixed;
-          top: 50px;
-          left: 20px;
-          width: 450px;
+        /* 統計パネル固有のスタイル（内部コンテンツのみ） */
+        #importance-statistics-panel {
+          width: 500px;
           max-height: 80vh;
-          background: white;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-          z-index: 1000;
-          overflow-y: auto;
         }
-        
-        .statistics-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 16px;
-          border-bottom: 1px solid #eee;
-          background: #f8f9fa;
-          border-radius: 8px 8px 0 0;
-        }
-        
-        .statistics-header h3 {
-          margin: 0;
-          font-size: 16px;
-          color: #333;
-        }
-        
-        .statistics-controls {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-        }
-        
-        .statistics-controls .btn {
-          padding: 4px 8px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          background: white;
-          cursor: pointer;
-          font-size: 12px;
-        }
-        
-        .statistics-controls .btn:hover {
-          background: #f0f0f0;
-        }
-        
+
         .statistics-content {
-          padding: 16px;
-        }
         
         .statistics-summary {
           margin-bottom: 20px;
@@ -811,34 +795,21 @@ export class ImportanceStatistics {
    * パネルを表示
    */
   show() {
-    document.getElementById('importance-statistics-panel').style.display = 'block';
-    this.isVisible = true;
-    
-    // 表示時に統計を更新
-    this.refreshStatistics();
-    
-    setState('ui.statisticsPanelVisible', true);
+    floatingWindowManager.showWindow('importance-statistics-panel');
   }
 
   /**
    * パネルを非表示
    */
   hide() {
-    document.getElementById('importance-statistics-panel').style.display = 'none';
-    this.isVisible = false;
-    
-    setState('ui.statisticsPanelVisible', false);
+    floatingWindowManager.hideWindow('importance-statistics-panel');
   }
 
   /**
    * パネルの表示切り替え
    */
   toggle() {
-    if (this.isVisible) {
-      this.hide();
-    } else {
-      this.show();
-    }
+    floatingWindowManager.toggleWindow('importance-statistics-panel');
   }
 
   /**

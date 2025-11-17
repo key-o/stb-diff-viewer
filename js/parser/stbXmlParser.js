@@ -33,7 +33,7 @@ const STB_NAMESPACE = "https://www.building-smart.or.jp/dl";
 export function buildNodeMap(doc) {
   const nodeMap = new Map();
   if (!doc) return nodeMap;
-  const nodes = doc.getElementsByTagNameNS(STB_NAMESPACE, "StbNode");
+  const nodes = parseElements(doc, "StbNode");
   for (const node of nodes) {
     const id = node.getAttribute("id");
     // ★★★ スケーリングを削除 ★★★
@@ -44,17 +44,17 @@ export function buildNodeMap(doc) {
       nodeMap.set(id, { x, y, z });
       // デバッグ出力（最初の5個のノードのみ）
       if (nodeMap.size <= 5) {
-        console.log(`Node ${id}: X=${x}, Y=${y}, Z=${z} (mm)`);
+        console.log(`ノード ${id}: X=${x}, Y=${y}, Z=${z} (mm)`);
       }
     } else {
       console.warn(
-        `Skipping invalid node data: id=${id}, X=${node.getAttribute(
+        `無効なノードデータをスキップします: id=${id}, X=${node.getAttribute(
           "X"
         )}, Y=${node.getAttribute("Y")}, Z=${node.getAttribute("Z")}`
       );
     }
   }
-  console.log(`Built node map with ${nodeMap.size} nodes (in mm).`);
+  console.log(`${nodeMap.size}個のノードでノードマップを構築しました (mm単位)。`);
 
   // デバッグ用：ノード座標の範囲を出力
   if (nodeMap.size > 0) {
@@ -72,7 +72,7 @@ export function buildNodeMap(doc) {
       max: Math.max(...coords.map((c) => c.z)),
     };
     console.log(
-      `Node coordinate ranges: X:[${xRange.min.toFixed(
+      `ノード座標範囲: X:[${xRange.min.toFixed(
         0
       )}, ${xRange.max.toFixed(0)}], Y:[${yRange.min.toFixed(
         0
@@ -100,7 +100,7 @@ export function buildNodeMap(doc) {
  */
 export function parseStories(doc) {
   if (!doc) return [];
-  const stories = [...doc.getElementsByTagNameNS(STB_NAMESPACE, "StbStory")];
+  const stories = parseElements(doc, "StbStory");
   const parsed = stories
     .map((s) => {
       const heightAttr = s.getAttribute("height");
@@ -157,19 +157,15 @@ export function parseAxes(doc) {
   const yAxes = [];
 
   // <StbParallelAxes> 要素をすべて取得
-  const parallelAxesElements = doc.getElementsByTagNameNS(
-    namespace,
-    "StbParallelAxes"
-  );
+  const parallelAxesElements = parseElements(doc, "StbParallelAxes");
 
   for (let i = 0; i < parallelAxesElements.length; i++) {
     const parallelAxes = parallelAxesElements[i];
     const groupName = parallelAxes.getAttribute("group_name");
     // <StbParallelAxis> 要素を取得
-    const axisElements = parallelAxes.getElementsByTagNameNS(
-      namespace,
-      "StbParallelAxis"
-    );
+    const axisElements = parallelAxes.getElementsByTagName
+      ? Array.from(parallelAxes.getElementsByTagName("StbParallelAxis"))
+      : [];
 
     for (let j = 0; j < axisElements.length; j++) {
       const axis = axisElements[j];
@@ -254,7 +250,29 @@ export function parseAxes(doc) {
  */
 export function parseElements(doc, elementType) {
   if (!doc) return [];
-  return [...doc.getElementsByTagNameNS(STB_NAMESPACE, elementType)];
+
+  // getElementsByTagNameNS がサポートされている場合は使用
+  if (typeof doc.getElementsByTagNameNS === 'function') {
+    try {
+      const elements = doc.getElementsByTagNameNS(STB_NAMESPACE, elementType);
+      // 結果が iterable かチェック
+      if (elements && typeof elements[Symbol.iterator] === 'function') {
+        return [...elements];
+      }
+    } catch (e) {
+      // フォールバックへ
+    }
+  }
+
+  // フォールバック: getElementsByTagName を使用（名前空間なし）
+  if (typeof doc.getElementsByTagName === 'function') {
+    const elements = doc.getElementsByTagName(elementType);
+    if (elements) {
+      return Array.from(elements);
+    }
+  }
+
+  return [];
 }
 
 // --- 鋼材形状データ抽出関数 ---
@@ -276,16 +294,29 @@ export function extractSteelSections(xmlDoc) {
     console.warn("extractSteelSections: xmlDoc is null or undefined");
     return steelSections;
   }
-  // StbSecSteel 要素を取得（まずは querySelector、なければ NS 検索にフォールバック）
-  let steelSectionList =
-    (typeof xmlDoc.querySelector === "function" &&
-      xmlDoc.querySelector("StbSecSteel")) ||
-    (typeof xmlDoc.getElementsByTagNameNS === "function" &&
-      xmlDoc.getElementsByTagNameNS(STB_NAMESPACE, "StbSecSteel")[0]) ||
-    null;
+  // StbSecSteel 要素を取得（StbSecSteel または StbSecSteel_S）
+  let steelSectionList = null;
+
+  // querySelector で試行（StbSecSteel_S を優先）
+  if (typeof xmlDoc.querySelector === "function") {
+    steelSectionList = xmlDoc.querySelector("StbSecSteel_S") ||
+                       xmlDoc.querySelector("StbSecSteel");
+  }
+
+  // parseElements フォールバック（StbSecSteel_S を優先）
+  if (!steelSectionList) {
+    steelSectionList = parseElements(xmlDoc, "StbSecSteel_S")[0] ||
+                       parseElements(xmlDoc, "StbSecSteel")[0] ||
+                       null;
+  }
 
   if (steelSectionList) {
-    for (const steelEl of steelSectionList.children) {
+    const children = steelSectionList.children || steelSectionList.childNodes || [];
+
+    // Filter to only element nodes (nodeType === 1)
+    const elementChildren = Array.from(children).filter(node => node.nodeType === 1);
+
+    for (const steelEl of elementChildren) {
       const name = steelEl.getAttribute("name");
 
       if (name) {
@@ -295,7 +326,8 @@ export function extractSteelSections(xmlDoc) {
           name: name,
         };
 
-        for (const attr of steelEl.attributes) {
+        const attrs = Array.from(steelEl.attributes || []);
+        for (const attr of attrs) {
           if (attr.name !== "type" && attr.name !== "name") {
             sectionData[attr.name] = attr.value;
           }
@@ -304,12 +336,12 @@ export function extractSteelSections(xmlDoc) {
         // 形状タイプ(kind_struct)をタグ/属性から推定
         const tag = (sectionData.elementTag || "").toUpperCase();
         let kind = undefined;
-        if (tag.includes("-H")) kind = "H";
-        else if (tag.includes("-BOX")) kind = "BOX";
+        if (tag.includes("_H")) kind = "H";
+        else if (tag.includes("_BOX")) kind = "BOX";
         else if (tag.includes("PIPE")) kind = "PIPE";
-        else if (tag.includes("-C")) kind = "C";
-        else if (tag.includes("-L")) kind = "L";
-        else if (tag.includes("-T")) kind = "T";
+        else if (tag.includes("_C")) kind = "C";
+        else if (tag.includes("_L")) kind = "L";
+        else if (tag.includes("_T")) kind = "T";
         // type属性で判別できる場合の簡易対応（例: BCR は角形鋼管系としてBOXとみなす）
         const typeAttr = (sectionData.shapeTypeAttr || "").toUpperCase();
         if (!kind && typeAttr === "BCR") kind = "BOX";
@@ -427,6 +459,10 @@ function extractBeamLikeElements(xmlDoc, elementType) {
     const offset_end_Y = el.getAttribute("offset_end_Y");
     const offset_end_Z = el.getAttribute("offset_end_Z");
 
+    // ハンチ長さ属性（多断面ジオメトリ用）
+    const haunch_start = el.getAttribute("haunch_start");
+    const haunch_end = el.getAttribute("haunch_end");
+
     if (id && idNodeStart && idNodeEnd && idSection) {
       const data = {
         id: id,
@@ -451,6 +487,12 @@ function extractBeamLikeElements(xmlDoc, elementType) {
         data.offset_end_X = offset_end_X ? parseFloat(offset_end_X) : 0;
         data.offset_end_Y = offset_end_Y ? parseFloat(offset_end_Y) : 0;
         data.offset_end_Z = offset_end_Z ? parseFloat(offset_end_Z) : 0;
+      }
+
+      // ハンチ長さ属性が存在すれば数値化して格納（多断面ジオメトリ用）
+      if (haunch_start !== null || haunch_end !== null) {
+        data.haunch_start = haunch_start ? parseFloat(haunch_start) : 0;
+        data.haunch_end = haunch_end ? parseFloat(haunch_end) : 0;
       }
 
       elementsData.push(data);
@@ -506,4 +548,288 @@ export function extractGirderElements(xmlDoc) {
  */
 export function extractBraceElements(xmlDoc) {
   return extractBeamLikeElements(xmlDoc, "StbBrace");
+}
+
+/**
+ * 間柱要素データを抽出する
+ *
+ * **対象**: 間柱（壁内の縦材）
+ * **用途**:
+ * - 3D立体表示: 縦方向メッシュ（底部ノード→頂部ノード）生成
+ * - 線分表示: 垂直構造線（Z軸方向ライン）生成
+ * - 構造解析: 間柱の軸力・曲げ解析用データ
+ *
+ * 間柱(Post)は柱(Column)と同じ構造（id_node_bottom, id_node_top）を持つため、
+ * 同様の処理を行います。
+ *
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} 間柱要素データの配列
+ */
+export function extractPostElements(xmlDoc) {
+  const postElementsData = [];
+  // parseElements を使用して StbPost 要素を取得 (名前空間考慮済み)
+  const postElements = parseElements(xmlDoc, "StbPost");
+
+  for (const postEl of postElements) {
+    const id = postEl.getAttribute("id");
+    const idNodeBottom = postEl.getAttribute("id_node_bottom");
+    const idNodeTop = postEl.getAttribute("id_node_top");
+    const idSection = postEl.getAttribute("id_section");
+    const name = postEl.getAttribute("name");
+
+    // ST-Bridgeのインスタンスオフセット（間柱用: bottom/top, X/Y）
+    const offset_bottom_X = postEl.getAttribute("offset_bottom_X");
+    const offset_bottom_Y = postEl.getAttribute("offset_bottom_Y");
+    const offset_top_X = postEl.getAttribute("offset_top_X");
+    const offset_top_Y = postEl.getAttribute("offset_top_Y");
+
+    if (id && idNodeBottom && idNodeTop && idSection) {
+      const elementData = {
+        id: id,
+        id_node_bottom: idNodeBottom,
+        id_node_top: idNodeTop,
+        id_section: idSection,
+        name: name,
+        // インスタンスオフセット（存在すれば数値で格納、なければ0）
+        offset_bottom_X: offset_bottom_X ? parseFloat(offset_bottom_X) : 0,
+        offset_bottom_Y: offset_bottom_Y ? parseFloat(offset_bottom_Y) : 0,
+        offset_top_X: offset_top_X ? parseFloat(offset_top_X) : 0,
+        offset_top_Y: offset_top_Y ? parseFloat(offset_top_Y) : 0,
+      };
+      postElementsData.push(elementData);
+    } else {
+      console.warn(
+        `Skipping post element due to missing required attributes: id=${id}`,
+        postEl
+      );
+    }
+  }
+  console.log(`Extracted ${postElementsData.length} post elements.`);
+  return postElementsData;
+}
+
+// ==============================================================================
+// 杭・基礎要素の抽出関数
+// ==============================================================================
+
+/**
+ * 杭(Pile)要素データを抽出する
+ *
+ * 杭は柱と同じ構造（id_node_bottom, id_node_top）を持つ垂直要素です。
+ * 地中に配置されるため、bottomノードは地盤面以下のZ座標を持ちます。
+ *
+ * **用途**:
+ * - 3D立体表示: 杭の円形・矩形メッシュ生成
+ * - 線分表示: 杭の中心線表示
+ * - 構造解析: 杭の支持力・沈下解析用データ
+ *
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} 杭要素データの配列
+ */
+export function extractPileElements(xmlDoc) {
+  const pileElementsData = [];
+  const pileElements = parseElements(xmlDoc, "StbPile");
+
+  for (const pileEl of pileElements) {
+    const id = pileEl.getAttribute("id");
+    const idSection = pileEl.getAttribute("id_section");
+    const name = pileEl.getAttribute("name");
+    const kind = pileEl.getAttribute("kind"); // 杭種別（例: KIND_PHC, KIND_ST）
+    const kindStructure = pileEl.getAttribute("kind_structure"); // 杭種別（例: PC, ST, CAST）
+
+    // 2ノード形式の属性
+    const idNodeBottom = pileEl.getAttribute("id_node_bottom");
+    const idNodeTop = pileEl.getAttribute("id_node_top");
+
+    // 1ノード形式の属性
+    const idNode = pileEl.getAttribute("id_node");
+    const levelTop = pileEl.getAttribute("level_top"); // 杭底部の深度（通常マイナス値）
+    const lengthAll = pileEl.getAttribute("length_all"); // 杭の全長（mm）
+
+    // ST-Bridgeの杭用オフセット（bottom/top, X/Y）
+    const offset_bottom_X = pileEl.getAttribute("offset_bottom_X");
+    const offset_bottom_Y = pileEl.getAttribute("offset_bottom_Y");
+    const offset_top_X = pileEl.getAttribute("offset_top_X");
+    const offset_top_Y = pileEl.getAttribute("offset_top_Y");
+
+    // 1ノード形式用のオフセット
+    const offsetX = pileEl.getAttribute("offset_X");
+    const offsetY = pileEl.getAttribute("offset_Y");
+
+    // 回転角度（度）
+    const rotate = pileEl.getAttribute("rotate");
+
+    // 2ノード形式の場合
+    if (id && idNodeBottom && idNodeTop && idSection) {
+      const elementData = {
+        id: id,
+        id_node_bottom: idNodeBottom,
+        id_node_top: idNodeTop,
+        id_section: idSection,
+        name: name,
+        kind: kind,
+        kind_structure: kindStructure,
+        // 杭の全長
+        length_all: lengthAll ? parseFloat(lengthAll) : undefined,
+        // インスタンスオフセット
+        offset_bottom_X: offset_bottom_X ? parseFloat(offset_bottom_X) : 0,
+        offset_bottom_Y: offset_bottom_Y ? parseFloat(offset_bottom_Y) : 0,
+        offset_top_X: offset_top_X ? parseFloat(offset_top_X) : 0,
+        offset_top_Y: offset_top_Y ? parseFloat(offset_top_Y) : 0,
+        // 回転
+        rotate: rotate ? parseFloat(rotate) : 0,
+        // 形式フラグ
+        pileFormat: "2node",
+      };
+      pileElementsData.push(elementData);
+    }
+    // 1ノード形式の場合（id_node + level_top）
+    else if (id && idNode && idSection && levelTop) {
+      const elementData = {
+        id: id,
+        id_node: idNode, // 杭頭部のノード
+        level_top: parseFloat(levelTop), // 杭底部の深度（level_topはSTBでは底部を意味する）
+        id_section: idSection,
+        name: name,
+        kind: kind,
+        kind_structure: kindStructure,
+        // 杭の全長
+        length_all: lengthAll ? parseFloat(lengthAll) : undefined,
+        // 1ノード形式用のオフセット
+        offset_X: offsetX ? parseFloat(offsetX) : 0,
+        offset_Y: offsetY ? parseFloat(offsetY) : 0,
+        // 回転
+        rotate: rotate ? parseFloat(rotate) : 0,
+        // 形式フラグ
+        pileFormat: "1node",
+      };
+      pileElementsData.push(elementData);
+    } else {
+      console.warn(
+        `Skipping pile element due to missing required attributes: id=${id}, ` +
+        `format detection: 2node(${!!idNodeBottom && !!idNodeTop}), ` +
+        `1node(${!!idNode && !!levelTop})`,
+        pileEl
+      );
+    }
+  }
+  console.log(`Extracted ${pileElementsData.length} pile elements.`);
+  return pileElementsData;
+}
+
+/**
+ * 基礎(Footing)要素データを抽出する
+ *
+ * 基礎は単一ノード（id_node）を参照し、level_bottom属性で底面レベルを指定します。
+ * 柱・梁とは異なる配置方法を使用する1ノード要素です。
+ *
+ * **用途**:
+ * - 3D立体表示: 基礎の直方体メッシュ生成
+ * - 線分表示: 基礎の外形線表示
+ * - 構造解析: 基礎の支持力・沈下解析用データ
+ *
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} 基礎要素データの配列
+ */
+export function extractFootingElements(xmlDoc) {
+  const footingElementsData = [];
+  const footingElements = parseElements(xmlDoc, "StbFooting");
+
+  for (const footingEl of footingElements) {
+    const id = footingEl.getAttribute("id");
+    const idNode = footingEl.getAttribute("id_node");
+    const idSection = footingEl.getAttribute("id_section");
+    const name = footingEl.getAttribute("name");
+
+    // 基礎固有の属性
+    const levelBottom = footingEl.getAttribute("level_bottom"); // 底面レベル（mm）
+    const offsetX = footingEl.getAttribute("offset_X"); // X方向オフセット（mm）
+    const offsetY = footingEl.getAttribute("offset_Y"); // Y方向オフセット（mm）
+    const rotate = footingEl.getAttribute("rotate"); // 回転角度（度）
+
+    if (id && idNode && idSection) {
+      const elementData = {
+        id: id,
+        id_node: idNode,
+        id_section: idSection,
+        name: name,
+        // 基礎固有属性
+        level_bottom: levelBottom ? parseFloat(levelBottom) : 0,
+        offset_X: offsetX ? parseFloat(offsetX) : 0,
+        offset_Y: offsetY ? parseFloat(offsetY) : 0,
+        rotate: rotate ? parseFloat(rotate) : 0,
+      };
+      footingElementsData.push(elementData);
+    } else {
+      console.warn(
+        `Skipping footing element due to missing required attributes: id=${id}`,
+        footingEl
+      );
+    }
+  }
+  console.log(`Extracted ${footingElementsData.length} footing elements.`);
+  return footingElementsData;
+}
+
+/**
+ * 基礎柱(FoundationColumn)要素データを抽出する
+ *
+ * 基礎柱は柱と同じ構造（id_node_bottom, id_node_top）を持つ垂直要素です。
+ * 通常の柱と異なり、地中または基礎部分に配置されます。
+ *
+ * **用途**:
+ * - 3D立体表示: 基礎柱のメッシュ生成
+ * - 線分表示: 基礎柱の中心線表示
+ * - 構造解析: 基礎柱の軸力・曲げ解析用データ
+ *
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} 基礎柱要素データの配列
+ */
+export function extractFoundationColumnElements(xmlDoc) {
+  const foundationColumnElementsData = [];
+  const foundationColumnElements = parseElements(xmlDoc, "StbFoundationColumn");
+
+  for (const fcEl of foundationColumnElements) {
+    const id = fcEl.getAttribute("id");
+    const idNodeBottom = fcEl.getAttribute("id_node_bottom");
+    const idNodeTop = fcEl.getAttribute("id_node_top");
+    const idSection = fcEl.getAttribute("id_section");
+    const name = fcEl.getAttribute("name");
+
+    // ST-Bridgeの基礎柱用オフセット（bottom/top, X/Y）
+    const offset_bottom_X = fcEl.getAttribute("offset_bottom_X");
+    const offset_bottom_Y = fcEl.getAttribute("offset_bottom_Y");
+    const offset_top_X = fcEl.getAttribute("offset_top_X");
+    const offset_top_Y = fcEl.getAttribute("offset_top_Y");
+
+    // 回転角度（度）
+    const rotate = fcEl.getAttribute("rotate");
+
+    if (id && idNodeBottom && idNodeTop && idSection) {
+      const elementData = {
+        id: id,
+        id_node_bottom: idNodeBottom,
+        id_node_top: idNodeTop,
+        id_section: idSection,
+        name: name,
+        // インスタンスオフセット
+        offset_bottom_X: offset_bottom_X ? parseFloat(offset_bottom_X) : 0,
+        offset_bottom_Y: offset_bottom_Y ? parseFloat(offset_bottom_Y) : 0,
+        offset_top_X: offset_top_X ? parseFloat(offset_top_X) : 0,
+        offset_top_Y: offset_top_Y ? parseFloat(offset_top_Y) : 0,
+        // 回転
+        rotate: rotate ? parseFloat(rotate) : 0,
+      };
+      foundationColumnElementsData.push(elementData);
+    } else {
+      console.warn(
+        `Skipping foundation column element due to missing required attributes: id=${id}`,
+        fcEl
+      );
+    }
+  }
+  console.log(
+    `Extracted ${foundationColumnElementsData.length} foundation column elements.`
+  );
+  return foundationColumnElementsData;
 }

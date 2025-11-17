@@ -40,6 +40,33 @@ export const SECTION_CONFIG = {
     ],
   },
 
+  Post: {
+    selectors: [
+      "StbSecPost_RC",
+      "StbSecPost_S",
+      "StbSecPost_SRC",
+      "StbSecPost_CFT",
+    ],
+    steelFigures: [
+      "StbSecSteelFigurePost_S",
+      "StbSecSteelFigurePost_CFT",
+      "StbSecSteelFigurePost_SRC",
+    ],
+    // 間柱もRC図形を持つ可能性がある
+    concreteFigures: [
+      "StbSecFigurePost_RC",
+      "StbSecFigurePost_SRC",
+      // 直下定義のRC図形
+      "StbSecPost_RC_Rect",
+      "StbSecPost_RC_Circle",
+      // 将来拡張用
+      "StbSecPost_SRC_Rect",
+      "StbSecPost_SRC_Circle",
+      "StbSecPost_CFT_Rect",
+      "StbSecPost_CFT_Circle",
+    ],
+  },
+
   Beam: {
     selectors: [
       "StbSecGirder_RC",
@@ -60,12 +87,66 @@ export const SECTION_CONFIG = {
       "StbSecFigureGirder_RC",
       "StbSecFigureBeam_SRC",
       "StbSecFigureGirder_SRC",
+      // 直下定義のRC図形（柱と同様の形式）
+      "StbSecBeam_RC_Rect",
+      "StbSecGirder_RC_Rect",
     ],
   },
 
   Brace: {
     selectors: ["StbSecBrace_S"],
     steelFigures: ["StbSecSteelFigureBrace_S"],
+  },
+
+  // 杭・基礎要素
+  Pile: {
+    selectors: [
+      "StbSecPile_RC",
+      "StbSecPile_S",
+      "StbSecPileProduct",
+    ],
+    steelFigures: [
+      "StbSecSteelFigurePile_S",
+    ],
+    concreteFigures: [
+      "StbSecFigurePile_RC",
+      // RC杭の断面形状タイプ
+      "StbSecPile_RC_Straight",         // 直杭
+      "StbSecPile_RC_ExtendedFoot",     // 根固め部拡大杭
+      "StbSecPile_RC_ExtendedTop",      // 頭部拡大杭
+      "StbSecPile_RC_ExtendedTopFoot",  // 頭部・根固め部拡大杭
+      "StbSecPile_RC_Rect",
+      "StbSecPile_RC_Circle",
+    ],
+  },
+
+  Footing: {
+    selectors: [
+      "StbSecFoundation_RC",
+    ],
+    concreteFigures: [
+      "StbSecFigureFoundation_RC",
+      "StbSecFoundation_RC_Rect",
+      "StbSecFoundation_RC_Circle",
+    ],
+  },
+
+  FoundationColumn: {
+    selectors: [
+      "StbSecFoundationColumn_RC",
+      "StbSecFoundationColumn_S",
+      "StbSecFoundationColumn_SRC",
+    ],
+    steelFigures: [
+      "StbSecSteelFigureFoundationColumn_S",
+      "StbSecSteelFigureFoundationColumn_SRC",
+    ],
+    concreteFigures: [
+      "StbSecFigureFoundationColumn_RC",
+      "StbSecFigureFoundationColumn_SRC",
+      "StbSecFoundationColumn_RC_Rect",
+      "StbSecFoundationColumn_RC_Circle",
+    ],
   },
 };
 

@@ -1,17 +1,17 @@
 /**
- * @fileoverview UI coordination module (v2.0)
+ * @fileoverview UI連携モジュール (v2.0)
  *
- * This module serves as the main coordination point for UI functionality:
- * - Exports functions from specialized UI modules
- * - Coordinates interaction between UI modules
- * - Provides a unified interface for UI operations
+ * このモジュールはUI機能の主要な連携ポイントとして機能します：
+ * - 専門化されたUIモジュールからの関数エクスポート
+ * - UIモジュール間の相互作用の調整
+ * - UI操作の統一インターフェース提供
  *
- * The original 620-line ui.js has been split into focused modules:
- * - ui/state.js - Global state management
- * - ui/selectors.js - Story/axis selector management
- * - ui/unifiedLabelManager.js - Unified label management
- * - ui/events.js - Event listener setup and handling
- * - ui/clipping.js - Clipping plane operations
+ * 元の620行のui.jsは以下の焦点を絞ったモジュールに分割されました：
+ * - ui/state.js - グローバル状態管理
+ * - ui/selectors.js - 階/軸セレクター管理
+ * - ui/unifiedLabelManager.js - 統合ラベル管理
+ * - ui/events.js - イベントリスナー設定と処理
+ * - ui/clipping.js - クリッピング平面操作
  */
 
 // Export functions from specialized modules
@@ -99,7 +99,7 @@ export function initializeUI() {
 }
 
 /**
- * Setup coordination between UI modules
+ * UIモジュール間の連携を設定
  */
 function initializeStateChangeCoordination() {
   // Listen for state changes and coordinate updates between modules
@@ -114,8 +114,8 @@ function initializeStateChangeCoordination() {
 }
 
 /**
- * Get comprehensive UI status for debugging
- * @returns {Object} Complete UI status
+ * デバッグ用の包括的なUI状態を取得
+ * @returns {Object} 完全なUI状態
  */
 export function getUIStatus() {
   return {
@@ -129,7 +129,7 @@ export function getUIStatus() {
 }
 
 /**
- * Reset all UI modules to default state
+ * 全UIモジュールをデフォルト状態にリセット
  */
 export function resetAllUI() {
   console.log("Resetting all UI modules to default state");

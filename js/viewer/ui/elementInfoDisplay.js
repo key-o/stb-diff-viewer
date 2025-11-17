@@ -33,6 +33,9 @@ import {
 import { ParameterEditor } from "../../ui/parameterEditor.js";
 import { SuggestionEngine } from "../../core/suggestionEngine.js";
 
+// FloatingWindowManagerをインポート
+import { floatingWindowManager } from "../../ui/floatingWindow.js";
+
 // STBエクスポーターをインポート
 import {
   exportModifiedStb,
@@ -46,6 +49,13 @@ import {
   IMPORTANCE_LEVELS,
 } from "../../core/importanceManager.js";
 import { IMPORTANCE_COLORS } from "../../config/importanceConfig.js";
+
+// 断面等価性評価エンジンをインポート
+import { evaluateSectionEquivalence } from "../../core/sectionEquivalenceEngine.js";
+
+// 要素動的更新機能をインポート
+import { regenerateElementGeometry } from "../elementUpdater.js";
+import { updateLabelsForElement } from "../../ui/labelRegeneration.js";
 
 // XMLドキュメントへの参照 (main.jsのwindowオブジェクト経由で設定される想定)
 
@@ -277,6 +287,16 @@ export async function displayElementInfo(
   elementType,
   modelSource = null
 ) {
+  // --- null パラメータの処理（選択解除時） ---
+  // elementType がない、または idA と idB の両方がない場合は選択解除として扱う
+  if (!elementType || (!idA && !idB)) {
+    // 選択が解除された場合は、currentEditingElement をクリアして終了
+    // ただし、パネルは閉じない（新しい選択が続く可能性があるため）
+    currentEditingElement = null;
+    console.log("displayElementInfo: 無効なパラメータ、選択を解除します", { idA, idB, elementType });
+    return;
+  }
+
   // XSDスキーマを初期化（初回のみ）
   await initializeSchema();
 
@@ -299,6 +319,11 @@ export async function displayElementInfo(
   if (!panel || !contentDiv) {
     console.error("Component info panel or content div not found!");
     return;
+  }
+
+  // 要素情報を表示する際にパネルを自動的に表示
+  if (elementType && (idA || idB)) {
+    floatingWindowManager.showWindow("component-info");
   }
 
   // ---------------- 単一モデル / XML未ロード時のフォールバック ----------------
@@ -361,7 +386,7 @@ export async function displayElementInfo(
               sec.shapeName || ud.shapeName || "-"
             }</div>
           `;
-          panel.style.display = "block";
+          floatingWindowManager.showWindow("component-info");
           return; // フォールバック表示完了
         }
       }
@@ -804,6 +829,30 @@ function showInfo(
       ? findSectionNode(window.docB, sectionIdB)
       : null;
 
+    // 断面等価性評価の実行（比較モードの場合のみ）
+    let equivalenceResult = null;
+    if (
+      !showSingleColumn &&
+      sectionNodeA &&
+      sectionNodeB &&
+      modelSource === "matched"
+    ) {
+      const sectionDataA = extractSectionData(sectionNodeA);
+      const sectionDataB = extractSectionData(sectionNodeB);
+
+      if (sectionDataA && sectionDataB) {
+        equivalenceResult = evaluateSectionEquivalence(
+          sectionDataA,
+          sectionDataB,
+          elementType
+        );
+        console.log(
+          "[ElementInfo] Section equivalence evaluation:",
+          equivalenceResult
+        );
+      }
+    }
+
     // 断面情報セクションのヘッダー行を追加
     if (showSingleColumn) {
       const sectionId = sectionIdA || sectionIdB;
@@ -812,6 +861,11 @@ function showInfo(
       content += `<tr class="section-header-row"><td colspan="3">▼ 断面情報 (A: ${
         sectionIdA ?? "なし"
       }, B: ${sectionIdB ?? "なし"})</td></tr>`;
+    }
+
+    // 断面等価性評価結果を表示（比較モードの場合）
+    if (equivalenceResult && !showSingleColumn) {
+      content += generateEquivalenceSection(equivalenceResult);
     }
 
     // 断面要素の比較表示 (ルート要素と同じレベルで表示)
@@ -1045,6 +1099,11 @@ async function editAttributeValue(
     const attrInfo = getAttributeInfo(tagName, attributeName);
 
     // ParameterEditorの設定
+    const coordinateAttrNames = ["x", "y", "z"];
+    const forceFreeText =
+      elementType === "Node" &&
+      coordinateAttrNames.includes((attributeName || "").toLowerCase());
+
     const config = {
       attributeName,
       currentValue: currentValue || "",
@@ -1052,7 +1111,10 @@ async function editAttributeValue(
       elementType,
       elementId,
       allowFreeText:
-        !attrInfo || !suggestions.length || suggestions.length > 10,
+        forceFreeText ||
+        !attrInfo ||
+        !suggestions.length ||
+        suggestions.length > 10,
       required: attrInfo ? attrInfo.required : false,
     };
 
@@ -1076,15 +1138,30 @@ async function editAttributeValue(
       newValue: newValue,
     });
 
+    // XMLドキュメントを直接更新（モデルAのみ編集可能）
+    const success = await updateXMLAndGeometry(
+      elementType,
+      elementId,
+      attributeName,
+      newValue
+    );
+
+    if (success) {
+      console.log(
+        `✅ 修正を適用: ${elementType}(${elementId}).${attributeName} = "${newValue}"`
+      );
+    } else {
+      console.warn(
+        `⚠️ ジオメトリ更新に失敗しましたが、修正履歴には記録されました`
+      );
+    }
+
     // UIを更新（現在の要素を再表示）
     if (currentEditingElement) {
       const { idA, idB, modelSource } = currentEditingElement;
       displayElementInfo(idA, idB, elementType, modelSource);
     }
 
-    console.log(
-      `修正を記録: ${elementType}(${elementId}).${attributeName} = "${newValue}"`
-    );
     updateEditingSummary();
   } catch (error) {
     console.error("属性編集中にエラーが発生しました:", error);
@@ -1128,16 +1205,165 @@ async function editAttributeValue(
       newValue: newValue,
     });
 
+    // XMLドキュメントを直接更新（モデルAのみ編集可能）
+    const success = await updateXMLAndGeometry(
+      elementType,
+      elementId,
+      attributeName,
+      newValue
+    );
+
+    if (success) {
+      console.log(
+        `✅ 修正を適用: ${elementType}(${elementId}).${attributeName} = "${newValue}"`
+      );
+    } else {
+      console.warn(
+        `⚠️ ジオメトリ更新に失敗しましたが、修正履歴には記録されました`
+      );
+    }
+
     // UIを更新
     if (currentEditingElement) {
       const { idA, idB, modelSource } = currentEditingElement;
       displayElementInfo(idA, idB, elementType, modelSource);
     }
 
-    console.log(
-      `修正を記録: ${elementType}(${elementId}).${attributeName} = "${newValue}"`
-    );
     updateEditingSummary();
+  }
+}
+
+/**
+ * XMLドキュメントを更新してジオメトリを再生成
+ * @param {string} elementType - 要素タイプ
+ * @param {string} elementId - 要素ID
+ * @param {string} attributeName - 属性名
+ * @param {string} newValue - 新しい値
+ * @returns {Promise<boolean>} 更新成功可否
+ */
+async function updateXMLAndGeometry(
+  elementType,
+  elementId,
+  attributeName,
+  newValue
+) {
+  try {
+    // モデルAのXMLドキュメントを取得
+    const doc = window.docA;
+    if (!doc) {
+      console.error("[ElementInfoDisplay] docA not found");
+      return false;
+    }
+
+    // XMLから要素を検索
+    const tagName = elementType === "Node" ? "StbNode" : `Stb${elementType}`;
+    const element = doc.querySelector(`${tagName}[id="${elementId}"]`);
+
+    if (!element) {
+      console.error(
+        `[ElementInfoDisplay] Element ${tagName}[id="${elementId}"] not found in docA`
+      );
+      return false;
+    }
+
+    // 属性を更新
+    if (newValue === null || newValue === undefined || newValue === "") {
+      element.removeAttribute(attributeName);
+      console.log(
+        `[ElementInfoDisplay] Removed attribute ${attributeName} from ${elementId}`
+      );
+    } else {
+      element.setAttribute(attributeName, newValue);
+      console.log(
+        `[ElementInfoDisplay] Set ${attributeName}="${newValue}" on ${elementId}`
+      );
+    }
+
+    // 断面関連の属性の場合、ジオメトリを再生成
+    const geometryAffectingAttributes = [
+      "id_section",
+      "shape",
+      "strength_name",
+      "offset_bottom_X",
+      "offset_bottom_Y",
+      "offset_top_X",
+      "offset_top_Y",
+      "rotate",
+      "X",
+      "Y",
+      "Z", // ノード座標
+      "id_node_bottom",
+      "id_node_top",
+      "id_node_start",
+      "id_node_end", // ノード参照
+    ];
+
+    const shouldRegenerateGeometry =
+      geometryAffectingAttributes.includes(attributeName);
+    const updatedElementData = buildElementDataForLabels(
+      elementType,
+      element,
+      doc
+    );
+
+    if (shouldRegenerateGeometry) {
+      console.log(
+        `[ElementInfoDisplay] Regenerating geometry for ${elementType} ${elementId}...`
+      );
+      const success = await regenerateElementGeometry(
+        elementType,
+        elementId,
+        "modelA"
+      );
+
+      refreshElementLabels(elementType, elementId, updatedElementData);
+
+      if (success) {
+        console.log(
+          `[ElementInfoDisplay] ✅ Geometry regenerated successfully`
+        );
+      } else {
+        console.warn(`[ElementInfoDisplay] ⚠️ Geometry regeneration failed`);
+      }
+
+      return success;
+    } else {
+      // ジオメトリに影響しない属性の場合は、UI更新のみ
+      console.log(
+        `[ElementInfoDisplay] Attribute ${attributeName} does not affect geometry, skipping regeneration`
+      );
+
+      refreshElementLabels(elementType, elementId, updatedElementData);
+
+      // レンダリング更新（色や表示プロパティが変更された可能性）
+      if (typeof window.requestRender === "function") {
+        window.requestRender();
+      }
+
+      return true;
+    }
+  } catch (error) {
+    console.error(
+      "[ElementInfoDisplay] Error updating XML and geometry:",
+      error
+    );
+    return false;
+  }
+}
+
+function refreshElementLabels(elementType, elementId, elementData) {
+  try {
+    const updated = updateLabelsForElement(elementType, elementId, elementData);
+    if (updated) {
+      console.log(
+        `[ElementInfoDisplay] Labels refreshed for ${elementType} ${elementId}`
+      );
+    }
+  } catch (error) {
+    console.warn(
+      `[ElementInfoDisplay] Failed to refresh labels for ${elementType} ${elementId}:`,
+      error
+    );
   }
 }
 
@@ -1184,6 +1410,34 @@ window.exportModifications = exportModifications;
 window.clearModifications = clearModifications;
 window.toggleEditMode = toggleEditMode;
 window.editAttribute = editAttributeValue;
+
+function buildElementDataForLabels(elementType, elementNode, doc) {
+  if (!elementNode) {
+    return null;
+  }
+
+  const data = {};
+  Array.from(elementNode.attributes).forEach((attr) => {
+    data[attr.name] = attr.value;
+  });
+
+  data.id =
+    data.id ||
+    elementNode.getAttribute("id") ||
+    elementNode.getAttribute("name") ||
+    "";
+  data.elementType = elementType;
+
+  const sectionId = elementNode.getAttribute("id_section");
+  if (doc && sectionId) {
+    const sectionNode = findSectionNode(doc, sectionId);
+    if (sectionNode) {
+      data.sectionData = extractSectionData(sectionNode);
+    }
+  }
+
+  return data;
+}
 
 /**
  * 指定されたドキュメントの StbSections 内から、指定IDを持つ断面要素を検索する。
@@ -1249,6 +1503,126 @@ function findSteelSectionInfo(shapeName) {
   }
   // その他必要に応じて追加
   return null;
+}
+
+/**
+ * XMLノードから断面データを抽出
+ * @param {Element} sectionNode - 断面XML要素
+ * @returns {Object|null} 抽出された断面データ
+ */
+function extractSectionData(sectionNode) {
+  if (!sectionNode) return null;
+
+  const data = {
+    type: sectionNode.tagName,
+    material: null,
+    strength_name: null,
+  };
+
+  // 全属性を取得
+  Array.from(sectionNode.attributes).forEach((attr) => {
+    data[attr.name] = attr.value;
+  });
+
+  // 材質と強度情報を抽出
+  data.material = data.strength_name || data.material;
+
+  // shapeName属性からの断面寸法取得
+  if (data.shape) {
+    const steelInfo = findSteelSectionInfo(data.shape);
+    if (steelInfo) {
+      Object.assign(data, steelInfo);
+    }
+  }
+
+  // セクション種別に応じた正規化
+  // StbSecColumn-S, StbSecBeam-S, StbSecColumn-RC, StbSecBeam-RC などのタグ名に対応
+  if (data.type) {
+    // タグ名から断面タイプを抽出
+    if (data.type.includes("-S")) {
+      data.section_type = data.type; // 鋼材断面
+    } else if (
+      data.type.includes("-RC") ||
+      data.type.includes("-SRC") ||
+      data.type.includes("-CFT")
+    ) {
+      data.section_type = "RECTANGLE"; // RC断面はデフォルトで矩形
+    }
+  }
+
+  return data;
+}
+
+/**
+ * 等価性評価結果のHTML生成（テーブル行形式）
+ * @param {Object} result - 評価結果オブジェクト
+ * @returns {string} テーブル行のHTML
+ */
+function generateEquivalenceSection(result) {
+  const statusClass = result.isEquivalent
+    ? "equivalent-pass"
+    : "equivalent-fail";
+  const statusColor = result.isEquivalent ? "#28a745" : "#dc3545";
+  const statusText = result.isEquivalent ? "✓ 等価" : "✗ 非等価";
+  const statusBg = result.isEquivalent
+    ? "rgba(40, 167, 69, 0.1)"
+    : "rgba(220, 53, 69, 0.1)";
+
+  let html = `
+    <tr class="equivalence-status-row">
+      <td colspan="3" style="background-color: ${statusBg}; padding: 8px; border-left: 4px solid ${statusColor};">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div>
+            <strong style="color: ${statusColor}; font-size: 1.1em;">${statusText}</strong>
+            <span style="margin-left: 10px; color: #666; font-size: 0.9em;">${result.summary} (${result.passRate}%)</span>
+          </div>
+        </div>
+      </td>
+    </tr>
+  `;
+
+  // チェック結果の詳細
+  for (const check of result.checks) {
+    const icon = check.passed ? "✓" : "✗";
+    const iconColor = check.passed ? "#28a745" : "#dc3545";
+    const rowBg = check.passed
+      ? "rgba(40, 167, 69, 0.05)"
+      : "rgba(220, 53, 69, 0.05)";
+
+    html += `
+      <tr class="equivalence-check-row" style="background-color: ${rowBg};">
+        <td style="padding-left: 2em; font-weight: bold;">
+          <span style="color: ${iconColor}; margin-right: 5px;">${icon}</span>
+          ${check.category}
+        </td>
+        <td colspan="2" style="font-size: 0.9em; color: #555;">
+          ${check.name}: ${check.details}
+        </td>
+      </tr>
+    `;
+
+    // サブチェックがある場合
+    if (check.subChecks && check.subChecks.length > 0) {
+      for (const subCheck of check.subChecks) {
+        const subIcon = subCheck.passed ? "✓" : "✗";
+        const subColor = subCheck.passed ? "#28a745" : "#dc3545";
+
+        html += `
+          <tr class="equivalence-subcheck-row">
+            <td style="padding-left: 4em; font-size: 0.85em; color: #666;">
+              <span style="color: ${subColor}; margin-right: 3px;">${subIcon}</span>
+              ${subCheck.name}
+            </td>
+            <td colspan="2" style="font-size: 0.85em; color: #666;">
+              ${subCheck.details}
+            </td>
+          </tr>
+        `;
+      }
+    }
+  }
+
+  return html;
 }
 
 /**
