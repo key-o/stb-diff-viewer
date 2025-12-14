@@ -17,6 +17,8 @@
 ## STB Diff Viewerとは
 
 STB Diff Viewerは、ST-Bridge（STB）形式の3D建築モデルを読み込み、2つのモデル間の差分を視覚的に比較できるWebアプリケーションです。
+下記URLで試すことができます。
+https://key-o.github.io/stb-diff-viewer/
 
 **主な用途:**
 
