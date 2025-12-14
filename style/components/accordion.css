@@ -1,0 +1,144 @@
+/**
+ * アコーディオンコンポーネント
+ *
+ * 折りたたみ可能なアコーディオンセクションのスタイルを定義します。
+ */
+
+/* ========================================
+   アコーディオンセクション
+   ======================================== */
+
+.accordion-section {
+  border: var(--border-width) solid var(--border-color-light);
+  border-radius: var(--border-radius-lg);
+  margin-bottom: var(--spacing-sm);
+  background: var(--sidebar-btn-bg);
+  overflow: hidden;
+}
+
+/* ========================================
+   アコーディオンヘッダー
+   ======================================== */
+
+.accordion-header {
+  background: var(--sidebar-btn-bg);
+  border-bottom: var(--border-width) solid transparent;
+  padding: 12px var(--spacing-md);
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: var(--font-weight-medium);
+  color: var(--sidebar-btn-text);
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.accordion-header:hover {
+  background: var(--sidebar-btn-hover-bg);
+}
+
+/* 展開時のヘッダー */
+.accordion-header:not(.collapsed) {
+  border-bottom-color: var(--border-color-light);
+}
+
+.accordion-header span:first-child {
+  display: flex;
+  align-items: center;
+  font-size: 0.95em;
+}
+
+/* ========================================
+   アコーディオン矢印
+   ======================================== */
+
+.accordion-arrow {
+  font-size: 0.8em;
+  transition: transform var(--transition-base);
+  color: var(--text-secondary);
+}
+
+.accordion-header.collapsed .accordion-arrow {
+  transform: rotate(-90deg);
+}
+
+/* ========================================
+   アコーディオンコンテンツ
+   ======================================== */
+
+.accordion-content {
+  padding: var(--spacing-md);
+  background: #fff;
+  transition: all var(--transition-base);
+  max-height: 1000px;
+  overflow: hidden;
+}
+
+.accordion-content.collapsed {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+}
+
+/* アコーディオン内の要素の調整 */
+.accordion-content hr {
+  margin: var(--spacing-md) 0;
+  border: none;
+  border-top: var(--border-width) solid var(--border-color-light);
+}
+
+.accordion-content label {
+  margin-bottom: var(--spacing-sm);
+  font-size: var(--font-size-md);
+}
+
+/* ========================================
+   ファイル入力ラッパー
+   ======================================== */
+
+/* ファイル選択ボタンと選択ファイル名を縦に並べるためのラッパー */
+.file-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+  max-width: 100%;
+}
+
+/* カスタムファイル選択ボタンとファイル名表示 */
+/* input を display:none にすると一部ブラウザで programmatic click が無効になるため
+   画面外へ配置して隠す（クリックは可能） */
+.file-input-wrapper input[type="file"] {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.custom-file-btn {
+  display: inline-block;
+  padding: 6px 10px;
+  border: var(--border-width) solid var(--border-color);
+  background: #fff;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: #212529; /* 明示的に文字色を指定して白文字にならないようにする */
+  text-align: center;
+  align-self: flex-start; /* 親のflexで幅全体に伸びないようにする */
+  transition: all var(--transition-fast);
+}
+
+.custom-file-btn:hover {
+  background-color: #f8f9fa;
+  border-color: var(--color-primary);
+}
+
+.file-name-display {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  word-break: break-all;
+}

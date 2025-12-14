@@ -10,7 +10,7 @@
  * 様々なジオメトリタイプと座標系をサポートします。
  */
 
-import * as THREE from "three";
+import * as THREE from 'three';
 
 /**
  * Unified mesh positioning utility for linear structural elements
@@ -38,11 +38,11 @@ export class MeshPositioner {
     options = {}
   ) {
     const {
-      elementType = "beam",
-      coordinateSystem = "architectural",
+      elementType = 'beam',
+      coordinateSystem = 'architectural',
       rollAngle = 0,
       offsets = {},
-      sectionDimensions = {},
+      sectionDimensions = {}
     } = options;
 
     // Calculate element vector and properties
@@ -54,9 +54,9 @@ export class MeshPositioner {
     const adjustedStartNode = this.applyNodeOffsets(
       startNode,
       offsets,
-      "start"
+      'start'
     );
-    const adjustedEndNode = this.applyNodeOffsets(endNode, offsets, "end");
+    const adjustedEndNode = this.applyNodeOffsets(endNode, offsets, 'end');
 
     // Calculate position with offset adjustments
     const basePosition = new THREE.Vector3()
@@ -64,7 +64,7 @@ export class MeshPositioner {
       .lerp(adjustedEndNode, 0.5);
 
     // Apply beam-specific height adjustment for proper bottom level positioning
-    if (elementType === "beam" && sectionDimensions.height) {
+    if (elementType === 'beam' && sectionDimensions.height) {
       this.applyBeamHeightAdjustment(basePosition, sectionDimensions, offsets);
     }
 
@@ -81,7 +81,7 @@ export class MeshPositioner {
     );
 
     // Apply coordinate system adjustments if needed
-    if (coordinateSystem === "structural") {
+    if (coordinateSystem === 'structural') {
       this.applyStructuralCoordinateAdjustment(mesh, elementType);
     }
 
@@ -134,7 +134,7 @@ export class MeshPositioner {
     if (geometry instanceof THREE.CylinderGeometry) {
       // ブレース用CylinderGeometry: 事前にZ軸方向に回転済みなのでZ軸を基準軸とする
       // 柱用の場合は従来通りY軸を使用
-      if (elementType === "brace") {
+      if (elementType === 'brace') {
         return new THREE.Vector3(0, 0, 1);
       }
       // RC円形柱などが正しく節点間の方向に配置されるように
@@ -159,7 +159,7 @@ export class MeshPositioner {
    */
   static applyElementSpecificRotation(mesh, direction, elementType) {
     // ブレース要素特有の回転処理
-    if (elementType === "brace") {
+    if (elementType === 'brace') {
       this.applyBraceRotation(mesh, direction);
       return;
     }
@@ -291,15 +291,15 @@ export class MeshPositioner {
     // Apply any necessary transformations here
 
     switch (elementType) {
-      case "column":
+      case 'column':
         // Columns in structural coordinates may need different base reference
         break;
 
-      case "beam":
+      case 'beam':
         // Beams may need coordinate system conversion
         break;
 
-      case "brace":
+      case 'brace':
         // Braces typically follow architectural coordinates
         break;
     }
@@ -343,19 +343,19 @@ export class MeshPositioner {
   static validatePositioningParameters(startNode, endNode, options = {}) {
     // Check node validity
     if (!startNode || !endNode) {
-      console.error("Invalid start or end node for positioning");
+      console.error('Invalid start or end node for positioning');
       return false;
     }
 
     // Check if nodes are different
     if (startNode.distanceTo(endNode) < 0.001) {
-      console.warn("Start and end nodes are too close together");
+      console.warn('Start and end nodes are too close together');
       return false;
     }
 
     // Check for invalid coordinates
     if (!this.isValidVector(startNode) || !this.isValidVector(endNode)) {
-      console.error("Invalid coordinates in positioning nodes");
+      console.error('Invalid coordinates in positioning nodes');
       return false;
     }
 
@@ -370,11 +370,11 @@ export class MeshPositioner {
   static isValidVector(vector) {
     return (
       vector &&
-      typeof vector.x === "number" &&
+      typeof vector.x === 'number' &&
       !isNaN(vector.x) &&
-      typeof vector.y === "number" &&
+      typeof vector.y === 'number' &&
       !isNaN(vector.y) &&
-      typeof vector.z === "number" &&
+      typeof vector.z === 'number' &&
       !isNaN(vector.z) &&
       isFinite(vector.x) &&
       isFinite(vector.y) &&
@@ -397,7 +397,7 @@ export class MeshPositioner {
     // Element centerline
     const lineGeometry = new THREE.BufferGeometry().setFromPoints([
       startNode,
-      endNode,
+      endNode
     ]);
     const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
     const centerline = new THREE.Line(lineGeometry, lineMaterial);

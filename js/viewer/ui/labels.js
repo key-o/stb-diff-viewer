@@ -12,7 +12,7 @@
  * ユーザーの視点に合わせた読みやすいラベル表示を実現します。
  */
 
-import * as THREE from "three";
+import * as THREE from 'three';
 
 /**
  * 指定されたテキストと位置を持つラベルスプライトを作成し、指定されたグループに追加する。
@@ -25,7 +25,7 @@ import * as THREE from "three";
  * @param {string} elementType - ラベルが属する要素タイプ (表示制御用)。
  * @returns {THREE.Sprite|null} 作成されたラベルスプライト、またはエラー時にnull。
  */
-export function createLabelSprite(text, position, spriteGroup, elementType) {
+export function createLabelSprite(text, position, spriteGroup, elementType, meta = {}) {
   const labelFontSize = 45;
   const labelCanvasWidth = 512;
   const labelCanvasHeight = 64;
@@ -39,31 +39,124 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
   const minScaleFactor = 5.0; // より大きくする (例えば 5.0 や 10.0 などで試す)
   const maxScaleFactor = 30.0;
 
+  // 通り芯ラベル用の丸い背景設定
+  const isAxisLabel = elementType === 'Axis';
+  const isStoryLabel = elementType === 'Story';
+  const balloonSize = 64; // 丸い背景のサイズ（正方形キャンバス）
+  const balloonFontSize = 28;
+  
+  // 階ラベル用の四角い背景設定
+  const storyBoxWidth = 80;
+  const storyBoxHeight = 48;
+  const storyFontSize = 24;
+
   try {
-    const canvas = document.createElement("canvas");
-    canvas.width = labelCanvasWidth;
-    canvas.height = labelCanvasHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      console.error("Failed to get 2D context for label canvas.");
-      return null;
+    let canvas, ctx, texture, baseScaleX, baseScaleY;
+
+    if (isAxisLabel) {
+      // 通り芯ラベル: 丸い背景（バルーン）付き
+      canvas = document.createElement('canvas');
+      canvas.width = balloonSize;
+      canvas.height = balloonSize;
+      ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.error('Failed to get 2D context for axis label canvas.');
+        return null;
+      }
+      ctx.clearRect(0, 0, balloonSize, balloonSize);
+
+      // 丸い背景を描画
+      const centerX = balloonSize / 2;
+      const centerY = balloonSize / 2;
+      const radius = balloonSize / 2 - 4; // 余白を残す
+
+      // 白い塗りつぶしの円
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.fillStyle = 'white';
+      ctx.fill();
+
+      // 黒い円の縁
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // テキストを描画（通り芯名のみ、@以降は省略）
+      const displayText = text.includes('@') ? text.split('@')[0] : text;
+      ctx.font = `bold ${balloonFontSize}px sans-serif`;
+      ctx.fillStyle = 'black';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(displayText, centerX, centerY);
+
+      baseScaleX = 200; // 丸いラベル用のスケール
+      baseScaleY = 200;
+    } else if (isStoryLabel) {
+      // 階ラベル: 四角い背景付き
+      canvas = document.createElement('canvas');
+      canvas.width = storyBoxWidth;
+      canvas.height = storyBoxHeight;
+      ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.error('Failed to get 2D context for story label canvas.');
+        return null;
+      }
+      ctx.clearRect(0, 0, storyBoxWidth, storyBoxHeight);
+
+      // 四角い背景を描画
+      const padding = 3;
+      
+      // 白い塗りつぶしの四角
+      ctx.fillStyle = 'white';
+      ctx.fillRect(padding, padding, storyBoxWidth - padding * 2, storyBoxHeight - padding * 2);
+
+      // 黒い四角の縁
+      ctx.strokeStyle = 'black';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(padding, padding, storyBoxWidth - padding * 2, storyBoxHeight - padding * 2);
+
+      // テキストを描画（階名のみ）
+      const displayText = text.includes('(') ? text.split('(')[0].trim() : text;
+      ctx.font = `bold ${storyFontSize}px sans-serif`;
+      ctx.fillStyle = 'black';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(displayText, storyBoxWidth / 2, storyBoxHeight / 2);
+
+      baseScaleX = 250; // 四角いラベル用のスケール（通り芯と同程度の大きさ）
+      baseScaleY = 150;
+    } else {
+      // 通常のラベル: 従来の横長キャンバス
+      canvas = document.createElement('canvas');
+      canvas.width = labelCanvasWidth;
+      canvas.height = labelCanvasHeight;
+      ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.error('Failed to get 2D context for label canvas.');
+        return null;
+      }
+      ctx.clearRect(0, 0, labelCanvasWidth, labelCanvasHeight);
+      ctx.font = `bold ${labelFontSize}px sans-serif`;
+      // テキストを描画（透明背景）
+      ctx.fillStyle = 'black';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      // より太い白い縁取りでテキストの視認性を向上
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 5; // 縁取りを元の太さに戻す
+      ctx.strokeText(text, labelOffsetX, labelOffsetY);
+
+      // 黒いテキストを描画
+      ctx.fillText(text, labelOffsetX, labelOffsetY);
+
+      baseScaleX = labelBaseScaleX;
+      baseScaleY = labelBaseScaleY;
     }
-    ctx.clearRect(0, 0, labelCanvasWidth, labelCanvasHeight);
-    ctx.font = `bold ${labelFontSize}px sans-serif`;
-    // テキストを描画（透明背景）
-    ctx.fillStyle = "black";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
 
-    // より太い白い縁取りでテキストの視認性を向上
-    ctx.strokeStyle = "white";
-    ctx.lineWidth = 5; // 縁取りを元の太さに戻す
-    ctx.strokeText(text, labelOffsetX, labelOffsetY);
-
-    // 黒いテキストを描画
-    ctx.fillText(text, labelOffsetX, labelOffsetY);
-
-    const texture = new THREE.CanvasTexture(canvas);
+    texture = new THREE.CanvasTexture(canvas);
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
 
@@ -74,17 +167,19 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
       // ★★★ テスト用: 深度テストを一時的に無効化してみる ★★★
       // depthTest: true, // 通常はこちら
       depthTest: true, // <<< テストする場合はこちらを有効化 (他の要素との前後関係がおかしくなります)
-      depthWrite: false,
+      depthWrite: false
     });
     const sprite = new THREE.Sprite(material);
 
-    const baseScale = new THREE.Vector3(labelBaseScaleX, labelBaseScaleY, 1);
+    const baseScale = new THREE.Vector3(baseScaleX, baseScaleY, 1);
     sprite.userData.baseScale = baseScale;
     sprite.userData.referenceDistance = referenceDistance;
     sprite.userData.minScaleFactor = minScaleFactor; // 更新された minScaleFactor を使用
     sprite.userData.maxScaleFactor = maxScaleFactor;
     sprite.userData.elementType = elementType;
     sprite.userData.originalPosition = position.clone();
+    // store optional metadata for special handling (axis, story, model bounds, etc.)
+    sprite.userData.meta = meta || {};
 
     // ラベルを要素から少し前面にオフセット
     const labelOffset = new THREE.Vector3(0, 0, 50); // Z方向に50mm前面に移動（元に戻す）
@@ -94,6 +189,7 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
     sprite.onBeforeRender = function (rendererInstance, scene, cameraInstance) {
       const originalPos = this.userData.originalPosition;
       const elementType = this.userData.elementType;
+      const meta = this.userData.meta || {};
 
       let currentPos;
 
@@ -106,6 +202,66 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
       const dynamicOffset = cameraDirection.clone().multiplyScalar(-50);
       currentPos = originalPos.clone().add(dynamicOffset);
 
+      // --- Axis label specific: 通り芯の端に固定配置 ---
+      if (elementType === 'Axis' && meta && meta.axisType && meta.modelBounds) {
+        try {
+          const mb = meta.modelBounds;
+          const min = new THREE.Vector3(mb.min.x, mb.min.y, mb.min.z);
+          const max = new THREE.Vector3(mb.max.x, mb.max.y, mb.max.z);
+          const size = new THREE.Vector3().subVectors(max, min);
+          // 通り芯の端からの延長距離
+          const extendXY = Math.max(size.x, size.y, 1000) * 0.5 + 1000;
+          // ラベルを端の外側に配置するオフセット
+          const labelMargin = 300;
+
+          if (meta.axisType === 'X') {
+            // X軸通り芯: Y方向の線の端（min.y側）に固定
+            currentPos.x = meta.distance || originalPos.x;
+            currentPos.y = min.y - extendXY - labelMargin;
+            currentPos.z = meta.storyHeight !== undefined ? meta.storyHeight : originalPos.z;
+          } else if (meta.axisType === 'Y') {
+            // Y軸通り芯: X方向の線の端（min.x側）に固定
+            currentPos.x = min.x - extendXY - labelMargin;
+            currentPos.y = meta.distance || originalPos.y;
+            currentPos.z = meta.storyHeight !== undefined ? meta.storyHeight : originalPos.z;
+          }
+        } catch (err) {
+          console.warn('Axis label meta handling failed:', err);
+        }
+      }
+
+      // --- Occlusion check: raycast from camera to label and push toward camera if occluded ---
+      try {
+        const cameraPos = cameraInstance.position.clone();
+        const dirToLabel = new THREE.Vector3().subVectors(currentPos, cameraPos);
+        const distance = dirToLabel.length();
+        if (distance > 0) {
+          const ray = new THREE.Raycaster(cameraPos, dirToLabel.normalize(), 0.01, distance);
+          // スプライトに対するRaycastにはカメラの設定が必要（Three.js r127+）
+          ray.camera = cameraInstance;
+          const intersects = ray.intersectObjects(scene.children, true);
+          // Find first intersect that is not the label itself and is not the Axis line (allow Axis)
+          const firstBlocker = intersects.find((hit) => {
+            if (!hit || !hit.object) return false;
+            if (hit.object === this) return false; // skip self
+            // Accept Axis lines and Story planes as not blockers
+            const t = hit.object.userData && hit.object.userData.elementType;
+            if (t === 'Axis' || t === 'Story') return false;
+            return true;
+          });
+
+          if (firstBlocker) {
+            // push the label a bit toward the camera along camera direction
+            const pushDist = Math.min(500, distance * 0.1);
+            const push = cameraDirection.clone().multiplyScalar(pushDist * -1);
+            currentPos.add(push);
+          }
+        }
+      } catch (err) {
+        // Do not break rendering on raycast failure
+        // console.warn('Label occlusion check failed:', err);
+      }
+
       const initialVisibility = this.visible; // UIによる表示状態
       let shouldBeVisible = initialVisibility; // 基本的にUIの状態に従う
       let isOutsideView = false;
@@ -114,8 +270,8 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
       // shouldBeVisible が true で、かつ Story/Axis 以外の場合のみチェック
       if (
         shouldBeVisible &&
-        elementType !== "Story" &&
-        elementType !== "Axis"
+        elementType !== 'Story' &&
+        elementType !== 'Axis'
       ) {
         // ... (frustum culling logic - unchanged) ...
         const worldPosition = new THREE.Vector3();
@@ -137,10 +293,10 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
 
       // --- デバッグログ (変更時のみ、かつUIで表示ONの場合) ---
       if (this.visible !== shouldBeVisible && initialVisibility) {
-        let reason = "";
+        let reason = '';
         // if (isClipped && elementType !== 'Story' && elementType !== 'Axis' && !shouldBeVisible) reason += `Clipped (${elementType}); `; // 削除
-        if (isOutsideView && !shouldBeVisible) reason += "Outside view; ";
-        if (reason === "" && !shouldBeVisible) reason = "Unknown reason; ";
+        if (isOutsideView && !shouldBeVisible) reason += 'Outside view; ';
+        if (reason === '' && !shouldBeVisible) reason = 'Unknown reason; ';
         console.log(
           `Label '${text}' (${elementType}): Visibility changing ${this.visible} -> ${shouldBeVisible}. Reason: ${reason}`
         );
@@ -194,7 +350,7 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
 
     console.log(
       `LabelSprite created for ${elementType}: initial visibility = ${shouldBeVisible} (checkbox checked: ${
-        labelCheckbox ? labelCheckbox.checked : "not found"
+        labelCheckbox ? labelCheckbox.checked : 'not found'
       })`
     );
 
@@ -203,7 +359,7 @@ export function createLabelSprite(text, position, spriteGroup, elementType) {
     }
     return sprite;
   } catch (error) {
-    console.error("Error creating label sprite:", error);
+    console.error('Error creating label sprite:', error);
     return null;
   }
 }
@@ -231,15 +387,15 @@ export function createLabel(
   options = {}
 ) {
   const fontSize = options.fontSize || 16;
-  const fontFamily = options.fontFamily || "Arial";
-  const textColor = options.color || "rgba(0, 0, 0, 1)"; // デフォルトは黒
-  const backgroundColor = options.backgroundColor || "rgba(255, 255, 255, 0)"; // 透明背景
-  const borderColor = options.borderColor || "rgba(0, 0, 0, 0)"; // 境界線も透明
+  const fontFamily = options.fontFamily || 'Arial';
+  const textColor = options.color || 'rgba(0, 0, 0, 1)'; // デフォルトは黒
+  const backgroundColor = options.backgroundColor || 'rgba(255, 255, 255, 0)'; // 透明背景
+  const borderColor = options.borderColor || 'rgba(0, 0, 0, 0)'; // 境界線も透明
   const padding = options.padding || 6; // パディングを少し増加
   const borderRadius = options.borderRadius || 4; // 角丸を少し大きく
 
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
   context.font = `${fontSize}px ${fontFamily}`;
 
   // テキスト幅を測定
@@ -256,11 +412,11 @@ export function createLabel(
   // テキストを描画
   context.font = `${fontSize}px ${fontFamily}`; // 再度フォント設定 (重要)
   context.fillStyle = textColor;
-  context.textAlign = "center";
-  context.textBaseline = "middle";
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
 
   // より太い白い縁取りを追加（透明背景での視認性向上）
-  context.strokeStyle = "white";
+  context.strokeStyle = 'white';
   context.lineWidth = 4; // 縁取りを太くして視認性向上
   context.strokeText(text, canvas.width / 2, canvas.height / 2);
 
@@ -276,7 +432,7 @@ export function createLabel(
     depthWrite: false, // 深度バッファ書き込み無効
     alphaTest: 0.01, // 透明背景のため閾値を低く設定
     // レンダー順序を高く設定してより前面に表示
-    renderOrder: 1000,
+    renderOrder: 1000
   });
 
   const sprite = new THREE.Sprite(material);
@@ -303,7 +459,7 @@ export function createLabel(
     elementType: elementType, // ラベルがどの要素タイプに属するか
     elementId: elementId, // 関連する要素のID
     modelSource: modelSource, // どのモデル由来か
-    originalText: text, // 元のテキスト
+    originalText: text // 元のテキスト
   };
 
   // 初期状態はチェックボックスの状態に基づいて設定
@@ -313,7 +469,7 @@ export function createLabel(
 
   console.log(
     `Label created for ${elementType}: initial visibility = ${shouldBeVisible} (checkbox checked: ${
-      labelCheckbox ? labelCheckbox.checked : "not found"
+      labelCheckbox ? labelCheckbox.checked : 'not found'
     })`
   );
 

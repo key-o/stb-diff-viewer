@@ -1,30 +1,49 @@
 /**
- * @fileoverview 杭形状生成モジュール
+ * @fileoverview 杭形状生成モジュール（リファクタリング版）
  *
- * 新しい共通ユーティリティ（ElementGeometryUtils）を活用した杭形状生成:
- * - 柱と同じ2ノード垂直要素構造
- * - STB形式とJSON形式の両対応
- * - 円形・矩形断面の対応
+ * BaseElementGeneratorを継承した統一アーキテクチャ:
+ * - MeshCreationValidator: バリデーション
+ * - MeshMetadataBuilder: メタデータ構築
+ * - SectionTypeNormalizer: 断面タイプ正規化
+ *
+ * 杭特有の機能:
+ * - 1-node / 2-node 両フォーマット対応
+ * - 拡底杭（ExtendedFoot, ExtendedTop, ExtendedTopFoot）対応
  * - 地中配置（負のZ座標）対応
  *
- * 設計思想:
- * - ElementGeometryUtilsで共通処理を統一
- * - 柱との差分は最小限に抑える
- * - 既存の3層アーキテクチャを活用
+ * リファクタリング: 2025-12
+ * - BaseElementGenerator基底クラスを使用
+ * - 統一されたバリデーションとメタデータ構築
  */
 
-import * as THREE from "three";
-import { materials } from "../rendering/materials.js";
-import { ElementGeometryUtils } from "./ElementGeometryUtils.js";
-import { createExtrudeGeometry } from "./core/ThreeJSConverter.js";
-import { createLogger } from "../../utils/logger.js";
-
-const log = createLogger("viewer:geometry:pile");
+import * as THREE from 'three';
+import { materials } from '../rendering/materials.js';
+import { ElementGeometryUtils } from './ElementGeometryUtils.js';
+import { createExtrudeGeometry } from './core/ThreeJSConverter.js';
+import {
+  createTaperedGeometry,
+  createMultiSectionGeometry
+} from './core/TaperedGeometryBuilder.js';
+import { calculateCircleProfile } from './core/ProfileCalculator.js';
+import { isExtendedPile, getExtendedPileSections } from '../../common/dimensionNormalizer.js';
+import { BaseElementGenerator } from './core/BaseElementGenerator.js';
+import { MeshMetadataBuilder } from './core/MeshMetadataBuilder.js';
 
 /**
  * 杭形状生成クラス
  */
-export class PileGenerator {
+export class PileGenerator extends BaseElementGenerator {
+  /**
+   * ジェネレーター設定
+   */
+  static getConfig() {
+    return {
+      elementName: 'Pile',
+      loggerName: 'viewer:geometry:pile',
+      defaultElementType: 'Pile'
+    };
+  }
+
   /**
    * 杭要素からメッシュを作成
    * @param {Array} pileElements - 杭要素配列
@@ -40,226 +59,373 @@ export class PileGenerator {
     nodes,
     pileSections,
     steelSections,
-    elementType = "Pile",
+    elementType = 'Pile',
     isJsonInput = false
   ) {
-    log.info(`Creating ${pileElements.length} pile meshes`);
-    const meshes = [];
-
-    for (const pile of pileElements) {
-      try {
-        const mesh = this._createSinglePileMesh(
-          pile,
-          nodes,
-          pileSections,
-          steelSections,
-          elementType,
-          isJsonInput
-        );
-
-        if (mesh) {
-          meshes.push(mesh);
-        }
-      } catch (error) {
-        log.error(`Error creating pile ${pile.id}:`, error);
-      }
-    }
-
-    log.info(`Generated ${meshes.length} pile meshes`);
-    return meshes;
+    return this.createMeshes(
+      pileElements,
+      nodes,
+      pileSections,
+      steelSections,
+      elementType,
+      isJsonInput
+    );
   }
 
   /**
-   * 単一杭メッシュを作成（ElementGeometryUtils活用）
-   * @private
+   * 単一杭メッシュを作成
+   * @param {Object} pile - 杭要素
+   * @param {Object} context - コンテキスト
+   * @returns {THREE.Mesh|null} メッシュまたはnull
    */
-  static _createSinglePileMesh(
-    pile,
-    nodes,
-    pileSections,
-    steelSections,
-    elementType,
-    isJsonInput
-  ) {
+  static _createSingleMesh(pile, context) {
+    const { nodes, sections, elementType, isJsonInput, log } = context;
+
     // 1. 断面データの取得（1-node format時に長さ情報が必要なため先に取得）
     const sectionData = ElementGeometryUtils.getSectionData(
       pile,
-      pileSections,
+      sections,
       isJsonInput
     );
 
-    if (!sectionData) {
-      log.warn(`Skipping pile ${pile.id}: Missing section data`);
+    if (!this._validateSectionData(sectionData, pile, context)) {
       return null;
     }
 
     // 2. ノード位置の取得
-    let nodePositions;
+    const nodePositions = this._getNodePositions(pile, nodes, sectionData, isJsonInput, log);
 
-    // 1-node format (id_node + level_top)
-    if (pile.pileFormat === "1node") {
-      const topNode = nodes.get(pile.id_node);
-      if (!topNode) {
-        log.warn(`Skipping pile ${pile.id}: Node ${pile.id_node} not found`);
-        return null;
-      }
-
-      // Extract pile length (priority: length_all attribute > section dimensions > diameter-based estimate)
-      let pileLength = 0;
-      const dims = sectionData.dimensions || {};
-
-      if (pile.length_all !== undefined && pile.length_all !== null) {
-        // 1st priority: Use length_all attribute from pile element (STB standard)
-        pileLength = parseFloat(pile.length_all);
-        log.debug(`Pile ${pile.id}: Using length_all=${pileLength}mm from element attribute`);
-      } else if (dims.length_pile) {
-        // 2nd priority: Use length_pile from section dimensions
-        pileLength = parseFloat(dims.length_pile);
-        log.debug(`Pile ${pile.id}: Using length_pile=${pileLength}mm from section dimensions`);
-      } else if (dims.D || dims.diameter) {
-        // 3rd priority: Estimate from diameter (fallback for incomplete data)
-        const diameter = dims.D || dims.diameter;
-        pileLength = parseFloat(diameter) * 20; // Assume 20x diameter
-        log.warn(
-          `Pile ${pile.id}: No explicit length, estimating ${pileLength}mm (20×diameter)`
-        );
-      } else {
-        log.warn(
-          `Pile ${pile.id}: Cannot determine pile length. Element keys: ${Object.keys(pile).join(', ')}, Section keys: ${Object.keys(sectionData).join(', ')}`
-        );
-        return null;
-      }
-
-      // Calculate top node position (id_node + offsets + level_top for Z)
-      const topNodePos = {
-        x: topNode.x + (pile.offset_X || 0),
-        y: topNode.y + (pile.offset_Y || 0),
-        z: pile.level_top, // level_top is the top Z coordinate
-      };
-
-      // Calculate bottom node position (top - pile length)
-      const bottomNode = {
-        x: topNodePos.x,
-        y: topNodePos.y,
-        z: topNodePos.z - pileLength, // Bottom is below top
-      };
-
-      nodePositions = {
-        type: "2node-vertical",
-        bottomNode: bottomNode,
-        topNode: topNodePos,
-        valid: true,
-      };
-
-      log.debug(
-        `Pile ${pile.id} (1-node format): length=${pileLength}mm, top=(${topNodePos.x},${topNodePos.y},${topNodePos.z}), bottom=(${bottomNode.x},${bottomNode.y},${bottomNode.z})`
-      );
-    }
-    // 2-node format (id_node_bottom + id_node_top) - existing logic
-    else {
-      nodePositions = ElementGeometryUtils.getNodePositions(pile, nodes, {
-        nodeType: "2node-vertical",
-        isJsonInput: isJsonInput,
-        node1KeyStart: "id_node_bottom",
-        node1KeyEnd: "id_node_top",
-      });
-    }
-
-    if (!nodePositions.valid) {
-      log.warn(`Skipping pile ${pile.id}: Invalid node positions`);
+    if (!this._validateNodePositions(nodePositions, pile, context)) {
       return null;
     }
 
-    // 3. 断面タイプの推定（ElementGeometryUtils使用）
-    const sectionType = ElementGeometryUtils.inferSectionType(sectionData);
+    // 3. 断面タイプの推定（SectionTypeNormalizer使用）
+    const sectionType = this._normalizeSectionType(sectionData);
+    const dims = sectionData.dimensions || {};
 
     log.debug(
-      `Creating pile ${pile.id}: section_type=${sectionType}, kind=${pile.kind}`
+      `Creating pile ${pile.id}: section_type=${sectionType}, kind=${pile.kind}, pile_type=${dims.pile_type || 'Straight'}`
     );
 
-    // 4. プロファイル生成（ElementGeometryUtils使用）
-    const profileResult = ElementGeometryUtils.createProfile(
-      sectionData,
-      sectionType,
-      pile
-    );
-
-    if (!profileResult || !profileResult.shape) {
-      log.warn(`Skipping pile ${pile.id}: Failed to create profile`);
-      return null;
-    }
-
-    // 5. オフセットと回転の取得（ElementGeometryUtils使用）
+    // 4. オフセットと回転の取得（ElementGeometryUtils使用）
     const offsetAndRotation = ElementGeometryUtils.getOffsetAndRotation(pile, {
-      nodeType: "2node-vertical",
+      nodeType: '2node-vertical'
     });
 
-    // 6. 配置計算（ElementGeometryUtils使用）
+    // 5. 配置計算（ElementGeometryUtils使用）
     const placement = ElementGeometryUtils.calculateDualNodePlacement(
       nodePositions.bottomNode,
       nodePositions.topNode,
       {
         startOffset: offsetAndRotation.startOffset,
         endOffset: offsetAndRotation.endOffset,
-        rollAngle: offsetAndRotation.rollAngle,
+        rollAngle: offsetAndRotation.rollAngle
       }
     );
 
-    if (placement.length <= 0) {
-      log.warn(`Skipping pile ${pile.id}: Invalid length ${placement.length}`);
+    if (!this._validatePlacement(placement, pile, context)) {
       return null;
     }
 
     log.debug(`Pile ${pile.id}: length=${placement.length.toFixed(1)}mm`);
 
-    // 7. 押し出しジオメトリを作成
-    const geometry = createExtrudeGeometry(
-      profileResult.shape,
-      placement.length
-    );
+    // 6. ジオメトリ生成
+    let geometry = null;
+    let profileMeta = null;
 
-    if (!geometry) {
-      log.warn(`Skipping pile ${pile.id}: Failed to create geometry`);
+    // 拡底杭の判定
+    if (isExtendedPile(dims)) {
+      // 拡底杭: テーパージオメトリを生成
+      geometry = this._createExtendedPileGeometry(dims, placement.length, pile.id, log);
+      profileMeta = {
+        profileSource: 'extended-pile',
+        pileType: dims.pile_type
+      };
+    } else {
+      // 通常杭: 単一断面の押し出しジオメトリ
+      const profileResult = ElementGeometryUtils.createProfile(
+        sectionData,
+        sectionType,
+        pile
+      );
+
+      if (!this._validateProfile(profileResult, pile, context)) {
+        return null;
+      }
+
+      geometry = createExtrudeGeometry(profileResult.shape, placement.length);
+      profileMeta = profileResult.meta;
+    }
+
+    if (!this._validateGeometry(geometry, pile, context)) {
       return null;
     }
 
-    // 8. メッシュ作成（ElementGeometryUtils使用）
-    const mesh = ElementGeometryUtils.createMeshWithMetadata(
-      geometry,
-      materials.matchedMesh,
-      pile,
-      {
-        elementType: elementType,
-        isJsonInput: isJsonInput,
-        length: placement.length,
-        sectionType: sectionType,
-        profileMeta: profileResult.meta,
-        sectionData: sectionData,
-      }
-    );
+    // 7. メッシュ作成
+    const mesh = new THREE.Mesh(geometry, materials.matchedMesh);
 
-    // 9. 配置を適用（Three.jsのメソッドを直接使用）
+    // 8. 配置を適用
     mesh.position.copy(placement.center);
     mesh.quaternion.copy(placement.rotation);
 
+    // 9. メタデータを設定（MeshMetadataBuilder使用）
+    mesh.userData = MeshMetadataBuilder.buildForPile({
+      element: pile,
+      elementType: elementType,
+      placement: placement,
+      sectionType: sectionType,
+      profileResult: { shape: null, meta: profileMeta },
+      sectionData: sectionData,
+      isJsonInput: isJsonInput,
+      pileType: dims.pile_type || 'Straight'
+    });
+
     // 10. 配置基準線を添付（ElementGeometryUtils使用）
-    ElementGeometryUtils.attachPlacementLine(
-      mesh,
-      placement.length,
-      materials.placementLine,
-      {
-        elementType: elementType,
-        elementId: pile.id,
-        modelSource: "solid",
-      }
-    );
+    try {
+      ElementGeometryUtils.attachPlacementLine(
+        mesh,
+        placement.length,
+        materials.placementLine,
+        {
+          elementType: elementType,
+          elementId: pile.id,
+          modelSource: 'solid'
+        }
+      );
+    } catch (e) {
+      log.warn(`Pile ${pile.id}: Failed to attach placement axis line`, e);
+    }
 
     return mesh;
+  }
+
+  /**
+   * ノード位置を取得（1-node / 2-node 両対応）
+   * @private
+   */
+  static _getNodePositions(pile, nodes, sectionData, isJsonInput, log) {
+    // 1-node format (id_node + level_top)
+    if (pile.pileFormat === '1node') {
+      const topNode = nodes.get(pile.id_node);
+      if (!topNode) {
+        log.warn(`Skipping pile ${pile.id}: Node ${pile.id_node} not found`);
+        return { valid: false };
+      }
+
+      // Extract pile length
+      let pileLength = 0;
+      const dims = sectionData.dimensions || {};
+
+      if (pile.length_all !== undefined && pile.length_all !== null) {
+        pileLength = parseFloat(pile.length_all);
+        log.debug(`Pile ${pile.id}: Using length_all=${pileLength}mm from element attribute`);
+      } else if (dims.length_pile) {
+        pileLength = parseFloat(dims.length_pile);
+        log.debug(`Pile ${pile.id}: Using length_pile=${pileLength}mm from section dimensions`);
+      } else if (dims.D || dims.diameter) {
+        const diameter = dims.D || dims.diameter;
+        pileLength = parseFloat(diameter) * 20;
+        log.warn(`Pile ${pile.id}: No explicit length, estimating ${pileLength}mm (20×diameter)`);
+      } else {
+        log.warn(`Pile ${pile.id}: Cannot determine pile length`);
+        return { valid: false };
+      }
+
+      const topNodePos = {
+        x: topNode.x + (pile.offset_X || 0),
+        y: topNode.y + (pile.offset_Y || 0),
+        z: pile.level_top
+      };
+
+      const bottomNode = {
+        x: topNodePos.x,
+        y: topNodePos.y,
+        z: topNodePos.z - pileLength
+      };
+
+      log.debug(
+        `Pile ${pile.id} (1-node format): length=${pileLength}mm`
+      );
+
+      return {
+        type: '2node-vertical',
+        bottomNode: bottomNode,
+        topNode: topNodePos,
+        valid: true
+      };
+    }
+
+    // 2-node format (id_node_bottom + id_node_top)
+    return ElementGeometryUtils.getNodePositions(pile, nodes, {
+      nodeType: '2node-vertical',
+      isJsonInput: isJsonInput,
+      node1KeyStart: 'id_node_bottom',
+      node1KeyEnd: 'id_node_top'
+    });
+  }
+
+  /**
+   * 拡底杭のテーパージオメトリを生成
+   * @private
+   * @param {Object} dims - 寸法データ（pile_type, D_axial, D_extended_foot, etc.）
+   * @param {number} length - 杭長さ（mm）
+   * @param {string} pileId - デバッグ用の杭ID
+   * @param {Object} log - ロガー
+   * @returns {THREE.BufferGeometry|null} テーパージオメトリまたはnull
+   */
+  static _createExtendedPileGeometry(dims, length, pileId, log) {
+    const pileType = dims.pile_type;
+    const D_axial = dims.D_axial || dims.diameter || dims.D;
+
+    if (!D_axial) {
+      log.warn(`Pile ${pileId}: Missing D_axial for extended pile`);
+      return null;
+    }
+
+    log.debug(
+      `Creating extended pile geometry: type=${pileType}, D_axial=${D_axial}, length=${length}`
+    );
+
+    // 円形プロファイル生成のヘルパー（segments=32で生成）
+    const createCircle = (diameter) => {
+      const profile = calculateCircleProfile({ radius: diameter / 2, segments: 32 });
+      return { vertices: profile.vertices, holes: [] };
+    };
+
+    try {
+      switch (pileType) {
+        case 'ExtendedFoot': {
+          const D_foot = dims.D_extended_foot;
+          const footLength = dims.length_extended_foot || 0;
+          const taperAngle = dims.angle_extended_foot_taper || 0;
+
+          if (!D_foot) {
+            log.warn(`Pile ${pileId}: Missing D_extended_foot`);
+            return null;
+          }
+
+          let taperLength = 0;
+          if (taperAngle > 0) {
+            const radiusDiff = (D_foot - D_axial) / 2;
+            taperLength = radiusDiff / Math.tan((taperAngle * Math.PI) / 180);
+          }
+
+          log.debug(
+            `ExtendedFoot: D_foot=${D_foot}, footLength=${footLength}, ` +
+            `taperAngle=${taperAngle}°, taperLength=${taperLength.toFixed(1)}`
+          );
+
+          if (taperLength > 0) {
+            const sections = [
+              { pos: 'TOP', profile: createCircle(D_axial) },
+              { pos: 'CENTER', profile: createCircle(D_axial) },
+              { pos: 'BOTTOM', profile: createCircle(D_foot) }
+            ];
+
+            return createMultiSectionGeometry(sections, length, {
+              start: 0,
+              end: footLength + taperLength
+            });
+          } else {
+            const topProfile = createCircle(D_axial);
+            const bottomProfile = createCircle(D_foot);
+            return createTaperedGeometry(topProfile, bottomProfile, length, { segments: 8 });
+          }
+        }
+
+        case 'ExtendedTop': {
+          const D_top = dims.D_extended_top;
+          const taperAngle = dims.angle_extended_top_taper || 0;
+
+          if (!D_top) {
+            log.warn(`Pile ${pileId}: Missing D_extended_top`);
+            return null;
+          }
+
+          let taperLength = 0;
+          if (taperAngle > 0) {
+            const radiusDiff = (D_top - D_axial) / 2;
+            taperLength = radiusDiff / Math.tan((taperAngle * Math.PI) / 180);
+          }
+
+          log.debug(
+            `ExtendedTop: D_top=${D_top}, taperAngle=${taperAngle}°, taperLength=${taperLength.toFixed(1)}`
+          );
+
+          if (taperLength > 0) {
+            const sections = [
+              { pos: 'TOP', profile: createCircle(D_top) },
+              { pos: 'CENTER', profile: createCircle(D_axial) },
+              { pos: 'BOTTOM', profile: createCircle(D_axial) }
+            ];
+
+            return createMultiSectionGeometry(sections, length, {
+              start: taperLength,
+              end: 0
+            });
+          } else {
+            const topProfile = createCircle(D_top);
+            const bottomProfile = createCircle(D_axial);
+            return createTaperedGeometry(topProfile, bottomProfile, length, { segments: 8 });
+          }
+        }
+
+        case 'ExtendedTopFoot': {
+          const D_top = dims.D_extended_top;
+          const D_foot = dims.D_extended_foot;
+          const footLength = dims.length_extended_foot || 0;
+          const topTaperAngle = dims.angle_extended_top_taper || 0;
+          const footTaperAngle = dims.angle_extended_foot_taper || 0;
+
+          if (!D_top || !D_foot) {
+            log.warn(`Pile ${pileId}: Missing D_extended_top or D_extended_foot`);
+            return null;
+          }
+
+          let topTaperLength = 0;
+          if (topTaperAngle > 0) {
+            const radiusDiff = (D_top - D_axial) / 2;
+            topTaperLength = radiusDiff / Math.tan((topTaperAngle * Math.PI) / 180);
+          }
+
+          let footTaperLength = 0;
+          if (footTaperAngle > 0) {
+            const radiusDiff = (D_foot - D_axial) / 2;
+            footTaperLength = radiusDiff / Math.tan((footTaperAngle * Math.PI) / 180);
+          }
+
+          log.debug(
+            `ExtendedTopFoot: D_top=${D_top}, D_foot=${D_foot}, ` +
+            `topTaper=${topTaperLength.toFixed(1)}, footTaper=${footTaperLength.toFixed(1)}`
+          );
+
+          const sections = [
+            { pos: 'TOP', profile: createCircle(D_top) },
+            { pos: 'HAUNCH_S', profile: createCircle(D_axial) },
+            { pos: 'CENTER', profile: createCircle(D_axial) },
+            { pos: 'HAUNCH_E', profile: createCircle(D_axial) },
+            { pos: 'BOTTOM', profile: createCircle(D_foot) }
+          ];
+
+          return createMultiSectionGeometry(sections, length, {
+            start: topTaperLength,
+            end: footLength + footTaperLength
+          });
+        }
+
+        default:
+          log.warn(`Pile ${pileId}: Unknown extended pile type: ${pileType}`);
+          return null;
+      }
+    } catch (error) {
+      log.error(`Pile ${pileId}: Failed to create extended pile geometry:`, error);
+      return null;
+    }
   }
 }
 
 // デバッグ・開発支援
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   window.PileGenerator = PileGenerator;
 }
 

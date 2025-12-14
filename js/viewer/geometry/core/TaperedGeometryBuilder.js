@@ -7,10 +7,10 @@
  * @module TaperedGeometryBuilder
  */
 
-import * as THREE from "three";
-import { createLogger } from "../../../utils/logger.js";
+import * as THREE from 'three';
+import { createLogger } from '../../../utils/logger.js';
 
-const log = createLogger("viewer:geometry:tapered");
+const log = createLogger('viewer:geometry:tapered');
 
 /**
  * プロファイルデータ型定義
@@ -294,7 +294,7 @@ function triangulateProfile(vertices, baseIndex, reverse) {
   const n = vertices.length;
 
   if (n < 3) {
-    log.warn("triangulateProfile: Not enough vertices for triangulation");
+    log.warn('triangulateProfile: Not enough vertices for triangulation');
     return indices;
   }
 
@@ -318,11 +318,11 @@ function triangulateProfile(vertices, baseIndex, reverse) {
  */
 function validateProfiles(startProfile, endProfile) {
   if (!startProfile || !endProfile) {
-    throw new Error("TaperedGeometryBuilder: startProfile and endProfile are required");
+    throw new Error('TaperedGeometryBuilder: startProfile and endProfile are required');
   }
 
   if (!startProfile.vertices || !endProfile.vertices) {
-    throw new Error("TaperedGeometryBuilder: Profile vertices are required");
+    throw new Error('TaperedGeometryBuilder: Profile vertices are required');
   }
 
   if (startProfile.vertices.length !== endProfile.vertices.length) {

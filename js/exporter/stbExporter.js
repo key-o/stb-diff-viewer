@@ -8,7 +8,9 @@
  * - エクスポート前のバリデーション
  */
 
-import { validateElement, isSchemaLoaded } from "../parser/xsdSchemaParser.js";
+import { validateElement, isSchemaLoaded } from '../parser/xsdSchemaParser.js';
+import { formatValidationReport } from '../validation/stbValidator.js';
+import { formatRepairReport } from '../repair/stbRepairEngine.js';
 
 /**
  * STBドキュメントを修正してエクスポート
@@ -20,7 +22,7 @@ import { validateElement, isSchemaLoaded } from "../parser/xsdSchemaParser.js";
 export async function exportModifiedStb(
   originalDoc,
   modifications,
-  filename = "modified.stb"
+  filename = 'modified.stb'
 ) {
   try {
     // 元ドキュメントのコピーを作成
@@ -37,7 +39,7 @@ export async function exportModifiedStb(
 
     // バリデーション結果をコンソールに出力
     if (validationResults.length > 0) {
-      console.log("Validation results:", validationResults);
+      console.log('Validation results:', validationResults);
     }
 
     // XMLを文字列にシリアライズ
@@ -53,7 +55,7 @@ export async function exportModifiedStb(
     console.log(`STB file exported successfully as ${filename}`);
     return true;
   } catch (error) {
-    console.error("Error exporting STB file:", error);
+    console.error('Error exporting STB file:', error);
     return false;
   }
 }
@@ -68,16 +70,16 @@ function applyModification(doc, modification) {
   const { elementType, id, attribute, newValue } = modification;
 
   // 要素を検索
-  const tagName = elementType === "Node" ? "StbNode" : `Stb${elementType}`;
+  const tagName = elementType === 'Node' ? 'StbNode' : `Stb${elementType}`;
   const element = doc.querySelector(`${tagName}[id="${id}"]`);
 
   if (!element) {
     console.warn(`Element ${tagName} with ID ${id} not found`);
-    return { success: false, error: "Element not found" };
+    return { success: false, error: 'Element not found' };
   }
 
   // 属性値を設定
-  if (newValue === null || newValue === undefined || newValue === "") {
+  if (newValue === null || newValue === undefined || newValue === '') {
     element.removeAttribute(attribute);
   } else {
     element.setAttribute(attribute, newValue);
@@ -98,7 +100,7 @@ function applyModification(doc, modification) {
 
   return {
     success: true,
-    validation: validation,
+    validation: validation
   };
 }
 
@@ -112,27 +114,27 @@ function formatXml(xmlString) {
   const xmlDeclaration = '<?xml version="1.0" encoding="utf-8"?>\n';
 
   // 簡易的なフォーマット（改行とインデント）
-  let formatted = xmlString.replace(/></g, ">\n<").replace(/^\s*\n/gm, ""); // 空行を削除
+  const formatted = xmlString.replace(/></g, '>\n<').replace(/^\s*\n/gm, ''); // 空行を削除
 
   // インデントを追加
-  const lines = formatted.split("\n");
+  const lines = formatted.split('\n');
   let indentLevel = 0;
   const indentedLines = lines.map((line) => {
     const trimmed = line.trim();
-    if (trimmed === "") return "";
+    if (trimmed === '') return '';
 
     // 終了タグの場合、インデントレベルを下げる
-    if (trimmed.startsWith("</")) {
+    if (trimmed.startsWith('</')) {
       indentLevel = Math.max(0, indentLevel - 1);
     }
 
-    const indented = "  ".repeat(indentLevel) + trimmed;
+    const indented = '  '.repeat(indentLevel) + trimmed;
 
     // 開始タグ（自己終了タグでない）の場合、インデントレベルを上げる
     if (
-      trimmed.startsWith("<") &&
-      !trimmed.startsWith("</") &&
-      !trimmed.endsWith("/>")
+      trimmed.startsWith('<') &&
+      !trimmed.startsWith('</') &&
+      !trimmed.endsWith('/>')
     ) {
       indentLevel++;
     }
@@ -140,7 +142,7 @@ function formatXml(xmlString) {
     return indented;
   });
 
-  return xmlDeclaration + indentedLines.join("\n");
+  return xmlDeclaration + indentedLines.join('\n');
 }
 
 /**
@@ -150,17 +152,17 @@ function formatXml(xmlString) {
  */
 function downloadStbFile(xmlContent, filename) {
   // ファイル名の拡張子を.stbに確保
-  const stbFilename = filename.endsWith(".stb")
+  const stbFilename = filename.endsWith('.stb')
     ? filename
-    : filename.replace(/\.[^.]*$/, ".stb");
+    : filename.replace(/\.[^.]*$/, '.stb');
 
-  const blob = new Blob([xmlContent], { type: "application/xml" });
+  const blob = new Blob([xmlContent], { type: 'application/xml' });
   const url = URL.createObjectURL(blob);
 
-  const link = document.createElement("a");
+  const link = document.createElement('a');
   link.href = url;
   link.download = stbFilename;
-  link.style.display = "none";
+  link.style.display = 'none';
 
   document.body.appendChild(link);
   link.click();
@@ -179,19 +181,19 @@ export function validateDocumentForExport(doc) {
     return {
       valid: true,
       message:
-        "XSDスキーマが読み込まれていないため、バリデーションをスキップしました",
+        'XSDスキーマが読み込まれていないため、バリデーションをスキップしました'
     };
   }
 
   const issues = [];
 
   // 全STB要素をチェック
-  const stbElements = doc.querySelectorAll("[id]");
+  const stbElements = doc.querySelectorAll('[id]');
   stbElements.forEach((element) => {
     const tagName = element.tagName;
-    if (!tagName.startsWith("Stb")) return;
+    if (!tagName.startsWith('Stb')) return;
 
-    const id = element.getAttribute("id");
+    const id = element.getAttribute('id');
     const attributes = {};
     for (const attr of element.attributes) {
       attributes[attr.name] = attr.value;
@@ -202,7 +204,7 @@ export function validateDocumentForExport(doc) {
       issues.push({
         elementType: tagName,
         elementId: id,
-        errors: validation.errors,
+        errors: validation.errors
       });
     }
   });
@@ -212,8 +214,8 @@ export function validateDocumentForExport(doc) {
     issues: issues,
     message:
       issues.length === 0
-        ? "全ての要素がXSDスキーマに適合しています"
-        : `${issues.length}個の要素にバリデーションエラーがあります`,
+        ? '全ての要素がXSDスキーマに適合しています'
+        : `${issues.length}個の要素にバリデーションエラーがあります`
   };
 }
 
@@ -224,11 +226,11 @@ export function validateDocumentForExport(doc) {
  */
 export function generateModificationReport(modifications) {
   if (modifications.length === 0) {
-    return "修正はありませんでした。";
+    return '修正はありませんでした。';
   }
 
   let report = `STB修正レポート\n`;
-  report += `生成日時: ${new Date().toLocaleString("ja-JP")}\n`;
+  report += `生成日時: ${new Date().toLocaleString('ja-JP')}\n`;
   report += `修正数: ${modifications.length}件\n\n`;
 
   modifications.forEach((mod, index) => {
@@ -238,4 +240,194 @@ export function generateModificationReport(modifications) {
   });
 
   return report;
+}
+
+/**
+ * バリデート・修復済みドキュメントをエクスポート
+ *
+ * @param {Document} doc - エクスポートするXMLドキュメント
+ * @param {Object} options - エクスポートオプション
+ * @param {string} options.filename - ファイル名
+ * @param {Object} options.validationReport - バリデーションレポート
+ * @param {Object} options.repairReport - 修復レポート
+ * @param {boolean} options.includeReport - レポートを含めるかどうか
+ * @returns {boolean} 成功可否
+ */
+export function exportValidatedStb(doc, options = {}) {
+  try {
+    const {
+      filename = 'validated.stb',
+      validationReport = null,
+      repairReport = null,
+      includeReport = false
+    } = options;
+
+    // XMLを文字列にシリアライズ
+    const serializer = new XMLSerializer();
+    const xmlString = serializer.serializeToString(doc);
+
+    // フォーマット調整
+    const formattedXml = formatXml(xmlString);
+
+    // ファイルとしてダウンロード
+    downloadStbFile(formattedXml, filename);
+
+    // レポートを含める場合は別ファイルとしてダウンロード
+    if (includeReport && (validationReport || repairReport)) {
+      const reportContent = generateIntegratedExportReport(validationReport, repairReport);
+      const reportFilename = filename.replace(/\.stb$/i, '_report.txt');
+      downloadTextFile(reportContent, reportFilename);
+    }
+
+    console.log(`Validated STB file exported successfully as ${filename}`);
+    return true;
+  } catch (error) {
+    console.error('Error exporting validated STB file:', error);
+    return false;
+  }
+}
+
+/**
+ * 統合エクスポートレポートを生成
+ *
+ * @param {Object} validationReport - バリデーションレポート
+ * @param {Object} repairReport - 修復レポート
+ * @returns {string} レポートテキスト
+ */
+function generateIntegratedExportReport(validationReport, repairReport) {
+  let report = '';
+  report += '='.repeat(60) + '\n';
+  report += 'ST-Bridge エクスポートレポート\n';
+  report += '='.repeat(60) + '\n';
+  report += `生成日時: ${new Date().toLocaleString('ja-JP')}\n\n`;
+
+  if (validationReport) {
+    report += formatValidationReport(validationReport);
+    report += '\n\n';
+  }
+
+  if (repairReport) {
+    report += formatRepairReport(repairReport);
+    report += '\n\n';
+  }
+
+  return report;
+}
+
+/**
+ * テキストファイルとしてダウンロード
+ *
+ * @param {string} content - ファイル内容
+ * @param {string} filename - ファイル名
+ */
+function downloadTextFile(content, filename) {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.style.display = 'none';
+
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * ドキュメントをメモリ内でバリデート・修復してエクスポート
+ *
+ * @param {Document} originalDoc - 元のXMLドキュメント
+ * @param {Object} validationReport - バリデーションレポート
+ * @param {Object} repairOptions - 修復オプション
+ * @param {string} filename - 出力ファイル名
+ * @returns {Promise<Object>} エクスポート結果
+ */
+export async function validateRepairAndExport(originalDoc, validationReport, repairOptions = {}, filename = 'repaired.stb') {
+  try {
+    // 動的インポートで循環依存を回避
+    const { autoRepairDocument } = await import('../repair/stbRepairEngine.js');
+    const { validateStbDocument } = await import('../validation/stbValidator.js');
+
+    // 修復実行
+    const { document: repairedDoc, report: repairReport } = autoRepairDocument(
+      originalDoc.cloneNode(true),
+      validationReport,
+      repairOptions
+    );
+
+    // 修復後の再バリデーション
+    const revalidation = validateStbDocument(repairedDoc);
+
+    // エクスポート
+    const success = exportValidatedStb(repairedDoc, {
+      filename,
+      validationReport: revalidation,
+      repairReport,
+      includeReport: true
+    });
+
+    return {
+      success,
+      repairedDocument: repairedDoc,
+      repairReport,
+      revalidation
+    };
+  } catch (error) {
+    console.error('Error in validate-repair-export workflow:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * エクスポート設定を生成
+ *
+ * @param {Object} options - カスタムオプション
+ * @returns {Object} エクスポート設定
+ */
+export function createExportConfig(options = {}) {
+  return {
+    filename: options.filename || `stb_export_${Date.now()}.stb`,
+    includeReport: options.includeReport !== false,
+    formatXml: options.formatXml !== false,
+    validateBeforeExport: options.validateBeforeExport !== false,
+    encoding: options.encoding || 'UTF-8'
+  };
+}
+
+/**
+ * エクスポート結果のサマリーを取得
+ *
+ * @param {Object} result - エクスポート結果
+ * @returns {string} サマリーテキスト
+ */
+export function getExportSummary(result) {
+  const lines = [];
+
+  lines.push('--- エクスポートサマリー ---');
+  lines.push(`成功: ${result.success ? 'はい' : 'いいえ'}`);
+
+  if (result.error) {
+    lines.push(`エラー: ${result.error}`);
+  }
+
+  if (result.repairReport) {
+    lines.push(`修復数: ${result.repairReport.totalRepairs}`);
+    lines.push(`成功した修復: ${result.repairReport.successCount}`);
+    lines.push(`削除された要素: ${result.repairReport.removedElements?.length || 0}`);
+  }
+
+  if (result.revalidation) {
+    lines.push(`再バリデーション結果: ${result.revalidation.valid ? '有効' : 'エラーあり'}`);
+    if (!result.revalidation.valid) {
+      lines.push(`残りのエラー: ${result.revalidation.statistics.errorCount}`);
+    }
+  }
+
+  return lines.join('\n');
 }

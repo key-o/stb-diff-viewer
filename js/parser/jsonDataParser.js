@@ -21,7 +21,7 @@ import {
   getRadius,
   isCircularProfile,
   isRectangularProfile,
-  validateDimensions,
+  validateDimensions
 } from '../common/dimensionNormalizer.js';
 
 /**
@@ -38,14 +38,14 @@ export class JsonDataParser {
       walls: [],
       slabs: [],
       footings: [],
-      piles: [],
+      piles: []
     };
     this.statistics = {
       totalElements: 0,
       elementCounts: {},
       parseTime: 0,
       errors: [],
-      warnings: [],
+      warnings: []
     };
   }
 
@@ -55,7 +55,7 @@ export class JsonDataParser {
    * @returns {Promise<Object>} 解析結果
    */
   async parseFromFile(input) {
-    console.log("JsonDataParser: Starting JSON file parsing...");
+    console.log('JsonDataParser: Starting JSON file parsing...');
     const startTime = performance.now();
 
     try {
@@ -63,7 +63,7 @@ export class JsonDataParser {
 
       if (input instanceof File) {
         jsonContent = await this._readFileContent(input);
-      } else if (typeof input === "string") {
+      } else if (typeof input === 'string') {
         // URLまたはファイルパスからの読み込み
         const response = await fetch(input);
         if (!response.ok) {
@@ -72,7 +72,7 @@ export class JsonDataParser {
         jsonContent = await response.text();
       } else {
         throw new Error(
-          "Invalid input type. Expected File object or string path."
+          'Invalid input type. Expected File object or string path.'
         );
       }
 
@@ -104,7 +104,7 @@ export class JsonDataParser {
       return this._createParsingResult();
     } catch (error) {
       this.statistics.errors.push(`JSON parsing failed: ${error.message}`);
-      console.error("JsonDataParser: Parsing failed:", error);
+      console.error('JsonDataParser: Parsing failed:', error);
       throw new Error(`JSON data parsing failed: ${error.message}`);
     }
   }
@@ -115,7 +115,7 @@ export class JsonDataParser {
    * @returns {Object} 解析結果
    */
   parseFromObject(jsonObject) {
-    console.log("JsonDataParser: Parsing from JSON object...");
+    console.log('JsonDataParser: Parsing from JSON object...');
     const startTime = performance.now();
 
     try {
@@ -139,7 +139,7 @@ export class JsonDataParser {
       this.statistics.errors.push(
         `JSON object parsing failed: ${error.message}`
       );
-      console.error("JsonDataParser: Object parsing failed:", error);
+      console.error('JsonDataParser: Object parsing failed:', error);
       throw new Error(`JSON object parsing failed: ${error.message}`);
     }
   }
@@ -149,33 +149,33 @@ export class JsonDataParser {
    * @returns {Object} STB互換形式データ
    */
   toStbCompatibleFormat() {
-    console.log("JsonDataParser: Converting to STB compatible format...");
+    console.log('JsonDataParser: Converting to STB compatible format...');
 
     const stbData = {
       // STB XML風のメタデータ
       projectInfo: {
-        name: this.metadata?.description || "JSON Imported Model",
-        version: this.metadata?.version || "1.0",
-        timestamp: this.metadata?.timestamp || new Date().toISOString(),
+        name: this.metadata?.description || 'JSON Imported Model',
+        version: this.metadata?.version || '1.0',
+        timestamp: this.metadata?.timestamp || new Date().toISOString()
       },
 
       // ノード情報（JSONでは直接座標を使用するため、仮想ノードマップを作成）
       nodeMap: this._createVirtualNodeMap(),
 
       // 各種構造要素
-      columns: this._convertToStbFormat(this.parsedElements.columns, "column"),
-      beams: this._convertToStbFormat(this.parsedElements.beams, "beam"),
-      braces: this._convertToStbFormat(this.parsedElements.braces, "brace"),
-      walls: this._convertToStbFormat(this.parsedElements.walls, "wall"),
-      slabs: this._convertToStbFormat(this.parsedElements.slabs, "slab"),
+      columns: this._convertToStbFormat(this.parsedElements.columns, 'column'),
+      beams: this._convertToStbFormat(this.parsedElements.beams, 'beam'),
+      braces: this._convertToStbFormat(this.parsedElements.braces, 'brace'),
+      walls: this._convertToStbFormat(this.parsedElements.walls, 'wall'),
+      slabs: this._convertToStbFormat(this.parsedElements.slabs, 'slab'),
       footings: this._convertToStbFormat(
         this.parsedElements.footings,
-        "footing"
+        'footing'
       ),
-      piles: this._convertToStbFormat(this.parsedElements.piles, "pile"),
+      piles: this._convertToStbFormat(this.parsedElements.piles, 'pile')
     };
 
-    console.log("JsonDataParser: STB conversion completed");
+    console.log('JsonDataParser: STB conversion completed');
     return stbData;
   }
 
@@ -189,7 +189,7 @@ export class JsonDataParser {
       reader.onload = (event) => resolve(event.target.result);
       reader.onerror = (error) =>
         reject(new Error(`File reading failed: ${error}`));
-      reader.readAsText(file, "utf-8");
+      reader.readAsText(file, 'utf-8');
     });
   }
 
@@ -199,7 +199,7 @@ export class JsonDataParser {
    */
   _validateJsonStructure() {
     if (!this.jsonData) {
-      throw new Error("JSON data is null or undefined");
+      throw new Error('JSON data is null or undefined');
     }
 
     // Python生成のJSON構造 (直接ルートに要素配列) または JS期待構造 (elements内) をサポート
@@ -218,7 +218,7 @@ export class JsonDataParser {
     // Python生成JSON構造の場合、elements wrapperを作成
     if (!hasElementsWrapper && hasDirectElements) {
       console.log(
-        "JsonDataParser: Detected Python-generated JSON structure, creating elements wrapper"
+        'JsonDataParser: Detected Python-generated JSON structure, creating elements wrapper'
       );
       this.jsonData = {
         elements: {
@@ -228,9 +228,9 @@ export class JsonDataParser {
           wall_defs: this.jsonData.wall_defs || [],
           slab_defs: this.jsonData.slab_defs || [],
           footing_defs: this.jsonData.footing_defs || [],
-          pile_defs: this.jsonData.pile_defs || [],
+          pile_defs: this.jsonData.pile_defs || []
         },
-        metadata: this.jsonData.metadata || {},
+        metadata: this.jsonData.metadata || {}
       };
     }
 
@@ -245,7 +245,7 @@ export class JsonDataParser {
     }
 
     console.log(
-      "JsonDataParser: JSON structure validation and normalization completed"
+      'JsonDataParser: JSON structure validation and normalization completed'
     );
   }
 
@@ -256,11 +256,11 @@ export class JsonDataParser {
   _extractMetadata() {
     this.metadata = this.jsonData.metadata || {};
 
-    console.log("JsonDataParser: Extracted metadata:", {
+    console.log('JsonDataParser: Extracted metadata:', {
       source: this.metadata.source,
       version: this.metadata.version,
       totalElements: this.metadata.total_elements,
-      description: this.metadata.description,
+      description: this.metadata.description
     });
   }
 
@@ -269,38 +269,38 @@ export class JsonDataParser {
    * @private
    */
   _parseAllElements() {
-    console.log("JsonDataParser: Parsing all structural elements...");
+    console.log('JsonDataParser: Parsing all structural elements...');
 
     const elements = this.jsonData.elements;
 
     // 各要素タイプの解析
     this.parsedElements.columns = this._parseElementArray(
       elements.column_defs || [],
-      "column"
+      'column'
     );
     this.parsedElements.beams = this._parseElementArray(
       elements.beam_defs || [],
-      "beam"
+      'beam'
     );
     this.parsedElements.braces = this._parseElementArray(
       elements.brace_defs || [],
-      "brace"
+      'brace'
     );
     this.parsedElements.walls = this._parseElementArray(
       elements.wall_defs || [],
-      "wall"
+      'wall'
     );
     this.parsedElements.slabs = this._parseElementArray(
       elements.slab_defs || [],
-      "slab"
+      'slab'
     );
     this.parsedElements.footings = this._parseElementArray(
       elements.footing_defs || [],
-      "footing"
+      'footing'
     );
     this.parsedElements.piles = this._parseElementArray(
       elements.pile_defs || [],
-      "pile"
+      'pile'
     );
 
     // 統計更新
@@ -311,11 +311,11 @@ export class JsonDataParser {
       walls: this.parsedElements.walls.length,
       slabs: this.parsedElements.slabs.length,
       footings: this.parsedElements.footings.length,
-      piles: this.parsedElements.piles.length,
+      piles: this.parsedElements.piles.length
     };
 
     console.log(
-      "JsonDataParser: Element parsing summary:",
+      'JsonDataParser: Element parsing summary:',
       this.statistics.elementCounts
     );
   }
@@ -386,7 +386,7 @@ export class JsonDataParser {
       section: section,
 
       // 材料情報
-      material: element.material || { type: "Unknown", name: "Default" },
+      material: element.material || { type: 'Unknown', name: 'Default' },
 
       // 構造情報
       structural_info: element.structural_info || {},
@@ -395,7 +395,7 @@ export class JsonDataParser {
       isJsonInput: true,
 
       // 元データ参照
-      originalData: element,
+      originalData: element
     };
 
     return parsedElement;
@@ -463,20 +463,20 @@ export class JsonDataParser {
       normalized.start_point = Array.isArray(geometry.start_point)
         ? geometry.start_point
         : [
-            geometry.start_point.x || 0,
-            geometry.start_point.y || 0,
-            geometry.start_point.z || 0,
-          ];
+          geometry.start_point.x || 0,
+          geometry.start_point.y || 0,
+          geometry.start_point.z || 0
+        ];
     }
 
     if (geometry.end_point) {
       normalized.end_point = Array.isArray(geometry.end_point)
         ? geometry.end_point
         : [
-            geometry.end_point.x || 0,
-            geometry.end_point.y || 0,
-            geometry.end_point.z || 0,
-          ];
+          geometry.end_point.x || 0,
+          geometry.end_point.y || 0,
+          geometry.end_point.z || 0
+        ];
     }
 
     // 長さの計算（提供されていない場合）
@@ -488,9 +488,7 @@ export class JsonDataParser {
     }
 
     // 回転角の正規化
-    if (geometry.rotation === null || geometry.rotation === undefined) {
-      normalized.rotation = 0;
-    }
+    normalized.rotation = geometry.rotation ?? 0;
 
     // 座標系の確認（mm単位であることをログ出力）
     if (
@@ -498,7 +496,7 @@ export class JsonDataParser {
       normalized.start_point.some((coord) => Math.abs(coord) > 100)
     ) {
       console.debug(
-        "JsonDataParser: Detected coordinates in mm scale (Python JSON format)"
+        'JsonDataParser: Detected coordinates in mm scale (Python JSON format)'
       );
     }
 
@@ -529,7 +527,7 @@ export class JsonDataParser {
         // 既存の寸法データとマージ（正規化された値を優先）
         normalized.dimensions = {
           ...section.dimensions,
-          ...normalizedDims,
+          ...normalizedDims
         };
 
         // 寸法データの検証
@@ -555,10 +553,17 @@ export class JsonDataParser {
       if (dimensionKeys.length > 0) {
         console.debug(
           `JsonDataParser: Section dimensions normalized: ${dimensionKeys.join(
-            ", "
+            ', '
           )}`
         );
       }
+    }
+
+    // isReferenceDirectionの正規化（S造・stb-diff-viewer造柱の基準方向）
+    // JSONデータにisReferenceDirectionが含まれている場合はそのまま保持
+    // 含まれていない場合はデフォルト値（true）を設定
+    if (section.isReferenceDirection !== undefined) {
+      normalized.isReferenceDirection = section.isReferenceDirection;
     }
 
     return normalized;
@@ -581,7 +586,7 @@ export class JsonDataParser {
             nodeMap.set(`virtual_node_${nodeMap.size + 1}`, {
               x: element.geometry.start_point[0],
               y: element.geometry.start_point[1],
-              z: element.geometry.start_point[2],
+              z: element.geometry.start_point[2]
             });
             processedNodes.add(nodeKey);
           }
@@ -593,7 +598,7 @@ export class JsonDataParser {
             nodeMap.set(`virtual_node_${nodeMap.size + 1}`, {
               x: element.geometry.end_point[0],
               y: element.geometry.end_point[1],
-              z: element.geometry.end_point[2],
+              z: element.geometry.end_point[2]
             });
             processedNodes.add(nodeKey);
           }
@@ -629,7 +634,7 @@ export class JsonDataParser {
       isJsonInput: undefined,
       // STB互換フィールドの追加
       stbElementType: elementType,
-      convertedFromJson: true,
+      convertedFromJson: true
     }));
   }
 
@@ -681,7 +686,7 @@ export class JsonDataParser {
       getElementById: (elementId) => {
         const allElements = this.getAllElements();
         return allElements.find((element) => element.id === elementId);
-      },
+      }
     };
   }
 
@@ -692,7 +697,7 @@ export class JsonDataParser {
     return {
       ...this.statistics,
       hasErrors: this.statistics.errors.length > 0,
-      hasWarnings: this.statistics.warnings.length > 0,
+      hasWarnings: this.statistics.warnings.length > 0
     };
   }
 
@@ -723,14 +728,14 @@ export class JsonDataParser {
       walls: [],
       slabs: [],
       footings: [],
-      piles: [],
+      piles: []
     };
     this.statistics = {
       totalElements: 0,
       elementCounts: {},
       parseTime: 0,
       errors: [],
-      warnings: [],
+      warnings: []
     };
   }
 }
@@ -747,9 +752,9 @@ export class JsonParserUtils {
   static isJsonStructuralData(data) {
     return (
       data &&
-      typeof data === "object" &&
+      typeof data === 'object' &&
       data.elements &&
-      typeof data.elements === "object"
+      typeof data.elements === 'object'
     );
   }
 
@@ -759,13 +764,13 @@ export class JsonParserUtils {
    */
   static getSupportedElementTypes() {
     return [
-      "columns",
-      "beams",
-      "braces",
-      "walls",
-      "slabs",
-      "footings",
-      "piles",
+      'columns',
+      'beams',
+      'braces',
+      'walls',
+      'slabs',
+      'footings',
+      'piles'
     ];
   }
 
@@ -782,8 +787,8 @@ export class JsonParserUtils {
       renderingInfo: {
         elementType: elementType,
         isJsonInput: true,
-        requiresConversion: false,
-      },
+        requiresConversion: false
+      }
     }));
   }
 
@@ -804,12 +809,12 @@ export class JsonParserUtils {
    * @returns {boolean} JSON拡張子かどうか
    */
   static isJsonFile(file) {
-    return file.name.toLowerCase().endsWith(".json");
+    return file.name.toLowerCase().endsWith('.json');
   }
 }
 
 // デバッグ・テスト支援
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   window.JsonDataParser = JsonDataParser;
   window.JsonParserUtils = JsonParserUtils;
 }

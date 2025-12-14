@@ -31,10 +31,8 @@ export class ModuleMessenger {
       errorRetryCount: 3,
       errorRetryDelay: 100
     };
-    
-    console.log('モジュールメッセンジャーが初期化されました');
   }
-  
+
   /**
    * イベントを購読する
    * @param {string} event - イベント名
@@ -46,15 +44,15 @@ export class ModuleMessenger {
     if (typeof event !== 'string' || !event) {
       throw new Error('イベント名は空でない文字列である必要があります');
     }
-    
+
     if (typeof callback !== 'function') {
       throw new Error('コールバックは関数である必要があります');
     }
-    
+
     if (!this.subscribers.has(event)) {
       this.subscribers.set(event, new Set());
     }
-    
+
     const subscription = {
       callback,
       once: options.once || false,
@@ -63,13 +61,13 @@ export class ModuleMessenger {
       id: this.generateSubscriptionId(),
       createdAt: Date.now()
     };
-    
+
     this.subscribers.get(event).add(subscription);
-    
+
     if (this.config.enableDebugLogging) {
       console.log(`イベント"${event}"を優先度${subscription.priority}で購読しました`);
     }
-    
+
     // アンサブスクライブ関数を返す
     return () => {
       const eventSubscribers = this.subscribers.get(event);
@@ -79,13 +77,13 @@ export class ModuleMessenger {
           this.subscribers.delete(event);
         }
       }
-      
+
       if (this.config.enableDebugLogging) {
         console.log(`イベント"${event}"の購読を解除しました`);
       }
     };
   }
-  
+
   /**
    * 一度だけ実行される購読を登録する
    * @param {string} event - イベント名
@@ -96,7 +94,7 @@ export class ModuleMessenger {
   once(event, callback, options = {}) {
     return this.subscribe(event, callback, { ...options, once: true });
   }
-  
+
   /**
    * メッセージを発行する
    * @param {string} event - イベント名
@@ -108,7 +106,7 @@ export class ModuleMessenger {
     if (typeof event !== 'string' || !event) {
       throw new Error('イベント名は空でない文字列である必要があります');
     }
-    
+
     const message = {
       event,
       data,
@@ -119,24 +117,24 @@ export class ModuleMessenger {
       retryCount: 0,
       maxRetries: this.config.errorRetryCount
     };
-    
+
     this.stats.messagesPublished++;
-    
+
     if (this.config.enableDebugLogging) {
-      console.log(`イベント"${event}"のメッセージを発行しています`, { 
-        messageId: message.id, 
+      console.log(`イベント"${event}"のメッセージを発行しています`, {
+        messageId: message.id,
         async: message.async,
         priority: message.priority
       });
     }
-    
+
     if (options.async) {
       return this.enqueueMessage(message);
     } else {
       return this.deliverMessage(message);
     }
   }
-  
+
   /**
    * メッセージをキューに追加する
    * @param {Object} message - メッセージオブジェクト
@@ -149,18 +147,18 @@ export class ModuleMessenger {
       this.stats.messagesDropped++;
       return false;
     }
-    
+
     this.messageQueue.push(message);
-    
+
     // キューを優先度順にソート
     this.messageQueue.sort((a, b) => b.priority - a.priority);
-    
+
     // 非同期処理を開始
     this.processQueue();
-    
+
     return true;
   }
-  
+
   /**
    * メッセージキューを処理する
    */
@@ -168,35 +166,35 @@ export class ModuleMessenger {
     if (this.processing || this.messageQueue.length === 0) {
       return;
     }
-    
+
     this.processing = true;
-    
+
     if (this.config.enableDebugLogging) {
       console.log(`メッセージキューを処理中 (${this.messageQueue.length}件のメッセージ)`);
     }
-    
+
     while (this.messageQueue.length > 0) {
       const message = this.messageQueue.shift();
-      
+
       try {
         await this.deliverMessage(message);
-        
+
         // 処理間隔調整
         if (this.config.processingDelay > 0) {
           await this.delay(this.config.processingDelay);
         }
-        
+
       } catch (error) {
         console.error(`キューのメッセージ処理中にエラーが発生しました:`, error);
-        
+
         // リトライ処理
         if (message.retryCount < message.maxRetries) {
           message.retryCount++;
           console.log(`メッセージ配信を再試行しています (試行回数 ${message.retryCount}/${message.maxRetries})`);
-          
+
           // リトライ遅延
           await this.delay(this.config.errorRetryDelay * message.retryCount);
-          
+
           // キューの先頭に再挿入
           this.messageQueue.unshift(message);
         } else {
@@ -205,10 +203,10 @@ export class ModuleMessenger {
         }
       }
     }
-    
+
     this.processing = false;
   }
-  
+
   /**
    * メッセージを配信する
    * @param {Object} message - メッセージオブジェクト
@@ -216,70 +214,70 @@ export class ModuleMessenger {
    */
   async deliverMessage(message) {
     const subscribers = this.subscribers.get(message.event);
-    
+
     if (!subscribers || subscribers.size === 0) {
       if (this.config.enableDebugLogging) {
         console.log(`イベント"${message.event}"の購読者がいません`);
       }
       return true;
     }
-    
+
     // 優先度順にソート
     const sortedSubscribers = Array.from(subscribers)
       .sort((a, b) => b.priority - a.priority);
-    
+
     const deliveryPromises = [];
     const subscribersToRemove = [];
-    
+
     for (const subscription of sortedSubscribers) {
       try {
         const deliveryPromise = this.executeCallback(subscription, message);
         deliveryPromises.push(deliveryPromise);
-        
+
         // 一度だけの購読は削除対象に追加
         if (subscription.once) {
           subscribersToRemove.push(subscription);
         }
-        
+
       } catch (error) {
         console.error(`イベント"${message.event}"のコールバック実行中にエラーが発生しました:`, error);
         this.stats.errors++;
-        
+
         // コンテキスト情報があればログに出力
         if (subscription.context) {
           console.error(`コールバックコンテキスト:`, subscription.context);
         }
       }
     }
-    
+
     // 一度だけの購読を削除
     subscribersToRemove.forEach(subscription => {
       subscribers.delete(subscription);
     });
-    
+
     // イベントに購読者がいなくなった場合は削除
     if (subscribers.size === 0) {
       this.subscribers.delete(message.event);
     }
-    
+
     // すべてのコールバック実行を待機
     try {
       await Promise.all(deliveryPromises);
       this.stats.messagesDelivered++;
-      
+
       if (this.config.enableDebugLogging) {
         console.log(`イベント"${message.event}"のメッセージを${sortedSubscribers.length}人の購読者に配信しました`);
       }
-      
+
       return true;
-      
+
     } catch (error) {
       console.error(`イベント"${message.event}"のメッセージ配信中にエラーが発生しました:`, error);
       this.stats.errors++;
       throw error;
     }
   }
-  
+
   /**
    * コールバック関数を実行する
    * @param {Object} subscription - 購読情報
@@ -288,34 +286,34 @@ export class ModuleMessenger {
    */
   async executeCallback(subscription, message) {
     const startTime = Date.now();
-    
+
     try {
       // コンテキストがある場合はbindを使用
-      const callback = subscription.context ? 
-        subscription.callback.bind(subscription.context) : 
+      const callback = subscription.context ?
+        subscription.callback.bind(subscription.context) :
         subscription.callback;
-      
+
       // コールバックを実行
       const result = callback(message.data, message);
-      
+
       // Promiseの場合は待機
       if (result && typeof result.then === 'function') {
         await result;
       }
-      
+
       const executionTime = Date.now() - startTime;
-      
+
       if (this.config.enableDebugLogging && executionTime > 100) {
         console.warn(`コールバックの実行が遅いです: イベント"${message.event}"で${executionTime}ms`);
       }
-      
+
     } catch (error) {
       const executionTime = Date.now() - startTime;
       console.error(`${executionTime}ms後にコールバックの実行が失敗しました:`, error);
       throw error;
     }
   }
-  
+
   /**
    * すべての購読を解除する
    * @param {string} event - イベント名（省略時は全イベント）
@@ -323,16 +321,11 @@ export class ModuleMessenger {
   unsubscribeAll(event) {
     if (event) {
       this.subscribers.delete(event);
-      console.log(`イベント"${event}"のすべての購読を削除しました`);
     } else {
-      const totalSubscriptions = Array.from(this.subscribers.values())
-        .reduce((sum, subscribers) => sum + subscribers.size, 0);
-      
       this.subscribers.clear();
-      console.log(`すべての${totalSubscriptions}件の購読を削除しました`);
     }
   }
-  
+
   /**
    * 統計情報を取得する
    * @returns {Object} 統計データ
@@ -342,7 +335,7 @@ export class ModuleMessenger {
     const queueSize = this.messageQueue.length;
     const subscriberCount = Array.from(this.subscribers.values())
       .reduce((sum, subscribers) => sum + subscribers.size, 0);
-    
+
     return {
       ...this.stats,
       uptime,
@@ -353,16 +346,15 @@ export class ModuleMessenger {
       errorRate: this.stats.errors / Math.max(this.stats.messagesPublished, 1)
     };
   }
-  
+
   /**
    * 設定を更新する
    * @param {Object} newConfig - 新しい設定
    */
   updateConfig(newConfig) {
     this.config = { ...this.config, ...newConfig };
-    console.log('モジュールメッセンジャーの設定が更新されました:', this.config);
   }
-  
+
   /**
    * デバッグ情報を出力する
    */
@@ -377,7 +369,7 @@ export class ModuleMessenger {
     });
     console.groupEnd();
   }
-  
+
   /**
    * システムをリセットする
    */
@@ -392,10 +384,8 @@ export class ModuleMessenger {
       errors: 0,
       startTime: Date.now()
     };
-    
-    console.log('モジュールメッセンジャーがリセットされました');
   }
-  
+
   /**
    * 購読IDを生成する
    * @private
@@ -404,7 +394,7 @@ export class ModuleMessenger {
   generateSubscriptionId() {
     return `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
-  
+
   /**
    * メッセージIDを生成する
    * @private
@@ -413,7 +403,7 @@ export class ModuleMessenger {
   generateMessageId() {
     return `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   }
-  
+
   /**
    * 指定時間待機する
    * @private
@@ -446,17 +436,16 @@ export function getGlobalMessenger() {
  */
 export function initializeGlobalMessenger(config = {}) {
   globalMessenger = new ModuleMessenger();
-  
+
   if (Object.keys(config).length > 0) {
     globalMessenger.updateConfig(config);
   }
-  
+
   // 開発時のデバッグ用にwindowに公開
   if (typeof window !== 'undefined') {
     window.moduleMessenger = globalMessenger;
   }
-  
-  console.log('グローバルモジュールメッセンジャーが初期化されました');
+
   return globalMessenger;
 }
 
@@ -491,21 +480,21 @@ export const debugMessaging = () => {
 export const IMPORTANCE_MESSAGING_EVENTS = {
   // 重要度評価関連
   EVALUATION_REQUEST: 'importance:evaluationRequest',
-  EVALUATION_PROGRESS: 'importance:evaluationProgress', 
+  EVALUATION_PROGRESS: 'importance:evaluationProgress',
   EVALUATION_RESULT: 'importance:evaluationResult',
-  
+
   // 設定関連
   SETTINGS_CHANGE: 'importance:settingsChange',
   SETTINGS_SYNC: 'importance:settingsSync',
-  
+
   // UI関連
   UI_UPDATE_REQUEST: 'importance:uiUpdateRequest',
   UI_STATE_CHANGE: 'importance:uiStateChange',
-  
+
   // レンダリング関連
   RENDER_REQUEST: 'importance:renderRequest',
   MATERIAL_UPDATE: 'importance:materialUpdate',
-  
+
   // エラー関連
   ERROR_OCCURRED: 'importance:errorOccurred',
   WARNING_OCCURRED: 'importance:warningOccurred'

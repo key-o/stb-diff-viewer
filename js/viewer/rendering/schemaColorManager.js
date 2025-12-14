@@ -7,12 +7,14 @@
 import { BaseColorStateManager } from './baseColorStateManager.js';
 
 // スキーマ状態タイプ
-const SCHEMA_STATES = ['valid', 'error'];
+const SCHEMA_STATES = ['valid', 'info', 'warning', 'error'];
 
 // デフォルト色設定
 const DEFAULT_SCHEMA_COLORS = {
   valid: '#00aaff',     // 正常要素（水色）
-  error: '#ff0000',     // エラー要素（赤色）
+  info: '#32CD32',      // 自動修復可能（ライムグリーン）
+  warning: '#FFA500',   // 要確認（オレンジ）
+  error: '#ff0000'     // エラー要素（赤色）
 };
 
 /**
@@ -25,11 +27,16 @@ class SchemaColorManager extends BaseColorStateManager {
 
   /**
    * スキーマ色を取得
-   * @param {boolean} hasError - エラーがあるか
+   * @param {string|boolean} status - ステータス ('valid', 'info', 'warning', 'error') または hasError (boolean)
    * @returns {string} 色コード
    */
-  getSchemaColor(hasError) {
-    return this.getColor(hasError ? 'error' : 'valid');
+  getSchemaColor(status) {
+    // booleanの場合は後方互換性のため変換
+    if (typeof status === 'boolean') {
+      return this.getColor(status ? 'error' : 'valid');
+    }
+    // 文字列の場合はそのまま使用（デフォルトはvalid）
+    return this.getColor(status) || this.getColor('valid');
   }
 
   /**

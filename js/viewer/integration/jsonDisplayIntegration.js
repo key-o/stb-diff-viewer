@@ -52,7 +52,7 @@ export class JsonDisplayIntegration {
 
     try {
       // JSON解析
-      this.parsedData = typeof input === 'string' && input.startsWith('{') 
+      this.parsedData = typeof input === 'string' && input.startsWith('{')
         ? this.parser.parseFromObject(JSON.parse(input))
         : await this.parser.parseFromFile(input);
 
@@ -441,7 +441,7 @@ export class JsonDisplayIntegration {
       totalParsingTime: this.parsedData?.statistics.parseTime || 0,
       totalRenderingTime: this.renderingStats.generationTime,
       totalTime: (this.parsedData?.statistics.parseTime || 0) + this.renderingStats.generationTime,
-      meshesPerSecond: this.renderingStats.generationTime > 0 
+      meshesPerSecond: this.renderingStats.generationTime > 0
         ? (this.renderingStats.totalMeshes / (this.renderingStats.generationTime / 1000)).toFixed(1)
         : 0,
       memoryEstimate: this.renderingStats.totalMeshes * 1024 // 概算（バイト）

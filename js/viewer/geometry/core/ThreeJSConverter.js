@@ -8,7 +8,7 @@
  * @module ThreeJSConverter
  */
 
-import * as THREE from "three";
+import * as THREE from 'three';
 
 /**
  * プロファイルデータをTHREE.Shapeに変換
@@ -21,11 +21,11 @@ import * as THREE from "three";
  */
 export function convertProfileToThreeShape(profileData) {
   if (!profileData || !profileData.vertices || profileData.vertices.length < 3) {
-    throw new Error("Invalid profile data: vertices must have at least 3 points");
+    throw new Error('Invalid profile data: vertices must have at least 3 points');
   }
 
   // 円形プロファイルの場合は特別処理
-  if (profileData._meta && profileData._meta.type === "circular") {
+  if (profileData._meta && profileData._meta.type === 'circular') {
     return createCircularShape(profileData);
   }
 
@@ -104,7 +104,7 @@ export function createExtrudeGeometry(shape, length, { centerZ = true } = {}) {
     depth: length,
     bevelEnabled: false,
     steps: 1,
-    UVGenerator: THREE.ExtrudeGeometry.WorldUVGenerator,
+    UVGenerator: THREE.ExtrudeGeometry.WorldUVGenerator
   };
 
   const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
@@ -184,7 +184,7 @@ export function createMeshFromProfile(profileData, placement, material, userData
   mesh.userData = {
     ...userData,
     length: placement.length,
-    profileBased: true,
+    profileBased: true
   };
 
   return mesh;
@@ -212,7 +212,7 @@ export function attachPlacementAxisLine(mesh, length, lineMaterial, userData = {
   // ユーザーデータを設定
   line.userData = {
     isPlacementLine: true,
-    ...userData,
+    ...userData
   };
 
   line.matrixAutoUpdate = true;

@@ -17,6 +17,7 @@ import { IMPORTANCE_COLORS } from '../config/importanceConfig.js';
 import { getState, setState } from '../core/globalState.js';
 import { generateImportanceSummary } from '../comparator.js';
 import { floatingWindowManager } from './floatingWindowManager.js';
+import { UI_TIMING } from '../config/uiTimingConfig.js';
 
 /**
  * 重要度別統計表示クラス
@@ -29,7 +30,7 @@ export class ImportanceStatistics {
     this.autoUpdateEnabled = true;
     this.containerElement = null;
     this.chartCanvas = null;
-    
+
     this.setupEventListeners();
   }
 
@@ -47,7 +48,7 @@ export class ImportanceStatistics {
     // 重要度設定変更時の統計更新
     window.addEventListener('importanceSettingsChanged', (event) => {
       if (this.autoUpdateEnabled) {
-        setTimeout(() => this.refreshStatistics(), 500); // 少し遅らせて更新
+        setTimeout(() => this.refreshStatistics(), UI_TIMING.STATISTICS_REFRESH_DELAY_MS);
       }
     });
 
@@ -59,7 +60,7 @@ export class ImportanceStatistics {
 
   /**
    * 統計表示を初期化
-   * @param {HTMLElement} containerElement - 統計表示用コンテナ
+  * @param {HTMLElement} containerElement - 統計表示用コンテナー
    */
   initialize(containerElement) {
     this.containerElement = containerElement;
@@ -141,7 +142,14 @@ export class ImportanceStatistics {
               </div>
             </div>
           </div>
-          
+
+          <!-- 差分一覧を表示ボタン -->
+          <div class="statistics-actions">
+            <button id="open-diff-list-btn" class="btn btn-primary btn-diff-list" title="差分要素の一覧を表示し、クリックで該当要素にジャンプ">
+              📋 差分一覧を表示
+            </button>
+          </div>
+
           <!-- 重要度別詳細統計 -->
           <div class="statistics-details">
             <div class="details-header">
@@ -216,212 +224,17 @@ export class ImportanceStatistics {
 
     this.containerElement.insertAdjacentHTML('beforeend', statisticsHTML);
     this.chartCanvas = document.getElementById('importance-distribution-chart');
-    
+
     this.addStyles();
   }
 
   /**
    * スタイルを追加
+   * 注: スタイルは importance.css に外部化されました
    */
   addStyles() {
-    if (document.getElementById('importance-statistics-styles')) return;
-
-    const styles = `
-      <style id="importance-statistics-styles">
-        /* 統計パネル固有のスタイル（内部コンテンツのみ） */
-        #importance-statistics-panel {
-          width: 500px;
-          max-height: 80vh;
-        }
-
-        .statistics-content {
-        
-        .statistics-summary {
-          margin-bottom: 20px;
-        }
-        
-        .summary-cards {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
-        }
-        
-        .summary-card {
-          display: flex;
-          align-items: center;
-          padding: 12px;
-          border-radius: 6px;
-          border: 1px solid #eee;
-          background: white;
-        }
-        
-        .summary-card.total { border-left: 4px solid #007bff; }
-        .summary-card.differences { border-left: 4px solid #ffc107; }
-        .summary-card.critical { border-left: 4px solid #dc3545; }
-        
-        .summary-card.critical.alert {
-          background: #fff5f5;
-          animation: pulse 2s infinite;
-        }
-        
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.8; }
-        }
-        
-        .card-icon {
-          font-size: 24px;
-          margin-right: 12px;
-        }
-        
-        .card-content {
-          flex: 1;
-        }
-        
-        .card-value {
-          font-size: 20px;
-          font-weight: bold;
-          color: #333;
-        }
-        
-        .card-label {
-          font-size: 12px;
-          color: #666;
-          margin-top: 2px;
-        }
-        
-        .statistics-details, .statistics-by-type, .statistics-charts {
-          margin-bottom: 20px;
-        }
-        
-        .details-header, .type-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 12px;
-        }
-        
-        .details-header h4, .type-header h4 {
-          margin: 0;
-          font-size: 14px;
-          color: #333;
-        }
-        
-        .details-header select {
-          font-size: 12px;
-          padding: 2px 6px;
-          border: 1px solid #ddd;
-          border-radius: 3px;
-        }
-        
-        .statistics-table {
-          overflow-x: auto;
-        }
-        
-        .statistics-table table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 12px;
-        }
-        
-        .statistics-table th,
-        .statistics-table td {
-          padding: 6px 8px;
-          text-align: center;
-          border-bottom: 1px solid #eee;
-        }
-        
-        .statistics-table th {
-          background: #f8f9fa;
-          font-weight: bold;
-          color: #555;
-        }
-        
-        .statistics-table .importance-cell {
-          text-align: left;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-        
-        .importance-indicator {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-          border: 1px solid #ccc;
-        }
-        
-        .chart-container {
-          text-align: center;
-        }
-        
-        .chart-container h4 {
-          margin: 0 0 12px 0;
-          font-size: 14px;
-          color: #333;
-        }
-        
-        .filter-statistics {
-          border-top: 1px solid #eee;
-          padding-top: 16px;
-        }
-        
-        .filter-statistics h4 {
-          margin: 0 0 12px 0;
-          font-size: 14px;
-          color: #333;
-        }
-        
-        .filter-stats-content {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 12px;
-        }
-        
-        .filter-stat {
-          text-align: center;
-          padding: 8px;
-          background: #f8f9fa;
-          border-radius: 4px;
-        }
-        
-        .stat-label {
-          display: block;
-          font-size: 11px;
-          color: #666;
-          margin-bottom: 2px;
-        }
-        
-        .stat-value {
-          display: block;
-          font-size: 14px;
-          font-weight: bold;
-          color: #333;
-        }
-        
-        .type-statistics-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 6px 0;
-          border-bottom: 1px solid #f0f0f0;
-          font-size: 12px;
-        }
-        
-        .type-name {
-          font-weight: bold;
-          color: #555;
-        }
-        
-        .type-stats {
-          display: flex;
-          gap: 12px;
-          color: #666;
-        }
-      </style>
-    `;
-    
-    document.head.insertAdjacentHTML('beforeend', styles);
+    // スタイルは stb-diff-viewer/style/components/importance.css で定義
+    // このメソッドは互換性のために残されています
   }
 
   /**
@@ -452,6 +265,23 @@ export class ImportanceStatistics {
     document.getElementById('toggle-type-view').addEventListener('click', (e) => {
       this.toggleTypeDetailView();
     });
+
+    // 差分一覧を表示ボタン
+    document.getElementById('open-diff-list-btn').addEventListener('click', () => {
+      this.openDiffList();
+    });
+  }
+
+  /**
+   * 差分一覧パネルを開く
+   */
+  openDiffList() {
+    // グローバル関数経由で差分一覧パネルを開く
+    if (typeof window.toggleDiffList === 'function') {
+      window.toggleDiffList();
+    } else {
+      console.warn('差分一覧パネルが初期化されていません');
+    }
   }
 
   /**
@@ -461,14 +291,14 @@ export class ImportanceStatistics {
   updateStatistics(comparisonResults) {
     try {
       console.log('Updating statistics with comparison results:', comparisonResults);
-      
+
       // 比較結果から統計を生成
       const results = Array.from(comparisonResults.values());
       console.log('Raw comparison results:', results);
-      
+
       const resultsWithImportance = results.filter(result => result.importanceStats);
       console.log('Results with importance stats:', resultsWithImportance);
-      
+
       if (resultsWithImportance.length === 0) {
         console.warn('No results with importance statistics found');
         // 重要度情報がない場合は基本的な統計を作成
@@ -476,14 +306,14 @@ export class ImportanceStatistics {
       } else {
         this.statistics = generateImportanceSummary(resultsWithImportance);
       }
-      
+
       console.log('Final statistics:', this.statistics);
-      
+
       // 表示を更新
       if (this.isVisible) {
         this.updateDisplay();
       }
-      
+
     } catch (error) {
       console.error('Failed to update statistics:', error);
     }
@@ -516,15 +346,15 @@ export class ImportanceStatistics {
     // 各結果を処理
     results.forEach(result => {
       if (!result) return;
-      
+
       const matched = result.matched ? result.matched.length : 0;
       const onlyA = result.onlyA ? result.onlyA.length : 0;
       const onlyB = result.onlyB ? result.onlyB.length : 0;
       const differences = onlyA + onlyB;
-      
+
       this.statistics.totalElements += matched + differences;
       this.statistics.totalDifferences += differences;
-      
+
       // 要素タイプ別統計
       if (result.elementType || result.isSelected !== undefined) {
         const elementType = result.elementType || 'Unknown';
@@ -535,7 +365,7 @@ export class ImportanceStatistics {
           totalOnlyB: onlyB
         };
       }
-      
+
       // デフォルトで高重要度として扱う
       this.statistics.byImportance[IMPORTANCE_LEVELS.REQUIRED].matched += matched;
       this.statistics.byImportance[IMPORTANCE_LEVELS.REQUIRED].onlyA += onlyA;
@@ -576,11 +406,11 @@ export class ImportanceStatistics {
    */
   updateSummaryCards() {
     const stats = this.statistics;
-    
+
     document.getElementById('total-elements').textContent = stats.totalElements;
     document.getElementById('total-differences').textContent = stats.totalDifferences;
     document.getElementById('critical-differences').textContent = stats.criticalDifferences;
-    
+
     // 高重要度差分がある場合は警告表示
     const criticalCard = document.getElementById('critical-card');
     if (stats.criticalDifferences > 0) {
@@ -596,19 +426,19 @@ export class ImportanceStatistics {
   updateStatisticsTable() {
     const tbody = document.getElementById('statistics-table-body');
     const viewMode = document.getElementById('statistics-view-mode').value;
-    
+
     tbody.innerHTML = '';
-    
+
     for (const [level, stats] of Object.entries(this.statistics.byImportance)) {
       const row = document.createElement('tr');
-      
+
       const levelName = IMPORTANCE_LEVEL_NAMES[level];
       const color = IMPORTANCE_COLORS[level];
       const total = stats.matched + stats.differences;
-      const percentage = this.statistics.totalElements > 0 
-        ? ((total / this.statistics.totalElements) * 100).toFixed(1) 
+      const percentage = this.statistics.totalElements > 0
+        ? ((total / this.statistics.totalElements) * 100).toFixed(1)
         : '0.0';
-      
+
       row.innerHTML = `
         <td class="importance-cell">
           <div class="importance-indicator" style="background-color: ${color};"></div>
@@ -620,12 +450,12 @@ export class ImportanceStatistics {
         <td><strong>${stats.differences}</strong></td>
         <td>${percentage}%</td>
       `;
-      
+
       // 高重要度差分がある行を強調
       if (level === IMPORTANCE_LEVELS.REQUIRED && stats.differences > 0) {
         row.style.backgroundColor = '#fff5f5';
       }
-      
+
       tbody.appendChild(row);
     }
   }
@@ -636,11 +466,11 @@ export class ImportanceStatistics {
   updateTypeStatistics() {
     const container = document.getElementById('type-statistics-container');
     container.innerHTML = '';
-    
+
     for (const [elementType, stats] of Object.entries(this.statistics.byElementType)) {
       const item = document.createElement('div');
       item.className = 'type-statistics-item';
-      
+
       item.innerHTML = `
         <div class="type-name">${elementType}</div>
         <div class="type-stats">
@@ -648,7 +478,7 @@ export class ImportanceStatistics {
           <span>一致: ${stats.totalMatched}</span>
         </div>
       `;
-      
+
       container.appendChild(item);
     }
   }
@@ -658,14 +488,14 @@ export class ImportanceStatistics {
    */
   updateChart() {
     if (!this.chartCanvas) return;
-    
+
     const ctx = this.chartCanvas.getContext('2d');
     const width = this.chartCanvas.width;
     const height = this.chartCanvas.height;
-    
+
     // キャンバスをクリア
     ctx.clearRect(0, 0, width, height);
-    
+
     // シンプルな円グラフを描画
     this.drawPieChart(ctx, width, height);
   }
@@ -680,19 +510,19 @@ export class ImportanceStatistics {
     const centerX = width / 2;
     const centerY = height / 2;
     const radius = Math.min(width, height) / 2 - 20;
-    
+
     const total = this.statistics.totalElements;
     if (total === 0) return;
-    
+
     let startAngle = 0;
-    
+
     for (const [level, stats] of Object.entries(this.statistics.byImportance)) {
       const count = stats.matched + stats.differences;
       if (count === 0) continue;
-      
+
       const angle = (count / total) * 2 * Math.PI;
       const color = IMPORTANCE_COLORS[level];
-      
+
       // セクションを描画
       ctx.beginPath();
       ctx.moveTo(centerX, centerY);
@@ -703,7 +533,7 @@ export class ImportanceStatistics {
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 2;
       ctx.stroke();
-      
+
       startAngle += angle;
     }
   }
@@ -714,10 +544,10 @@ export class ImportanceStatistics {
    */
   updateFilterStatistics(filterStats) {
     const filterContainer = document.getElementById('filter-statistics');
-    
+
     if (filterStats.totalElements > 0 && filterStats.hiddenElements > 0) {
       filterContainer.style.display = 'block';
-      
+
       document.getElementById('filter-visible').textContent = filterStats.visibleElements;
       document.getElementById('filter-hidden').textContent = filterStats.hiddenElements;
       document.getElementById('filter-efficiency').textContent = `${filterStats.filterEfficiency}%`;
@@ -742,9 +572,9 @@ export class ImportanceStatistics {
   toggleTypeDetailView() {
     const button = document.getElementById('toggle-type-view');
     const isDetailed = button.textContent === '簡易表示';
-    
+
     button.textContent = isDetailed ? '詳細表示' : '簡易表示';
-    
+
     // 詳細表示の実装（今後拡張可能）
     console.log(`Type detail view: ${!isDetailed ? 'detailed' : 'simple'}`);
   }
@@ -773,18 +603,18 @@ export class ImportanceStatistics {
       const jsonContent = JSON.stringify(exportData, null, 2);
       const blob = new Blob([jsonContent], { type: 'application/json' });
       const link = document.createElement('a');
-      
+
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
       link.setAttribute('download', `importance_statistics_${new Date().toISOString().slice(0, 10)}.json`);
       link.style.visibility = 'hidden';
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       console.log('Statistics exported successfully');
-      
+
     } catch (error) {
       console.error('Failed to export statistics:', error);
       alert('統計データのエクスポートに失敗しました。');
@@ -818,7 +648,7 @@ export class ImportanceStatistics {
    */
   setAutoUpdate(enabled) {
     this.autoUpdateEnabled = enabled;
-    
+
     if (enabled && !this.updateInterval) {
       // 定期更新を開始（30秒間隔）
       this.updateInterval = setInterval(() => {

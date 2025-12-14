@@ -13,16 +13,22 @@ import {
   animate,
   setupViewportResizeHandler,
   setSkipControlsUpdate,
-  getActiveCamera,
-} from "./core/core.js";
-import { materials } from "./rendering/materials.js";
+  getActiveCamera
+} from './core/core.js';
+import { materials } from './rendering/materials.js';
 import {
   drawLineElements,
   drawPolyElements,
-  drawNodes,
-} from "./rendering/elements.js";
-import { createLabel } from "./ui/labels.js";
-import { drawAxes, drawStories } from "./ui/layout.js";
+  drawNodes
+} from './rendering/elements.js';
+import {
+  drawLineElementsBatched,
+  drawNodesBatched,
+  shouldUseBatchRendering,
+  getElementFromBatchedIntersection
+} from './rendering/batchedElements.js';
+import { createLabel } from './ui/labels.js';
+import { drawAxes, drawStories } from './ui/layout.js';
 import {
   clearClippingPlanes,
   applyClipPlanes,
@@ -30,8 +36,8 @@ import {
   adjustCameraToFitModel,
   clearSceneContent,
   createOrUpdateGridHelper,
-  getModelBounds,
-} from "./utils/utils.js";
+  getModelBounds
+} from './utils/utils.js';
 
 // 必要なものを再エクスポート
 export {
@@ -53,6 +59,10 @@ export {
   drawLineElements,
   drawPolyElements,
   drawNodes,
+  drawLineElementsBatched,
+  drawNodesBatched,
+  shouldUseBatchRendering,
+  getElementFromBatchedIntersection,
   createLabel,
   drawAxes,
   drawStories,
@@ -62,5 +72,5 @@ export {
   adjustCameraToFitModel,
   clearSceneContent,
   createOrUpdateGridHelper,
-  getModelBounds,
+  getModelBounds
 };

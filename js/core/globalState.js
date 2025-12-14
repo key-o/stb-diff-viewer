@@ -30,10 +30,23 @@ class ApplicationState {
         modelBDocument: null,
         nodeMapA: new Map(),
         nodeMapB: new Map(),
+        // IFC変換用: 生の座標データ（THREE.Vector3変換前）
+        nodeMapRawA: new Map(),
+        nodeMapRawB: new Map(),
         sectionMaps: {
           columnSections: new Map(),
+          girderSections: new Map(),
           beamSections: new Map(),
           braceSections: new Map()
+        },
+        // 鋼材断面データ（IFC変換で再利用）
+        steelSections: new Map(),
+        // 要素データ（IFC変換で再利用）
+        elementData: {
+          columnElements: [],
+          girderElements: [],
+          beamElements: [],
+          braceElements: []
         },
         modelsLoaded: false
       },
@@ -94,14 +107,14 @@ class ApplicationState {
   set(path, value) {
     const keys = path.split('.');
     let target = this.state;
-    
+
     for (let i = 0; i < keys.length - 1; i++) {
       if (!target[keys[i]]) {
         target[keys[i]] = {};
       }
       target = target[keys[i]];
     }
-    
+
     const lastKey = keys[keys.length - 1];
     const oldValue = target[lastKey];
     target[lastKey] = value;
@@ -122,14 +135,14 @@ class ApplicationState {
   get(path) {
     const keys = path.split('.');
     let target = this.state;
-    
+
     for (const key of keys) {
       if (target === null || target === undefined) {
         return undefined;
       }
       target = target[key];
     }
-    
+
     return target;
   }
 
@@ -184,7 +197,7 @@ class ApplicationState {
    */
   registerFunction(name, func) {
     this.set(`functions.${name}`, func);
-    
+
     // 後方互換性のためにwindowにも設定
     if (typeof window !== 'undefined') {
       window[name] = func;
@@ -234,10 +247,20 @@ class ApplicationState {
         modelBDocument: null,
         nodeMapA: new Map(),
         nodeMapB: new Map(),
+        nodeMapRawA: new Map(),
+        nodeMapRawB: new Map(),
         sectionMaps: {
           columnSections: new Map(),
+          girderSections: new Map(),
           beamSections: new Map(),
           braceSections: new Map()
+        },
+        steelSections: new Map(),
+        elementData: {
+          columnElements: [],
+          girderElements: [],
+          beamElements: [],
+          braceElements: []
         },
         modelsLoaded: false
       },

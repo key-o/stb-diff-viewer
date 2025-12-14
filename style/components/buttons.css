@@ -1,0 +1,238 @@
+/**
+ * ボタンコンポーネント
+ *
+ * 全てのボタンに共通するスタイルとバリエーションを定義します。
+ */
+
+/* ========================================
+   ボタン基本スタイル
+   ======================================== */
+
+.btn {
+  display: inline-block;
+  font-weight: var(--font-weight-normal);
+  text-align: center;
+  white-space: nowrap;
+  vertical-align: middle;
+  user-select: none;
+  border: var(--border-width) solid transparent;
+  padding: var(--btn-padding-y) var(--btn-padding-x);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  border-radius: var(--border-radius);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.btn:hover {
+  text-decoration: none;
+}
+
+.btn:focus {
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(74, 111, 165, 0.25);
+}
+
+.btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* ========================================
+   ボタンサイズ
+   ======================================== */
+
+.btn-sm {
+  padding: var(--btn-padding-y-sm) var(--btn-padding-x-sm);
+  font-size: var(--font-size-sm);
+  border-radius: var(--border-radius-sm);
+}
+
+.btn-lg {
+  padding: var(--btn-padding-y-lg) var(--btn-padding-x-lg);
+  font-size: var(--font-size-lg);
+  border-radius: var(--border-radius-lg);
+}
+
+/* ========================================
+   ボタンバリエーション
+   ======================================== */
+
+/* Primary */
+.btn-primary {
+  color: var(--text-white);
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.btn-primary:active {
+  background-color: var(--color-primary-active);
+  border-color: var(--color-primary-active);
+}
+
+/* Secondary */
+.btn-secondary {
+  color: var(--text-white);
+  background-color: var(--color-secondary);
+  border-color: var(--color-secondary);
+}
+
+.btn-secondary:hover {
+  background-color: var(--color-secondary-hover);
+  border-color: var(--color-secondary-hover);
+}
+
+/* Success */
+.btn-success {
+  color: var(--text-white);
+  background-color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.btn-success:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+/* Danger */
+.btn-danger {
+  color: var(--text-white);
+  background-color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+}
+
+/* Warning */
+.btn-warning {
+  color: var(--text-primary);
+  background-color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
+.btn-warning:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
+}
+
+/* Info */
+.btn-info {
+  color: var(--text-white);
+  background-color: var(--color-info);
+  border-color: var(--color-info);
+}
+
+.btn-info:hover {
+  background-color: #138496;
+  border-color: #117a8b;
+}
+
+/* ========================================
+   特殊ボタン
+   ======================================== */
+
+/* 比較ボタン */
+.btn-primary.compare-button {
+  background: var(--color-primary);
+  color: var(--text-white);
+  border: none;
+  padding: 10px var(--spacing-md);
+  border-radius: 5px;
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-primary.compare-button:hover {
+  background: var(--color-primary-hover);
+}
+
+/* クリッピング適用ボタン */
+.clip-apply-btn {
+  background: var(--color-success);
+  color: var(--text-white);
+  border: none;
+  padding: 6px 12px;
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-top: 5px;
+}
+
+.clip-apply-btn:hover {
+  background: #218838;
+}
+
+.clip-apply-btn:active {
+  background: #1e7e34;
+}
+
+/* クリッピング解除ボタン */
+.clear-clip-btn {
+  background: var(--color-danger);
+  color: var(--text-white);
+  border: none;
+  padding: var(--spacing-sm) 16px;
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.clear-clip-btn:hover {
+  background: #c82333;
+}
+
+/* プレビューボタン */
+.preview-clip-btn {
+  background: var(--color-info);
+  color: var(--text-white);
+  border: none;
+  padding: var(--spacing-sm) 16px;
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-left: var(--spacing-sm);
+}
+
+.preview-clip-btn:hover {
+  background: #138496;
+}
+
+/* ========================================
+   表示モードボタン
+   ======================================== */
+
+.camera-mode-btn {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-sm);
+  border: var(--border-width) solid var(--border-color);
+  background: #fff;
+  color: var(--text-primary);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: all var(--transition-fast);
+}
+
+.camera-mode-btn:hover {
+  background-color: #f8f9fa;
+  border-color: var(--color-primary);
+  color: var(--text-primary);
+}
+
+.camera-mode-btn.active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--text-white);
+}

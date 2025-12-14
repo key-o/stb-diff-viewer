@@ -12,6 +12,9 @@ body {
   display: flex; /* Enable flex layout for body */
   height: 100vh; /* Ensure body takes full viewport height */
   flex-direction: row-reverse; /* ★★★ 追加: 要素の並び順を反転 ★★★ */
+  background-color: var(--bg-body);
+  color: var(--text-primary);
+  transition: background-color var(--transition-base), color var(--transition-base);
 }
 
 #overlay {
@@ -20,9 +23,8 @@ body {
   box-sizing: border-box; /* Include padding in width calculation */
   height: 100%; /* Make panel take full height of the flex container (body) */
   overflow-y: auto; /* Add scrollbar if content exceeds height */
-  background-color: #f4f4f4; /* Light background for the panel */
-  /* border-right: 1px solid #ccc; */ /* ★★★ 変更: 右の境界線を削除 ★★★ */
-  border-left: 1px solid #ccc; /* ★★★ 追加: 左に境界線を追加 ★★★ */
+  background-color: var(--bg-panel); /* Light background for the panel */
+  border-left: var(--border-width) solid var(--border-color); /* 左に境界線を追加 */
   flex-shrink: 0; /* Prevent panel from shrinking */
 }
 
@@ -30,20 +32,14 @@ body {
   flex-grow: 1; /* Allow canvas to take the remaining width */
   height: 100%; /* Make canvas take full height */
   display: block; /* Ensure canvas behaves correctly */
+  /* デバッグ用: 明示的に幅を指定し、最小幅を0にすることでflexでの折り返し問題を回避 */
+  width: 100%;
+  min-width: 0;
+  background-color: var(--bg-canvas);
+  outline: 2px dashed rgba(255,255,255,0.08);
 }
 
-/* Adjust legend panel positioning (assuming it overlays the canvas) */
-#legendPanel {
-  position: absolute; /* Position relative to the viewport */
-  bottom: 10px;
-  right: 10px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border: 1px solid #ccc;
-  padding: 10px;
-  border-radius: 5px;
-  z-index: 10; /* Ensure it's above the canvas */
-  /* display: none; is handled by JS */
-}
+/* #legendPanel は panels.css で定義 */
 
 /* Optional: Improve spacing within the overlay panel */
 #overlay label,
@@ -65,6 +61,42 @@ body {
   margin-bottom: 5px; /* Smaller margin for element toggles */
 }
 
+/* 表示要素設定テーブル */
+.element-settings-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.element-settings-table th,
+.element-settings-table td {
+  padding: 6px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.element-settings-table th {
+  background-color: var(--bg-secondary);
+  font-weight: 600;
+  font-size: 0.85em;
+}
+
+.element-settings-table td:first-child {
+  text-align: left;
+  white-space: nowrap;
+}
+
+.element-settings-table tbody tr:hover {
+  background-color: var(--bg-hover, rgba(0, 0, 0, 0.05));
+}
+
+.element-settings-table input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
 #overlay hr {
   margin-top: 15px;
   margin-bottom: 15px;
@@ -81,26 +113,54 @@ label {
   margin-bottom: 10px;
 }
 
+/* ========================================
+   サイドバー内ボタン（統一スタイル）
+   ======================================== */
+
+/* サイドバー内のトグルボタン共通スタイル（ウィンドウを開くボタン） */
+#overlay > button[id^="toggle-"] {
+  display: block;
+  width: 100%;
+  padding: 12px var(--spacing-md);
+  margin: 0;
+  margin-bottom: var(--spacing-sm);
+  background: var(--sidebar-btn-bg);
+  border: var(--border-width) solid var(--sidebar-btn-border);
+  border-radius: var(--border-radius-lg);
+  color: var(--sidebar-btn-text);
+  font-weight: var(--font-weight-medium);
+  font-size: 0.95em;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+}
+
+#overlay > button[id^="toggle-"]:hover {
+  background: var(--sidebar-btn-hover-bg);
+  border-color: var(--color-primary-light);
+}
+
+/* 一般的なボタン（フォールバック） */
 button {
-  background-color: #007bff;
-  color: white;
+  background-color: var(--color-primary);
+  color: var(--text-white);
   border: none;
-  padding: 10px 15px;
-  border-radius: 5px;
+  padding: var(--btn-padding-y-lg) var(--btn-padding-x-lg);
+  border-radius: var(--border-radius);
   cursor: pointer;
   margin-top: 10px;
 }
 
 button:hover {
-  background-color: #0056b3;
+  background-color: var(--color-primary-hover);
 }
 
 .panel {
-  margin-top: 20px;
+  margin-top: var(--spacing-lg);
   padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  background-color: #fff;
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--bg-body);
 }
 
 .panel-header {
@@ -113,17 +173,7 @@ button:hover {
   flex-direction: column;
 }
 
-.legend-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 5px;
-}
-
-.legend-color {
-  width: 20px;
-  height: 20px;
-  margin-right: 10px;
-}
+/* .legend-item と .legend-color は color-modes.css で定義 */
 
 canvas {
   width: 100%;
@@ -144,13 +194,13 @@ canvas {
 }
 .info-table th,
 .info-table td {
-  border: 1px solid #ddd;
-  padding: 8px;
+  border: var(--border-width) solid var(--border-color-light);
+  padding: var(--spacing-sm);
   text-align: left;
   vertical-align: top;
 }
 .info-table th {
-  background-color: #f2f2f2;
+  background-color: var(--accordion-header-bg);
 }
 #component-info h4 {
   margin-top: 1em;
@@ -159,13 +209,13 @@ canvas {
 
 /* 色付けモード状況表示 */
 .color-mode-status {
-  margin-top: 8px;
-  padding: 6px 10px;
-  border-radius: 4px;
-  font-size: 0.85em;
-  background-color: #e3f2fd;
-  border: 1px solid #bbdefb;
-  color: #1976d2;
+  margin-top: var(--spacing-sm);
+  padding: var(--btn-padding-y) 10px;
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  background-color: rgba(74, 111, 165, 0.1);
+  border: var(--border-width) solid rgba(74, 111, 165, 0.3);
+  color: var(--color-primary);
   text-align: center;
 }
 

@@ -10,14 +10,14 @@
  * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
-import { loadStbXmlAutoEncoding } from "../viewer/utils/utils.js";
+import { loadStbXmlAutoEncoding } from '../viewer/utils/utils.js';
 import {
   buildNodeMap,
   parseStories,
   parseAxes,
-  extractAllSections,
-} from "../parser/stbXmlParser.js";
-import { setState } from "../core/globalState.js";
+  extractAllSections
+} from '../parser/stbXmlParser.js';
+import { setState } from '../core/globalState.js';
 
 /**
  * Process model documents and extract structural data
@@ -32,7 +32,16 @@ export async function processModelDocuments(fileA, fileB) {
   let nodeMapB = new Map();
   let stories = [];
   let axesData = { xAxes: [], yAxes: [] };
-  let sectionMaps = { columnSections: new Map(), beamSections: new Map(), braceSections: new Map() };
+  const sectionMaps = {
+    columnSections: new Map(),
+    postSections: new Map(),
+    girderSections: new Map(),
+    beamSections: new Map(),
+    braceSections: new Map(),
+    pileSections: new Map(),
+    footingSections: new Map(),
+    foundationcolumnSections: new Map()
+  };
 
   try {
     // Process Model A
@@ -42,7 +51,7 @@ export async function processModelDocuments(fileA, fileB) {
       nodeMapA = resultA.nodeMap;
       stories.push(...resultA.stories);
       axesData = resultA.axesData;
-      
+
       // Merge section data from Model A
       mergeSectionMaps(sectionMaps, resultA.sectionMaps);
     }
@@ -52,20 +61,20 @@ export async function processModelDocuments(fileA, fileB) {
       const resultB = await processModelFile(fileB, 'B');
       modelBDocument = resultB.document;
       nodeMapB = resultB.nodeMap;
-      
+
       // If Model A doesn't exist, use Model B's story and axis data
       if (!fileA) {
         stories.length = 0;
         stories.push(...resultB.stories);
         axesData = resultB.axesData;
       }
-      
+
       // Merge section data from Model B
       mergeSectionMaps(sectionMaps, resultB.sectionMaps);
     }
 
     // Section maps will be stored in global state by modelLoader.js as 'sectionsData'
-    console.log(`Stored section maps: ${sectionMaps.columnSections.size} column sections, ${sectionMaps.beamSections.size} beam sections, ${sectionMaps.braceSections.size} brace sections`);
+    console.log(`Stored section maps: Column=${sectionMaps.columnSections.size}, Post=${sectionMaps.postSections.size}, Girder=${sectionMaps.girderSections.size}, Beam=${sectionMaps.beamSections.size}, Brace=${sectionMaps.braceSections.size}, Pile=${sectionMaps.pileSections.size}, Footing=${sectionMaps.footingSections.size}, FoundationColumn=${sectionMaps.foundationcolumnSections.size}`);
 
     // Remove duplicates from stories and sort by height
     const uniqueStoriesMap = new Map();
@@ -86,7 +95,7 @@ export async function processModelDocuments(fileA, fileB) {
     };
 
   } catch (error) {
-    console.error("Model processing failed:", error);
+    console.error('Model processing failed:', error);
     return {
       success: false,
       error: error.message,
@@ -109,7 +118,7 @@ export async function processModelDocuments(fileA, fileB) {
 async function processModelFile(file, modelId) {
   try {
     console.log(`Processing Model ${modelId}:`, file.name);
-    
+
     // Load and parse STB XML document
     const document = await loadStbXmlAutoEncoding(file);
     if (!document) {
@@ -159,8 +168,8 @@ export function clearModelProcessingState() {
   // Clear global window references
   window.docA = null;
   window.docB = null;
-  
-  console.log("Model processing state cleared");
+
+  console.log('Model processing state cleared');
 }
 
 /**
@@ -200,7 +209,7 @@ export function validateModelDocument(document, modelId) {
   const structuralElements = [
     'StbColumn', 'StbGirder', 'StbBeam', 'StbBrace', 'StbSlab', 'StbWall'
   ];
-  
+
   let totalElements = 0;
   structuralElements.forEach(elementType => {
     const elements = document.getElementsByTagName(elementType);
@@ -224,25 +233,27 @@ export function validateModelDocument(document, modelId) {
  */
 function mergeSectionMaps(targetMaps, sourceMaps) {
   if (!sourceMaps) return;
-  
-  // Merge column sections
-  if (sourceMaps.columnSections) {
-    sourceMaps.columnSections.forEach((value, key) => {
-      targetMaps.columnSections.set(key, value);
-    });
-  }
-  
-  // Merge beam sections
-  if (sourceMaps.beamSections) {
-    sourceMaps.beamSections.forEach((value, key) => {
-      targetMaps.beamSections.set(key, value);
-    });
-  }
-  
-  // Merge brace sections
-  if (sourceMaps.braceSections) {
-    sourceMaps.braceSections.forEach((value, key) => {
-      targetMaps.braceSections.set(key, value);
-    });
-  }
+
+  // すべての要素タイプの断面データをマージ
+  const sectionTypes = [
+    'columnSections',
+    'postSections',
+    'girderSections',
+    'beamSections',
+    'braceSections',
+    'pileSections',
+    'footingSections',
+    'foundationcolumnSections'
+  ];
+
+  sectionTypes.forEach(sectionType => {
+    if (sourceMaps[sectionType]) {
+      sourceMaps[sectionType].forEach((value, key) => {
+        if (!targetMaps[sectionType]) {
+          targetMaps[sectionType] = new Map();
+        }
+        targetMaps[sectionType].set(key, value);
+      });
+    }
+  });
 }

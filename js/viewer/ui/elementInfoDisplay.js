@@ -26,43 +26,49 @@ import {
   getAttributeInfo,
   loadXsdSchema,
   validateAttributeValue,
-  validateElement,
-} from "../../parser/xsdSchemaParser.js";
+  validateElement
+} from '../../parser/xsdSchemaParser.js';
 
 // 新しいパラメータ編集機能をインポート
-import { ParameterEditor } from "../../ui/parameterEditor.js";
-import { SuggestionEngine } from "../../core/suggestionEngine.js";
+import { ParameterEditor } from '../../ui/parameterEditor.js';
+import { SuggestionEngine } from '../../core/suggestionEngine.js';
 
 // FloatingWindowManagerをインポート
-import { floatingWindowManager } from "../../ui/floatingWindow.js";
+import { floatingWindowManager } from '../../ui/floatingWindow.js';
 
 // STBエクスポーターをインポート
 import {
   exportModifiedStb,
   validateDocumentForExport,
-  generateModificationReport,
-} from "../../exporter/stbExporter.js";
+  generateModificationReport
+} from '../../exporter/stbExporter.js';
 
 // 重要度管理機能をインポート
 import {
   getImportanceManager,
-  IMPORTANCE_LEVELS,
-} from "../../core/importanceManager.js";
-import { IMPORTANCE_COLORS } from "../../config/importanceConfig.js";
+  IMPORTANCE_LEVELS
+} from '../../core/importanceManager.js';
+import { IMPORTANCE_COLORS } from '../../config/importanceConfig.js';
 
 // 断面等価性評価エンジンをインポート
-import { evaluateSectionEquivalence } from "../../core/sectionEquivalenceEngine.js";
+import { evaluateSectionEquivalence } from '../../core/sectionEquivalenceEngine.js';
 
 // 要素動的更新機能をインポート
-import { regenerateElementGeometry } from "../elementUpdater.js";
-import { updateLabelsForElement } from "../../ui/labelRegeneration.js";
+import { regenerateElementGeometry } from '../elementUpdater.js';
+import { updateLabelsForElement } from '../../ui/labelRegeneration.js';
+
+// バリデーション連携機能をインポート
+import {
+  generateValidationInfoHtml,
+  getValidationStyles
+} from '../../validation/validationIntegration.js';
 
 // XMLドキュメントへの参照 (main.jsのwindowオブジェクト経由で設定される想定)
 
 // パネル幅の状態を保持するグローバル変数とlocalStorage連携
-let storedPanelWidth = localStorage.getItem("stbDiffViewer_panelWidth") || null;
+let storedPanelWidth = localStorage.getItem('stbDiffViewer_panelWidth') || null;
 let storedPanelHeight =
-  localStorage.getItem("stbDiffViewer_panelHeight") || null;
+  localStorage.getItem('stbDiffViewer_panelHeight') || null;
 
 // XSDスキーマの初期化フラグ
 let schemaInitialized = false;
@@ -81,7 +87,7 @@ async function initializeSchema() {
   // まず既に読み込まれているかチェック
   if (isSchemaLoaded()) {
     console.log(
-      "[ElementInfoDisplay] XSD schema already loaded by another module"
+      '[ElementInfoDisplay] XSD schema already loaded by another module'
     );
     schemaInitialized = true;
     return;
@@ -89,18 +95,18 @@ async function initializeSchema() {
 
   try {
     // ST-Bridge202.xsdファイルを使用（相対パスで指定）
-    const xsdPath = "./schemas/ST-Bridge202.xsd";
+    const xsdPath = './schemas/ST-Bridge202.xsd';
     const success = await loadXsdSchema(xsdPath);
     if (success) {
-      console.log("[ElementInfoDisplay] XSD schema initialized successfully");
+      console.log('[ElementInfoDisplay] XSD schema initialized successfully');
     } else {
       console.warn(
-        "[ElementInfoDisplay] XSD schema initialization failed, using fallback mode"
+        '[ElementInfoDisplay] XSD schema initialization failed, using fallback mode'
       );
     }
   } catch (error) {
     console.warn(
-      "[ElementInfoDisplay] XSD schema initialization error:",
+      '[ElementInfoDisplay] XSD schema initialization error:',
       error
     );
   } finally {
@@ -118,31 +124,31 @@ function getAttributeImportanceLevel(elementType, attributeName) {
   try {
     const manager = getImportanceManager();
     if (!manager) {
-      console.warn("[Importance] ImportanceManager not available");
+      console.warn('[Importance] ImportanceManager not available');
       return IMPORTANCE_LEVELS.OPTIONAL;
     }
 
     if (!manager.isInitialized) {
-      console.warn("[Importance] ImportanceManager not initialized");
+      console.warn('[Importance] ImportanceManager not initialized');
       return IMPORTANCE_LEVELS.OPTIONAL;
     }
 
     // 要素タイプに対応するコンテナ名のマッピング
     const containerMapping = {
-      Node: "StbNodes",
-      Column: "StbColumns",
-      Girder: "StbGirders",
-      Beam: "StbBeams",
-      Brace: "StbBraces",
-      Slab: "StbSlabs",
-      Wall: "StbWalls",
-      Story: "StbStories",
-      Axis: "StbAxes", // 注: AxisはStbParallelAxes, StbArcAxes, StbRadialAxesなど複数ある
+      Node: 'StbNodes',
+      Column: 'StbColumns',
+      Girder: 'StbGirders',
+      Beam: 'StbBeams',
+      Brace: 'StbBraces',
+      Slab: 'StbSlabs',
+      Wall: 'StbWalls',
+      Story: 'StbStories',
+      Axis: 'StbAxes' // 注: AxisはStbParallelAxes, StbArcAxes, StbRadialAxesなど複数ある
     };
 
     // ST-Bridge要素名を構築 (例: StbColumn, StbNode)
     const stbElementName =
-      elementType === "Node" ? "StbNode" : `Stb${elementType}`;
+      elementType === 'Node' ? 'StbNode' : `Stb${elementType}`;
 
     // コンテナ名を取得
     const containerName = containerMapping[elementType] || `Stb${elementType}s`;
@@ -173,7 +179,7 @@ function getAttributeImportanceLevel(elementType, attributeName) {
 function getImportanceBasedBackgroundColor(importanceLevel, modelSource) {
   // モデルソースが指定されていない場合は色付けしない
   if (!modelSource) {
-    return "";
+    return '';
   }
 
   // ランタイム色設定または設定ファイルの色を使用
@@ -220,18 +226,18 @@ function getModelSourceBackgroundColor(
 
   // フォールバック: 従来の固定色を使用
   if (!modelSource) {
-    return "";
+    return '';
   }
 
   switch (modelSource) {
-    case "A":
-      return "background-color: rgba(0, 255, 0, 0.1);"; // 緑の薄い背景
-    case "B":
-      return "background-color: rgba(255, 0, 0, 0.1);"; // 赤の薄い背景
-    case "matched":
-      return "background-color: rgba(0, 170, 255, 0.1);"; // 青の薄い背景
+    case 'A':
+      return 'background-color: rgba(0, 255, 0, 0.1);'; // 緑の薄い背景
+    case 'B':
+      return 'background-color: rgba(255, 0, 0, 0.1);'; // 赤の薄い背景
+    case 'matched':
+      return 'background-color: rgba(0, 170, 255, 0.1);'; // 青の薄い背景
     default:
-      return "";
+      return '';
   }
 }
 
@@ -258,18 +264,18 @@ function getSingleValueBackgroundColor(
 
   // フォールバック: 従来の固定色を使用
   if (!modelSource) {
-    return "";
+    return '';
   }
 
   switch (modelSource) {
-    case "A":
-      return "background-color: rgba(0, 255, 0, 0.1);"; // 緑の薄い背景
-    case "B":
-      return "background-color: rgba(255, 0, 0, 0.1);"; // 赤の薄い背景
-    case "matched":
-      return "background-color: rgba(0, 170, 255, 0.1);"; // 青の薄い背景
+    case 'A':
+      return 'background-color: rgba(0, 255, 0, 0.1);'; // 緑の薄い背景
+    case 'B':
+      return 'background-color: rgba(255, 0, 0, 0.1);'; // 赤の薄い背景
+    case 'matched':
+      return 'background-color: rgba(0, 170, 255, 0.1);'; // 青の薄い背景
     default:
-      return "";
+      return '';
   }
 }
 
@@ -293,7 +299,7 @@ export async function displayElementInfo(
     // 選択が解除された場合は、currentEditingElement をクリアして終了
     // ただし、パネルは閉じない（新しい選択が続く可能性があるため）
     currentEditingElement = null;
-    console.log("displayElementInfo: 無効なパラメータ、選択を解除します", { idA, idB, elementType });
+    console.log('displayElementInfo: 無効なパラメータ、選択を解除します', { idA, idB, elementType });
     return;
   }
 
@@ -304,26 +310,26 @@ export async function displayElementInfo(
   currentEditingElement = { idA, idB, elementType, modelSource };
 
   // --- デバッグ用ログを更新 ---
-  console.log("displayElementInfo called with:", {
+  console.log('displayElementInfo called with:', {
     idA,
     idB,
-    elementType,
+    elementType
   });
-  console.log("window.docA exists:", !!window.docA);
-  console.log("window.docB exists:", !!window.docB);
-  console.log("XSD schema loaded:", isSchemaLoaded());
+  console.log('window.docA exists:', !!window.docA);
+  console.log('window.docB exists:', !!window.docB);
+  console.log('XSD schema loaded:', isSchemaLoaded());
   // --- デバッグ用ログここまで ---
 
-  const panel = document.getElementById("component-info");
-  const contentDiv = document.getElementById("element-info-content");
+  const panel = document.getElementById('component-info');
+  const contentDiv = document.getElementById('element-info-content');
   if (!panel || !contentDiv) {
-    console.error("Component info panel or content div not found!");
+    console.error('Component info panel or content div not found!');
     return;
   }
 
   // 要素情報を表示する際にパネルを自動的に表示
   if (elementType && (idA || idB)) {
-    floatingWindowManager.showWindow("component-info");
+    floatingWindowManager.showWindow('component-info');
   }
 
   // ---------------- 単一モデル / XML未ロード時のフォールバック ----------------
@@ -358,40 +364,40 @@ export async function displayElementInfo(
           const dimPairs = Object.entries(dims)
             .filter(
               ([k, v]) =>
-                typeof v === "number" ||
-                (typeof v === "string" && v.match(/^\d+(?:\.\d+)?$/))
+                typeof v === 'number' ||
+                (typeof v === 'string' && v.match(/^\d+(?:\.\d+)?$/))
             )
             .map(([k, v]) => `${k}: ${v}`)
             .slice(0, 24)
-            .join("<br>");
+            .join('<br>');
           const metaPairs = Object.entries(ud.profileMeta || {})
             .map(([k, v]) => `${k}: ${v}`)
-            .join("<br>");
+            .join('<br>');
           contentDiv.innerHTML = `
             <div style="font-weight:bold;margin-bottom:4px;">${elementType} (Mesh UserData)</div>
-            <div><strong>ID:</strong> ${ud.elementId || "-"}</div>
+            <div><strong>ID:</strong> ${ud.elementId || '-'}</div>
             <div><strong>Section Type:</strong> ${
-              ud.sectionType || ud.profileMeta?.sectionTypeResolved || "-"
-            }</div>
+  ud.sectionType || ud.profileMeta?.sectionTypeResolved || '-'
+}</div>
             <div><strong>Profile Source:</strong> ${
-              ud.profileMeta?.profileSource || "-"
-            }</div>
+  ud.profileMeta?.profileSource || '-'
+}</div>
             <div style="margin-top:6px;"><strong>Dimensions (from enriched section):</strong><br>${
-              dimPairs || "-"
-            }</div>
+  dimPairs || '-'
+}</div>
             <div style="margin-top:6px;"><strong>Profile Meta:</strong><br>${
-              metaPairs || "-"
-            }</div>
+  metaPairs || '-'
+}</div>
             <div style="margin-top:6px;"><strong>Raw shapeName:</strong> ${
-              sec.shapeName || ud.shapeName || "-"
-            }</div>
+  sec.shapeName || ud.shapeName || '-'
+}</div>
           `;
-          floatingWindowManager.showWindow("component-info");
+          floatingWindowManager.showWindow('component-info');
           return; // フォールバック表示完了
         }
       }
     } catch (e) {
-      console.warn("Fallback element info display failed:", e);
+      console.warn('Fallback element info display failed:', e);
     }
   }
 
@@ -405,9 +411,9 @@ export async function displayElementInfo(
       (hasModelA && !hasModelB) || (!hasModelA && hasModelB);
 
     if (isSingleModel) {
-      storedPanelWidth = "25vw"; // 単一モデル時は25vw（以前の15vwより大きく）
+      storedPanelWidth = '25vw'; // 単一モデル時は25vw（以前の15vwより大きく）
     } else {
-      storedPanelWidth = "30vw"; // 比較モード時は30vw（以前の20vwより大きく）
+      storedPanelWidth = '30vw'; // 比較モード時は30vw（以前の20vwより大きく）
     }
   }
 
@@ -419,19 +425,19 @@ export async function displayElementInfo(
     const mutationObserver = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (
-          mutation.type === "attributes" &&
-          mutation.attributeName === "style"
+          mutation.type === 'attributes' &&
+          mutation.attributeName === 'style'
         ) {
           // スタイル変更を検出したら、一時的にResizeObserverを無効化
           panel._ignoreResize = true;
           console.log(
-            "MutationObserver: スタイル変更を検出、ResizeObserver一時無効化"
+            'MutationObserver: スタイル変更を検出、ResizeObserver一時無効化'
           );
 
           // 少し遅延してから再有効化
           setTimeout(() => {
             panel._ignoreResize = false;
-            console.log("MutationObserver: ResizeObserver再有効化");
+            console.log('MutationObserver: ResizeObserver再有効化');
           }, 500);
         }
       });
@@ -439,31 +445,31 @@ export async function displayElementInfo(
 
     mutationObserver.observe(panel, {
       attributes: true,
-      attributeFilter: ["style"],
+      attributeFilter: ['style']
     });
     panel.hasMutationObserver = true;
-    console.log("MutationObserver設定完了");
+    console.log('MutationObserver設定完了');
   }
 
   // 保存された幅を適用
   if (storedPanelWidth) {
     // 保存された幅がピクセル単位の場合、最小幅をチェック
-    if (storedPanelWidth.endsWith("px")) {
+    if (storedPanelWidth.endsWith('px')) {
       const widthValue = parseInt(storedPanelWidth);
       if (widthValue >= 300) {
         panel.style.width = storedPanelWidth;
       } else {
-        panel.style.width = "300px"; // 最小幅を強制適用
-        storedPanelWidth = "300px";
-        localStorage.setItem("stbDiffViewer_panelWidth", storedPanelWidth);
+        panel.style.width = '300px'; // 最小幅を強制適用
+        storedPanelWidth = '300px';
+        localStorage.setItem('stbDiffViewer_panelWidth', storedPanelWidth);
       }
     } else {
       // vw単位などの場合はそのまま適用
       panel.style.width = storedPanelWidth;
     }
   }
-  panel.style.minWidth = "300px"; // 最小幅も大きめに設定（以前の240pxより大きく）
-  panel.style.maxWidth = "70vw"; // 最大幅も少し大きめに設定
+  panel.style.minWidth = '300px'; // 最小幅も大きめに設定（以前の240pxより大きく）
+  panel.style.maxWidth = '70vw'; // 最大幅も少し大きめに設定
 
   // 少し遅延してResizeObserverを再有効化
   setTimeout(() => {
@@ -473,11 +479,11 @@ export async function displayElementInfo(
     if (panel.hasResizeObserver) {
       // ResizeObserver内のlastKnownSizeを更新するため、カスタムイベントを使用
       panel.dispatchEvent(
-        new CustomEvent("initializeSize", {
+        new CustomEvent('initializeSize', {
           detail: {
             width: panel.offsetWidth,
-            height: panel.offsetHeight,
-          },
+            height: panel.offsetHeight
+          }
         })
       );
     }
@@ -487,10 +493,10 @@ export async function displayElementInfo(
   if (!panel.hasResizeObserver) {
     let resizeTimeout;
     let userIsResizing = false;
-    let lastKnownSize = { width: 0, height: 0 };
+    const lastKnownSize = { width: 0, height: 0 };
 
     // より確実なユーザーリサイズ検出
-    panel.addEventListener("mousedown", (e) => {
+    panel.addEventListener('mousedown', (e) => {
       // リサイズハンドル付近でのマウスダウンを検出（範囲を広げる）
       const rect = panel.getBoundingClientRect();
       const isNearRightBorder = e.clientX > rect.right - 20; // 20pxまで拡大
@@ -508,7 +514,7 @@ export async function displayElementInfo(
     });
 
     // サイズ初期化用のカスタムイベントリスナー
-    panel.addEventListener("initializeSize", (e) => {
+    panel.addEventListener('initializeSize', (e) => {
       lastKnownSize.width = e.detail.width;
       lastKnownSize.height = e.detail.height;
       console.log(
@@ -516,7 +522,7 @@ export async function displayElementInfo(
       );
     });
 
-    document.addEventListener("mouseup", () => {
+    document.addEventListener('mouseup', () => {
       if (userIsResizing) {
         // リサイズ終了時に少し遅延してサイズを保存
         setTimeout(() => {
@@ -535,7 +541,7 @@ export async function displayElementInfo(
             if (currentWidth > 300) {
               storedPanelWidth = `${currentWidth}px`;
               localStorage.setItem(
-                "stbDiffViewer_panelWidth",
+                'stbDiffViewer_panelWidth',
                 storedPanelWidth
               );
               console.log(`Panel width saved on mouseup: ${currentWidth}px`);
@@ -543,7 +549,7 @@ export async function displayElementInfo(
             if (currentHeight > 100) {
               storedPanelHeight = `${currentHeight}px`;
               localStorage.setItem(
-                "stbDiffViewer_panelHeight",
+                'stbDiffViewer_panelHeight',
                 storedPanelHeight
               );
               console.log(`Panel height saved on mouseup: ${currentHeight}px`);
@@ -558,7 +564,7 @@ export async function displayElementInfo(
     const resizeObserver = new ResizeObserver((entries) => {
       // プログラム的な変更を無視
       if (panel._ignoreResize) {
-        console.log("ResizeObserver: 無視（プログラム的な変更）");
+        console.log('ResizeObserver: 無視（プログラム的な変更）');
         return;
       }
 
@@ -567,7 +573,7 @@ export async function displayElementInfo(
       resizeTimeout = setTimeout(() => {
         // 再度チェック（デバウンス期間中にフラグが変わる可能性があるため）
         if (panel._ignoreResize) {
-          console.log("ResizeObserver: 遅延後も無視");
+          console.log('ResizeObserver: 遅延後も無視');
           return;
         }
 
@@ -593,7 +599,7 @@ export async function displayElementInfo(
             if (currentWidth > 300) {
               storedPanelWidth = `${currentWidth}px`;
               localStorage.setItem(
-                "stbDiffViewer_panelWidth",
+                'stbDiffViewer_panelWidth',
                 storedPanelWidth
               );
               console.log(
@@ -603,7 +609,7 @@ export async function displayElementInfo(
             if (currentHeight > 100) {
               storedPanelHeight = `${currentHeight}px`;
               localStorage.setItem(
-                "stbDiffViewer_panelHeight",
+                'stbDiffViewer_panelHeight',
                 storedPanelHeight
               );
               console.log(
@@ -620,7 +626,7 @@ export async function displayElementInfo(
     });
     resizeObserver.observe(panel);
     panel.hasResizeObserver = true;
-    console.log("ResizeObserver設定完了");
+    console.log('ResizeObserver設定完了');
   }
 
   // 保存された高さがあれば適用
@@ -630,14 +636,14 @@ export async function displayElementInfo(
 
   // IDやタイプがnullならパネルをクリア
   if (elementType === null || (idA === null && idB === null)) {
-    contentDiv.innerHTML = "要素を選択してください。"; // デフォルトメッセージ
+    contentDiv.innerHTML = '要素を選択してください。'; // デフォルトメッセージ
     return;
   }
 
   let nodeA = null;
   let nodeB = null;
-  let title = "";
-  const tagName = elementType === "Node" ? "StbNode" : `Stb${elementType}`;
+  let title = '';
+  const tagName = elementType === 'Node' ? 'StbNode' : `Stb${elementType}`;
 
   // モデルAの要素を取得試行
   if (idA && window.docA) {
@@ -655,7 +661,7 @@ export async function displayElementInfo(
           `First few IDs:`,
           Array.from(allElements)
             .slice(0, 5)
-            .map((el) => el.getAttribute("id"))
+            .map((el) => el.getAttribute('id'))
         );
       }
     } else {
@@ -682,7 +688,7 @@ export async function displayElementInfo(
           `First few IDs:`,
           Array.from(allElements)
             .slice(0, 5)
-            .map((el) => el.getAttribute("id"))
+            .map((el) => el.getAttribute('id'))
         );
       }
     } else {
@@ -694,9 +700,9 @@ export async function displayElementInfo(
 
   // 要素が両方見つからない場合はエラー表示
   if (!nodeA && !nodeB) {
-    panel.textContent = `エラー: ID ${idA ? `A:${idA}` : ""}${
-      idA && idB ? ", " : ""
-    }${idB ? `B:${idB}` : ""} の ${elementType} 要素が見つかりません。`;
+    panel.textContent = `エラー: ID ${idA ? `A:${idA}` : ''}${
+      idA && idB ? ', ' : ''
+    }${idB ? `B:${idB}` : ''} の ${elementType} 要素が見つかりません。`;
     console.error(
       `Element ${elementType} with ID A:${idA} or B:${idB} not found.`
     );
@@ -704,9 +710,9 @@ export async function displayElementInfo(
   }
 
   // タイトル設定（XSDスキーマ状況を含む）
-  let schemaInfo = "";
+  let schemaInfo = '';
   const schemaElementName =
-    elementType === "Node" ? "StbNode" : `Stb${elementType}`;
+    elementType === 'Node' ? 'StbNode' : `Stb${elementType}`;
 
   if (isSchemaLoaded()) {
     const attrCount = getAllAttributeNames(schemaElementName).length;
@@ -727,14 +733,14 @@ export async function displayElementInfo(
   console.log(`Schema status for ${schemaElementName}:`, {
     schemaLoaded: isSchemaLoaded(),
     attributeCount: getAllAttributeNames(schemaElementName).length,
-    availableElements: isSchemaLoaded() ? "Available in console" : "None",
+    availableElements: isSchemaLoaded() ? 'Available in console' : 'None'
   });
 
   // スキーマが読み込まれている場合、利用可能な要素一覧をコンソールに出力
   if (isSchemaLoaded()) {
-    import("../../parser/xsdSchemaParser.js").then(
+    import('../../parser/xsdSchemaParser.js').then(
       ({ getAvailableElements }) => {
-        console.log("Available XSD elements:", getAvailableElements());
+        console.log('Available XSD elements:', getAvailableElements());
       }
     );
   }
@@ -773,11 +779,14 @@ function showInfo(
   modelSource = null,
   elementType = null
 ) {
-  console.log("Title:", title);
+  console.log('Title:', title);
   if (!panel || !contentDiv) {
-    console.error("Panel or contentDiv is missing in showInfo");
+    console.error('Panel or contentDiv is missing in showInfo');
     return;
   }
+
+  const idA = nodeA ? nodeA.getAttribute('id') : null;
+  const idB = nodeB ? nodeB.getAttribute('id') : null;
 
   let content = `<h3>${title}</h3>`;
 
@@ -795,7 +804,7 @@ function showInfo(
 
   if (showSingleColumn) {
     // 単一モデル表示用のテーブルヘッダー
-    const modelName = hasOnlyA || hasModelA ? "モデル A" : "モデル B";
+    const modelName = hasOnlyA || hasModelA ? 'モデル A' : 'モデル B';
     content += `<thead><tr><th style="width: 50%;">要素 / 属性</th><th style="width: 50%;">${modelName}</th></tr></thead>`;
   } else {
     // 比較表示用のテーブルヘッダー（従来通り）
@@ -810,15 +819,15 @@ function showInfo(
     nodeA,
     nodeB,
     0,
-    "root",
+    'root',
     showSingleColumn,
     modelSource,
     elementType
   );
 
   // 断面情報の比較表示 (id_section があれば)
-  const sectionIdA = nodeA?.getAttribute("id_section");
-  const sectionIdB = nodeB?.getAttribute("id_section");
+  const sectionIdA = nodeA?.getAttribute('id_section');
+  const sectionIdB = nodeB?.getAttribute('id_section');
   const hasSectionInfo = sectionIdA || sectionIdB; // どちらかに断面IDがあれば処理
 
   if (hasSectionInfo) {
@@ -835,7 +844,7 @@ function showInfo(
       !showSingleColumn &&
       sectionNodeA &&
       sectionNodeB &&
-      modelSource === "matched"
+      modelSource === 'matched'
     ) {
       const sectionDataA = extractSectionData(sectionNodeA);
       const sectionDataB = extractSectionData(sectionNodeB);
@@ -847,7 +856,7 @@ function showInfo(
           elementType
         );
         console.log(
-          "[ElementInfo] Section equivalence evaluation:",
+          '[ElementInfo] Section equivalence evaluation:',
           equivalenceResult
         );
       }
@@ -859,8 +868,8 @@ function showInfo(
       content += `<tr class="section-header-row"><td colspan="2">▼ 断面情報 (ID: ${sectionId})</td></tr>`;
     } else {
       content += `<tr class="section-header-row"><td colspan="3">▼ 断面情報 (A: ${
-        sectionIdA ?? "なし"
-      }, B: ${sectionIdB ?? "なし"})</td></tr>`;
+        sectionIdA ?? 'なし'
+      }, B: ${sectionIdB ?? 'なし'})</td></tr>`;
     }
 
     // 断面等価性評価結果を表示（比較モードの場合）
@@ -873,40 +882,49 @@ function showInfo(
       sectionNodeA,
       sectionNodeB,
       0,
-      "section",
+      'section',
       showSingleColumn,
       modelSource,
       elementType
     ); // レベル0から開始
   }
 
-  content += "</tbody></table>";
+  content += '</tbody></table>';
+
+  // バリデーション情報を追加（要素IDがある場合）
+  const elementId = idA || idB;
+  if (elementId) {
+    const validationHtml = generateValidationInfoHtml(elementId);
+    if (validationHtml) {
+      content += validationHtml;
+    }
+  }
 
   contentDiv.innerHTML = content;
 
   // --- 折りたたみイベントの追加 ---
-  const tbody = contentDiv.querySelector("#element-info-tbody");
+  const tbody = contentDiv.querySelector('#element-info-tbody');
   if (tbody) {
-    tbody.addEventListener("click", function (e) {
-      const btn = e.target.closest(".toggle-btn");
+    tbody.addEventListener('click', (e) => {
+      const btn = e.target.closest('.toggle-btn');
       if (!btn) return;
       const targetId = btn.dataset.targetId;
       if (!targetId) return;
       const rows = tbody.querySelectorAll(`tr[data-parent='${targetId}']`);
-      const expanded = btn.textContent === "-";
-      btn.textContent = expanded ? "+" : "-";
+      const expanded = btn.textContent === '-';
+      btn.textContent = expanded ? '+' : '-';
       rows.forEach((row) => {
-        row.style.display = expanded ? "none" : "";
+        row.style.display = expanded ? 'none' : '';
         // 折りたたむときは子孫も再帰的に閉じる
         if (expanded) {
-          const childBtn = row.querySelector(".toggle-btn");
-          if (childBtn && childBtn.textContent === "-") {
-            childBtn.textContent = "+";
+          const childBtn = row.querySelector('.toggle-btn');
+          if (childBtn && childBtn.textContent === '-') {
+            childBtn.textContent = '+';
             const childId = childBtn.dataset.targetId;
             const childRows = tbody.querySelectorAll(
               `tr[data-parent='${childId}']`
             );
-            childRows.forEach((r) => (r.style.display = "none"));
+            childRows.forEach((r) => (r.style.display = 'none'));
           }
         }
       });
@@ -914,10 +932,10 @@ function showInfo(
   }
 
   // --- スタイル定義 ---
-  let style = panel.querySelector("style#element-info-styles");
+  let style = panel.querySelector('style#element-info-styles');
   if (!style) {
-    style = document.createElement("style");
-    style.id = "element-info-styles";
+    style = document.createElement('style');
+    style.id = 'element-info-styles';
     panel.appendChild(style);
   }
   style.textContent = `
@@ -978,8 +996,8 @@ function showInfo(
         
         /* 単一モデル表示時のパネル幅調整 */
         ${
-          showSingleColumn
-            ? `
+  showSingleColumn
+    ? `
         .unified-comparison-table th:first-child,
         .unified-comparison-table td:first-child {
             width: 50% !important;
@@ -989,10 +1007,13 @@ function showInfo(
             width: 50% !important;
         }
         `
-            : `
+    : `
         /* 比較モード時は3カラムのままでCSSによる幅制御は最小限に */
         `
-        }
+}
+
+        /* バリデーション情報スタイル */
+        ${getValidationStyles()}
     `;
 }
 
@@ -1001,17 +1022,17 @@ function showInfo(
  */
 export function toggleEditMode() {
   editMode = !editMode;
-  const editButton = document.getElementById("edit-mode-button");
+  const editButton = document.getElementById('edit-mode-button');
   if (editButton) {
-    editButton.textContent = editMode ? "終了" : "編集";
+    editButton.textContent = editMode ? '終了' : '編集';
     if (editMode) {
-      editButton.style.background = "#fff3cd";
-      editButton.style.borderColor = "#ffeaa7";
-      editButton.style.color = "#856404";
+      editButton.style.background = '#fff3cd';
+      editButton.style.borderColor = '#ffeaa7';
+      editButton.style.color = '#856404';
     } else {
-      editButton.style.background = "#f8f9fa";
-      editButton.style.borderColor = "#dee2e6";
-      editButton.style.color = "#6c757d";
+      editButton.style.background = '#f8f9fa';
+      editButton.style.borderColor = '#dee2e6';
+      editButton.style.color = '#6c757d';
     }
   }
 
@@ -1027,20 +1048,20 @@ export function toggleEditMode() {
  */
 export function exportModifications() {
   if (modifications.length === 0) {
-    alert("修正がありません。");
+    alert('修正がありません。');
     return;
   }
 
   // モデルAまたはBのドキュメントを選択
   const sourceDoc = window.docA || window.docB;
   if (!sourceDoc) {
-    alert("エクスポート対象のドキュメントがありません。");
+    alert('エクスポート対象のドキュメントがありません。');
     return;
   }
 
   // エクスポート前のバリデーション
   const validation = validateDocumentForExport(sourceDoc);
-  console.log("Export validation:", validation);
+  console.log('Export validation:', validation);
 
   // ユーザーに確認
   const proceed = confirm(
@@ -1051,7 +1072,7 @@ export function exportModifications() {
   if (proceed) {
     const timestamp = new Date()
       .toISOString()
-      .replace(/[:.]/g, "-")
+      .replace(/[:.]/g, '-')
       .slice(0, 19);
     const filename = `modified_stb_${timestamp}.stb`;
 
@@ -1063,10 +1084,10 @@ export function exportModifications() {
 
         // 修正レポートも生成
         const report = generateModificationReport(modifications);
-        console.log("Modification Report:\n", report);
+        console.log('Modification Report:\n', report);
       } else {
         alert(
-          "エクスポートに失敗しました。コンソールでエラーを確認してください。"
+          'エクスポートに失敗しました。コンソールでエラーを確認してください。'
         );
       }
     });
@@ -1095,18 +1116,18 @@ async function editAttributeValue(
     );
 
     // 属性情報を取得
-    const tagName = elementType === "Node" ? "StbNode" : `Stb${elementType}`;
+    const tagName = elementType === 'Node' ? 'StbNode' : `Stb${elementType}`;
     const attrInfo = getAttributeInfo(tagName, attributeName);
 
     // ParameterEditorの設定
-    const coordinateAttrNames = ["x", "y", "z"];
+    const coordinateAttrNames = ['x', 'y', 'z'];
     const forceFreeText =
-      elementType === "Node" &&
-      coordinateAttrNames.includes((attributeName || "").toLowerCase());
+      elementType === 'Node' &&
+      coordinateAttrNames.includes((attributeName || '').toLowerCase());
 
     const config = {
       attributeName,
-      currentValue: currentValue || "",
+      currentValue: currentValue || '',
       suggestions,
       elementType,
       elementId,
@@ -1115,14 +1136,14 @@ async function editAttributeValue(
         !attrInfo ||
         !suggestions.length ||
         suggestions.length > 10,
-      required: attrInfo ? attrInfo.required : false,
+      required: attrInfo ? attrInfo.required : false
     };
 
     // 新しいParameterEditorモーダルを表示
     const newValue = await ParameterEditor.show(config);
 
     if (newValue === null) {
-      console.log("編集がキャンセルされました");
+      console.log('編集がキャンセルされました');
       return; // キャンセル
     }
 
@@ -1135,7 +1156,7 @@ async function editAttributeValue(
       id: elementId,
       attribute: attributeName,
       oldValue: currentValue,
-      newValue: newValue,
+      newValue: newValue
     });
 
     // XMLドキュメントを直接更新（モデルAのみ編集可能）
@@ -1164,20 +1185,20 @@ async function editAttributeValue(
 
     updateEditingSummary();
   } catch (error) {
-    console.error("属性編集中にエラーが発生しました:", error);
+    console.error('属性編集中にエラーが発生しました:', error);
 
     // フォールバック: 従来のprompt()を使用
-    console.log("フォールバック: 従来の編集方法を使用します");
+    console.log('フォールバック: 従来の編集方法を使用します');
     const newValue = prompt(
       `属性「${attributeName}」の新しい値を入力してください:`,
-      currentValue || ""
+      currentValue || ''
     );
 
     if (newValue === null) return; // キャンセル
 
     // XSDバリデーション
     if (isSchemaLoaded()) {
-      const tagName = elementType === "Node" ? "StbNode" : `Stb${elementType}`;
+      const tagName = elementType === 'Node' ? 'StbNode' : `Stb${elementType}`;
       const validation = validateAttributeValue(
         tagName,
         attributeName,
@@ -1188,9 +1209,9 @@ async function editAttributeValue(
         const proceed = confirm(
           `警告: ${validation.error}\n\n` +
             (validation.suggestions
-              ? `推奨値: ${validation.suggestions.join(", ")}\n\n`
-              : "") +
-            "それでも続行しますか？"
+              ? `推奨値: ${validation.suggestions.join(', ')}\n\n`
+              : '') +
+            'それでも続行しますか？'
         );
         if (!proceed) return;
       }
@@ -1202,7 +1223,7 @@ async function editAttributeValue(
       id: elementId,
       attribute: attributeName,
       oldValue: currentValue,
-      newValue: newValue,
+      newValue: newValue
     });
 
     // XMLドキュメントを直接更新（モデルAのみ編集可能）
@@ -1251,12 +1272,12 @@ async function updateXMLAndGeometry(
     // モデルAのXMLドキュメントを取得
     const doc = window.docA;
     if (!doc) {
-      console.error("[ElementInfoDisplay] docA not found");
+      console.error('[ElementInfoDisplay] docA not found');
       return false;
     }
 
     // XMLから要素を検索
-    const tagName = elementType === "Node" ? "StbNode" : `Stb${elementType}`;
+    const tagName = elementType === 'Node' ? 'StbNode' : `Stb${elementType}`;
     const element = doc.querySelector(`${tagName}[id="${elementId}"]`);
 
     if (!element) {
@@ -1267,7 +1288,7 @@ async function updateXMLAndGeometry(
     }
 
     // 属性を更新
-    if (newValue === null || newValue === undefined || newValue === "") {
+    if (newValue === null || newValue === undefined || newValue === '') {
       element.removeAttribute(attributeName);
       console.log(
         `[ElementInfoDisplay] Removed attribute ${attributeName} from ${elementId}`
@@ -1281,21 +1302,21 @@ async function updateXMLAndGeometry(
 
     // 断面関連の属性の場合、ジオメトリを再生成
     const geometryAffectingAttributes = [
-      "id_section",
-      "shape",
-      "strength_name",
-      "offset_bottom_X",
-      "offset_bottom_Y",
-      "offset_top_X",
-      "offset_top_Y",
-      "rotate",
-      "X",
-      "Y",
-      "Z", // ノード座標
-      "id_node_bottom",
-      "id_node_top",
-      "id_node_start",
-      "id_node_end", // ノード参照
+      'id_section',
+      'shape',
+      'strength_name',
+      'offset_bottom_X',
+      'offset_bottom_Y',
+      'offset_top_X',
+      'offset_top_Y',
+      'rotate',
+      'X',
+      'Y',
+      'Z', // ノード座標
+      'id_node_bottom',
+      'id_node_top',
+      'id_node_start',
+      'id_node_end' // ノード参照
     ];
 
     const shouldRegenerateGeometry =
@@ -1313,7 +1334,7 @@ async function updateXMLAndGeometry(
       const success = await regenerateElementGeometry(
         elementType,
         elementId,
-        "modelA"
+        'modelA'
       );
 
       refreshElementLabels(elementType, elementId, updatedElementData);
@@ -1336,7 +1357,7 @@ async function updateXMLAndGeometry(
       refreshElementLabels(elementType, elementId, updatedElementData);
 
       // レンダリング更新（色や表示プロパティが変更された可能性）
-      if (typeof window.requestRender === "function") {
+      if (typeof window.requestRender === 'function') {
         window.requestRender();
       }
 
@@ -1344,7 +1365,7 @@ async function updateXMLAndGeometry(
     }
   } catch (error) {
     console.error(
-      "[ElementInfoDisplay] Error updating XML and geometry:",
+      '[ElementInfoDisplay] Error updating XML and geometry:',
       error
     );
     return false;
@@ -1371,20 +1392,20 @@ function refreshElementLabels(elementType, elementId, elementData) {
  * 編集サマリーを更新
  */
 function updateEditingSummary() {
-  const summaryElement = document.getElementById("editing-summary");
+  const summaryElement = document.getElementById('editing-summary');
   if (summaryElement) {
     summaryElement.innerHTML = `
       修正: ${modifications.length}件
       ${
-        modifications.length > 0
-          ? '<button id="export-btn" style="font-size: 0.6em; padding: 1px 4px; margin-left: 3px; background: #d4edda; border: 1px solid #c3e6cb; color: #155724;" onclick="window.exportModifications()">出力</button>'
-          : ""
-      }
+  modifications.length > 0
+    ? '<button id="export-btn" style="font-size: 0.6em; padding: 1px 4px; margin-left: 3px; background: #d4edda; border: 1px solid #c3e6cb; color: #155724;" onclick="window.exportModifications()">出力</button>'
+    : ''
+}
       ${
-        modifications.length > 0
-          ? '<button id="clear-modifications-btn" style="font-size: 0.6em; padding: 1px 4px; margin-left: 2px; background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24;" onclick="window.clearModifications()">削除</button>'
-          : ""
-      }
+  modifications.length > 0
+    ? '<button id="clear-modifications-btn" style="font-size: 0.6em; padding: 1px 4px; margin-left: 2px; background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24;" onclick="window.clearModifications()">削除</button>'
+    : ''
+}
     `;
   }
 }
@@ -1401,8 +1422,28 @@ export function clearModifications() {
   if (proceed) {
     modifications = [];
     updateEditingSummary();
-    console.log("修正履歴をクリアしました");
+    console.log('修正履歴をクリアしました');
   }
+}
+
+/**
+ * 現在選択中の要素情報パネルを更新
+ * 色付けモード変更時などに呼び出される
+ */
+export function refreshElementInfoPanel() {
+  if (currentEditingElement) {
+    const { idA, idB, elementType, modelSource } = currentEditingElement;
+    console.log('[ElementInfoDisplay] Refreshing panel for:', { idA, idB, elementType });
+    displayElementInfo(idA, idB, elementType, modelSource);
+  }
+}
+
+/**
+ * 現在選択中の要素情報を取得
+ * @returns {Object|null} 選択中の要素情報
+ */
+export function getCurrentSelectedElement() {
+  return currentEditingElement;
 }
 
 // グローバル関数として登録（HTML内のonclickから呼び出すため）
@@ -1423,12 +1464,12 @@ function buildElementDataForLabels(elementType, elementNode, doc) {
 
   data.id =
     data.id ||
-    elementNode.getAttribute("id") ||
-    elementNode.getAttribute("name") ||
-    "";
+    elementNode.getAttribute('id') ||
+    elementNode.getAttribute('name') ||
+    '';
   data.elementType = elementType;
 
-  const sectionId = elementNode.getAttribute("id_section");
+  const sectionId = elementNode.getAttribute('id_section');
   if (doc && sectionId) {
     const sectionNode = findSectionNode(doc, sectionId);
     if (sectionNode) {
@@ -1463,42 +1504,42 @@ function findSteelSectionInfo(shapeName) {
   // どちらかのdocからStbSecSteelを取得
   const doc = window.docA || window.docB;
   if (!doc) return null;
-  const steel = doc.querySelector("StbSecSteel");
+  const steel = doc.querySelector('StbSecSteel');
   if (!steel) return null;
   // H形鋼
   let el = steel.querySelector(`StbSecRoll-H[name="${shapeName}"]`);
   if (el) {
     return {
-      type: "H",
-      A: el.getAttribute("A"),
-      B: el.getAttribute("B"),
-      t1: el.getAttribute("t1"),
-      t2: el.getAttribute("t2"),
-      r: el.getAttribute("r"),
+      type: 'H',
+      A: el.getAttribute('A'),
+      B: el.getAttribute('B'),
+      t1: el.getAttribute('t1'),
+      t2: el.getAttribute('t2'),
+      r: el.getAttribute('r')
     };
   }
   // 角形鋼管
   el = steel.querySelector(`StbSecRoll-BOX[name="${shapeName}"]`);
   if (el) {
     return {
-      type: "BOX",
-      A: el.getAttribute("A"),
-      B: el.getAttribute("B"),
-      t: el.getAttribute("t"),
-      r: el.getAttribute("r"),
+      type: 'BOX',
+      A: el.getAttribute('A'),
+      B: el.getAttribute('B'),
+      t: el.getAttribute('t'),
+      r: el.getAttribute('r')
     };
   }
   // L形鋼
   el = steel.querySelector(`StbSecRoll-L[name="${shapeName}"]`);
   if (el) {
     return {
-      type: "L",
-      A: el.getAttribute("A"),
-      B: el.getAttribute("B"),
-      t1: el.getAttribute("t1"),
-      t2: el.getAttribute("t2"),
-      r1: el.getAttribute("r1"),
-      r2: el.getAttribute("r2"),
+      type: 'L',
+      A: el.getAttribute('A'),
+      B: el.getAttribute('B'),
+      t1: el.getAttribute('t1'),
+      t2: el.getAttribute('t2'),
+      r1: el.getAttribute('r1'),
+      r2: el.getAttribute('r2')
     };
   }
   // その他必要に応じて追加
@@ -1516,7 +1557,7 @@ function extractSectionData(sectionNode) {
   const data = {
     type: sectionNode.tagName,
     material: null,
-    strength_name: null,
+    strength_name: null
   };
 
   // 全属性を取得
@@ -1539,14 +1580,14 @@ function extractSectionData(sectionNode) {
   // StbSecColumn-S, StbSecBeam-S, StbSecColumn-RC, StbSecBeam-RC などのタグ名に対応
   if (data.type) {
     // タグ名から断面タイプを抽出
-    if (data.type.includes("-S")) {
+    if (data.type.includes('-S')) {
       data.section_type = data.type; // 鋼材断面
     } else if (
-      data.type.includes("-RC") ||
-      data.type.includes("-SRC") ||
-      data.type.includes("-CFT")
+      data.type.includes('-RC') ||
+      data.type.includes('-stb-diff-viewer') ||
+      data.type.includes('-CFT')
     ) {
-      data.section_type = "RECTANGLE"; // RC断面はデフォルトで矩形
+      data.section_type = 'RECTANGLE'; // RC断面はデフォルトで矩形
     }
   }
 
@@ -1560,13 +1601,13 @@ function extractSectionData(sectionNode) {
  */
 function generateEquivalenceSection(result) {
   const statusClass = result.isEquivalent
-    ? "equivalent-pass"
-    : "equivalent-fail";
-  const statusColor = result.isEquivalent ? "#28a745" : "#dc3545";
-  const statusText = result.isEquivalent ? "✓ 等価" : "✗ 非等価";
+    ? 'equivalent-pass'
+    : 'equivalent-fail';
+  const statusColor = result.isEquivalent ? '#28a745' : '#dc3545';
+  const statusText = result.isEquivalent ? '✓ 等価' : '✗ 非等価';
   const statusBg = result.isEquivalent
-    ? "rgba(40, 167, 69, 0.1)"
-    : "rgba(220, 53, 69, 0.1)";
+    ? 'rgba(40, 167, 69, 0.1)'
+    : 'rgba(220, 53, 69, 0.1)';
 
   let html = `
     <tr class="equivalence-status-row">
@@ -1583,11 +1624,11 @@ function generateEquivalenceSection(result) {
 
   // チェック結果の詳細
   for (const check of result.checks) {
-    const icon = check.passed ? "✓" : "✗";
-    const iconColor = check.passed ? "#28a745" : "#dc3545";
+    const icon = check.passed ? '✓' : '✗';
+    const iconColor = check.passed ? '#28a745' : '#dc3545';
     const rowBg = check.passed
-      ? "rgba(40, 167, 69, 0.05)"
-      : "rgba(220, 53, 69, 0.05)";
+      ? 'rgba(40, 167, 69, 0.05)'
+      : 'rgba(220, 53, 69, 0.05)';
 
     html += `
       <tr class="equivalence-check-row" style="background-color: ${rowBg};">
@@ -1604,8 +1645,8 @@ function generateEquivalenceSection(result) {
     // サブチェックがある場合
     if (check.subChecks && check.subChecks.length > 0) {
       for (const subCheck of check.subChecks) {
-        const subIcon = subCheck.passed ? "✓" : "✗";
-        const subColor = subCheck.passed ? "#28a745" : "#dc3545";
+        const subIcon = subCheck.passed ? '✓' : '✗';
+        const subColor = subCheck.passed ? '#28a745' : '#dc3545';
 
         html += `
           <tr class="equivalence-subcheck-row">
@@ -1645,9 +1686,9 @@ function renderComparisonRecursive(
   modelSource = null,
   elementType = null
 ) {
-  if (!nodeA && !nodeB) return ""; // 両方なければ何も表示しない
+  if (!nodeA && !nodeB) return ''; // 両方なければ何も表示しない
 
-  let rowsHtml = "";
+  let rowsHtml = '';
   const indentStyle = `padding-left: ${level * 1.5}em;`;
   const attrIndentStyle = `padding-left: ${(level + 1.5) * 1.5}em;`;
 
@@ -1655,8 +1696,8 @@ function renderComparisonRecursive(
   const tagNameA = nodeA?.tagName;
   const tagNameB = nodeB?.tagName;
   const displayTagName = tagNameA ?? tagNameB;
-  const idA = nodeA?.getAttribute?.("id") ?? "";
-  const idB = nodeB?.getAttribute?.("id") ?? "";
+  const idA = nodeA?.getAttribute?.('id') ?? '';
+  const idB = nodeB?.getAttribute?.('id') ?? '';
   const rowId = `row_${displayTagName}_${idA}_${idB}_${level}_${Math.random()
     .toString(36)
     .slice(2, 7)}`;
@@ -1666,17 +1707,17 @@ function renderComparisonRecursive(
   let currentElementType = elementType;
   if (!currentElementType && displayTagName) {
     // STBタグ名から要素タイプを抽出 (例: StbColumn -> Column, StbNode -> Node)
-    if (displayTagName.startsWith("Stb")) {
+    if (displayTagName.startsWith('Stb')) {
       currentElementType = displayTagName.slice(3); // "Stb"を除去
-      if (currentElementType === "Node") {
-        currentElementType = "Node"; // 特別な場合
+      if (currentElementType === 'Node') {
+        currentElementType = 'Node'; // 特別な場合
       }
     }
   }
 
   // --- 要素名行 ---
   rowsHtml += `<tr class="element-row" data-id="${rowId}"${
-    parentId ? ` data-parent="${parentId}"` : ""
+    parentId ? ` data-parent="${parentId}"` : ''
   }>`;
   let elementCell = `<td style="${indentStyle} white-space: nowrap;">`;
   elementCell += `<span class="toggle-btn" data-target-id="${rowId}" style="margin-right:5px;display:inline-block;width:1em;text-align:center;font-weight:bold;cursor:pointer;color:#666;">-</span>`;
@@ -1684,21 +1725,21 @@ function renderComparisonRecursive(
   if (tagNameA && tagNameB && tagNameA !== tagNameB) {
     elementCell += ` <span style="color: red; font-size: 0.8em;">(A: ${tagNameA}, B: ${tagNameB})</span>`;
   }
-  elementCell += "</td>";
+  elementCell += '</td>';
   rowsHtml += elementCell;
 
   if (showSingleColumn) {
-    rowsHtml += "<td></td>";
+    rowsHtml += '<td></td>';
   } else {
-    rowsHtml += "<td></td><td></td>";
+    rowsHtml += '<td></td><td></td>';
   }
-  rowsHtml += "</tr>";
+  rowsHtml += '</tr>';
   // --- 属性行（XSDスキーマ対応版） ---
   const attrsA = nodeA ? getAttributesMap(nodeA) : new Map();
   const attrsB = nodeB ? getAttributesMap(nodeB) : new Map();
 
   // XSDスキーマから完全な属性リストを取得
-  let allAttrNames = new Set([...attrsA.keys(), ...attrsB.keys()]);
+  const allAttrNames = new Set([...attrsA.keys(), ...attrsB.keys()]);
 
   // XSDスキーマが利用可能な場合、スキーマ定義の属性も追加
   if (isSchemaLoaded() && displayTagName) {
@@ -1706,11 +1747,11 @@ function renderComparisonRecursive(
     schemaAttributes.forEach((attr) => allAttrNames.add(attr));
   }
 
-  const attrRowDisplay = "";
+  const attrRowDisplay = '';
 
   if (allAttrNames.size > 0) {
     const sortedAttrNames = Array.from(allAttrNames).sort((a, b) => {
-      const prioritized = ["id", "guid", "name"];
+      const prioritized = ['id', 'guid', 'name'];
       const idxA = prioritized.indexOf(a);
       const idxB = prioritized.indexOf(b);
       if (idxA !== -1 && idxB !== -1) return idxA - idxB;
@@ -1721,7 +1762,7 @@ function renderComparisonRecursive(
 
     for (const attrName of sortedAttrNames) {
       // shape属性は子要素ノードで個別に表示するためここではスキップ
-      if (attrName === "shape") continue;
+      if (attrName === 'shape') continue;
 
       const valueA = attrsA.get(attrName);
       const valueB = attrsB.get(attrName);
@@ -1744,13 +1785,13 @@ function renderComparisonRecursive(
           const { elementType: currentElementType } = currentEditingElement;
           const currentId = valueA ? idA : idB;
           displayValue += ` <button class="edit-btn" style="font-size: 0.6em; padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentElementType}', '${currentId}', '${attrName}', '${
-            singleValue || ""
+            singleValue || ''
           }')" title="編集">✏️</button>`;
         }
 
         // XSDスキーマからの情報を付加
         if (attrInfo) {
-          let attrLabel = "";
+          let attrLabel = '';
           if (isRequired)
             attrLabel +=
               '<span style="color:red;font-size:0.9em;" title="必須パラメータ">🔴</span> ';
@@ -1760,7 +1801,7 @@ function renderComparisonRecursive(
 
           rowsHtml += `<tr data-parent="${rowId}"${attrRowDisplay}>`;
           rowsHtml += `<td style="${attrIndentStyle}" title="${
-            documentation || ""
+            documentation || ''
           }"><span class="attr-name">${attrLabel}</span></td>`;
           // モデルソースに基づく背景色を適用（重要度ベース）
           const valueStyle = getSingleValueBackgroundColor(
@@ -1769,7 +1810,7 @@ function renderComparisonRecursive(
             attrName
           );
           rowsHtml += `<td style="${valueStyle}">${displayValue}</td>`;
-          rowsHtml += "</tr>";
+          rowsHtml += '</tr>';
         } else {
           rowsHtml += `<tr data-parent="${rowId}"${attrRowDisplay}>`;
           rowsHtml += `<td style="${attrIndentStyle}"><span class="attr-name">${attrName}</span></td>`;
@@ -1780,7 +1821,7 @@ function renderComparisonRecursive(
             attrName
           );
           rowsHtml += `<td style="${valueStyle}">${displayValue}</td>`;
-          rowsHtml += "</tr>";
+          rowsHtml += '</tr>';
         }
       } else {
         // 比較表示の場合
@@ -1792,12 +1833,12 @@ function renderComparisonRecursive(
           const { elementType: currentElementType } = currentEditingElement;
           if (valueA !== undefined && idA) {
             displayValueA += ` <button class="edit-btn" style="font-size: 0.6em; padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentElementType}', '${idA}', '${attrName}', '${
-              valueA || ""
+              valueA || ''
             }')" title="編集">✏️</button>`;
           }
           if (valueB !== undefined && idB) {
             displayValueB += ` <button class="edit-btn" style="font-size: 0.6em; padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentElementType}', '${idB}', '${attrName}', '${
-              valueB || ""
+              valueB || ''
             }')" title="編集">✏️</button>`;
           }
         }
@@ -1808,37 +1849,37 @@ function renderComparisonRecursive(
           valueA !== valueB &&
           valueA !== undefined &&
           valueB !== undefined;
-        const highlightClass = differs ? ' class="differs"' : "";
+        const highlightClass = differs ? ' class="differs"' : '';
 
         // 各値の背景色を設定（比較表示用・重要度ベース）
         const valueAStyle =
           valueA !== undefined && valueA !== null
-            ? modelSource === "B"
-              ? ""
+            ? modelSource === 'B'
+              ? ''
               : getModelSourceBackgroundColor(
-                  "A",
-                  true,
-                  false,
-                  currentElementType,
-                  attrName
-                )
-            : "";
+                'A',
+                true,
+                false,
+                currentElementType,
+                attrName
+              )
+            : '';
         const valueBStyle =
           valueB !== undefined && valueB !== null
-            ? modelSource === "A"
-              ? ""
+            ? modelSource === 'A'
+              ? ''
               : getModelSourceBackgroundColor(
-                  "B",
-                  false,
-                  true,
-                  currentElementType,
-                  attrName
-                )
-            : "";
+                'B',
+                false,
+                true,
+                currentElementType,
+                attrName
+              )
+            : '';
 
         // XSDスキーマからの情報を付加
         if (attrInfo) {
-          let attrLabel = "";
+          let attrLabel = '';
           if (isRequired)
             attrLabel +=
               '<span style="color:red;font-size:0.9em;" title="必須パラメータ">🔴</span> ';
@@ -1848,17 +1889,17 @@ function renderComparisonRecursive(
 
           rowsHtml += `<tr data-parent="${rowId}"${attrRowDisplay}>`;
           rowsHtml += `<td style="${attrIndentStyle}" title="${
-            documentation || ""
+            documentation || ''
           }"><span class="attr-name">${attrLabel}</span></td>`;
           rowsHtml += `<td${highlightClass} style="${valueAStyle}">${displayValueA}</td>`;
           rowsHtml += `<td${highlightClass} style="${valueBStyle}">${displayValueB}</td>`;
-          rowsHtml += "</tr>";
+          rowsHtml += '</tr>';
         } else {
           rowsHtml += `<tr data-parent="${rowId}"${attrRowDisplay}>`;
           rowsHtml += `<td style="${attrIndentStyle}"><span class="attr-name">${attrName}</span></td>`;
           rowsHtml += `<td${highlightClass} style="${valueAStyle}">${displayValueA}</td>`;
           rowsHtml += `<td${highlightClass} style="${valueBStyle}">${displayValueB}</td>`;
-          rowsHtml += "</tr>";
+          rowsHtml += '</tr>';
         }
       }
     }
@@ -1866,16 +1907,16 @@ function renderComparisonRecursive(
 
   // --- shape属性を持つ「直接の子要素」だけ寸法付きで1行ずつ表示 ---
   function renderShapeWithSteelInfo(shape) {
-    if (!shape) return "";
+    if (!shape) return '';
     const steelInfo = findSteelSectionInfo(shape);
     if (!steelInfo) return `<span>${shape}</span>`;
-    if (steelInfo.type === "H") {
+    if (steelInfo.type === 'H') {
       return `<span>${shape} <span style="color:#888;font-size:0.9em;">[A=${steelInfo.A}, B=${steelInfo.B}, t1=${steelInfo.t1}, t2=${steelInfo.t2}, r=${steelInfo.r}]</span></span>`;
     }
-    if (steelInfo.type === "BOX") {
+    if (steelInfo.type === 'BOX') {
       return `<span>${shape} <span style="color:#888;font-size:0.9em;">[A=${steelInfo.A}, B=${steelInfo.B}, t=${steelInfo.t}, r=${steelInfo.r}]</span></span>`;
     }
-    if (steelInfo.type === "L") {
+    if (steelInfo.type === 'L') {
       return `<span>${shape} <span style="color:#888;font-size:0.9em;">[A=${steelInfo.A}, B=${steelInfo.B}, t1=${steelInfo.t1}, t2=${steelInfo.t2}, r1=${steelInfo.r1}, r2=${steelInfo.r2}]</span></span>`;
     }
     return `<span>${shape}</span>`;
@@ -1888,28 +1929,28 @@ function renderComparisonRecursive(
   let hasMeaningfulTextB = false;
 
   if (nodeA && nodeA.children.length === 0 && textA) {
-    let attrsTextA = "";
+    let attrsTextA = '';
     for (let i = 0; i < nodeA.attributes.length; i++) {
       attrsTextA += nodeA.attributes[i].value;
     }
     if (textA !== attrsTextA.trim()) hasMeaningfulTextA = true;
   }
   if (nodeB && nodeB.children.length === 0 && textB) {
-    let attrsTextB = "";
+    let attrsTextB = '';
     for (let i = 0; i < nodeB.attributes.length; i++) {
       attrsTextB += nodeB.attributes[i].value;
     }
     if (textB !== attrsTextB.trim()) hasMeaningfulTextB = true;
   }
-  const textRowDisplay = "";
+  const textRowDisplay = '';
   if (hasMeaningfulTextA || hasMeaningfulTextB) {
     if (showSingleColumn) {
       // 単一モデル表示の場合
       const singleText = hasMeaningfulTextA
         ? textA
         : hasMeaningfulTextB
-        ? textB
-        : "";
+          ? textB
+          : '';
       const displayText = singleText
         ? singleText
         : '<span class="no-value">-</span>';
@@ -1917,7 +1958,7 @@ function renderComparisonRecursive(
       rowsHtml += `<tr data-parent="${rowId}"${textRowDisplay}>`;
       rowsHtml += `<td style="${attrIndentStyle}"><span class="text-label">(内容)</span></td>`;
       rowsHtml += `<td><span class="text-content">${displayText}</span></td>`;
-      rowsHtml += "</tr>";
+      rowsHtml += '</tr>';
     } else {
       // 比較表示の場合（従来通り）
       const displayTextA = hasMeaningfulTextA
@@ -1932,13 +1973,13 @@ function renderComparisonRecursive(
         hasMeaningfulTextA &&
         hasMeaningfulTextB &&
         textA !== textB;
-      const highlightClass = differs ? ' class="differs"' : "";
+      const highlightClass = differs ? ' class="differs"' : '';
 
       rowsHtml += `<tr data-parent="${rowId}"${textRowDisplay}>`;
       rowsHtml += `<td style="${attrIndentStyle}"><span class="text-label">(内容)</span></td>`;
       rowsHtml += `<td${highlightClass}><span class="text-content">${displayTextA}</span></td>`;
       rowsHtml += `<td${highlightClass}><span class="text-content">${displayTextB}</span></td>`;
-      rowsHtml += "</tr>";
+      rowsHtml += '</tr>';
     }
   }
 
@@ -1990,8 +2031,8 @@ function renderComparisonRecursive(
     const children = childrenA.length > 0 ? childrenA : childrenB;
     if (children.length > 0) {
       for (const child of children) {
-        if (child.hasAttribute && child.hasAttribute("shape")) {
-          const shape = child.getAttribute("shape");
+        if (child.hasAttribute && child.hasAttribute('shape')) {
+          const shape = child.getAttribute('shape');
           rowsHtml += `<tr data-parent="${rowId}"><td style="${attrIndentStyle}"><span class="attr-name">shape</span></td><td>${renderShapeWithSteelInfo(
             shape
           )}</td></tr>`;
@@ -2002,8 +2043,8 @@ function renderComparisonRecursive(
     // 比較表示の場合（従来通り）
     if (childrenA.length > 0) {
       for (const child of childrenA) {
-        if (child.hasAttribute && child.hasAttribute("shape")) {
-          const shape = child.getAttribute("shape");
+        if (child.hasAttribute && child.hasAttribute('shape')) {
+          const shape = child.getAttribute('shape');
           rowsHtml += `<tr data-parent="${rowId}"><td style="${attrIndentStyle}"><span class="attr-name">shape</span></td><td>${renderShapeWithSteelInfo(
             shape
           )}</td><td><span class="no-value">-</span></td></tr>`;
@@ -2012,8 +2053,8 @@ function renderComparisonRecursive(
     }
     if (childrenB.length > 0) {
       for (const child of childrenB) {
-        if (child.hasAttribute && child.hasAttribute("shape")) {
-          const shape = child.getAttribute("shape");
+        if (child.hasAttribute && child.hasAttribute('shape')) {
+          const shape = child.getAttribute('shape');
           rowsHtml += `<tr data-parent="${rowId}"><td style="${attrIndentStyle}"><span class="attr-name">shape</span></td><td><span class="no-value">-</span></td><td>${renderShapeWithSteelInfo(
             shape
           )}</td></tr>`;

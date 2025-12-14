@@ -28,8 +28,8 @@ export {
   updateAxesData,
   addStateChangeListener,
   removeStateChangeListener,
-  getStateStatistics,
-} from "./ui/state.js";
+  getStateStatistics
+} from './ui/state.js';
 
 export {
   updateStorySelector,
@@ -42,10 +42,10 @@ export {
   setYAxisSelection,
   resetSelectorsToDefault,
   getSelectorStatistics,
-  validateSelectorElements,
-} from "./ui/selectors.js";
+  validateSelectorElements
+} from './ui/selectors.js';
 
-import { updateLabelVisibility } from "./ui/unifiedLabelManager.js";
+import { updateLabelVisibility } from './ui/unifiedLabelManager.js';
 export { updateLabelVisibility };
 
 export {
@@ -54,8 +54,8 @@ export {
   toggleModelBVisibility,
   toggleLegend,
   resetAllSelectors,
-  getEventListenerStatus,
-} from "./ui/events.js";
+  getEventListenerStatus
+} from './ui/events.js';
 
 export {
   applyStoryClip,
@@ -67,21 +67,19 @@ export {
   createBoxClippingPlanes,
   getCurrentClippingState,
   updateClippingRange,
-  restoreCameraView,
-} from "./ui/clipping.js";
+  restoreCameraView
+} from './ui/clipping.js';
 
 /**
  * Initialize all UI modules
  * This function coordinates the initialization of all UI sub-modules
  */
 export function initializeUI() {
-  console.log("Initializing UI modules...");
-
   try {
     // Validate that required DOM elements exist
     const validation = validateSelectorElements();
     if (!validation.isValid) {
-      console.warn("Some UI elements are missing:", validation.missing);
+      console.warn('Some UI elements are missing:', validation.missing);
     }
 
     // Setup event listeners
@@ -90,10 +88,9 @@ export function initializeUI() {
     // Initialize state change coordination
     initializeStateChangeCoordination();
 
-    console.log("UI modules initialized successfully");
     return true;
   } catch (error) {
-    console.error("Failed to initialize UI modules:", error);
+    console.error('Failed to initialize UI modules:', error);
     return false;
   }
 }
@@ -104,8 +101,6 @@ export function initializeUI() {
 function initializeStateChangeCoordination() {
   // Listen for state changes and coordinate updates between modules
   addStateChangeListener((newState) => {
-    console.log("UI state changed, coordinating module updates");
-
     // Trigger label visibility update when state changes
     updateLabelVisibility();
 
@@ -124,7 +119,7 @@ export function getUIStatus() {
     labels: getLabelVisibilityStatistics(),
     events: getEventListenerStatus(),
     clipping: getClippingStatus(),
-    timestamp: new Date().toISOString(),
+    timestamp: new Date().toISOString()
   };
 }
 
@@ -132,8 +127,6 @@ export function getUIStatus() {
  * 全UIモジュールをデフォルト状態にリセット
  */
 export function resetAllUI() {
-  console.log("Resetting all UI modules to default state");
-
   try {
     // Clear state
     clearUIState();
@@ -146,13 +139,11 @@ export function resetAllUI() {
 
     // Hide all labels initially
     // Labels will be hidden automatically by the unified manager
-
-    console.log("All UI modules reset successfully");
   } catch (error) {
-    console.error("Error resetting UI modules:", error);
+    console.error('Error resetting UI modules:', error);
   }
 }
 
 // Import validation and other utilities
-import { validateSelectorElements } from "./ui/selectors.js";
-import { setupUIEventListeners } from "./ui/events.js";
+import { validateSelectorElements } from './ui/selectors.js';
+import { setupUIEventListeners } from './ui/events.js';

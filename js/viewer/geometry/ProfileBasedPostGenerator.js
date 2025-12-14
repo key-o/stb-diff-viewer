@@ -1,42 +1,56 @@
 /**
- * @fileoverview プロファイルベース間柱形状生成モジュール
+ * @fileoverview プロファイルベース間柱形状生成モジュール（リファクタリング版）
  *
- * 新しい3層アーキテクチャを使用した間柱形状生成:
+ * BaseElementGeneratorを継承した統一アーキテクチャ:
  * 1. ProfileCalculator: プロファイル頂点座標を計算（Three.js非依存）
  * 2. GeometryCalculator: 配置・回転を計算（Three.js非依存）
  * 3. ThreeJSConverter: Three.jsオブジェクトに変換
  *
  * 柱(Column)と同じ実装を使用（間柱は柱と同じ構造を持つため）。
  * IFCProfileFactoryとの統合準備完了。
+ *
+ * リファクタリング: 2025-12
+ * - BaseElementGenerator基底クラスを使用
+ * - 統一されたバリデーションとメタデータ構築
  */
 
-import * as THREE from "three";
-import { materials } from "../rendering/materials.js";
-import { IFCProfileFactory } from "./IFCProfileFactory.js";
-import { ensureUnifiedSectionType } from "../../common/sectionTypeUtil.js";
-import { createLogger } from "../../utils/logger.js";
+import * as THREE from 'three';
+import { materials } from '../rendering/materials.js';
+import { IFCProfileFactory } from './IFCProfileFactory.js';
+import { ElementGeometryUtils } from './ElementGeometryUtils.js';
 
 // 新しいコアレイヤーをインポート
-import { calculateProfile } from "./core/ProfileCalculator.js";
+import { calculateProfile } from './core/ProfileCalculator.js';
 import {
-  calculateColumnPlacement,
-  inferSectionTypeFromDimensions,
-} from "./core/GeometryCalculator.js";
+  calculateColumnPlacement
+} from './core/GeometryCalculator.js';
 import {
   convertProfileToThreeShape,
   createExtrudeGeometry,
   applyPlacementToMesh,
-  attachPlacementAxisLine,
-} from "./core/ThreeJSConverter.js";
-
-const log = createLogger("viewer:profile:post");
+  attachPlacementAxisLine
+} from './core/ThreeJSConverter.js';
+import { mapToProfileParams } from './core/ProfileParameterMapper.js';
+import { BaseElementGenerator } from './core/BaseElementGenerator.js';
+import { MeshMetadataBuilder } from './core/MeshMetadataBuilder.js';
 
 /**
- * プロファイルベースの間柱形状生成
+ * プロファイルベースの間柱形状生成（リファクタリング版）
  *
  * 間柱(Post)は柱(Column)と同じ構造を持つため、同じロジックを使用します。
  */
-export class ProfileBasedPostGenerator {
+export class ProfileBasedPostGenerator extends BaseElementGenerator {
+  /**
+   * ジェネレーター設定
+   */
+  static getConfig() {
+    return {
+      elementName: 'Post',
+      loggerName: 'viewer:profile:post',
+      defaultElementType: 'Post'
+    };
+  }
+
   /**
    * 間柱要素からメッシュを作成
    * @param {Array} postElements - 間柱要素配列
@@ -52,76 +66,49 @@ export class ProfileBasedPostGenerator {
     nodes,
     postSections,
     steelSections,
-    elementType = "Post",
+    elementType = 'Post',
     isJsonInput = false
   ) {
-    log.info(
-      `ProfileBasedPostGenerator: Creating ${postElements.length} post meshes`
+    return this.createMeshes(
+      postElements,
+      nodes,
+      postSections,
+      steelSections,
+      elementType,
+      isJsonInput
     );
-    const meshes = [];
-
-    for (const post of postElements) {
-      try {
-        const mesh = this._createSinglePostMesh(
-          post,
-          nodes,
-          postSections,
-          steelSections,
-          elementType,
-          isJsonInput
-        );
-
-        if (mesh) {
-          meshes.push(mesh);
-        }
-      } catch (error) {
-        log.error(`Error creating post ${post.id}:`, error);
-      }
-    }
-
-    log.info(
-      `ProfileBasedPostGenerator: Generated ${meshes.length} post meshes`
-    );
-    return meshes;
   }
 
   /**
-   * 単一間柱メッシュを作成（新しいコアレイヤーを使用）
-   * @private
+   * 単一間柱メッシュを作成（BaseElementGeneratorの抽象メソッドを実装）
+   * @param {Object} post - 間柱要素
+   * @param {Object} context - コンテキスト
+   * @returns {THREE.Mesh|null} メッシュまたはnull
    */
-  static _createSinglePostMesh(
-    post,
-    nodes,
-    postSections,
-    steelSections,
-    elementType,
-    isJsonInput
-  ) {
-    // 1. ノード位置の取得（THREE.Vector3）
-    const nodePositions = this._getNodePositions(post, nodes, isJsonInput);
-    if (!nodePositions.bottomNode || !nodePositions.topNode) {
-      console.warn(`Skipping post ${post.id}: Missing node data`);
+  static _createSingleMesh(post, context) {
+    const { nodes, sections, elementType, isJsonInput, log } = context;
+
+    // 1. ノード位置の取得（ElementGeometryUtils使用）
+    const nodePositions = ElementGeometryUtils.getNodePositions(post, nodes, {
+      nodeType: '2node-vertical',
+      isJsonInput: isJsonInput,
+      node1KeyStart: 'id_node_bottom',
+      node1KeyEnd: 'id_node_top'
+    });
+
+    if (!this._validateNodePositions(nodePositions, post, context)) {
       return null;
     }
 
-    // 2. 断面データの取得
-    const sectionData = ensureUnifiedSectionType(
-      this._getSectionData(post, postSections, isJsonInput)
-    );
-    if (!sectionData) {
-      console.warn(`Skipping post ${post.id}: Missing section data`);
+    // 2. 断面データの取得（ElementGeometryUtils使用）
+    const sectionData = ElementGeometryUtils.getSectionData(post, sections, isJsonInput);
+
+    if (!this._validateSectionData(sectionData, post, context)) {
       return null;
     }
 
-    // 3. 断面タイプの推定（GeometryCalculatorを使用）
-    let sectionType =
-      (sectionData.section_type && sectionData.section_type.toUpperCase()) ||
-      (sectionData.profile_type && sectionData.profile_type.toUpperCase()) ||
-      "RECTANGLE";
-
-    if (!sectionType || sectionType === "UNKNOWN") {
-      sectionType = inferSectionTypeFromDimensions(sectionData.dimensions);
-    }
+    // 3. 断面タイプの推定（BaseElementGeneratorのヘルパー使用）
+    const sectionType = this._normalizeSectionType(sectionData);
 
     log.debug(
       `Creating post ${post.id}: section_type=${sectionType}`
@@ -129,8 +116,8 @@ export class ProfileBasedPostGenerator {
 
     // 4. プロファイル生成（IFC優先、フォールバックでProfileCalculator）
     const profileResult = this._createSectionProfile(sectionData, sectionType, post);
-    if (!profileResult || !profileResult.shape) {
-      console.warn(`Skipping post ${post.id}: Failed to create profile`);
+
+    if (!this._validateProfile(profileResult, post, context)) {
       return null;
     }
 
@@ -138,40 +125,47 @@ export class ProfileBasedPostGenerator {
     const bottomNodePlain = {
       x: nodePositions.bottomNode.x,
       y: nodePositions.bottomNode.y,
-      z: nodePositions.bottomNode.z,
+      z: nodePositions.bottomNode.z
     };
     const topNodePlain = {
       x: nodePositions.topNode.x,
       y: nodePositions.topNode.y,
-      z: nodePositions.topNode.z,
+      z: nodePositions.topNode.z
     };
 
     const bottomOffset = {
       x: Number(post.offset_bottom_X || 0),
-      y: Number(post.offset_bottom_Y || 0),
+      y: Number(post.offset_bottom_Y || 0)
     };
     const topOffset = {
       x: Number(post.offset_top_X || 0),
-      y: Number(post.offset_top_Y || 0),
+      y: Number(post.offset_top_Y || 0)
     };
 
-    // 回転角度の取得
-    let rollAngle = 0;
-    if (post.geometry && post.geometry.rotation) {
-      rollAngle = post.geometry.rotation;
-    } else if (post.angle) {
-      rollAngle = post.angle;
+    // 回転角度の取得（度単位）
+    let rollAngleDegrees = 0;
+    if (post.geometry && post.geometry.rotation !== undefined) {
+      rollAngleDegrees = post.geometry.rotation;
+    } else if (post.rotate !== undefined) {
+      rollAngleDegrees = post.rotate;
+    } else if (post.angle !== undefined) {
+      rollAngleDegrees = post.angle;
     }
+
+    // isReferenceDirectionの処理（BaseElementGeneratorのヘルパー使用）
+    rollAngleDegrees = this._calculateRotation(sectionData, rollAngleDegrees);
+
+    // 度からラジアンに変換
+    const rollAngle = (rollAngleDegrees * Math.PI) / 180;
 
     // GeometryCalculatorで配置計算
     const placement = calculateColumnPlacement(bottomNodePlain, topNodePlain, {
       bottomOffset,
       topOffset,
-      rollAngle,
+      rollAngle
     });
 
-    if (placement.length <= 0) {
-      console.warn(`Skipping post ${post.id}: Invalid length ${placement.length}`);
+    if (!this._validatePlacement(placement, post, context)) {
       return null;
     }
 
@@ -181,8 +175,8 @@ export class ProfileBasedPostGenerator {
 
     // 6. 押し出しジオメトリを作成
     const geometry = createExtrudeGeometry(profileResult.shape, placement.length);
-    if (!geometry) {
-      console.warn(`Skipping post ${post.id}: Failed to create geometry`);
+
+    if (!this._validateGeometry(geometry, post, context)) {
       return null;
     }
 
@@ -192,18 +186,16 @@ export class ProfileBasedPostGenerator {
     // 8. 配置を適用（ThreeJSConverter使用）
     applyPlacementToMesh(mesh, placement);
 
-    // 9. メタデータを設定
-    mesh.userData = {
+    // 9. メタデータを設定（BaseElementGeneratorのヘルパー使用）
+    mesh.userData = this._buildColumnMetadata({
+      element: post,
       elementType: elementType,
-      elementId: post.id,
-      isJsonInput: isJsonInput,
-      postData: post,
-      length: placement.length,
+      placement: placement,
       sectionType: sectionType,
-      profileBased: true,
-      profileMeta: profileResult.meta || { profileSource: "unknown" },
-      sectionDataOriginal: sectionData,
-    };
+      profileResult: profileResult,
+      sectionData: sectionData,
+      isJsonInput: isJsonInput
+    });
 
     // 10. 配置基準線を添付
     try {
@@ -214,57 +206,122 @@ export class ProfileBasedPostGenerator {
         {
           elementType: elementType,
           elementId: post.id,
-          modelSource: "solid",
+          modelSource: 'solid'
         }
       );
     } catch (e) {
       log.warn(`Post ${post.id}: failed to attach placement axis line`, e);
     }
 
+    // 11. stb-diff-viewer造の場合、RC部分のメッシュも生成して配列で返す
+    if (sectionData.isStbDiffViewer && sectionData.concreteProfile) {
+      const rcMesh = this._createStbDiffViewerConcreteGeometry(
+        sectionData,
+        post,
+        placement,
+        elementType,
+        isJsonInput,
+        log
+      );
+      if (rcMesh) {
+        log.debug(`Post ${post.id}: stb-diff-viewer造 - RC部分のメッシュを追加生成`);
+        return [mesh, rcMesh];
+      }
+    }
+
     return mesh;
   }
 
   /**
-   * ノード位置を取得
+   * stb-diff-viewer造のRC（コンクリート）部分のジオメトリを生成
    * @private
+   * @param {Object} sectionData - 断面データ
+   * @param {Object} post - 間柱要素データ
+   * @param {Object} placement - 配置情報
+   * @param {string} elementType - 要素タイプ
+   * @param {boolean} isJsonInput - JSON入力かどうか
+   * @param {Object} log - ロガー
+   * @returns {THREE.Mesh|null} RC部分のメッシュ
    */
-  static _getNodePositions(post, nodes, isJsonInput) {
-    if (isJsonInput) {
-      // JSON形式：直接座標を使用
-      const startPoint = post.geometry?.start_point;
-      const endPoint = post.geometry?.end_point;
+  static _createStbDiffViewerConcreteGeometry(sectionData, post, placement, elementType, isJsonInput, log) {
+    const concreteProfile = sectionData.concreteProfile;
+    if (!concreteProfile) {
+      return null;
+    }
 
-      if (!startPoint || !endPoint) {
-        return { bottomNode: null, topNode: null };
+    // RC部分の寸法を取得
+    let width, height;
+    if (concreteProfile.profileType === 'CIRCLE') {
+      // 円形断面
+      const diameter = concreteProfile.diameter;
+      if (!diameter) {
+        log.warn(`Post ${post.id}: stb-diff-viewer円形断面の直径が不明です`);
+        return null;
       }
-
-      return {
-        bottomNode: Array.isArray(startPoint)
-          ? new THREE.Vector3(startPoint[0], startPoint[1], startPoint[2])
-          : new THREE.Vector3(startPoint.x, startPoint.y, startPoint.z),
-        topNode: Array.isArray(endPoint)
-          ? new THREE.Vector3(endPoint[0], endPoint[1], endPoint[2])
-          : new THREE.Vector3(endPoint.x, endPoint.y, endPoint.z),
-      };
+      width = diameter;
+      height = diameter;
     } else {
-      // STB形式：ノードマップから取得
-      return {
-        bottomNode: nodes.get(post.id_node_bottom),
-        topNode: nodes.get(post.id_node_top),
-      };
+      // 矩形断面
+      width = concreteProfile.width_X || concreteProfile.width;
+      height = concreteProfile.width_Y || concreteProfile.height;
+      if (!width || !height) {
+        log.warn(`Post ${post.id}: stb-diff-viewer矩形断面の寸法が不明です (width=${width}, height=${height})`);
+        return null;
+      }
     }
-  }
 
-  /**
-   * 断面データを取得
-   * @private
-   */
-  static _getSectionData(post, postSections, isJsonInput) {
-    if (isJsonInput) {
-      return post.section;
-    } else {
-      return postSections.get(post.id_section);
+    log.debug(`Post ${post.id}: stb-diff-viewer RC部分 - ${concreteProfile.profileType} ${width}x${height}`);
+
+    // RC部分用の断面データを作成
+    const rcSectionData = {
+      section_type: concreteProfile.profileType,
+      dimensions: {
+        width: width,
+        height: height,
+        outer_width: width,
+        outer_height: height
+      }
+    };
+
+    // RC部分のプロファイルを生成
+    const rcProfileResult = this._createSectionProfile(
+      rcSectionData,
+      concreteProfile.profileType,
+      post
+    );
+
+    if (!rcProfileResult || !rcProfileResult.shape) {
+      log.warn(`Post ${post.id}: stb-diff-viewer RC部分のプロファイル生成に失敗`);
+      return null;
     }
+
+    // RC部分のジオメトリを生成
+    const rcGeometry = createExtrudeGeometry(rcProfileResult.shape, placement.length);
+    if (!rcGeometry) {
+      log.warn(`Post ${post.id}: stb-diff-viewer RC部分のジオメトリ生成に失敗`);
+      return null;
+    }
+
+    // RC部分用のメッシュを作成（半透明マテリアル）
+    const rcMesh = new THREE.Mesh(rcGeometry, materials.matchedMeshTransparent || materials.matchedMesh);
+
+    // 配置を適用
+    applyPlacementToMesh(rcMesh, placement);
+
+    // メタデータを設定
+    rcMesh.userData = this._buildColumnMetadata({
+      element: post,
+      elementType: elementType,
+      placement: placement,
+      sectionType: concreteProfile.profileType,
+      profileResult: rcProfileResult,
+      sectionData: rcSectionData,
+      isJsonInput: isJsonInput
+    });
+    rcMesh.userData.isStbDiffViewerConcrete = true;
+    rcMesh.userData.stbDiffViewerComponentType = 'RC';
+
+    return rcMesh;
   }
 
   /**
@@ -272,6 +329,8 @@ export class ProfileBasedPostGenerator {
    * @private
    */
   static _createSectionProfile(sectionData, sectionType, post) {
+    const log = this._getLogger();
+
     log.debug(
       `Creating profile for post ${post.id}: section_type=${sectionType}`
     );
@@ -291,7 +350,8 @@ export class ProfileBasedPostGenerator {
    * @private
    */
   static _tryIFCProfile(sectionData, sectionType) {
-    const steelTypes = new Set(["H", "BOX", "PIPE", "L", "T", "C", "CIRCLE"]);
+    const log = this._getLogger();
+    const steelTypes = new Set(['H', 'BOX', 'PIPE', 'L', 'T', 'C', 'CIRCLE']);
 
     try {
       let ifcProfile = null;
@@ -301,25 +361,25 @@ export class ProfileBasedPostGenerator {
           sectionData.steelShape,
           sectionType
         );
-      } else if (sectionType === "RECTANGLE") {
+      } else if (sectionType === 'RECTANGLE') {
         // RCなど矩形は寸法からIFC矩形を生成
         const rectDims = sectionData.dimensions || sectionData;
         ifcProfile = {
-          ProfileType: IFCProfileFactory.mapSTBToIFCProfileType("RECTANGLE"),
+          ProfileType: IFCProfileFactory.mapSTBToIFCProfileType('RECTANGLE'),
           ProfileName: `STB_RECT_${
-            rectDims.width || rectDims.outer_width || "W"
-          }x${rectDims.height || rectDims.outer_height || "H"}`,
+            rectDims.width || rectDims.outer_width || 'W'
+          }x${rectDims.height || rectDims.outer_height || 'H'}`,
           ProfileParameters: {
             XDim: rectDims.width || rectDims.outer_width,
-            YDim: rectDims.height || rectDims.outer_height || rectDims.depth,
-          },
+            YDim: rectDims.height || rectDims.outer_height || rectDims.depth
+          }
         };
       }
 
       if (ifcProfile) {
         const threeJSProfile = IFCProfileFactory.createGeometryFromProfile(
           ifcProfile,
-          "center"
+          'center'
         );
         if (threeJSProfile) {
           log.debug(
@@ -328,10 +388,10 @@ export class ProfileBasedPostGenerator {
           return {
             shape: threeJSProfile,
             meta: {
-              profileSource: "ifc",
+              profileSource: 'ifc',
               sectionTypeResolved: sectionType,
-              factoryType: ifcProfile.ProfileType,
-            },
+              factoryType: ifcProfile.ProfileType
+            }
           };
         }
       }
@@ -349,10 +409,11 @@ export class ProfileBasedPostGenerator {
    * @private
    */
   static _createProfileUsingCalculator(sectionData, sectionType) {
+    const log = this._getLogger();
     const dimensions = sectionData.dimensions || sectionData;
 
-    // 断面タイプに応じたパラメータを準備
-    const profileParams = this._prepareProfileParameters(dimensions, sectionType);
+    // 断面タイプに応じたパラメータを準備（ProfileParameterMapper使用）
+    const profileParams = mapToProfileParams(dimensions, sectionType);
 
     try {
       // ProfileCalculatorでプロファイル頂点座標を計算
@@ -368,110 +429,15 @@ export class ProfileBasedPostGenerator {
       return {
         shape: threeShape,
         meta: {
-          profileSource: "calculator",
-          sectionTypeResolved: sectionType,
-        },
+          profileSource: 'calculator',
+          sectionTypeResolved: sectionType
+        }
       };
     } catch (error) {
       log.error(
         `ProfileCalculator creation failed for ${sectionType}: ${error?.message}`
       );
       return null;
-    }
-  }
-
-  /**
-   * 断面タイプに応じたパラメータを準備
-   * @private
-   */
-  static _prepareProfileParameters(dimensions, sectionType) {
-    switch (sectionType.toUpperCase()) {
-      case "H":
-      case "I":
-      case "IBEAM":
-      case "H-SECTION":
-        return {
-          overallDepth:
-            dimensions.overall_depth || dimensions.height || dimensions.A || 450.0,
-          overallWidth:
-            dimensions.overall_width || dimensions.width || dimensions.B || 200.0,
-          webThickness: dimensions.web_thickness || dimensions.t1 || 9.0,
-          flangeThickness:
-            dimensions.flange_thickness || dimensions.t2 || 14.0,
-        };
-
-      case "BOX":
-      case "BOX-SECTION":
-      case "SQUARE-SECTION":
-        return {
-          width: dimensions.width || dimensions.outer_width || 150.0,
-          height: dimensions.height || dimensions.outer_height || 150.0,
-          wallThickness:
-            dimensions.wall_thickness || dimensions.thickness || 9.0,
-        };
-
-      case "PIPE":
-      case "PIPE-SECTION":
-      case "ROUND-SECTION":
-        return {
-          outerDiameter:
-            dimensions.diameter || dimensions.outer_diameter || dimensions.A || 150.0,
-          wallThickness:
-            dimensions.thickness || dimensions.wall_thickness || dimensions.t || 6.0,
-          segments: 32,
-        };
-
-      case "RECTANGLE":
-      case "RECT":
-      case "RC-SECTION":
-        return {
-          width: dimensions.width || 400.0,
-          height: dimensions.height || 400.0,
-        };
-
-      case "CIRCLE":
-        return {
-          radius: dimensions.radius || (dimensions.diameter || 200.0) / 2,
-          segments: 32,
-        };
-
-      case "C":
-      case "CHANNEL":
-      case "U-SHAPE":
-        return {
-          overallDepth:
-            dimensions.overall_depth || dimensions.height || dimensions.A || 300.0,
-          flangeWidth:
-            dimensions.flange_width || dimensions.width || dimensions.B || 90.0,
-          webThickness: dimensions.web_thickness || dimensions.t1 || 9.0,
-          flangeThickness:
-            dimensions.flange_thickness || dimensions.t2 || 13.0,
-        };
-
-      case "L":
-      case "L-SHAPE":
-        return {
-          depth: dimensions.overall_depth || dimensions.depth || 65.0,
-          width: dimensions.flange_width || dimensions.width || 65.0,
-          thickness: dimensions.web_thickness || dimensions.thickness || 6.0,
-        };
-
-      case "T":
-      case "T-SHAPE":
-        return {
-          overallDepth:
-            dimensions.overall_depth || dimensions.height || 200.0,
-          flangeWidth: dimensions.flange_width || dimensions.width || 150.0,
-          webThickness: dimensions.web_thickness || 8.0,
-          flangeThickness: dimensions.flange_thickness || 12.0,
-        };
-
-      default:
-        // デフォルトは矩形
-        return {
-          width: dimensions.width || 400.0,
-          height: dimensions.height || 400.0,
-        };
     }
   }
 }
@@ -482,7 +448,7 @@ export function createPostMeshes(
   nodes,
   postSections,
   steelSections,
-  elementType = "Post",
+  elementType = 'Post',
   isJsonInput = false
 ) {
   return ProfileBasedPostGenerator.createPostMeshes(

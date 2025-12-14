@@ -8,7 +8,7 @@
 import {
   COMPARISON_KEY_TYPE,
   DEFAULT_COMPARISON_KEY_TYPE,
-  COMPARISON_KEY_TYPE_STORAGE_KEY,
+  COMPARISON_KEY_TYPE_STORAGE_KEY
 } from '../config/comparisonKeyConfig.js';
 import { COMPARISON_KEY_EVENTS } from '../ui/events.js';
 
@@ -142,7 +142,7 @@ class ComparisonKeyManager {
   notifyChange(newKeyType, oldKeyType) {
     // カスタムイベントを発行
     const event = new CustomEvent(COMPARISON_KEY_EVENTS.KEY_TYPE_CHANGED, {
-      detail: { newKeyType, oldKeyType },
+      detail: { newKeyType, oldKeyType }
     });
     document.dispatchEvent(event);
 
@@ -172,7 +172,7 @@ class ComparisonKeyManager {
       currentKeyType: this.currentKeyType,
       isPositionBased: this.isPositionBased(),
       isGuidBased: this.isGuidBased(),
-      listenerCount: this.changeListeners.size,
+      listenerCount: this.changeListeners.size
     };
   }
 }

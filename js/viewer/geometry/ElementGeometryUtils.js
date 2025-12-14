@@ -29,23 +29,24 @@
  * ```
  */
 
-import * as THREE from "three";
-import { IFCProfileFactory } from "./IFCProfileFactory.js";
-import { calculateProfile } from "./core/ProfileCalculator.js";
+import * as THREE from 'three';
+import { IFCProfileFactory } from './IFCProfileFactory.js';
+import { calculateProfile } from './core/ProfileCalculator.js';
 import {
   calculateColumnPlacement,
-  inferSectionTypeFromDimensions,
-} from "./core/GeometryCalculator.js";
+  calculateBeamPlacement,
+  inferSectionTypeFromDimensions
+} from './core/GeometryCalculator.js';
 import {
   convertProfileToThreeShape,
   createExtrudeGeometry,
   applyPlacementToMesh,
-  attachPlacementAxisLine,
-} from "./core/ThreeJSConverter.js";
-import { ensureUnifiedSectionType } from "../../common/sectionTypeUtil.js";
-import { createLogger } from "../../utils/logger.js";
+  attachPlacementAxisLine
+} from './core/ThreeJSConverter.js';
+import { ensureUnifiedSectionType } from '../../common/sectionTypeUtil.js';
+import { createLogger } from '../../utils/logger.js';
 
-const log = createLogger("viewer:geometry:utils");
+const log = createLogger('viewer:geometry:utils');
 
 /**
  * 構造要素ジオメトリ生成共通ユーティリティクラス
@@ -76,7 +77,7 @@ export class ElementGeometryUtils {
     }
 
     // STB形式
-    if (nodeType === "1node") {
+    if (nodeType === '1node') {
       // 基礎などの1ノード要素
       const nodeId = element[config.node1Key];
       const node = nodes ? nodes.get(nodeId) : null;
@@ -88,11 +89,11 @@ export class ElementGeometryUtils {
       }
 
       return {
-        type: "1node",
+        type: '1node',
         node: node,
-        valid: !!node,
+        valid: !!node
       };
-    } else if (nodeType === "2node-vertical") {
+    } else if (nodeType === '2node-vertical') {
       // 柱、杭などの垂直要素（bottom/top）
       const bottomNodeId = element[config.node1KeyStart];
       const topNodeId = element[config.node1KeyEnd];
@@ -106,14 +107,14 @@ export class ElementGeometryUtils {
       }
 
       return {
-        type: "2node-vertical",
+        type: '2node-vertical',
         startNode: bottomNode,
         endNode: topNode,
         bottomNode: bottomNode,
         topNode: topNode,
-        valid: !!(bottomNode && topNode),
+        valid: !!(bottomNode && topNode)
       };
-    } else if (nodeType === "2node-horizontal") {
+    } else if (nodeType === '2node-horizontal') {
       // 梁、ブレースなどの水平要素（start/end）
       const startNodeId = element[config.node1KeyStart];
       const endNodeId = element[config.node1KeyEnd];
@@ -127,10 +128,10 @@ export class ElementGeometryUtils {
       }
 
       return {
-        type: "2node-horizontal",
+        type: '2node-horizontal',
         startNode: startNode,
         endNode: endNode,
-        valid: !!(startNode && endNode),
+        valid: !!(startNode && endNode)
       };
     }
 
@@ -149,7 +150,7 @@ export class ElementGeometryUtils {
       return { valid: false };
     }
 
-    if (config.nodeType === "1node") {
+    if (config.nodeType === '1node') {
       // 1ノード要素（JSON形式では center_point などを想定）
       const point = geometry.center_point || geometry.position;
       if (!point) {
@@ -158,9 +159,9 @@ export class ElementGeometryUtils {
       }
 
       return {
-        type: "1node",
+        type: '1node',
         node: this._arrayOrObjectToVector3(point),
-        valid: true,
+        valid: true
       };
     } else {
       // 2ノード要素
@@ -178,7 +179,7 @@ export class ElementGeometryUtils {
         type: config.nodeType,
         startNode: this._arrayOrObjectToVector3(startPoint),
         endNode: this._arrayOrObjectToVector3(endPoint),
-        valid: true,
+        valid: true
       };
     }
   }
@@ -275,13 +276,13 @@ export class ElementGeometryUtils {
         return {
           shape: convertProfileToThreeShape({
             vertices: ifcProfile.points,
-            _meta: { type: sectionType === "PIPE" ? "circular" : "polygon" },
+            _meta: { type: sectionType === 'PIPE' ? 'circular' : 'polygon' }
           }),
           meta: {
-            profileSource: "IFCProfileFactory",
+            profileSource: 'IFCProfileFactory',
             profileType: sectionType,
-            ...ifcProfile.metadata,
-          },
+            ...ifcProfile.metadata
+          }
         };
       } else {
         log.debug(
@@ -326,10 +327,10 @@ export class ElementGeometryUtils {
         return {
           shape: convertProfileToThreeShape(profileData),
           meta: {
-            profileSource: "ProfileCalculator",
+            profileSource: 'ProfileCalculator',
             profileType: sectionType,
-            ...(profileData._meta ? { _meta: profileData._meta } : {}),
-          },
+            ...(profileData._meta ? { _meta: profileData._meta } : {})
+          }
         };
       } else {
         log.debug(
@@ -372,15 +373,99 @@ export class ElementGeometryUtils {
     return calculateColumnPlacement(startPlain, endPlain, {
       bottomOffset: options.startOffset || { x: 0, y: 0 },
       topOffset: options.endOffset || { x: 0, y: 0 },
-      rollAngle: options.rollAngle || 0,
+      rollAngle: options.rollAngle || 0
     });
+  }
+
+  /**
+   * 水平要素（梁・ブレース）の配置を計算
+   *
+   * @param {THREE.Vector3|Object} startNode - 始点ノード
+   * @param {THREE.Vector3|Object} endNode - 終点ノード
+   * @param {Object} options - 配置オプション
+   * @param {Object} [options.startOffset] - 始点オフセット {x, y, z}
+   * @param {Object} [options.endOffset] - 終点オフセット {x, y, z}
+   * @param {number} [options.rollAngle] - ロール角度（ラジアン）
+   * @param {string} [options.placementMode] - 配置モード ('center' | 'top-aligned')
+   * @param {number} [options.sectionHeight] - 断面高さ（天端基準用、mm）
+   * @returns {Object} 配置情報
+   */
+  static calculateHorizontalElementPlacement(startNode, endNode, options = {}) {
+    // THREE.Vector3 → Plain Object に変換
+    const startPlain = startNode.isVector3
+      ? { x: startNode.x, y: startNode.y, z: startNode.z }
+      : startNode;
+    const endPlain = endNode.isVector3
+      ? { x: endNode.x, y: endNode.y, z: endNode.z }
+      : endNode;
+
+    // GeometryCalculatorの梁用配置計算を使用
+    const placement = calculateBeamPlacement(startPlain, endPlain, {
+      startOffset: options.startOffset || { x: 0, y: 0, z: 0 },
+      endOffset: options.endOffset || { x: 0, y: 0, z: 0 },
+      rollAngle: options.rollAngle || 0,
+      placementMode: options.placementMode || 'center',
+      sectionHeight: options.sectionHeight || 0
+    });
+
+    // THREE.js用に変換
+    return {
+      center: new THREE.Vector3(
+        placement.center.x,
+        placement.center.y,
+        placement.center.z
+      ),
+      length: placement.length,
+      direction: new THREE.Vector3(
+        placement.direction.x,
+        placement.direction.y,
+        placement.direction.z
+      ),
+      rotation: new THREE.Quaternion(
+        placement.rotation.x,
+        placement.rotation.y,
+        placement.rotation.z,
+        placement.rotation.w
+      ),
+      adjustedStart: new THREE.Vector3(
+        placement.adjustedStart.x,
+        placement.adjustedStart.y,
+        placement.adjustedStart.z
+      ),
+      adjustedEnd: new THREE.Vector3(
+        placement.adjustedEnd.x,
+        placement.adjustedEnd.y,
+        placement.adjustedEnd.z
+      ),
+      basis: placement.basis
+        ? {
+          xAxis: new THREE.Vector3(
+            placement.basis.xAxis.x,
+            placement.basis.xAxis.y,
+            placement.basis.xAxis.z
+          ),
+          yAxis: new THREE.Vector3(
+            placement.basis.yAxis.x,
+            placement.basis.yAxis.y,
+            placement.basis.yAxis.z
+          ),
+          zAxis: new THREE.Vector3(
+            placement.basis.zAxis.x,
+            placement.basis.zAxis.y,
+            placement.basis.zAxis.z
+          )
+        }
+        : null,
+      placementMode: placement.placementMode,
+      sectionHeight: placement.sectionHeight
+    };
   }
 
   /**
    * 1ノード要素の配置を計算（基礎用）
    *
-   * @param {THREE.Vector3} node - ノード位置
-   * @param {number} levelBottom - 底面レベル（Z座標、mm単位）
+   * @param {THREE.Vector3} node - ノード位置（X, Y座標のみ使用、Z座標は使用しない）
+   * @param {number} levelBottom - 底面レベル（Z座標の絶対値、mm単位）
    * @param {number} depth - 深さ（高さ、mm単位）
    * @param {Object} options - オフセット・回転角度など
    * @param {Object} [options.offset] - 水平オフセット {x, y} (mm)
@@ -388,24 +473,23 @@ export class ElementGeometryUtils {
    * @returns {Object} 配置情報 { position, rotation, bottomZ, topZ, ... }
    */
   static calculateSingleNodePlacement(node, levelBottom, depth, options = {}) {
-    // ノード位置を基準に配置を計算
-    const basePosition = node.clone();
+    // ノード位置からX, Y座標を取得（Z座標は使用しない）
+    const baseX = node.x;
+    const baseY = node.y;
 
     // オフセット適用
-    if (options.offset) {
-      basePosition.x += options.offset.x || 0;
-      basePosition.y += options.offset.y || 0;
-    }
+    const finalX = baseX + (options.offset?.x || 0);
+    const finalY = baseY + (options.offset?.y || 0);
 
-    // 基礎の底面は level_bottom に配置
+    // STBでは、level_bottomが底面の絶対Z座標を指定する
     const bottomZ = levelBottom;
-    const topZ = levelBottom + depth;
+    const topZ = bottomZ + depth;
 
-    // 基礎の中心位置（底面中心を基準）
-    const centerZ = (bottomZ + topZ) / 2;
+    // 基礎の中心位置（底面 + せいの半分）
+    const centerZ = bottomZ + depth / 2;
 
     // 最終位置
-    const position = new THREE.Vector3(basePosition.x, basePosition.y, centerZ);
+    const position = new THREE.Vector3(finalX, finalY, centerZ);
 
     // 回転
     const rotation = new THREE.Euler(0, 0, options.rotation || 0);
@@ -416,7 +500,7 @@ export class ElementGeometryUtils {
       bottomZ: bottomZ,
       topZ: topZ,
       nodePosition: node,
-      offset: options.offset || { x: 0, y: 0 },
+      offset: options.offset || { x: 0, y: 0 }
     };
   }
 
@@ -450,8 +534,8 @@ export class ElementGeometryUtils {
       length: config.length,
       sectionType: config.sectionType,
       profileBased: true,
-      profileMeta: config.profileMeta || { profileSource: "unknown" },
-      sectionDataOriginal: config.sectionData,
+      profileMeta: config.profileMeta || { profileSource: 'unknown' },
+      sectionDataOriginal: config.sectionData
     };
 
     // 要素固有データを保存
@@ -533,7 +617,7 @@ export class ElementGeometryUtils {
     const result = {
       startOffset: { x: 0, y: 0 },
       endOffset: { x: 0, y: 0 },
-      rollAngle: 0,
+      rollAngle: 0
     };
 
     // STB形式の場合、オフセット属性を取得
@@ -555,10 +639,114 @@ export class ElementGeometryUtils {
 
     return result;
   }
+
+  /**
+   * 梁/ブレース要素からオフセットと回転角度を取得（Z方向含む）
+   *
+   * @param {Object} element - 要素データ
+   * @returns {Object} { startOffset: {x,y,z}, endOffset: {x,y,z}, rollAngle }
+   */
+  static getHorizontalElementOffsets(element) {
+    const result = {
+      startOffset: { x: 0, y: 0, z: 0 },
+      endOffset: { x: 0, y: 0, z: 0 },
+      rollAngle: 0
+    };
+
+    // STB形式: offset_start_X, offset_start_Y, offset_start_Z, etc.
+    // （旧形式 offset_X_start も後方互換でサポート）
+    if (element.offset_start_X !== undefined) {
+      result.startOffset.x = Number(element.offset_start_X) || 0;
+    } else if (element.offset_X_start !== undefined) {
+      result.startOffset.x = Number(element.offset_X_start) || 0;
+    }
+    if (element.offset_start_Y !== undefined) {
+      result.startOffset.y = Number(element.offset_start_Y) || 0;
+    } else if (element.offset_Y_start !== undefined) {
+      result.startOffset.y = Number(element.offset_Y_start) || 0;
+    }
+    if (element.offset_start_Z !== undefined) {
+      result.startOffset.z = Number(element.offset_start_Z) || 0;
+    } else if (element.offset_Z_start !== undefined) {
+      result.startOffset.z = Number(element.offset_Z_start) || 0;
+    }
+    if (element.offset_end_X !== undefined) {
+      result.endOffset.x = Number(element.offset_end_X) || 0;
+    } else if (element.offset_X_end !== undefined) {
+      result.endOffset.x = Number(element.offset_X_end) || 0;
+    }
+    if (element.offset_end_Y !== undefined) {
+      result.endOffset.y = Number(element.offset_end_Y) || 0;
+    } else if (element.offset_Y_end !== undefined) {
+      result.endOffset.y = Number(element.offset_Y_end) || 0;
+    }
+    if (element.offset_end_Z !== undefined) {
+      result.endOffset.z = Number(element.offset_end_Z) || 0;
+    } else if (element.offset_Z_end !== undefined) {
+      result.endOffset.z = Number(element.offset_Z_end) || 0;
+    }
+
+    // 回転角度（度 → ラジアン変換は呼び出し側で行う）
+    if (element.rotate !== undefined) {
+      result.rollAngle = Number(element.rotate) || 0;
+    } else if (element.angle !== undefined) {
+      result.rollAngle = Number(element.angle) || 0;
+    }
+
+    return result;
+  }
+
+  // ========================================
+  // 8. 断面高さ計算（天端基準用）
+  // ========================================
+
+  /**
+   * 断面データから断面高さを取得（天端基準シフト用）
+   *
+   * @param {Object} sectionData - 断面データ
+   * @param {string} sectionType - 断面タイプ
+   * @returns {number} 断面高さ（mm）、取得できない場合は 0
+   */
+  static getSectionHeight(sectionData, sectionType) {
+    if (!sectionData) return 0;
+
+    const dims = sectionData.dimensions || sectionData;
+    const upperType = (sectionType || '').toUpperCase();
+
+    // 円形/パイプは天端基準の概念が弱いので 0 を返す
+    if (upperType === 'CIRCLE' || upperType === 'PIPE') {
+      return 0;
+    }
+
+    // 高さの候補を優先順位順に試す
+    const heightCandidates = [
+      dims.overall_depth,
+      dims.height,
+      dims.outer_height,
+      dims.A,
+      dims.depth
+    ];
+
+    for (const candidate of heightCandidates) {
+      if (candidate !== undefined && candidate !== null) {
+        const height = Number(candidate);
+        if (isFinite(height) && height > 0) {
+          return height;
+        }
+      }
+    }
+
+    // 直径から高さを推定（パイプ/円形の場合）
+    if (dims.diameter || dims.outer_diameter) {
+      return Number(dims.diameter || dims.outer_diameter) || 0;
+    }
+
+    return 0;
+  }
 }
 
 // デバッグ・開発支援
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   window.ElementGeometryUtils = ElementGeometryUtils;
 }
 

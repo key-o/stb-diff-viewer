@@ -1,0 +1,286 @@
+/**
+ * 差分一覧パネル コンポーネントスタイル
+ *
+ * 差分一覧表示パネルのスタイルを定義します。
+ */
+
+/* ========================================
+   差分一覧パネル
+   ======================================== */
+
+#diff-list-panel {
+  min-width: 380px;
+  max-width: 450px;
+  right: 10px;
+  left: auto;
+  top: 80px;
+}
+
+/* ========================================
+   フィルタセクション
+   ======================================== */
+
+.diff-list-filters {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.diff-list-filters .filter-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diff-list-filters label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  margin-bottom: 0;
+}
+
+.diff-list-filters select {
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-sm);
+  background-color: var(--bg-white);
+  cursor: pointer;
+}
+
+.diff-list-filters select:hover {
+  border-color: var(--primary);
+}
+
+/* ========================================
+   サマリー表示
+   ======================================== */
+
+.diff-list-summary {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.diff-list-summary .summary-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diff-list-summary .color-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.diff-list-summary .summary-item.onlyA .color-indicator {
+  background-color: #4CAF50;
+}
+
+.diff-list-summary .summary-item.onlyB .color-indicator {
+  background-color: #F44336;
+}
+
+.diff-list-summary .summary-item strong {
+  font-weight: var(--font-weight-bold);
+}
+
+/* ========================================
+   差分リストコンテナ
+   ======================================== */
+
+.diff-list-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.diff-list-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* ========================================
+   差分グループ
+   ======================================== */
+
+.diff-group {
+  margin-bottom: 12px;
+}
+
+.diff-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px;
+  background-color: #e9ecef;
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 4px;
+}
+
+.diff-group-header .group-name {
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+}
+
+.diff-group-header .group-counts {
+  display: flex;
+  gap: 8px;
+  font-size: var(--font-size-xs);
+}
+
+.diff-group-header .count-a {
+  color: #388E3C;
+  font-weight: 500;
+}
+
+.diff-group-header .count-b {
+  color: #D32F2F;
+  font-weight: 500;
+}
+
+/* ========================================
+   差分アイテム
+   ======================================== */
+
+.diff-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.diff-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  font-size: var(--font-size-sm);
+}
+
+.diff-item:hover {
+  background-color: #f5f5f5;
+}
+
+.diff-item:active {
+  background-color: #e0e0e0;
+}
+
+/* モデルA専用 */
+.diff-item.item-onlyA {
+  border-left: 3px solid #4CAF50;
+}
+
+.diff-item.item-onlyA:hover {
+  background-color: #E8F5E9;
+}
+
+/* モデルB専用 */
+.diff-item.item-onlyB {
+  border-left: 3px solid #F44336;
+}
+
+.diff-item.item-onlyB:hover {
+  background-color: #FFEBEE;
+}
+
+/* カテゴリラベル */
+.diff-item .item-category {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 3px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  margin-right: 8px;
+}
+
+.diff-item.item-onlyA .item-category {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.diff-item.item-onlyB .item-category {
+  background-color: #F44336;
+  color: white;
+}
+
+/* 要素ID */
+.diff-item .item-id {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* アクションボタン */
+.diff-item .item-action {
+  opacity: 0.5;
+  transition: opacity var(--transition-fast);
+}
+
+.diff-item:hover .item-action {
+  opacity: 1;
+}
+
+/* ========================================
+   トースト通知
+   ======================================== */
+
+.diff-list-toast {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #333;
+  color: white;
+  padding: 10px 20px;
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  z-index: 10000;
+  animation: toast-fade-in 0.3s ease;
+}
+
+@keyframes toast-fade-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* ========================================
+   スクロールバースタイル
+   ======================================== */
+
+.diff-list-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.diff-list-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.diff-list-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.diff-list-container::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}

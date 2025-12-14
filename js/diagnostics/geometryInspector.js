@@ -1,13 +1,13 @@
-import { createLogger } from "../utils/logger.js";
-import { ensureUnifiedSectionType } from "../common/sectionTypeUtil.js";
+import { createLogger } from '../utils/logger.js';
+import { ensureUnifiedSectionType } from '../common/sectionTypeUtil.js';
 import {
   getWidth,
   getHeight,
-  getDimensions,
-} from "../common/sectionDataAccessor.js";
+  getDimensions
+} from '../common/sectionDataAccessor.js';
 
-const log = createLogger("diagnostics:geom");
-const clog = createLogger("diagnostics:compare");
+const log = createLogger('diagnostics:geom');
+const clog = createLogger('diagnostics:compare');
 
 /**
  * 断面データから期待される寸法を解決
@@ -19,33 +19,33 @@ const clog = createLogger("diagnostics:compare");
  */
 function resolveExpectedDimensions(sectionMeta) {
   if (!sectionMeta) {
-    return { width: undefined, height: undefined, source: "none" };
+    return { width: undefined, height: undefined, source: 'none' };
   }
 
   // 1. sectionDataAccessorを使用して標準的な方法で取得を試みる
   let w = getWidth(sectionMeta);
   let h = getHeight(sectionMeta);
-  let source = "accessor";
+  let source = 'accessor';
 
   // 2. 取得できない場合のみフォールバック処理
   if (w === undefined || h === undefined) {
     // shapeName からの抽出（H形鋼や□/BOX表記など）
     // 例: "H-346x174x6x9" / "□-550x550x12x30" / "BOX-400x300x12"
     const shapeName = sectionMeta.shapeName || sectionMeta.ShapeName;
-    if (typeof shapeName === "string" && shapeName.length > 0) {
+    if (typeof shapeName === 'string' && shapeName.length > 0) {
       // 全数値を抽出
       const nums = shapeName.match(/\d+(?:\.\d+)?/g)?.map((v) => +v) || [];
       if (nums.length >= 2) {
         // 先頭を高さ/せい、次を幅と解釈（H, BOX, □, RECTANGLE 共通ルール）
         if (h === undefined) h = nums[0];
         if (w === undefined) w = nums[1];
-        source = "shapeName";
+        source = 'shapeName';
       }
 
       // steelSections マップから正規寸法を引き当てる
       if (
         (w === undefined || h === undefined) &&
-        typeof window !== "undefined"
+        typeof window !== 'undefined'
       ) {
         const steelSections = window.steelSections;
         if (
@@ -63,7 +63,7 @@ function resolveExpectedDimensions(sectionMeta) {
           const H = parseFloat(ss.H || ss.h);
           if (!isNaN(H) && h === undefined) h = H;
           if (!isNaN(H) && w === undefined && isNaN(B)) w = H; // 正方形想定
-          source = "steelSections";
+          source = 'steelSections';
         }
       }
     }
@@ -79,7 +79,7 @@ function resolveExpectedDimensions(sectionMeta) {
  */
 export function inspectSectionMismatch(mesh) {
   if (!mesh || !mesh.geometry) {
-    log.warn("inspectSectionMismatch: mesh or geometry missing");
+    log.warn('inspectSectionMismatch: mesh or geometry missing');
     return null;
   }
   mesh.geometry.computeBoundingBox();
@@ -107,12 +107,12 @@ export function inspectSectionMismatch(mesh) {
     expected: { width: expectedW, depth: expectedD },
     mismatch: {
       width: expectedW ? (width - expectedW) / expectedW : null,
-      depth: expectedD ? (depth - expectedD) / expectedD : null,
-    },
+      depth: expectedD ? (depth - expectedD) / expectedD : null
+    }
   };
 
   // 詳細は trace に格下げ（spam防止）
-  log.trace("Section inspection:", result);
+  log.trace('Section inspection:', result);
   return result;
 }
 
@@ -148,7 +148,7 @@ export function scanSceneForSectionMismatches(
 export function scanDefaultScene(elementType = null, limit = 50) {
   const s = getDefaultScene();
   if (!s) {
-    log.warn("scanDefaultScene: scene not found in known globals");
+    log.warn('scanDefaultScene: scene not found in known globals');
     return [];
   }
   return scanSceneForSectionMismatches(s, elementType, limit);
@@ -159,7 +159,7 @@ export function getDefaultScene() {
     () => window?.viewer?.scene,
     () => window?.stbViewer?.scene,
     () => window?.app?.scene,
-    () => window?.scene,
+    () => window?.scene
   ];
   for (const get of candidates) {
     try {
@@ -179,7 +179,7 @@ export function highlightMismatches(scene, results, tolerance = 0.02) {
       .filter((r) => {
         const w = Math.abs(r.mismatch.width ?? 0);
         const d = Math.abs(r.mismatch.depth ?? 0);
-        return w > tolerance || d > tolerance || r.profileSource === "manual";
+        return w > tolerance || d > tolerance || r.profileSource === 'manual';
       })
       .map((r) => r.elementId)
       .filter(Boolean)
@@ -192,9 +192,9 @@ export function highlightMismatches(scene, results, tolerance = 0.02) {
       n++;
       try {
         if (obj.material && obj.material.color) {
-          obj.material.color.set("#ff3366");
-          if ("emissive" in obj.material && obj.material.emissive) {
-            obj.material.emissive.set("#661122");
+          obj.material.color.set('#ff3366');
+          if ('emissive' in obj.material && obj.material.emissive) {
+            obj.material.emissive.set('#661122');
           }
         }
       } catch (_) {}
@@ -208,25 +208,25 @@ export function highlightMismatches(scene, results, tolerance = 0.02) {
  * 結果を簡易パネルで表示
  */
 export function showMismatchPanel(results, tolerance = 0.02) {
-  const id = "diag-mismatch-panel";
+  const id = 'diag-mismatch-panel';
   let el = document.getElementById(id);
   if (!el) {
-    el = document.createElement("div");
+    el = document.createElement('div');
     el.id = id;
     Object.assign(el.style, {
-      position: "fixed",
-      right: "12px",
-      bottom: "12px",
+      position: 'fixed',
+      right: '12px',
+      bottom: '12px',
       zIndex: 99999,
-      maxHeight: "60vh",
-      width: "520px",
-      overflow: "auto",
-      background: "rgba(15,15,20,0.95)",
-      color: "#eee",
-      border: "1px solid #444",
-      borderRadius: "8px",
-      padding: "8px",
-      font: "12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+      maxHeight: '60vh',
+      width: '520px',
+      overflow: 'auto',
+      background: 'rgba(15,15,20,0.95)',
+      color: '#eee',
+      border: '1px solid #444',
+      borderRadius: '8px',
+      padding: '8px',
+      font: '12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
     });
     document.body.appendChild(el);
   }
@@ -234,43 +234,43 @@ export function showMismatchPanel(results, tolerance = 0.02) {
     .map((r) => {
       const w =
         r.mismatch.width != null
-          ? (r.mismatch.width * 100).toFixed(1) + "%"
-          : "-";
+          ? (r.mismatch.width * 100).toFixed(1) + '%'
+          : '-';
       const d =
         r.mismatch.depth != null
-          ? (r.mismatch.depth * 100).toFixed(1) + "%"
-          : "-";
+          ? (r.mismatch.depth * 100).toFixed(1) + '%'
+          : '-';
       const bad =
         Math.abs(r.mismatch.width ?? 0) > tolerance ||
         Math.abs(r.mismatch.depth ?? 0) > tolerance ||
-        r.profileSource === "manual";
-      return `<tr style="background:${bad ? "#3a0010" : "transparent"}"><td>${
-        r.elementType ?? ""
-      }</td><td>${r.elementId ?? ""}</td><td>${r.profileSource ?? ""}</td><td>${
-        r.sectionTypeUnified ?? ""
-      }</td><td>${r.actual.width?.toFixed?.(1) ?? ""} x ${
-        r.actual.depth?.toFixed?.(1) ?? ""
-      }</td><td>${r.expected.width ?? ""} x ${
-        r.expected.depth ?? ""
+        r.profileSource === 'manual';
+      return `<tr style="background:${bad ? '#3a0010' : 'transparent'}"><td>${
+        r.elementType ?? ''
+      }</td><td>${r.elementId ?? ''}</td><td>${r.profileSource ?? ''}</td><td>${
+        r.sectionTypeUnified ?? ''
+      }</td><td>${r.actual.width?.toFixed?.(1) ?? ''} x ${
+        r.actual.depth?.toFixed?.(1) ?? ''
+      }</td><td>${r.expected.width ?? ''} x ${
+        r.expected.depth ?? ''
       }</td><td>${w} / ${d}</td></tr>`;
     })
-    .join("");
+    .join('');
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
       <strong>断面差異レポート</strong>
       <button id="diag-close" style="margin-left:auto">×</button>
     </div>
     <div style="margin-bottom:6px;opacity:0.8">しきい値: ${(
-      tolerance * 100
-    ).toFixed(1)}% を超える差異、または profileSource=manual を強調表示</div>
+    tolerance * 100
+  ).toFixed(1)}% を超える差異、または profileSource=manual を強調表示</div>
     <table style="width:100%;border-collapse:collapse">
       <thead>
-  <tr><th style="text-align:left">Type</th><th style="text-align:left">ID</th><th>Src</th><th>section_type</th><th>Actual (W x D)</th><th>Expected</th><th>ΔW / ΔD</th></tr>
+  <tr><th style="text-align:left">Type</th><th style="text-align:left">ID</th><th>stb-diff-viewer</th><th>section_type</th><th>Actual (W x D)</th><th>Expected</th><th>ΔW / ΔD</th></tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
   `;
-  el.querySelector("#diag-close")?.addEventListener("click", () => el.remove());
+  el.querySelector('#diag-close')?.addEventListener('click', () => el.remove());
 }
 
 /**
@@ -282,8 +282,8 @@ export function logSectionComparisons(
   limit = 100,
   options = {}
 ) {
-  const { tolerance = 0.02, level = "info" } = options;
-  const logger = typeof clog[level] === "function" ? clog[level] : clog.info;
+  const { tolerance = 0.02, level = 'info' } = options;
+  const logger = typeof clog[level] === 'function' ? clog[level] : clog.info;
   let total = 0;
   let flagged = 0;
   scene.traverse((obj) => {
@@ -296,16 +296,16 @@ export function logSectionComparisons(
     const over =
       Math.abs(r.mismatch.width ?? 0) > tolerance ||
       Math.abs(r.mismatch.depth ?? 0) > tolerance ||
-      r.profileSource === "manual";
+      r.profileSource === 'manual';
     if (over) flagged++;
-    const fmt = (n, d = 1) => (n == null ? "-" : Number(n).toFixed(d));
+    const fmt = (n, d = 1) => (n == null ? '-' : Number(n).toFixed(d));
     const dw = r.mismatch.width != null ? r.mismatch.width * 100 : null;
     const dd = r.mismatch.depth != null ? r.mismatch.depth * 100 : null;
-    const sDW = dw == null ? "-" : `${dw >= 0 ? "+" : ""}${fmt(dw, 1)}%`;
-    const sDD = dd == null ? "-" : `${dd >= 0 ? "+" : ""}${fmt(dd, 1)}%`;
-    const msg = `${over ? "!" : " "} [${r.elementType ?? ""}] id=${
-      r.elementId ?? ""
-    } src=${r.profileSource ?? ""}/${r.sectionTypeUnified ?? ""} actual=${fmt(
+    const sDW = dw == null ? '-' : `${dw >= 0 ? '+' : ''}${fmt(dw, 1)}%`;
+    const sDD = dd == null ? '-' : `${dd >= 0 ? '+' : ''}${fmt(dd, 1)}%`;
+    const msg = `${over ? '!' : ' '} [${r.elementType ?? ''}] id=${
+      r.elementId ?? ''
+    } stb-diff-viewer=${r.profileSource ?? ''}/${r.sectionTypeUnified ?? ''} actual=${fmt(
       r.actual.width
     )}x${fmt(r.actual.depth)} expected=${fmt(r.expected.width)}x${fmt(
       r.expected.depth
@@ -327,7 +327,7 @@ export function logDefaultSceneComparisons(
 ) {
   const s = getDefaultScene();
   if (!s) {
-    clog.warn("logDefaultSceneComparisons: scene not found");
+    clog.warn('logDefaultSceneComparisons: scene not found');
     return { total: 0, flagged: 0 };
   }
   return logSectionComparisons(s, elementType, limit, options);
@@ -345,7 +345,7 @@ export function debugMissingExpectedDimensions(
 ) {
   const s = scene || getDefaultScene();
   if (!s) {
-    clog.warn("debugMissingExpectedDimensions: scene not found");
+    clog.warn('debugMissingExpectedDimensions: scene not found');
     return [];
   }
   const out = [];
@@ -370,9 +370,9 @@ export function debugMissingExpectedDimensions(
     // ネスト1段目の数値候補を収集
     const numericEntries = [];
     for (const [k, v] of Object.entries(dims)) {
-      if (typeof v === "number" && isFinite(v)) {
+      if (typeof v === 'number' && isFinite(v)) {
         numericEntries.push(`${k}=${v}`);
-      } else if (typeof v === "string" && !isNaN(+v)) {
+      } else if (typeof v === 'string' && !isNaN(+v)) {
         numericEntries.push(`${k}=${+v}`);
       }
     }
@@ -389,18 +389,18 @@ export function debugMissingExpectedDimensions(
       numericCandidates: numericEntries.slice(0, 12),
       rawPreview: JSON.stringify(
         raw.dimensions ? raw.dimensions : raw,
-        (k, v) => (typeof v === "number" ? Number(v.toFixed(3)) : v),
+        (k, v) => (typeof v === 'number' ? Number(v.toFixed(3)) : v),
         0
-      ).slice(0, 400),
+      ).slice(0, 400)
     };
     out.push(sample);
     counted++;
     clog.warn(
-      `[MISSING] id=${sample.elementId} type=${sample.elementType} src=${
+      `[MISSING] id=${sample.elementId} type=${sample.elementType} stb-diff-viewer=${
         sample.profileSource
-      }/${sample.sectionTypeUnified ?? ""} keys=${sample.dimensionsKeys.join(
-        ","
-      )} nums=${sample.numericCandidates.join(",")} rawPreview=${
+      }/${sample.sectionTypeUnified ?? ''} keys=${sample.dimensionsKeys.join(
+        ','
+      )} nums=${sample.numericCandidates.join(',')} rawPreview=${
         sample.rawPreview
       }`
     );
@@ -412,7 +412,7 @@ export function debugMissingExpectedDimensions(
 }
 
 // 便利関数をグローバルに公開（開発用）
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   window.GeometryDiagnostics = {
     inspectSectionMismatch,
     scanSceneForSectionMismatches,
@@ -422,6 +422,6 @@ if (typeof window !== "undefined") {
     highlightMismatches,
     logSectionComparisons,
     logDefaultSceneComparisons,
-    debugMissingExpectedDimensions,
+    debugMissingExpectedDimensions
   };
 }

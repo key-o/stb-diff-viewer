@@ -13,7 +13,7 @@
  */
 
 // --- 定数 ---
-const STB_NAMESPACE = "https://www.building-smart.or.jp/dl";
+const STB_NAMESPACE = 'https://www.building-smart.or.jp/dl';
 
 // --- XMLパース関数 ---
 // parseXml関数は削除されました（未使用のため）
@@ -33,13 +33,13 @@ const STB_NAMESPACE = "https://www.building-smart.or.jp/dl";
 export function buildNodeMap(doc) {
   const nodeMap = new Map();
   if (!doc) return nodeMap;
-  const nodes = parseElements(doc, "StbNode");
+  const nodes = parseElements(doc, 'StbNode');
   for (const node of nodes) {
-    const id = node.getAttribute("id");
+    const id = node.getAttribute('id');
     // ★★★ スケーリングを削除 ★★★
-    const x = parseFloat(node.getAttribute("X"));
-    const y = parseFloat(node.getAttribute("Y"));
-    const z = parseFloat(node.getAttribute("Z"));
+    const x = parseFloat(node.getAttribute('X'));
+    const y = parseFloat(node.getAttribute('Y'));
+    const z = parseFloat(node.getAttribute('Z'));
     if (id && !isNaN(x) && !isNaN(y) && !isNaN(z)) {
       nodeMap.set(id, { x, y, z });
       // デバッグ出力（最初の5個のノードのみ）
@@ -49,8 +49,8 @@ export function buildNodeMap(doc) {
     } else {
       console.warn(
         `無効なノードデータをスキップします: id=${id}, X=${node.getAttribute(
-          "X"
-        )}, Y=${node.getAttribute("Y")}, Z=${node.getAttribute("Z")}`
+          'X'
+        )}, Y=${node.getAttribute('Y')}, Z=${node.getAttribute('Z')}`
       );
     }
   }
@@ -61,15 +61,15 @@ export function buildNodeMap(doc) {
     const coords = Array.from(nodeMap.values());
     const xRange = {
       min: Math.min(...coords.map((c) => c.x)),
-      max: Math.max(...coords.map((c) => c.x)),
+      max: Math.max(...coords.map((c) => c.x))
     };
     const yRange = {
       min: Math.min(...coords.map((c) => c.y)),
-      max: Math.max(...coords.map((c) => c.y)),
+      max: Math.max(...coords.map((c) => c.y))
     };
     const zRange = {
       min: Math.min(...coords.map((c) => c.z)),
-      max: Math.max(...coords.map((c) => c.z)),
+      max: Math.max(...coords.map((c) => c.z))
     };
     console.log(
       `ノード座標範囲: X:[${xRange.min.toFixed(
@@ -100,16 +100,16 @@ export function buildNodeMap(doc) {
  */
 export function parseStories(doc) {
   if (!doc) return [];
-  const stories = parseElements(doc, "StbStory");
+  const stories = parseElements(doc, 'StbStory');
   const parsed = stories
     .map((s) => {
-      const heightAttr = s.getAttribute("height");
+      const heightAttr = s.getAttribute('height');
       // ★★★ スケーリングを削除 ★★★
       const height = heightAttr !== null ? parseFloat(heightAttr) : NaN;
       return {
-        id: s.getAttribute("id"),
-        name: s.getAttribute("name"),
-        height: height,
+        id: s.getAttribute('id'),
+        name: s.getAttribute('name'),
+        height: height
       };
     })
     .filter((s) => !isNaN(s.height)); // heightが有効なものだけフィルタリング
@@ -126,7 +126,7 @@ export function parseStories(doc) {
     const heights = parsed.map((story) => story.height);
     const heightRange = {
       min: Math.min(...heights),
-      max: Math.max(...heights),
+      max: Math.max(...heights)
     };
     console.log(
       `Story height range: [${heightRange.min.toFixed(
@@ -152,36 +152,36 @@ export function parseStories(doc) {
  * @returns {object} 軸データ ({ xAxes: [], yAxes: [] }) (距離はmm単位)。
  */
 export function parseAxes(doc) {
-  const namespace = "https://www.building-smart.or.jp/dl";
+  const namespace = 'https://www.building-smart.or.jp/dl';
   const xAxes = [];
   const yAxes = [];
 
   // <StbParallelAxes> 要素をすべて取得
-  const parallelAxesElements = parseElements(doc, "StbParallelAxes");
+  const parallelAxesElements = parseElements(doc, 'StbParallelAxes');
 
   for (let i = 0; i < parallelAxesElements.length; i++) {
     const parallelAxes = parallelAxesElements[i];
-    const groupName = parallelAxes.getAttribute("group_name");
+    const groupName = parallelAxes.getAttribute('group_name');
     // <StbParallelAxis> 要素を取得
     const axisElements = parallelAxes.getElementsByTagName
-      ? Array.from(parallelAxes.getElementsByTagName("StbParallelAxis"))
+      ? Array.from(parallelAxes.getElementsByTagName('StbParallelAxis'))
       : [];
 
     for (let j = 0; j < axisElements.length; j++) {
       const axis = axisElements[j];
-      const id = axis.getAttribute("id") || `${groupName}_${j}`;
-      const name = axis.getAttribute("name");
+      const id = axis.getAttribute('id') || `${groupName}_${j}`;
+      const name = axis.getAttribute('name');
       // ★★★ スケーリングを削除 ★★★
-      const distance = parseFloat(axis.getAttribute("distance"));
+      const distance = parseFloat(axis.getAttribute('distance'));
 
       if (name && !isNaN(distance)) {
-        if (groupName === "X") {
+        if (groupName === 'X') {
           xAxes.push({ id, name, distance });
           // デバッグ出力（最初の3個の軸のみ）
           if (xAxes.length <= 3) {
             console.log(`X-Axis ${name}: distance=${distance} (mm)`);
           }
-        } else if (groupName === "Y") {
+        } else if (groupName === 'Y') {
           yAxes.push({ id, name, distance });
           // デバッグ出力（最初の3個の軸のみ）
           if (yAxes.length <= 3) {
@@ -191,8 +191,8 @@ export function parseAxes(doc) {
       } else {
         console.warn(
           `Skipping axis due to missing name or invalid distance: ID=${axis.getAttribute(
-            "id"
-          )}, Name=${name}, Distance=${axis.getAttribute("distance")}`
+            'id'
+          )}, Name=${name}, Distance=${axis.getAttribute('distance')}`
         );
       }
     }
@@ -211,7 +211,7 @@ export function parseAxes(doc) {
     const xDistances = xAxes.map((axis) => axis.distance);
     const xRange = {
       min: Math.min(...xDistances),
-      max: Math.max(...xDistances),
+      max: Math.max(...xDistances)
     };
     console.log(
       `X-axis distance range: [${xRange.min.toFixed(0)}, ${xRange.max.toFixed(
@@ -223,7 +223,7 @@ export function parseAxes(doc) {
     const yDistances = yAxes.map((axis) => axis.distance);
     const yRange = {
       min: Math.min(...yDistances),
-      max: Math.max(...yDistances),
+      max: Math.max(...yDistances)
     };
     console.log(
       `Y-axis distance range: [${yRange.min.toFixed(0)}, ${yRange.max.toFixed(
@@ -291,22 +291,22 @@ export function extractSteelSections(xmlDoc) {
   const steelSections = new Map();
   // xmlDoc 安全性チェック
   if (!xmlDoc) {
-    console.warn("extractSteelSections: xmlDoc is null or undefined");
+    console.warn('extractSteelSections: xmlDoc is null or undefined');
     return steelSections;
   }
   // StbSecSteel 要素を取得（StbSecSteel または StbSecSteel_S）
   let steelSectionList = null;
 
   // querySelector で試行（StbSecSteel_S を優先）
-  if (typeof xmlDoc.querySelector === "function") {
-    steelSectionList = xmlDoc.querySelector("StbSecSteel_S") ||
-                       xmlDoc.querySelector("StbSecSteel");
+  if (typeof xmlDoc.querySelector === 'function') {
+    steelSectionList = xmlDoc.querySelector('StbSecSteel_S') ||
+                       xmlDoc.querySelector('StbSecSteel');
   }
 
   // parseElements フォールバック（StbSecSteel_S を優先）
   if (!steelSectionList) {
-    steelSectionList = parseElements(xmlDoc, "StbSecSteel_S")[0] ||
-                       parseElements(xmlDoc, "StbSecSteel")[0] ||
+    steelSectionList = parseElements(xmlDoc, 'StbSecSteel_S')[0] ||
+                       parseElements(xmlDoc, 'StbSecSteel')[0] ||
                        null;
   }
 
@@ -317,34 +317,36 @@ export function extractSteelSections(xmlDoc) {
     const elementChildren = Array.from(children).filter(node => node.nodeType === 1);
 
     for (const steelEl of elementChildren) {
-      const name = steelEl.getAttribute("name");
+      const name = steelEl.getAttribute('name');
 
       if (name) {
         const sectionData = {
           elementTag: steelEl.tagName,
-          shapeTypeAttr: steelEl.getAttribute("type"),
-          name: name,
+          shapeTypeAttr: steelEl.getAttribute('type'),
+          name: name
         };
 
         const attrs = Array.from(steelEl.attributes || []);
         for (const attr of attrs) {
-          if (attr.name !== "type" && attr.name !== "name") {
+          if (attr.name !== 'type' && attr.name !== 'name') {
             sectionData[attr.name] = attr.value;
           }
         }
 
         // 形状タイプ(kind_struct)をタグ/属性から推定
-        const tag = (sectionData.elementTag || "").toUpperCase();
+        const tag = (sectionData.elementTag || '').toUpperCase();
         let kind = undefined;
-        if (tag.includes("_H")) kind = "H";
-        else if (tag.includes("_BOX")) kind = "BOX";
-        else if (tag.includes("PIPE")) kind = "PIPE";
-        else if (tag.includes("_C")) kind = "C";
-        else if (tag.includes("_L")) kind = "L";
-        else if (tag.includes("_T")) kind = "T";
+        if (tag.includes('_H')) kind = 'H';
+        else if (tag.includes('_BOX') || tag.includes('BUILD-BOX')) kind = 'BOX';
+        else if (tag.includes('PIPE')) kind = 'PIPE';
+        else if (tag.includes('_C') || tag.includes('LIPC')) kind = 'C';
+        else if (tag.includes('_L')) kind = 'L';
+        else if (tag.includes('_T')) kind = 'T';
+        else if (tag.includes('FLATBAR')) kind = 'FB';
+        else if (tag.includes('ROUNDBAR')) kind = 'CIRCLE';
         // type属性で判別できる場合の簡易対応（例: BCR は角形鋼管系としてBOXとみなす）
-        const typeAttr = (sectionData.shapeTypeAttr || "").toUpperCase();
-        if (!kind && typeAttr === "BCR") kind = "BOX";
+        const typeAttr = (sectionData.shapeTypeAttr || '').toUpperCase();
+        if (!kind && typeAttr === 'BCR') kind = 'BOX';
         if (kind) sectionData.kind_struct = kind;
 
         steelSections.set(name, sectionData);
@@ -356,14 +358,14 @@ export function extractSteelSections(xmlDoc) {
       }
     }
   } else {
-    console.log("No StbSecSteel element found.");
+    console.log('No StbSecSteel element found.');
   }
   console.log(`Extracted ${steelSections.size} steel sections.`);
   return steelSections;
 }
 
 // --- 統一断面抽出エンジンのエクスポート ---
-export { extractAllSections } from "./sectionExtractor.js";
+export { extractAllSections } from './sectionExtractor.js';
 
 // --- 柱要素データ抽出関数 ---
 /**
@@ -380,24 +382,24 @@ export { extractAllSections } from "./sectionExtractor.js";
 export function extractColumnElements(xmlDoc) {
   const columnElementsData = [];
   // parseElements を使用して StbColumn 要素を取得 (名前空間考慮済み)
-  const columnElements = parseElements(xmlDoc, "StbColumn");
+  const columnElements = parseElements(xmlDoc, 'StbColumn');
 
   for (const colEl of columnElements) {
-    const id = colEl.getAttribute("id");
-    const idNodeBottom = colEl.getAttribute("id_node_bottom");
-    const idNodeTop = colEl.getAttribute("id_node_top");
-    const idSection = colEl.getAttribute("id_section");
-    const name = colEl.getAttribute("name");
+    const id = colEl.getAttribute('id');
+    const idNodeBottom = colEl.getAttribute('id_node_bottom');
+    const idNodeTop = colEl.getAttribute('id_node_top');
+    const idSection = colEl.getAttribute('id_section');
+    const name = colEl.getAttribute('name');
     // const kind = colEl.getAttribute("kind"); // 例: KIND_COLUMN
-    // const rotate = colEl.getAttribute("rotate"); // 回転角 (degree)
+    const rotate = colEl.getAttribute('rotate'); // 回転角 (degree)
     // const offset_x = colEl.getAttribute("offset_x"); // オフセット (mm)
     // const offset_y = colEl.getAttribute("offset_y"); // オフセット (mm)
 
     // ST-Bridgeのインスタンスオフセット（柱用: bottom/top, X/Y）
-    const offset_bottom_X = colEl.getAttribute("offset_bottom_X");
-    const offset_bottom_Y = colEl.getAttribute("offset_bottom_Y");
-    const offset_top_X = colEl.getAttribute("offset_top_X");
-    const offset_top_Y = colEl.getAttribute("offset_top_Y");
+    const offset_bottom_X = colEl.getAttribute('offset_bottom_X');
+    const offset_bottom_Y = colEl.getAttribute('offset_bottom_Y');
+    const offset_top_X = colEl.getAttribute('offset_top_X');
+    const offset_top_Y = colEl.getAttribute('offset_top_Y');
 
     if (id && idNodeBottom && idNodeTop && idSection) {
       const elementData = {
@@ -407,14 +409,14 @@ export function extractColumnElements(xmlDoc) {
         id_section: idSection,
         name: name,
         // kind: kind,
-        // rotate: rotate ? parseFloat(rotate) : 0,
+        rotate: rotate ? parseFloat(rotate) : 0, // 回転角 (degree)
         // offset_x: offset_x ? parseFloat(offset_x) : 0,
         // offset_y: offset_y ? parseFloat(offset_y) : 0,
         // インスタンスオフセット（存在すれば数値で格納、なければ0）
         offset_bottom_X: offset_bottom_X ? parseFloat(offset_bottom_X) : 0,
         offset_bottom_Y: offset_bottom_Y ? parseFloat(offset_bottom_Y) : 0,
         offset_top_X: offset_top_X ? parseFloat(offset_top_X) : 0,
-        offset_top_Y: offset_top_Y ? parseFloat(offset_top_Y) : 0,
+        offset_top_Y: offset_top_Y ? parseFloat(offset_top_Y) : 0
       };
       columnElementsData.push(elementData);
     } else {
@@ -445,23 +447,23 @@ function extractBeamLikeElements(xmlDoc, elementType) {
   const elements = parseElements(xmlDoc, elementType);
 
   for (const el of elements) {
-    const id = el.getAttribute("id");
-    const idNodeStart = el.getAttribute("id_node_start");
-    const idNodeEnd = el.getAttribute("id_node_end");
-    const idSection = el.getAttribute("id_section");
-    const name = el.getAttribute("name");
+    const id = el.getAttribute('id');
+    const idNodeStart = el.getAttribute('id_node_start');
+    const idNodeEnd = el.getAttribute('id_node_end');
+    const idSection = el.getAttribute('id_section');
+    const name = el.getAttribute('name');
 
     // ST-Bridgeのインスタンスオフセット（梁・大梁・ブレースで共通的に現れる可能性あり）
-    const offset_start_X = el.getAttribute("offset_start_X");
-    const offset_start_Y = el.getAttribute("offset_start_Y");
-    const offset_start_Z = el.getAttribute("offset_start_Z");
-    const offset_end_X = el.getAttribute("offset_end_X");
-    const offset_end_Y = el.getAttribute("offset_end_Y");
-    const offset_end_Z = el.getAttribute("offset_end_Z");
+    const offset_start_X = el.getAttribute('offset_start_X');
+    const offset_start_Y = el.getAttribute('offset_start_Y');
+    const offset_start_Z = el.getAttribute('offset_start_Z');
+    const offset_end_X = el.getAttribute('offset_end_X');
+    const offset_end_Y = el.getAttribute('offset_end_Y');
+    const offset_end_Z = el.getAttribute('offset_end_Z');
 
     // ハンチ長さ属性（多断面ジオメトリ用）
-    const haunch_start = el.getAttribute("haunch_start");
-    const haunch_end = el.getAttribute("haunch_end");
+    const haunch_start = el.getAttribute('haunch_start');
+    const haunch_end = el.getAttribute('haunch_end');
 
     if (id && idNodeStart && idNodeEnd && idSection) {
       const data = {
@@ -469,7 +471,7 @@ function extractBeamLikeElements(xmlDoc, elementType) {
         id_node_start: idNodeStart,
         id_node_end: idNodeEnd,
         id_section: idSection,
-        name: name,
+        name: name
       };
 
       // オフセット属性が1つでも存在すれば数値化して格納
@@ -518,7 +520,7 @@ function extractBeamLikeElements(xmlDoc, elementType) {
  * @return {Array} 梁要素データの配列
  */
 export function extractBeamElements(xmlDoc) {
-  return extractBeamLikeElements(xmlDoc, "StbBeam");
+  return extractBeamLikeElements(xmlDoc, 'StbBeam');
 }
 
 /**
@@ -531,7 +533,7 @@ export function extractBeamElements(xmlDoc) {
  * @return {Array} 大梁要素データの配列
  */
 export function extractGirderElements(xmlDoc) {
-  return extractBeamLikeElements(xmlDoc, "StbGirder");
+  return extractBeamLikeElements(xmlDoc, 'StbGirder');
 }
 
 /**
@@ -547,7 +549,7 @@ export function extractGirderElements(xmlDoc) {
  * @return {Array} ブレース要素データの配列
  */
 export function extractBraceElements(xmlDoc) {
-  return extractBeamLikeElements(xmlDoc, "StbBrace");
+  return extractBeamLikeElements(xmlDoc, 'StbBrace');
 }
 
 /**
@@ -568,20 +570,20 @@ export function extractBraceElements(xmlDoc) {
 export function extractPostElements(xmlDoc) {
   const postElementsData = [];
   // parseElements を使用して StbPost 要素を取得 (名前空間考慮済み)
-  const postElements = parseElements(xmlDoc, "StbPost");
+  const postElements = parseElements(xmlDoc, 'StbPost');
 
   for (const postEl of postElements) {
-    const id = postEl.getAttribute("id");
-    const idNodeBottom = postEl.getAttribute("id_node_bottom");
-    const idNodeTop = postEl.getAttribute("id_node_top");
-    const idSection = postEl.getAttribute("id_section");
-    const name = postEl.getAttribute("name");
+    const id = postEl.getAttribute('id');
+    const idNodeBottom = postEl.getAttribute('id_node_bottom');
+    const idNodeTop = postEl.getAttribute('id_node_top');
+    const idSection = postEl.getAttribute('id_section');
+    const name = postEl.getAttribute('name');
 
     // ST-Bridgeのインスタンスオフセット（間柱用: bottom/top, X/Y）
-    const offset_bottom_X = postEl.getAttribute("offset_bottom_X");
-    const offset_bottom_Y = postEl.getAttribute("offset_bottom_Y");
-    const offset_top_X = postEl.getAttribute("offset_top_X");
-    const offset_top_Y = postEl.getAttribute("offset_top_Y");
+    const offset_bottom_X = postEl.getAttribute('offset_bottom_X');
+    const offset_bottom_Y = postEl.getAttribute('offset_bottom_Y');
+    const offset_top_X = postEl.getAttribute('offset_top_X');
+    const offset_top_Y = postEl.getAttribute('offset_top_Y');
 
     if (id && idNodeBottom && idNodeTop && idSection) {
       const elementData = {
@@ -594,7 +596,7 @@ export function extractPostElements(xmlDoc) {
         offset_bottom_X: offset_bottom_X ? parseFloat(offset_bottom_X) : 0,
         offset_bottom_Y: offset_bottom_Y ? parseFloat(offset_bottom_Y) : 0,
         offset_top_X: offset_top_X ? parseFloat(offset_top_X) : 0,
-        offset_top_Y: offset_top_Y ? parseFloat(offset_top_Y) : 0,
+        offset_top_Y: offset_top_Y ? parseFloat(offset_top_Y) : 0
       };
       postElementsData.push(elementData);
     } else {
@@ -628,36 +630,36 @@ export function extractPostElements(xmlDoc) {
  */
 export function extractPileElements(xmlDoc) {
   const pileElementsData = [];
-  const pileElements = parseElements(xmlDoc, "StbPile");
+  const pileElements = parseElements(xmlDoc, 'StbPile');
 
   for (const pileEl of pileElements) {
-    const id = pileEl.getAttribute("id");
-    const idSection = pileEl.getAttribute("id_section");
-    const name = pileEl.getAttribute("name");
-    const kind = pileEl.getAttribute("kind"); // 杭種別（例: KIND_PHC, KIND_ST）
-    const kindStructure = pileEl.getAttribute("kind_structure"); // 杭種別（例: PC, ST, CAST）
+    const id = pileEl.getAttribute('id');
+    const idSection = pileEl.getAttribute('id_section');
+    const name = pileEl.getAttribute('name');
+    const kind = pileEl.getAttribute('kind'); // 杭種別（例: KIND_PHC, KIND_ST）
+    const kindStructure = pileEl.getAttribute('kind_structure'); // 杭種別（例: PC, ST, CAST）
 
     // 2ノード形式の属性
-    const idNodeBottom = pileEl.getAttribute("id_node_bottom");
-    const idNodeTop = pileEl.getAttribute("id_node_top");
+    const idNodeBottom = pileEl.getAttribute('id_node_bottom');
+    const idNodeTop = pileEl.getAttribute('id_node_top');
 
     // 1ノード形式の属性
-    const idNode = pileEl.getAttribute("id_node");
-    const levelTop = pileEl.getAttribute("level_top"); // 杭底部の深度（通常マイナス値）
-    const lengthAll = pileEl.getAttribute("length_all"); // 杭の全長（mm）
+    const idNode = pileEl.getAttribute('id_node');
+    const levelTop = pileEl.getAttribute('level_top'); // 杭底部の深度（通常マイナス値）
+    const lengthAll = pileEl.getAttribute('length_all'); // 杭の全長（mm）
 
     // ST-Bridgeの杭用オフセット（bottom/top, X/Y）
-    const offset_bottom_X = pileEl.getAttribute("offset_bottom_X");
-    const offset_bottom_Y = pileEl.getAttribute("offset_bottom_Y");
-    const offset_top_X = pileEl.getAttribute("offset_top_X");
-    const offset_top_Y = pileEl.getAttribute("offset_top_Y");
+    const offset_bottom_X = pileEl.getAttribute('offset_bottom_X');
+    const offset_bottom_Y = pileEl.getAttribute('offset_bottom_Y');
+    const offset_top_X = pileEl.getAttribute('offset_top_X');
+    const offset_top_Y = pileEl.getAttribute('offset_top_Y');
 
     // 1ノード形式用のオフセット
-    const offsetX = pileEl.getAttribute("offset_X");
-    const offsetY = pileEl.getAttribute("offset_Y");
+    const offsetX = pileEl.getAttribute('offset_X');
+    const offsetY = pileEl.getAttribute('offset_Y');
 
     // 回転角度（度）
-    const rotate = pileEl.getAttribute("rotate");
+    const rotate = pileEl.getAttribute('rotate');
 
     // 2ノード形式の場合
     if (id && idNodeBottom && idNodeTop && idSection) {
@@ -679,7 +681,7 @@ export function extractPileElements(xmlDoc) {
         // 回転
         rotate: rotate ? parseFloat(rotate) : 0,
         // 形式フラグ
-        pileFormat: "2node",
+        pileFormat: '2node'
       };
       pileElementsData.push(elementData);
     }
@@ -701,7 +703,7 @@ export function extractPileElements(xmlDoc) {
         // 回転
         rotate: rotate ? parseFloat(rotate) : 0,
         // 形式フラグ
-        pileFormat: "1node",
+        pileFormat: '1node'
       };
       pileElementsData.push(elementData);
     } else {
@@ -733,19 +735,19 @@ export function extractPileElements(xmlDoc) {
  */
 export function extractFootingElements(xmlDoc) {
   const footingElementsData = [];
-  const footingElements = parseElements(xmlDoc, "StbFooting");
+  const footingElements = parseElements(xmlDoc, 'StbFooting');
 
   for (const footingEl of footingElements) {
-    const id = footingEl.getAttribute("id");
-    const idNode = footingEl.getAttribute("id_node");
-    const idSection = footingEl.getAttribute("id_section");
-    const name = footingEl.getAttribute("name");
+    const id = footingEl.getAttribute('id');
+    const idNode = footingEl.getAttribute('id_node');
+    const idSection = footingEl.getAttribute('id_section');
+    const name = footingEl.getAttribute('name');
 
     // 基礎固有の属性
-    const levelBottom = footingEl.getAttribute("level_bottom"); // 底面レベル（mm）
-    const offsetX = footingEl.getAttribute("offset_X"); // X方向オフセット（mm）
-    const offsetY = footingEl.getAttribute("offset_Y"); // Y方向オフセット（mm）
-    const rotate = footingEl.getAttribute("rotate"); // 回転角度（度）
+    const levelBottom = footingEl.getAttribute('level_bottom'); // 底面レベル（mm）
+    const offsetX = footingEl.getAttribute('offset_X'); // X方向オフセット（mm）
+    const offsetY = footingEl.getAttribute('offset_Y'); // Y方向オフセット（mm）
+    const rotate = footingEl.getAttribute('rotate'); // 回転角度（度）
 
     if (id && idNode && idSection) {
       const elementData = {
@@ -757,7 +759,7 @@ export function extractFootingElements(xmlDoc) {
         level_bottom: levelBottom ? parseFloat(levelBottom) : 0,
         offset_X: offsetX ? parseFloat(offsetX) : 0,
         offset_Y: offsetY ? parseFloat(offsetY) : 0,
-        rotate: rotate ? parseFloat(rotate) : 0,
+        rotate: rotate ? parseFloat(rotate) : 0
       };
       footingElementsData.push(elementData);
     } else {
@@ -787,23 +789,23 @@ export function extractFootingElements(xmlDoc) {
  */
 export function extractFoundationColumnElements(xmlDoc) {
   const foundationColumnElementsData = [];
-  const foundationColumnElements = parseElements(xmlDoc, "StbFoundationColumn");
+  const foundationColumnElements = parseElements(xmlDoc, 'StbFoundationColumn');
 
   for (const fcEl of foundationColumnElements) {
-    const id = fcEl.getAttribute("id");
-    const idNodeBottom = fcEl.getAttribute("id_node_bottom");
-    const idNodeTop = fcEl.getAttribute("id_node_top");
-    const idSection = fcEl.getAttribute("id_section");
-    const name = fcEl.getAttribute("name");
+    const id = fcEl.getAttribute('id');
+    const idNodeBottom = fcEl.getAttribute('id_node_bottom');
+    const idNodeTop = fcEl.getAttribute('id_node_top');
+    const idSection = fcEl.getAttribute('id_section');
+    const name = fcEl.getAttribute('name');
 
     // ST-Bridgeの基礎柱用オフセット（bottom/top, X/Y）
-    const offset_bottom_X = fcEl.getAttribute("offset_bottom_X");
-    const offset_bottom_Y = fcEl.getAttribute("offset_bottom_Y");
-    const offset_top_X = fcEl.getAttribute("offset_top_X");
-    const offset_top_Y = fcEl.getAttribute("offset_top_Y");
+    const offset_bottom_X = fcEl.getAttribute('offset_bottom_X');
+    const offset_bottom_Y = fcEl.getAttribute('offset_bottom_Y');
+    const offset_top_X = fcEl.getAttribute('offset_top_X');
+    const offset_top_Y = fcEl.getAttribute('offset_top_Y');
 
     // 回転角度（度）
-    const rotate = fcEl.getAttribute("rotate");
+    const rotate = fcEl.getAttribute('rotate');
 
     if (id && idNodeBottom && idNodeTop && idSection) {
       const elementData = {
@@ -818,7 +820,7 @@ export function extractFoundationColumnElements(xmlDoc) {
         offset_top_X: offset_top_X ? parseFloat(offset_top_X) : 0,
         offset_top_Y: offset_top_Y ? parseFloat(offset_top_Y) : 0,
         // 回転
-        rotate: rotate ? parseFloat(rotate) : 0,
+        rotate: rotate ? parseFloat(rotate) : 0
       };
       foundationColumnElementsData.push(elementData);
     } else {
@@ -832,4 +834,214 @@ export function extractFoundationColumnElements(xmlDoc) {
     `Extracted ${foundationColumnElementsData.length} foundation column elements.`
   );
   return foundationColumnElementsData;
+}
+
+// ==============================================================================
+// 床・壁要素の抽出関数
+// ==============================================================================
+
+/**
+ * 床(Slab)要素データを抽出する
+ *
+ * 床は複数ノード（StbNodeIdOrder）を参照し、多角形の平面を形成します。
+ * 各ノードにはオフセット（StbSlabOffset）が設定可能です。
+ *
+ * **用途**:
+ * - 3D立体表示: 床の多角形メッシュ生成
+ * - 線分表示: 床の外形線表示
+ * - 構造解析: 床荷重・応力解析用データ
+ *
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} 床要素データの配列
+ */
+export function extractSlabElements(xmlDoc) {
+  const slabElementsData = [];
+  const slabElements = parseElements(xmlDoc, 'StbSlab');
+
+  for (const slabEl of slabElements) {
+    const id = slabEl.getAttribute('id');
+    const idSection = slabEl.getAttribute('id_section');
+    const name = slabEl.getAttribute('name');
+    const kindStructure = slabEl.getAttribute('kind_structure'); // RC, S
+    const kindSlab = slabEl.getAttribute('kind_slab'); // NORMAL, STRAP, KNITTED, WAFFLE
+    const directionLoad = slabEl.getAttribute('direction_load'); // 1WAY, 2WAY, CURVED
+    const isFoundation = slabEl.getAttribute('isFoundation');
+
+    // ノード参照順序の取得（多角形の頂点順）
+    const nodeIdOrderEl = slabEl.getElementsByTagName('StbNodeIdOrder')[0];
+    const nodeIds = nodeIdOrderEl
+      ? nodeIdOrderEl.textContent.trim().split(/\s+/)
+      : [];
+
+    // ノードオフセットマップの構築
+    const offsets = new Map();
+    const offsetList = slabEl.getElementsByTagName('StbSlabOffsetList')[0];
+    if (offsetList) {
+      const offsetElements = Array.from(offsetList.getElementsByTagName('StbSlabOffset'));
+      for (const offsetEl of offsetElements) {
+        const nodeId = offsetEl.getAttribute('id_node');
+        if (nodeId) {
+          offsets.set(nodeId, {
+            offset_X: parseFloat(offsetEl.getAttribute('offset_X')) || 0,
+            offset_Y: parseFloat(offsetEl.getAttribute('offset_Y')) || 0,
+            offset_Z: parseFloat(offsetEl.getAttribute('offset_Z')) || 0
+          });
+        }
+      }
+    }
+
+    // 最低3つのノードが必要（三角形以上の多角形）
+    if (id && idSection && nodeIds.length >= 3) {
+      const elementData = {
+        id: id,
+        id_section: idSection,
+        name: name,
+        kind_structure: kindStructure,
+        kind_slab: kindSlab,
+        direction_load: directionLoad,
+        isFoundation: isFoundation === 'true',
+        node_ids: nodeIds,
+        offsets: offsets
+      };
+      slabElementsData.push(elementData);
+    } else {
+      console.warn(
+        `Skipping slab element due to missing required attributes or insufficient nodes: id=${id}, nodes=${nodeIds.length}`,
+        slabEl
+      );
+    }
+  }
+  console.log(`Extracted ${slabElementsData.length} slab elements.`);
+  return slabElementsData;
+}
+
+/**
+ * 壁(Wall)要素データを抽出する
+ *
+ * 壁は4つのノード（StbNodeIdOrder）を参照し、矩形の平面を形成します。
+ * 各ノードにはオフセット（StbWallOffset）が設定可能です。
+ * 壁には開口部（StbOpenIdList）が含まれる場合があります。
+ *
+ * **用途**:
+ * - 3D立体表示: 壁の矩形メッシュ生成
+ * - 線分表示: 壁の外形線表示
+ * - 構造解析: 壁のせん断・耐力解析用データ
+ *
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} 壁要素データの配列
+ */
+export function extractWallElements(xmlDoc) {
+  const wallElementsData = [];
+  const wallElements = parseElements(xmlDoc, 'StbWall');
+
+  for (const wallEl of wallElements) {
+    const id = wallEl.getAttribute('id');
+    const idSection = wallEl.getAttribute('id_section');
+    const name = wallEl.getAttribute('name');
+    const kindStructure = wallEl.getAttribute('kind_structure'); // RC, S
+    const kindLayout = wallEl.getAttribute('kind_layout'); // ON_GIRDER, ON_FOOTING
+    const kindWall = wallEl.getAttribute('kind_wall'); // WALL_NORMAL, WALL_SHEAR
+
+    // ノード参照順序の取得（矩形の4隅）
+    const nodeIdOrderEl = wallEl.getElementsByTagName('StbNodeIdOrder')[0];
+    const nodeIds = nodeIdOrderEl
+      ? nodeIdOrderEl.textContent.trim().split(/\s+/)
+      : [];
+
+    // ノードオフセットマップの構築
+    const offsets = new Map();
+    const offsetList = wallEl.getElementsByTagName('StbWallOffsetList')[0];
+    if (offsetList) {
+      const offsetElements = Array.from(offsetList.getElementsByTagName('StbWallOffset'));
+      for (const offsetEl of offsetElements) {
+        const nodeId = offsetEl.getAttribute('id_node');
+        if (nodeId) {
+          offsets.set(nodeId, {
+            offset_X: parseFloat(offsetEl.getAttribute('offset_X')) || 0,
+            offset_Y: parseFloat(offsetEl.getAttribute('offset_Y')) || 0,
+            offset_Z: parseFloat(offsetEl.getAttribute('offset_Z')) || 0
+          });
+        }
+      }
+    }
+
+    // 開口部IDの取得
+    const openIds = [];
+    const openList = wallEl.getElementsByTagName('StbOpenIdList')[0];
+    if (openList) {
+      const openElements = Array.from(openList.getElementsByTagName('StbOpenId'));
+      for (const openEl of openElements) {
+        const openId = openEl.getAttribute('id');
+        if (openId) openIds.push(openId);
+      }
+    }
+
+    // 壁は通常4つのノードで矩形を形成
+    if (id && idSection && nodeIds.length >= 3) {
+      const elementData = {
+        id: id,
+        id_section: idSection,
+        name: name,
+        kind_structure: kindStructure,
+        kind_layout: kindLayout,
+        kind_wall: kindWall,
+        node_ids: nodeIds,
+        offsets: offsets,
+        open_ids: openIds
+      };
+      wallElementsData.push(elementData);
+    } else {
+      console.warn(
+        `Skipping wall element due to missing required attributes or insufficient nodes: id=${id}, nodes=${nodeIds.length}`,
+        wallEl
+      );
+    }
+  }
+  console.log(`Extracted ${wallElementsData.length} wall elements.`);
+  return wallElementsData;
+}
+
+/**
+ * StbOpens要素から開口情報を抽出します。
+ * 開口情報は壁に関連付けられ、3D表示およびIFCエクスポートで使用されます。
+ *
+ * @param {Document} xmlDoc - STB XMLドキュメント
+ * @returns {Map<string, Object>} 開口IDをキーとする開口情報のMap
+ *
+ * 各開口情報には以下のプロパティが含まれます:
+ * - id: 開口ID
+ * - name: 開口名称
+ * - guid: GUID（存在する場合）
+ * - id_section: 断面ID
+ * - position_X: 壁ローカル座標系でのX位置 (mm)
+ * - position_Y: 壁ローカル座標系でのY位置（壁下端からの高さ）(mm)
+ * - length_X: 開口幅 (mm)
+ * - length_Y: 開口高さ (mm)
+ * - rotate: 回転角度（度）
+ */
+export function extractOpeningElements(xmlDoc) {
+  const openingMap = new Map();
+  const openElements = parseElements(xmlDoc, 'StbOpen');
+
+  for (const openEl of openElements) {
+    const id = openEl.getAttribute('id');
+    if (!id) continue;
+
+    const opening = {
+      id: id,
+      name: openEl.getAttribute('name') || '',
+      guid: openEl.getAttribute('guid') || '',
+      id_section: openEl.getAttribute('id_section') || '',
+      position_X: parseFloat(openEl.getAttribute('position_X')) || 0,
+      position_Y: parseFloat(openEl.getAttribute('position_Y')) || 0,
+      length_X: parseFloat(openEl.getAttribute('length_X')) || 0,
+      length_Y: parseFloat(openEl.getAttribute('length_Y')) || 0,
+      rotate: parseFloat(openEl.getAttribute('rotate')) || 0
+    };
+
+    openingMap.set(id, opening);
+  }
+
+  console.log(`Extracted ${openingMap.size} opening elements.`);
+  return openingMap;
 }

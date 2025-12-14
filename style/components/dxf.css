@@ -1,0 +1,439 @@
+/**
+ * DXF CADデータ読み込み関連のスタイル
+ */
+
+/* DXF読み込みセクションの説明 */
+.dxf-intro {
+  margin-bottom: 12px;
+  color: var(--text-secondary, #6c757d);
+  font-size: 0.9em;
+}
+
+.dxf-intro p {
+  margin: 0;
+}
+
+/* DXFボタングループ */
+.dxf-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.dxf-buttons .btn-primary {
+  flex: 1;
+}
+
+.dxf-buttons .btn-secondary {
+  background-color: var(--btn-secondary-bg, #6c757d);
+  color: var(--btn-secondary-text, #fff);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+
+.dxf-buttons .btn-secondary:hover {
+  background-color: var(--btn-secondary-hover-bg, #5a6268);
+}
+
+/* DXF読み込み結果サマリー */
+#dxf-summary {
+  background-color: var(--panel-bg, #f8f9fa);
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 4px;
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.dxf-summary-title {
+  font-weight: bold;
+  margin-bottom: 8px;
+  color: var(--success-color, #28a745);
+}
+
+.dxf-summary-content {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
+  font-size: 0.85em;
+}
+
+.dxf-summary-content div {
+  padding: 2px 0;
+}
+
+/* DXFレイヤーパネル */
+#dxf-layer-panel {
+  margin-top: 12px;
+}
+
+.dxf-layer-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 4px;
+  padding: 8px;
+  background-color: var(--panel-bg, #f8f9fa);
+}
+
+.dxf-layer-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+
+.dxf-layer-item:hover {
+  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+}
+
+.dxf-layer-item input[type="checkbox"] {
+  margin: 0;
+}
+
+.dxf-layer-color {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  border: 1px solid var(--border-color, #dee2e6);
+}
+
+/* ========================================
+   DXFエクスポート関連のスタイル
+   ======================================== */
+
+/* エクスポートパネル */
+#dxf-export-panel {
+  margin-top: 12px;
+}
+
+.dxf-export-intro {
+  margin-bottom: 12px;
+  color: var(--text-secondary, #6c757d);
+  font-size: 0.9em;
+}
+
+.dxf-export-intro p {
+  margin: 0;
+}
+
+/* エクスポートレイヤー選択 */
+.dxf-export-layer-select {
+  margin-bottom: 12px;
+}
+
+.dxf-export-layer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 0.85em;
+}
+
+.dxf-export-layer-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dxf-export-layer-actions .btn-link {
+  background: none;
+  border: none;
+  color: var(--link-color, #007bff);
+  cursor: pointer;
+  font-size: 0.85em;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.dxf-export-layer-actions .btn-link:hover {
+  color: var(--link-hover-color, #0056b3);
+}
+
+.dxf-export-layer-actions .separator {
+  color: var(--text-muted, #999);
+}
+
+.dxf-export-layer-list {
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 4px;
+  padding: 8px;
+  background-color: var(--panel-bg, #f8f9fa);
+}
+
+.dxf-export-layer-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+
+.dxf-export-layer-item:hover {
+  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+}
+
+.dxf-export-layer-item input[type="checkbox"] {
+  margin: 0;
+}
+
+.dxf-export-layer-item .layer-color {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid var(--border-color, #dee2e6);
+}
+
+.dxf-export-layer-item .layer-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dxf-export-layer-item .layer-count {
+  color: var(--text-muted, #999);
+  font-size: 0.8em;
+}
+
+/* エクスポート統計 */
+.dxf-export-stats {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background-color: var(--info-bg, #e7f3ff);
+  border-radius: 4px;
+  font-size: 0.85em;
+  color: var(--info-text, #0c5460);
+}
+
+/* ファイル名入力 */
+.dxf-export-filename {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.dxf-export-filename label {
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+.dxf-export-filename input[type="text"] {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 4px;
+  font-size: 0.9em;
+  background-color: var(--input-bg, #fff);
+  color: var(--text-primary, #212529);
+}
+
+.dxf-export-filename input[type="text"]:focus {
+  outline: none;
+  border-color: var(--focus-border-color, #80bdff);
+  box-shadow: 0 0 0 2px var(--focus-shadow-color, rgba(0, 123, 255, 0.25));
+}
+
+/* エクスポートボタン */
+.dxf-export-btn {
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 0.95em;
+  font-weight: 500;
+}
+
+.dxf-export-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ========================================
+   STB→DXFエクスポート関連のスタイル
+   ======================================== */
+
+#stb-dxf-export-panel {
+  margin-top: 12px;
+}
+
+.stb-export-note {
+  font-size: 0.8em;
+  color: var(--text-muted, #999);
+  margin-top: 4px;
+}
+
+.stb-export-status {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.stb-export-status.status-ready {
+  background-color: var(--success-bg, #d4edda);
+  color: var(--success-text, #155724);
+}
+
+.stb-export-status.status-not-ready {
+  background-color: var(--warning-bg, #fff3cd);
+  color: var(--warning-text, #856404);
+}
+
+.stb-export-status.status-error {
+  background-color: var(--error-bg, #f8d7da);
+  color: var(--error-text, #721c24);
+}
+
+/* ========================================
+   DXF配置オプション関連のスタイル
+   ======================================== */
+
+.dxf-placement-options {
+  margin-bottom: 12px;
+}
+
+.dxf-placement-options > label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.dxf-placement-plane,
+.dxf-placement-position {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dxf-placement-plane label,
+.dxf-placement-position label {
+  font-size: 0.85em;
+  white-space: nowrap;
+  min-width: 70px;
+}
+
+.dxf-placement-plane select,
+.dxf-placement-position select {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 4px;
+  font-size: 0.85em;
+  background-color: var(--input-bg, #fff);
+  color: var(--text-primary, #212529);
+  cursor: pointer;
+}
+
+.dxf-placement-plane select:focus,
+.dxf-placement-position select:focus {
+  outline: none;
+  border-color: var(--focus-border-color, #80bdff);
+  box-shadow: 0 0 0 2px var(--focus-shadow-color, rgba(0, 123, 255, 0.25));
+}
+
+/* 手動オフセット入力 */
+.dxf-placement-offset {
+  margin-top: 8px;
+}
+
+.dxf-placement-offset > label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.dxf-placement-offset > label input[type="checkbox"] {
+  margin: 0;
+}
+
+#dxf-manual-offset-inputs {
+  margin-top: 8px;
+  padding: 8px;
+  background-color: var(--panel-bg, #f8f9fa);
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 4px;
+}
+
+.offset-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.offset-input-row:last-child {
+  margin-bottom: 0;
+}
+
+.offset-input-row label {
+  font-size: 0.85em;
+  min-width: 20px;
+  font-weight: 500;
+}
+
+.offset-input-row input[type="number"] {
+  width: 100px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color, #dee2e6);
+  border-radius: 4px;
+  font-size: 0.85em;
+  background-color: var(--input-bg, #fff);
+  color: var(--text-primary, #212529);
+}
+
+.offset-input-row input[type="number"]:focus {
+  outline: none;
+  border-color: var(--focus-border-color, #80bdff);
+  box-shadow: 0 0 0 2px var(--focus-shadow-color, rgba(0, 123, 255, 0.25));
+}
+
+.offset-input-row span {
+  font-size: 0.8em;
+  color: var(--text-muted, #999);
+}
+
+/* 要素タイプアイテム */
+.stb-export-type-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+  font-size: 0.85em;
+}
+
+.stb-export-type-item:hover {
+  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+}
+
+.stb-export-type-item input[type="checkbox"] {
+  margin: 0;
+}
+
+.stb-export-type-item .type-color {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid var(--border-color, #dee2e6);
+}
+
+.stb-export-type-item .type-name {
+  flex: 1;
+}
+
+.stb-export-type-item .type-count {
+  color: var(--text-muted, #999);
+  font-size: 0.8em;
+}

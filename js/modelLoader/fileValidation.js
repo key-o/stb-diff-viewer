@@ -15,26 +15,26 @@
  * @returns {Object} File validation result
  */
 export function validateAndGetFiles() {
-  const fileAInput = document.getElementById("fileA");
-  const fileBInput = document.getElementById("fileB");
+  const fileAInput = document.getElementById('fileA');
+  const fileBInput = document.getElementById('fileB');
   const fileA = fileAInput?.files[0];
   const fileB = fileBInput?.files[0];
 
   if (!fileA && !fileB) {
-    alert("表示するモデルファイル（モデルAまたはモデルB）を選択してください。");
+    alert('表示するモデルファイル（モデルAまたはモデルB）を選択してください。');
     return { isValid: false, fileA: null, fileB: null };
   }
 
   // 元のSTBファイルをグローバル状態に保存（IFC変換用）
   // グローバル状態システムが利用可能な場合のみ保存
-  if (typeof window !== 'undefined' && window.globalState && window.globalState.setState) {
+  if (typeof window !== 'undefined' && window.globalState && window.globalState.set) {
     if (fileA) {
-      window.globalState.setState("files.originalFileA", fileA);
-      console.log("元のSTBファイルA を保存:", fileA.name);
+      window.globalState.set('files.originalFileA', fileA);
+      console.log('元のSTBファイルA を保存:', fileA.name);
     }
     if (fileB) {
-      window.globalState.setState("files.originalFileB", fileB);
-      console.log("元のSTBファイルB を保存:", fileB.name);
+      window.globalState.set('files.originalFileB', fileB);
+      console.log('元のSTBファイルB を保存:', fileB.name);
     }
   } else {
     // フォールバック: windowオブジェクトに直接保存
@@ -43,11 +43,11 @@ export function validateAndGetFiles() {
     }
     if (fileA) {
       window.originalSTBFiles.fileA = fileA;
-      console.log("元のSTBファイルA をフォールバック保存:", fileA.name);
+      console.log('元のSTBファイルA をフォールバック保存:', fileA.name);
     }
     if (fileB) {
       window.originalSTBFiles.fileB = fileB;
-      console.log("元のSTBファイルB をフォールバック保存:", fileB.name);
+      console.log('元のSTBファイルB をフォールバック保存:', fileB.name);
     }
   }
 
@@ -62,12 +62,12 @@ export function getSelectedElementTypes() {
   const selectedElementTypes = [
     ...document.querySelectorAll(
       '#elementSelector input[name="elements"]:checked'
-    ),
+    )
   ].map((cb) => cb.value);
 
-  console.log("Selected elements for comparison:", selectedElementTypes);
+  console.log('Selected elements for comparison:', selectedElementTypes);
   if (selectedElementTypes.length === 0) {
-    console.warn("表示する要素が選択されていません。");
+    console.warn('表示する要素が選択されていません。');
   }
 
   return selectedElementTypes;
@@ -81,20 +81,20 @@ export function setLoadingState(isLoading) {
   const compareButton = document.querySelector(
     '#overlay button[onclick="compareModels()"]'
   );
-  
+
   if (compareButton) {
     if (isLoading) {
-      compareButton.textContent = "読込/比較中...";
+      compareButton.textContent = '読込/比較中...';
       compareButton.disabled = true;
     } else {
-      compareButton.textContent = "読込/比較";
+      compareButton.textContent = '読込/比較';
       compareButton.disabled = false;
     }
   }
-  
-  const overlay = document.getElementById("overlay");
+
+  const overlay = document.getElementById('overlay');
   if (overlay) {
-    overlay.style.cursor = isLoading ? "wait" : "default";
+    overlay.style.cursor = isLoading ? 'wait' : 'default';
   }
 }
 
@@ -114,27 +114,27 @@ export function validateComparisonParameters(params) {
 
   // File validation
   if (!fileA && !fileB) {
-    errors.push("No model files selected");
+    errors.push('No model files selected');
   }
 
   // Render function validation
   if (typeof scheduleRender !== 'function') {
-    errors.push("Invalid render function");
+    errors.push('Invalid render function');
   }
 
   // Camera controls validation
   if (!cameraControls || !cameraControls.camera || !cameraControls.controls) {
-    errors.push("Invalid camera/controls configuration");
+    errors.push('Invalid camera/controls configuration');
   }
 
   // Element types validation (warning, not error)
   if (selectedElementTypes.length === 0) {
-    console.warn("No element types selected for display");
+    console.warn('No element types selected for display');
   }
 
   return {
     isValid: errors.length === 0,
     errors,
-    warnings: selectedElementTypes.length === 0 ? ["No elements selected"] : []
+    warnings: selectedElementTypes.length === 0 ? ['No elements selected'] : []
   };
 }

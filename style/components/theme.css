@@ -1,0 +1,91 @@
+/**
+ * テーマ切り替えボタンのスタイル
+ */
+
+/* テーマ切り替えボタン */
+.theme-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  margin: 0;
+  background: var(--sidebar-btn-bg);
+  border: var(--border-width) solid var(--sidebar-btn-border);
+  border-radius: var(--border-radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--sidebar-btn-text);
+}
+
+.theme-toggle-btn:hover {
+  background: var(--sidebar-btn-hover-bg);
+  border-color: var(--color-primary-light);
+}
+
+.theme-toggle-btn:active {
+  transform: scale(0.95);
+}
+
+/* テーマアイコン */
+.theme-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* テーマ設定コンテナ */
+.theme-settings {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.theme-settings-label {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+/* テーマ選択ボタングループ */
+.theme-button-group {
+  display: flex;
+  gap: 4px;
+}
+
+.theme-button-group button {
+  padding: var(--btn-padding-y-sm) var(--btn-padding-x-sm);
+  font-size: var(--font-size-sm);
+  background: var(--bg-secondary);
+  border: var(--border-width) solid var(--border-color-light);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin: 0;
+}
+
+.theme-button-group button:hover {
+  background: var(--bg-hover);
+}
+
+.theme-button-group button.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--text-white);
+}
+
+/* テーマトランジション（スムーズな切り替え） */
+body,
+#overlay,
+.floating-window,
+.panel,
+.accordion-item,
+.tree-container,
+input,
+select,
+button {
+  transition: background-color var(--transition-base),
+              color var(--transition-base),
+              border-color var(--transition-base);
+}

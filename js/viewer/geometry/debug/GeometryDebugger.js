@@ -26,7 +26,7 @@ export function dumpGeometryInfo(mesh) {
     vertexCount: position.count,
     triangleCount: geometry.index ? geometry.index.count / 3 : 0,
     boundingBox: null,
-    vertices: [],
+    vertices: []
   };
 
   // バウンディングボックスを計算
@@ -35,18 +35,18 @@ export function dumpGeometryInfo(mesh) {
     min: {
       x: geometry.boundingBox.min.x,
       y: geometry.boundingBox.min.y,
-      z: geometry.boundingBox.min.z,
+      z: geometry.boundingBox.min.z
     },
     max: {
       x: geometry.boundingBox.max.x,
       y: geometry.boundingBox.max.y,
-      z: geometry.boundingBox.max.z,
+      z: geometry.boundingBox.max.z
     },
     size: {
       x: geometry.boundingBox.max.x - geometry.boundingBox.min.x,
       y: geometry.boundingBox.max.y - geometry.boundingBox.min.y,
-      z: geometry.boundingBox.max.z - geometry.boundingBox.min.z,
-    },
+      z: geometry.boundingBox.max.z - geometry.boundingBox.min.z
+    }
   };
 
   // 最初と最後の10頂点を記録
@@ -56,7 +56,7 @@ export function dumpGeometryInfo(mesh) {
       index: i,
       x: position.getX(i),
       y: position.getY(i),
-      z: position.getZ(i),
+      z: position.getZ(i)
     });
   }
 
@@ -66,7 +66,7 @@ export function dumpGeometryInfo(mesh) {
         index: i,
         x: position.getX(i),
         y: position.getY(i),
-        z: position.getZ(i),
+        z: position.getZ(i)
       });
     }
   }
@@ -96,7 +96,7 @@ export function findMultiSectionMeshes(scene) {
           id: object.userData.id,
           elementType: object.userData.elementType,
           mesh: object,
-          meta: meta,
+          meta: meta
         });
       }
     }
@@ -162,7 +162,7 @@ export function verifyTopEdgePlacement(mesh, length) {
   const positions = [
     { name: '始端', z: -length / 2 },
     { name: '中央', z: 0 },
-    { name: '終端', z: length / 2 },
+    { name: '終端', z: length / 2 }
   ];
 
   const results = [];
@@ -173,7 +173,7 @@ export function verifyTopEdgePlacement(mesh, length) {
         name: pos.name,
         z: pos.z,
         ...section,
-        topEdgeY: section.maxY,
+        topEdgeY: section.maxY
       });
     }
   }
@@ -209,7 +209,7 @@ if (typeof window !== 'undefined') {
     dumpGeometryInfo,
     findMultiSectionMeshes,
     getSectionHeightAtZ,
-    verifyTopEdgePlacement,
+    verifyTopEdgePlacement
   };
   console.log('GeometryDebugger loaded. Use window.GeometryDebugger to access debug functions.');
 }

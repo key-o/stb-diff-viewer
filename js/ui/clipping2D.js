@@ -7,15 +7,15 @@
  * - クリッピング範囲と中心位置の調整
  */
 
-import * as THREE from "three";
-import { applyClipPlanes, clearClippingPlanes } from "../viewer/index.js";
-import { getCameraMode, CAMERA_MODES } from "../viewer/camera/cameraManager.js";
+import * as THREE from 'three';
+import { applyClipPlanes, clearClippingPlanes } from '../viewer/index.js';
+import { getCameraMode, CAMERA_MODES } from '../viewer/camera/cameraManager.js';
 
 // 2D奥行きクリッピングの現在の状態
 let current2DClippingState = {
   enabled: false,
   centerZ: 0, // 中心Z座標（mm）
-  range: 5000, // 範囲（±mm）
+  range: 5000 // 範囲（±mm）
 };
 
 /**
@@ -23,25 +23,25 @@ let current2DClippingState = {
  * @param {string} mode - カメラモード ('perspective' または 'orthographic')
  */
 export function updateDepth2DClippingVisibility(mode) {
-  const depth2DClippingGroup = document.getElementById("depth2DClippingGroup");
+  const depth2DClippingGroup = document.getElementById('depth2DClippingGroup');
 
   if (!depth2DClippingGroup) {
-    console.warn("[Clipping2D] depth2DClippingGroup element not found");
+    console.warn('[Clipping2D] depth2DClippingGroup element not found');
     return;
   }
 
   if (mode === CAMERA_MODES.ORTHOGRAPHIC) {
     // 2Dモード時は表示
-    depth2DClippingGroup.style.display = "block";
-    console.log("[Clipping2D] 2D depth clipping controls shown");
+    depth2DClippingGroup.classList.remove('hidden');
+    console.log('[Clipping2D] 2D depth clipping controls shown');
   } else {
     // 3Dモード時は非表示
-    depth2DClippingGroup.style.display = "none";
+    depth2DClippingGroup.classList.add('hidden');
     // クリッピングが有効な場合は解除
     if (current2DClippingState.enabled) {
       clearDepth2DClipping();
     }
-    console.log("[Clipping2D] 2D depth clipping controls hidden");
+    console.log('[Clipping2D] 2D depth clipping controls hidden');
   }
 }
 
@@ -54,7 +54,7 @@ export function applyDepth2DClipping(centerZ, range) {
   // カメラモードが2Dでない場合は警告
   const currentMode = getCameraMode();
   if (currentMode !== CAMERA_MODES.ORTHOGRAPHIC) {
-    console.warn("[Clipping2D] Cannot apply 2D depth clipping in 3D mode");
+    console.warn('[Clipping2D] Cannot apply 2D depth clipping in 3D mode');
     return;
   }
 
@@ -87,7 +87,7 @@ export function applyDepth2DClipping(centerZ, range) {
   current2DClippingState = {
     enabled: true,
     centerZ,
-    range,
+    range
   };
 
   console.log(
@@ -106,7 +106,7 @@ export function clearDepth2DClipping() {
     return;
   }
 
-  console.log("[Clipping2D] Clearing 2D depth clipping");
+  console.log('[Clipping2D] Clearing 2D depth clipping');
   clearClippingPlanes();
 
   current2DClippingState.enabled = false;
@@ -120,16 +120,16 @@ export function clearDepth2DClipping() {
  * @private
  */
 function updateDepth2DClippingUI() {
-  const applyButton = document.getElementById("applyDepth2DClipButton");
-  const clippingGroup = document.getElementById("depth2DClippingGroup");
+  const applyButton = document.getElementById('applyDepth2DClipButton');
+  const clippingGroup = document.getElementById('depth2DClippingGroup');
 
   if (applyButton && clippingGroup) {
     if (current2DClippingState.enabled) {
-      applyButton.textContent = "2D奥行きクリップを更新";
-      clippingGroup.classList.add("clipping-active");
+      applyButton.textContent = '2D奥行きクリップを更新';
+      clippingGroup.classList.add('clipping-active');
     } else {
-      applyButton.textContent = "2D奥行きクリップを適用";
-      clippingGroup.classList.remove("clipping-active");
+      applyButton.textContent = '2D奥行きクリップを適用';
+      clippingGroup.classList.remove('clipping-active');
     }
   }
 }
@@ -146,14 +146,14 @@ export function getCurrent2DClippingState() {
  * 2D奥行きクリッピングUIイベントハンドラーを初期化
  */
 export function initDepth2DClippingUI() {
-  console.log("[Clipping2D] Initializing 2D depth clipping UI");
+  console.log('[Clipping2D] Initializing 2D depth clipping UI');
 
   // 範囲スライダーのイベント
-  const rangeSlider = document.getElementById("depth2DClipRange");
-  const rangeValue = document.getElementById("depth2DRangeValue");
+  const rangeSlider = document.getElementById('depth2DClipRange');
+  const rangeValue = document.getElementById('depth2DRangeValue');
 
   if (rangeSlider && rangeValue) {
-    rangeSlider.addEventListener("input", (e) => {
+    rangeSlider.addEventListener('input', (e) => {
       const range = parseInt(e.target.value);
       rangeValue.textContent = (range / 1000).toFixed(1);
       current2DClippingState.range = range;
@@ -169,11 +169,11 @@ export function initDepth2DClippingUI() {
   }
 
   // 中心位置スライダーのイベント
-  const centerSlider = document.getElementById("depth2DClipCenter");
-  const centerValue = document.getElementById("depth2DCenterValue");
+  const centerSlider = document.getElementById('depth2DClipCenter');
+  const centerValue = document.getElementById('depth2DCenterValue');
 
   if (centerSlider && centerValue) {
-    centerSlider.addEventListener("input", (e) => {
+    centerSlider.addEventListener('input', (e) => {
       const center = parseInt(e.target.value);
       centerValue.textContent = (center / 1000).toFixed(1);
       current2DClippingState.centerZ = center;
@@ -189,12 +189,12 @@ export function initDepth2DClippingUI() {
   }
 
   // 適用ボタンのイベント
-  const applyButton = document.getElementById("applyDepth2DClipButton");
+  const applyButton = document.getElementById('applyDepth2DClipButton');
 
   if (applyButton) {
-    applyButton.addEventListener("click", () => {
-      const centerSlider = document.getElementById("depth2DClipCenter");
-      const rangeSlider = document.getElementById("depth2DClipRange");
+    applyButton.addEventListener('click', () => {
+      const centerSlider = document.getElementById('depth2DClipCenter');
+      const rangeSlider = document.getElementById('depth2DClipRange');
 
       if (centerSlider && rangeSlider) {
         const center = parseInt(centerSlider.value);
@@ -206,15 +206,15 @@ export function initDepth2DClippingUI() {
   }
 
   // クリアボタンは既存のものを使用（clearClipButton）
-  const clearButton = document.getElementById("clearClipButton");
+  const clearButton = document.getElementById('clearClipButton');
   if (clearButton) {
     // 既存のイベントリスナーに加えて、2Dクリッピングもクリア
-    clearButton.addEventListener("click", () => {
+    clearButton.addEventListener('click', () => {
       clearDepth2DClipping();
     });
   }
 
-  console.log("[Clipping2D] 2D depth clipping UI initialized");
+  console.log('[Clipping2D] 2D depth clipping UI initialized');
 }
 
 /**
@@ -223,7 +223,7 @@ export function initDepth2DClippingUI() {
  */
 export function adjustDepth2DClippingRangeFromModel(modelBounds) {
   if (!modelBounds || modelBounds.isEmpty()) {
-    console.warn("[Clipping2D] Invalid model bounds provided");
+    console.warn('[Clipping2D] Invalid model bounds provided');
     return;
   }
 
@@ -239,8 +239,8 @@ export function adjustDepth2DClippingRangeFromModel(modelBounds) {
   );
 
   // 中心位置スライダーの範囲を調整
-  const centerSlider = document.getElementById("depth2DClipCenter");
-  const centerValue = document.getElementById("depth2DCenterValue");
+  const centerSlider = document.getElementById('depth2DClipCenter');
+  const centerValue = document.getElementById('depth2DCenterValue');
 
   if (centerSlider && centerValue) {
     // スライダーの範囲をモデルの範囲に合わせる（少し余裕を持たせる）
@@ -258,8 +258,8 @@ export function adjustDepth2DClippingRangeFromModel(modelBounds) {
   }
 
   // 範囲スライダーのデフォルト値を調整
-  const rangeSlider = document.getElementById("depth2DClipRange");
-  const rangeValue = document.getElementById("depth2DRangeValue");
+  const rangeSlider = document.getElementById('depth2DClipRange');
+  const rangeValue = document.getElementById('depth2DRangeValue');
 
   if (rangeSlider && rangeValue) {
     // デフォルトの範囲をモデルサイズの1/4程度に設定

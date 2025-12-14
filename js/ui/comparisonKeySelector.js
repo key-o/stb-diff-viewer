@@ -10,14 +10,14 @@
 import {
   COMPARISON_KEY_TYPE,
   COMPARISON_KEY_TYPE_LABELS,
-  COMPARISON_KEY_TYPE_DESCRIPTIONS,
+  COMPARISON_KEY_TYPE_DESCRIPTIONS
 } from '../config/comparisonKeyConfig.js';
 import comparisonKeyManager from '../core/comparisonKeyManager.js';
 import { COMPARISON_KEY_EVENTS } from './events.js';
 
 /**
  * 比較キー選択UIを初期化する
- * @param {string} containerSelector - UIコンテナのセレクター
+ * @param {string} containerSelector - UIコンテナーのセレクター
  * @param {function} onKeyTypeChanged - キータイプ変更時のコールバック
  */
 export function initializeComparisonKeySelector(
@@ -59,11 +59,11 @@ function createSelectorHTML(currentKeyType) {
       </div>
       <div class="selector-options">
         ${Object.entries(COMPARISON_KEY_TYPE)
-          .map(([key, value]) => {
-            const isChecked = value === currentKeyType ? 'checked' : '';
-            const label = COMPARISON_KEY_TYPE_LABELS[value];
-            const description = COMPARISON_KEY_TYPE_DESCRIPTIONS[value];
-            return `
+    .map(([key, value]) => {
+      const isChecked = value === currentKeyType ? 'checked' : '';
+      const label = COMPARISON_KEY_TYPE_LABELS[value];
+      const description = COMPARISON_KEY_TYPE_DESCRIPTIONS[value];
+      return `
               <div class="selector-option">
                 <label class="radio-label">
                   <input
@@ -79,8 +79,8 @@ function createSelectorHTML(currentKeyType) {
                 </label>
               </div>
             `;
-          })
-          .join('')}
+    })
+    .join('')}
       </div>
       <div class="selector-info">
         <small>
@@ -93,7 +93,7 @@ function createSelectorHTML(currentKeyType) {
 
 /**
  * イベントリスナーを設定する
- * @param {Element} container - UIコンテナ
+ * @param {Element} container - UIコンテナー
  * @param {function} onKeyTypeChanged - キータイプ変更時のコールバック
  */
 function setupEventListeners(container, onKeyTypeChanged) {
@@ -152,7 +152,7 @@ function handleKeyTypeChange(newKeyType, onKeyTypeChanged) {
 
 /**
  * UI選択状態を更新する
- * @param {Element} container - UIコンテナ
+ * @param {Element} container - UIコンテナー
  * @param {string} keyType - 選択するキータイプ
  */
 function updateUISelection(container, keyType) {
@@ -164,7 +164,7 @@ function updateUISelection(container, keyType) {
 
 /**
  * 現在選択されているキータイプを取得する
- * @param {string} containerSelector - UIコンテナのセレクター
+ * @param {string} containerSelector - UIコンテナーのセレクター
  * @returns {string|null} 選択されているキータイプ、またはnull
  */
 export function getSelectedKeyType(containerSelector) {

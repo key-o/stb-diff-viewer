@@ -25,30 +25,30 @@ export function setGlobalStateForUI(labels, stories, axesData) {
   allLabels = labels || [];
   currentStories = stories || [];
   currentAxesData = axesData || { xAxes: [], yAxes: [] };
-  
-  console.log("=== UI STATE DEBUG ===");
-  console.log("setGlobalStateForUI called with:", {
+
+  console.log('=== UI STATE DEBUG ===');
+  console.log('setGlobalStateForUI called with:', {
     labelCount: allLabels.length,
     storyCount: currentStories.length,
     axisCountX: currentAxesData.xAxes.length,
     axisCountY: currentAxesData.yAxes.length,
     axesDataReceived: axesData
   });
-  
+
   // Detailed axis data logging
   if (currentAxesData.xAxes.length > 0) {
-    console.log("X-Axes data:", currentAxesData.xAxes);
+    console.log('X-Axes data:', currentAxesData.xAxes);
   } else {
-    console.warn("No X-axes data received");
+    console.warn('No X-axes data received');
   }
-  
+
   if (currentAxesData.yAxes.length > 0) {
-    console.log("Y-Axes data:", currentAxesData.yAxes);
+    console.log('Y-Axes data:', currentAxesData.yAxes);
   } else {
-    console.warn("No Y-axes data received");
+    console.warn('No Y-axes data received');
   }
-  
-  console.log("=== END UI STATE DEBUG ===");
+
+  console.log('=== END UI STATE DEBUG ===');
 
   // Trigger state change notification
   notifyStateChange();
@@ -109,11 +109,11 @@ export function getCurrentAxesData() {
  */
 export function removeLabelsForElementType(elementType) {
   const beforeCount = allLabels.length;
-  allLabels = allLabels.filter(label => 
+  allLabels = allLabels.filter(label =>
     !label.userData || label.userData.elementType !== elementType
   );
   const afterCount = allLabels.length;
-  
+
   console.log(`Removed ${beforeCount - afterCount} labels for element type: ${elementType}`);
   notifyStateChange();
 }
@@ -137,8 +137,8 @@ export function clearUIState() {
   allLabels = [];
   currentStories = [];
   currentAxesData = { xAxes: [], yAxes: [] };
-  
-  console.log("UI state cleared");
+
+  console.log('UI state cleared');
   notifyStateChange();
 }
 
@@ -190,7 +190,7 @@ function notifyStateChange() {
     try {
       listener(currentState);
     } catch (error) {
-      console.error("Error in state change listener:", error);
+      console.error('Error in state change listener:', error);
     }
   });
 }

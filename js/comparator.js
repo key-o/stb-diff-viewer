@@ -2,18 +2,18 @@
  * @fileoverview モデル比較機能のための中核モジュール
  *
  * このファイルは、2つのSTBモデルを比較するための機能を提供します:
- * 
+ *
  * **幾何的比較**:
  * - 要素間の座標ベースの比較ロジック
  * - 線分要素（柱、梁）の比較機能
  * - ポリゴン要素（スラブ、壁）の比較機能
  * - 節点要素の比較機能
- * 
+ *
  * **パラメータ比較**:
  * - 座標パラメータの数値精度比較
  * - 寸法・断面パラメータの差分検出
  * - 材料特性・構造パラメータの値比較
- * 
+ *
  * **結果分類**:
  * - モデル間の一致・不一致要素の分類
  * - 重要度を考慮した比較フィルタリング機能
@@ -24,10 +24,13 @@
 
 import { getImportanceManager, IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from './core/importanceManager.js';
 import { COMPARISON_KEY_TYPE } from './config/comparisonKeyConfig.js';
+import { getToleranceConfig } from './config/toleranceConfig.js';
+import { compareElementDataWithTolerance } from './core/toleranceComparison.js';
+import { COORDINATE_PRECISION } from './config/geometryConfig.js';
 
 // --- 定数 ---
-const PRECISION = 3; // 座標比較時の小数点以下の桁数
-const STB_NAMESPACE = "https://www.building-smart.or.jp/dl"; // ST-Bridge 名前空間 (stbParserと重複するが、独立性のため保持)
+const PRECISION = COORDINATE_PRECISION; // 座標比較時の精度（共有定数を使用）
+const STB_NAMESPACE = 'https://www.building-smart.or.jp/dl'; // ST-Bridge 名前空間 (stbParserと重複するが、独立性のため保持)
 
 // --- 比較用キー生成関数 ---
 
@@ -40,11 +43,11 @@ const STB_NAMESPACE = "https://www.building-smart.or.jp/dl"; // ST-Bridge 名前
 function getNodeCoordKey(coords, precision = PRECISION) {
   if (
     !coords ||
-    typeof coords.x !== "number" ||
-    typeof coords.y !== "number" ||
-    typeof coords.z !== "number"
+    typeof coords.x !== 'number' ||
+    typeof coords.y !== 'number' ||
+    typeof coords.z !== 'number'
   ) {
-    console.warn("Invalid coordinates for key generation:", coords);
+    console.warn('Invalid coordinates for key generation:', coords);
     return null;
   }
   return `${coords.x.toFixed(precision)},${coords.y.toFixed(
@@ -63,7 +66,7 @@ function getLineElementKey(startCoords, endCoords, precision = PRECISION) {
   const startKey = getNodeCoordKey(startCoords, precision);
   const endKey = getNodeCoordKey(endCoords, precision);
   if (startKey === null || endKey === null) return null;
-  return [startKey, endKey].sort().join("|");
+  return [startKey, endKey].sort().join('|');
 }
 
 /**
@@ -76,8 +79,8 @@ function getLineElementKey(startCoords, endCoords, precision = PRECISION) {
  */
 function getPolyElementKey(
   vertexCoordsList,
-  floorId = "",
-  sectionId = "",
+  floorId = '',
+  sectionId = '',
   precision = PRECISION
 ) {
   if (!vertexCoordsList || vertexCoordsList.length === 0) return null;
@@ -85,7 +88,7 @@ function getPolyElementKey(
     getNodeCoordKey(coords, precision)
   );
   if (coordKeys.some((key) => key === null)) return null;
-  return coordKeys.sort().join(",") + `|F:${floorId}|S:${sectionId}`;
+  return coordKeys.sort().join(',') + `|F:${floorId}|S:${sectionId}`;
 }
 
 // --- GUIDベースのキー生成関数 ---
@@ -197,19 +200,19 @@ export function lineElementKeyExtractor(
 ) {
   let startId = element.getAttribute(idStartAttr);
   let endId = element.getAttribute(idEndAttr);
-  const elementId = element.getAttribute("id");
+  const elementId = element.getAttribute('id');
   let startCoords = nodeMap.get(startId);
   let endCoords = nodeMap.get(endId);
 
   // 1-node format fallback (for Pile/Footing with id_node + level_top)
   if ((!startCoords || !endCoords) && !startId && !endId) {
-    const idNode = element.getAttribute("id_node");
-    const levelTop = element.getAttribute("level_top");
+    const idNode = element.getAttribute('id_node');
+    const levelTop = element.getAttribute('level_top');
 
     if (idNode && levelTop && nodeMap.has(idNode)) {
       const topNode = nodeMap.get(idNode);
-      const offsetX = parseFloat(element.getAttribute("offset_X")) || 0;
-      const offsetY = parseFloat(element.getAttribute("offset_Y")) || 0;
+      const offsetX = parseFloat(element.getAttribute('offset_X')) || 0;
+      const offsetY = parseFloat(element.getAttribute('offset_Y')) || 0;
       const levelTopValue = parseFloat(levelTop);
 
       // Default pile length for line display (actual length from section data used in 3D)
@@ -244,17 +247,17 @@ export function lineElementKeyExtractor(
     };
 
     // name属性やその他の属性も取得
-    const name = element.getAttribute("name");
+    const name = element.getAttribute('name');
     if (name) elementData.name = name;
 
-    const idSection = element.getAttribute("id_section");
+    const idSection = element.getAttribute('id_section');
     if (idSection) elementData.id_section = idSection;
 
-    const kindStructure = element.getAttribute("kind_structure");
+    const kindStructure = element.getAttribute('kind_structure');
     if (kindStructure) elementData.kind_structure = kindStructure;
 
     // GUID属性も取得
-    const guid = element.getAttribute("guid");
+    const guid = element.getAttribute('guid');
     if (guid) elementData.guid = guid;
 
     // キータイプに応じたキー生成
@@ -291,12 +294,12 @@ export function lineElementKeyExtractor(
 export function polyElementKeyExtractor(
   element,
   nodeMap,
-  nodeOrderTag = "StbNodeIdOrder",
+  nodeOrderTag = 'StbNodeIdOrder',
   keyType = COMPARISON_KEY_TYPE.POSITION_BASED
 ) {
-  const floorId = element.getAttribute("id_floor") || "";
-  const sectionId = element.getAttribute("id_section") || "";
-  const elementId = element.getAttribute("id");
+  const floorId = element.getAttribute('id_floor') || '';
+  const sectionId = element.getAttribute('id_section') || '';
+  const elementId = element.getAttribute('id');
   const orderElem = element.getElementsByTagNameNS(
     STB_NAMESPACE,
     nodeOrderTag
@@ -312,8 +315,8 @@ export function polyElementKeyExtractor(
       vertexCoordsList.length >= 3
     ) {
       // name属性とGUID属性を取得
-      const name = element.getAttribute("name");
-      const guid = element.getAttribute("guid");
+      const name = element.getAttribute('name');
+      const guid = element.getAttribute('guid');
 
       // キータイプに応じたキー生成
       const key = getElementKey(element, keyType, () =>
@@ -349,12 +352,12 @@ export function polyElementKeyExtractor(
  * @returns {{key: string|null, data: {coords: object, id: string}|null}} キーとデータのオブジェクト。
  */
 export function nodeElementKeyExtractor(element, nodeMap) {
-  const nodeId = element.getAttribute("id");
+  const nodeId = element.getAttribute('id');
   const coords = nodeMap.get(nodeId);
   if (coords) {
     // name属性とGUID属性を取得（Nodeには通常ないが、存在する場合に備えて）
-    const name = element.getAttribute("name");
-    const guid = element.getAttribute("guid");
+    const name = element.getAttribute('name');
+    const guid = element.getAttribute('guid');
 
     const key = getNodeCoordKey(coords);
     return {
@@ -383,11 +386,11 @@ function getElementImportance(element, elementType) {
   if (!manager.isInitialized) {
     return IMPORTANCE_LEVELS.REQUIRED; // デフォルト
   }
-  
+
   // 基本的な要素パス
   const basePath = `//ST_BRIDGE/${elementType}`;
   let importance = manager.getImportanceLevel(basePath);
-  
+
   // より具体的なパスがあれば使用（例：属性レベル）
   let elementId = null;
   if (element && typeof element.getAttribute === 'function') {
@@ -397,7 +400,7 @@ function getElementImportance(element, elementType) {
     // JavaScript object の場合
     elementId = element.id;
   }
-  
+
   if (elementId) {
     const idPath = `${basePath}/@id`;
     const idImportance = manager.getImportanceLevel(idPath);
@@ -405,7 +408,7 @@ function getElementImportance(element, elementType) {
       importance = idImportance;
     }
   }
-  
+
   return importance;
 }
 
@@ -420,7 +423,7 @@ export function filterElementsByImportance(elements, elementType, targetImportan
   if (!targetImportanceLevels || targetImportanceLevels.length === 0) {
     return elements; // フィルタリングなし
   }
-  
+
   return elements.filter(element => {
     const importance = getElementImportance(element, elementType);
     return targetImportanceLevels.includes(importance);
@@ -453,16 +456,16 @@ export function compareElementsWithImportance(
     targetImportanceLevels = null,
     includeImportanceInfo = true
   } = options;
-  
+
   // 重要度フィルタリング
   let filteredElementsA = elementsA;
   let filteredElementsB = elementsB;
-  
+
   if (targetImportanceLevels) {
     filteredElementsA = filterElementsByImportance(elementsA, elementType, targetImportanceLevels);
     filteredElementsB = filterElementsByImportance(elementsB, elementType, targetImportanceLevels);
   }
-  
+
   // 基本的な比較を実行
   const basicResult = compareElements(
     filteredElementsA,
@@ -471,7 +474,7 @@ export function compareElementsWithImportance(
     nodeMapB,
     keyExtractor
   );
-  
+
   // 重要度情報を付加
   if (includeImportanceInfo) {
     const addImportanceInfo = (items, modelType) => {
@@ -484,9 +487,9 @@ export function compareElementsWithImportance(
           // onlyA, onlyBの場合
           element = item.element || null;
         }
-        
+
         const importance = element ? getElementImportance(element, elementType) : IMPORTANCE_LEVELS.OPTIONAL;
-        
+
         return {
           ...item,
           importance,
@@ -494,15 +497,15 @@ export function compareElementsWithImportance(
         };
       });
     };
-    
+
     basicResult.matched = addImportanceInfo(basicResult.matched, 'matched');
     basicResult.onlyA = addImportanceInfo(basicResult.onlyA, 'onlyA');
     basicResult.onlyB = addImportanceInfo(basicResult.onlyB, 'onlyB');
   }
-  
+
   // 重要度別統計情報を生成
   const importanceStats = generateImportanceStatistics(basicResult, elementType);
-  
+
   return {
     ...basicResult,
     importanceStats,
@@ -534,7 +537,7 @@ function generateImportanceStatistics(comparisonResult, elementType) {
       totalDifferences: comparisonResult.onlyA.length + comparisonResult.onlyB.length
     }
   };
-  
+
   // 重要度レベル別の初期化
   for (const level of Object.values(IMPORTANCE_LEVELS)) {
     stats.byImportance[level] = {
@@ -544,7 +547,7 @@ function generateImportanceStatistics(comparisonResult, elementType) {
       differences: 0
     };
   }
-  
+
   // 統計を集計
   const countByImportance = (items, category) => {
     items.forEach(item => {
@@ -555,11 +558,11 @@ function generateImportanceStatistics(comparisonResult, elementType) {
       }
     });
   };
-  
+
   countByImportance(comparisonResult.matched, 'matched');
   countByImportance(comparisonResult.onlyA, 'onlyA');
   countByImportance(comparisonResult.onlyB, 'onlyB');
-  
+
   return stats;
 }
 
@@ -577,7 +580,7 @@ export function generateImportanceSummary(comparisonResults) {
     criticalDifferences: 0, // 高重要度の差分
     timestamp: new Date().toISOString()
   };
-  
+
   // 重要度レベル別の初期化
   for (const level of Object.values(IMPORTANCE_LEVELS)) {
     summary.byImportance[level] = {
@@ -587,34 +590,34 @@ export function generateImportanceSummary(comparisonResults) {
       onlyB: 0
     };
   }
-  
+
   // 各比較結果を集計
   comparisonResults.forEach(result => {
     if (!result.importanceStats) {
       return;
     }
-    
+
     const elementType = result.elementType;
     summary.byElementType[elementType] = result.importanceStats.summary;
-    
-    summary.totalElements += result.importanceStats.summary.totalMatched + 
+
+    summary.totalElements += result.importanceStats.summary.totalMatched +
                            result.importanceStats.summary.totalDifferences;
     summary.totalDifferences += result.importanceStats.summary.totalDifferences;
-    
+
     // 重要度別の集計
     for (const [importance, stats] of Object.entries(result.importanceStats.byImportance)) {
       summary.byImportance[importance].matched += stats.matched;
       summary.byImportance[importance].differences += stats.differences;
       summary.byImportance[importance].onlyA += stats.onlyA;
       summary.byImportance[importance].onlyB += stats.onlyB;
-      
+
       // 高重要度の差分をカウント
       if (importance === IMPORTANCE_LEVELS.REQUIRED) {
         summary.criticalDifferences += stats.differences;
       }
     }
   });
-  
+
   return summary;
 }
 
@@ -634,9 +637,9 @@ export function updateComparisonResultImportance(comparisonResult, elementType) 
       } else {
         element = item.element || null;
       }
-      
+
       const importance = element ? getElementImportance(element, elementType) : IMPORTANCE_LEVELS.OPTIONAL;
-      
+
       return {
         ...item,
         importance,
@@ -644,18 +647,150 @@ export function updateComparisonResultImportance(comparisonResult, elementType) 
       };
     });
   };
-  
+
   const updatedResult = {
     ...comparisonResult,
     matched: addImportanceInfo(comparisonResult.matched, 'matched'),
     onlyA: addImportanceInfo(comparisonResult.onlyA, 'onlyA'),
     onlyB: addImportanceInfo(comparisonResult.onlyB, 'onlyB')
   };
-  
+
   // 統計情報を再生成
   updatedResult.importanceStats = generateImportanceStatistics(updatedResult, elementType);
-  
+
   return updatedResult;
+}
+
+/**
+ * 許容差を考慮した要素比較
+ * @param {Array<Element>} elementsA - モデルAの要素リスト
+ * @param {Array<Element>} elementsB - モデルBの要素リスト
+ * @param {Map} nodeMapA - モデルAのノードマップ
+ * @param {Map} nodeMapB - モデルBのノードマップ
+ * @param {function} keyExtractor - キー抽出関数
+ * @param {Object} [toleranceConfig] - 許容差設定（省略時は現在の設定を使用）
+ * @returns {Object} 拡張された比較結果
+ */
+export function compareElementsWithTolerance(
+  elementsA,
+  elementsB,
+  nodeMapA,
+  nodeMapB,
+  keyExtractor,
+  toleranceConfig = null
+) {
+  // 許容差設定を取得
+  const config = toleranceConfig || getToleranceConfig();
+
+  const result = {
+    exact: [],
+    withinTolerance: [],
+    mismatch: [],
+    onlyA: [],
+    onlyB: []
+  };
+
+  // 厳密モードまたは許容差無効の場合は従来の比較
+  if (config.strictMode || !config.enabled) {
+    const basicResult = compareElements(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor);
+    result.exact = basicResult.matched;
+    result.onlyA = basicResult.onlyA;
+    result.onlyB = basicResult.onlyB;
+    return result;
+  }
+
+  // 許容差を考慮した比較ロジック
+  const mapA = new Map();
+  const mapB = new Map();
+
+  // モデルAの要素をマッピング
+  for (const elementA of elementsA) {
+    const { key, data } = keyExtractor(elementA, nodeMapA);
+    if (key !== null) {
+      if (!mapA.has(key)) {
+        mapA.set(key, []);
+      }
+      mapA.get(key).push(data);
+    }
+  }
+
+  // モデルBの要素をマッピングし、マッチングを試行
+  for (const elementB of elementsB) {
+    const { key, data } = keyExtractor(elementB, nodeMapB);
+    if (key === null) continue;
+
+    let foundMatch = false;
+
+    // 同じキーの要素を探す（完全一致）
+    if (mapA.has(key)) {
+      const candidatesA = mapA.get(key);
+
+      for (let i = 0; i < candidatesA.length; i++) {
+        const dataA = candidatesA[i];
+        const comparisonResult = compareElementDataWithTolerance(dataA, data, config);
+
+        if (comparisonResult.match && comparisonResult.type === 'exact') {
+          result.exact.push({
+            dataA: dataA,
+            dataB: data,
+            matchType: 'exact',
+            differences: comparisonResult.differences
+          });
+          candidatesA.splice(i, 1);
+          if (candidatesA.length === 0) {
+            mapA.delete(key);
+          }
+          foundMatch = true;
+          break;
+        }
+      }
+    }
+
+    // 完全一致が見つからない場合、許容差内の一致を探す
+    if (!foundMatch) {
+      for (const [keyA, candidatesA] of mapA.entries()) {
+        for (let i = 0; i < candidatesA.length; i++) {
+          const dataA = candidatesA[i];
+          const comparisonResult = compareElementDataWithTolerance(dataA, data, config);
+
+          if (comparisonResult.match && comparisonResult.type === 'withinTolerance') {
+            result.withinTolerance.push({
+              dataA: dataA,
+              dataB: data,
+              matchType: 'withinTolerance',
+              differences: comparisonResult.differences
+            });
+            candidatesA.splice(i, 1);
+            if (candidatesA.length === 0) {
+              mapA.delete(keyA);
+            }
+            foundMatch = true;
+            break;
+          }
+        }
+        if (foundMatch) break;
+      }
+    }
+
+    // マッチが見つからない場合
+    if (!foundMatch) {
+      if (!mapB.has(key)) {
+        mapB.set(key, []);
+      }
+      mapB.get(key).push(data);
+    }
+  }
+
+  // 残りの要素を振り分け
+  for (const candidatesA of mapA.values()) {
+    result.onlyA.push(...candidatesA);
+  }
+
+  for (const candidatesB of mapB.values()) {
+    result.onlyB.push(...candidatesB);
+  }
+
+  return result;
 }
 
 // 比較のための追加ユーティリティ関数をここに追加できます。

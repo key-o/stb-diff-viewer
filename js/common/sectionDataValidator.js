@@ -18,7 +18,7 @@ import {
   getHeight,
   getDiameter,
   getThickness,
-  isCircularSection,
+  isCircularSection
 } from './sectionDataAccessor.js';
 
 /**
@@ -28,7 +28,7 @@ export const VALIDATION_CONFIG = {
   // 寸法の妥当な範囲（mm単位）
   dimensions: {
     min: 0.1,      // 最小値: 0.1mm（ほぼゼロだが完全にゼロではない）
-    max: 100000,   // 最大値: 100m（構造部材として現実的な上限）
+    max: 100000   // 最大値: 100m（構造部材として現実的な上限）
   },
 
   // 許容される断面タイプ（SECTION_TYPEから自動生成）
@@ -43,8 +43,8 @@ export const VALIDATION_CONFIG = {
     minDiameter: 10,    // 10mm未満は警告
     maxDiameter: 5000,  // 5m超は警告
     minThickness: 1,    // 1mm未満は警告
-    maxThickness: 1000, // 1m超は警告
-  },
+    maxThickness: 1000 // 1m超は警告
+  }
 };
 
 /**
@@ -73,7 +73,7 @@ export function validateSectionDataComprehensive(sectionData, elementType = 'Unk
       valid: false,
       errors: ['Section data is null or undefined'],
       warnings: [],
-      checkedValues: {},
+      checkedValues: {}
     };
   }
 
@@ -98,7 +98,7 @@ export function validateSectionDataComprehensive(sectionData, elementType = 'Unk
     valid: errors.length === 0,
     errors,
     warnings,
-    checkedValues,
+    checkedValues
   };
 }
 
@@ -251,8 +251,8 @@ function validateRawDimensionValues(sectionData) {
 
   // 全ての数値プロパティをチェック
   const numericProps = ['width', 'Width', 'width_X', 'width_Y', 'height', 'Height',
-                        'A', 'B', 'H', 'h', 'D', 'd', 'diameter', 'Diameter',
-                        'thickness', 't', 't1', 't2'];
+    'A', 'B', 'H', 'h', 'D', 'd', 'diameter', 'Diameter',
+    'thickness', 't', 't1', 't2'];
 
   for (const prop of numericProps) {
     if (prop in dims) {
@@ -419,6 +419,6 @@ export function validateSectionDataSimple(sectionData) {
   const result = validateSectionDataComprehensive(sectionData);
   return {
     valid: result.valid,
-    errors: result.errors,
+    errors: result.errors
   };
 }

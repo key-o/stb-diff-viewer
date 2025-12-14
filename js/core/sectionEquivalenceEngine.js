@@ -41,7 +41,7 @@ export const EQUIVALENCE_CONFIG = {
     'FC27': ['FC27'],
     'FC30': ['FC30'],
     'FC33': ['FC33'],
-    'FC36': ['FC36'],
+    'FC36': ['FC36']
   },
 
   // 断面タイプの互換性マッピング
@@ -59,7 +59,7 @@ export const EQUIVALENCE_CONFIG = {
     'RECTANGLE': ['RECTANGLE'],
     'CIRCLE': ['CIRCLE'],
     'CFT': ['CFT'],
-    'SRC': ['SRC'],
+    'stb-diff-viewer': ['stb-diff-viewer']
   }
 };
 
@@ -513,7 +513,7 @@ function estimateStrength(material) {
     'FC36': 36,
     'FC40': 40,
     'FC45': 45,
-    'FC50': 50,
+    'FC50': 50
   };
 
   return strengthMap[mat] || null;

@@ -11,8 +11,8 @@
 import {
   getAttributeInfo,
   hasEnumerationValues,
-  isSchemaLoaded,
-} from "../parser/xsdSchemaParser.js";
+  isSchemaLoaded
+} from '../parser/xsdSchemaParser.js';
 
 /**
  * サジェストエンジンクラス
@@ -66,7 +66,7 @@ export class SuggestionEngine {
     // キャッシュに保存
     this.cache.set(cacheKey, {
       suggestions,
-      timestamp: Date.now(),
+      timestamp: Date.now()
     });
 
     return this.sortSuggestionsByRelevance(suggestions, context.currentValue);
@@ -103,7 +103,7 @@ export class SuggestionEngine {
             ...existing,
             label: normalized.label,
             meta: normalized.meta,
-            source: normalized.source || existing.source,
+            source: normalized.source || existing.source
           });
         }
       });
@@ -133,22 +133,22 @@ export class SuggestionEngine {
   normalizeSuggestionEntry(entry) {
     if (!entry) return null;
 
-    if (typeof entry === "string") {
+    if (typeof entry === 'string') {
       const value = entry.trim();
       if (!value) return null;
-      return { value, label: value, source: "unknown", meta: {} };
+      return { value, label: value, source: 'unknown', meta: {} };
     }
 
-    if (typeof entry === "object") {
-      const value = (entry.value ?? "").toString().trim();
+    if (typeof entry === 'object') {
+      const value = (entry.value ?? '').toString().trim();
       if (!value) return null;
 
       const label = (entry.label ?? value).toString().trim();
       return {
         value,
         label: label || value,
-        source: entry.source || "unknown",
-        meta: entry.meta || {},
+        source: entry.source || 'unknown',
+        meta: entry.meta || {}
       };
     }
 
@@ -166,7 +166,7 @@ export class SuggestionEngine {
       return [];
     }
 
-    const tagName = elementType === "Node" ? "StbNode" : `Stb${elementType}`;
+    const tagName = elementType === 'Node' ? 'StbNode' : `Stb${elementType}`;
 
     try {
       const attrInfo = getAttributeInfo(tagName, attributeName);
@@ -176,7 +176,7 @@ export class SuggestionEngine {
           (value) => ({
             value,
             label: value,
-            source: "xsd",
+            source: 'xsd'
           })
         );
       }
@@ -208,10 +208,10 @@ export class SuggestionEngine {
 
       // 列挙値を取得
       const enumerations = simpleType.querySelectorAll(
-        "xs\\:enumeration, enumeration"
+        'xs\\:enumeration, enumeration'
       );
       return Array.from(enumerations)
-        .map((enumElement) => enumElement.getAttribute("value"))
+        .map((enumElement) => enumElement.getAttribute('value'))
         .filter((v) => v);
     } catch (error) {
       console.warn(`型${typeName}の列挙値抽出中にエラーが発生しました:`, error);
@@ -236,7 +236,7 @@ export class SuggestionEngine {
 
       for (const doc of docs) {
         const tagName =
-          elementType === "Node" ? "StbNode" : `Stb${elementType}`;
+          elementType === 'Node' ? 'StbNode' : `Stb${elementType}`;
         const elements = doc.querySelectorAll(tagName);
 
         elements.forEach((element) => {
@@ -248,7 +248,7 @@ export class SuggestionEngine {
               suggestions.push({
                 value: normalized,
                 label: normalized,
-                source: "model",
+                source: 'model'
               });
             }
           }
@@ -270,35 +270,35 @@ export class SuggestionEngine {
    */
   getStructuralSuggestions(elementType, attributeName, context) {
     const suggestions = [];
-    const attr = attributeName ? attributeName.toLowerCase() : "";
+    const attr = attributeName ? attributeName.toLowerCase() : '';
 
     try {
       // 断面名の場合の標準的な値
-      if (attr === "id_section" || attr.includes("section")) {
+      if (attr === 'id_section' || attr.includes('section')) {
         suggestions.push(...this.getSectionSuggestions());
       }
 
       // 材料強度の場合の標準値
-      if (attributeName === "strength_concrete") {
-        ["Fc21", "Fc24", "Fc27", "Fc30", "Fc33", "Fc36"].forEach((value) => {
-          suggestions.push({ value, label: value, source: "structural" });
+      if (attributeName === 'strength_concrete') {
+        ['Fc21', 'Fc24', 'Fc27', 'Fc30', 'Fc33', 'Fc36'].forEach((value) => {
+          suggestions.push({ value, label: value, source: 'structural' });
         });
       }
 
       // 鋼材強度の場合の標準値
-      if (attributeName === "strength_steel") {
-        ["SN400", "SN490", "SM400", "SM490", "SS400"].forEach((value) => {
-          suggestions.push({ value, label: value, source: "structural" });
+      if (attributeName === 'strength_steel') {
+        ['SN400', 'SN490', 'SM400', 'SM490', 'SS400'].forEach((value) => {
+          suggestions.push({ value, label: value, source: 'structural' });
         });
       }
 
       // kind属性の構造関連値
-      if (attributeName === "kind") {
+      if (attributeName === 'kind') {
         suggestions.push(...this.getKindSuggestions(elementType));
       }
 
       // ノード参照属性
-      if (attr.startsWith("id_node")) {
+      if (attr.startsWith('id_node')) {
         suggestions.push(...this.getNodeReferenceSuggestions());
       }
     } catch (error) {
@@ -322,20 +322,20 @@ export class SuggestionEngine {
       const docs = [window.docA, window.docB].filter((doc) => doc);
 
       for (const doc of docs) {
-        const sectionElements = doc.querySelectorAll("StbSections > *");
+        const sectionElements = doc.querySelectorAll('StbSections > *');
         sectionElements.forEach((section) => {
-          const id = section.getAttribute("id");
+          const id = section.getAttribute('id');
           if (!id || seen.has(id)) {
             return;
           }
 
           seen.add(id);
-          const name = section.getAttribute("name");
+          const name = section.getAttribute('name');
           const shape =
-            section.getAttribute("shape") || section.getAttribute("shape_name");
+            section.getAttribute('shape') || section.getAttribute('shape_name');
           const strength =
-            section.getAttribute("strength_name") ||
-            section.getAttribute("material");
+            section.getAttribute('strength_name') ||
+            section.getAttribute('material');
 
           const labelParts = [id];
           if (name) {
@@ -347,19 +347,19 @@ export class SuggestionEngine {
           if (strength) detailParts.push(strength);
 
           const labelSuffix = detailParts.length
-            ? ` – ${detailParts.join(", ")}`
-            : "";
+            ? ` – ${detailParts.join(', ')}`
+            : '';
 
           suggestions.push({
             value: id,
-            label: `${labelParts.join(" / ")}${labelSuffix}`,
-            source: "structural",
-            meta: { name, shape, strength },
+            label: `${labelParts.join(' / ')}${labelSuffix}`,
+            source: 'structural',
+            meta: { name, shape, strength }
           });
         });
       }
     } catch (error) {
-      console.warn("断面サジェストの取得中にエラーが発生しました:", error);
+      console.warn('断面サジェストの取得中にエラーが発生しました:', error);
     }
 
     return suggestions;
@@ -373,19 +373,19 @@ export class SuggestionEngine {
   getKindSuggestions(elementType) {
     // 要素タイプに応じた適切なkind値
     const kindMap = {
-      Column: ["ON_GIRDER", "ON_BEAM", "ON_GRID"],
-      Girder: ["ON_GIRDER", "ON_COLUMN"],
-      Beam: ["ON_BEAM", "ON_COLUMN", "ON_GIRDER"],
-      Brace: ["ON_COLUMN", "ON_BEAM"],
-      Slab: ["ON_SLAB", "ON_BEAM", "ON_GIRDER"],
-      Wall: ["ON_GRID", "ON_COLUMN"],
+      Column: ['ON_GIRDER', 'ON_BEAM', 'ON_GRID'],
+      Girder: ['ON_GIRDER', 'ON_COLUMN'],
+      Beam: ['ON_BEAM', 'ON_COLUMN', 'ON_GIRDER'],
+      Brace: ['ON_COLUMN', 'ON_BEAM'],
+      Slab: ['ON_SLAB', 'ON_BEAM', 'ON_GIRDER'],
+      Wall: ['ON_GRID', 'ON_COLUMN']
     };
 
     const values = kindMap[elementType] || [];
     return values.map((value) => ({
       value,
       label: value,
-      source: "structural",
+      source: 'structural'
     }));
   }
 
@@ -400,16 +400,16 @@ export class SuggestionEngine {
     try {
       const docs = [window.docA, window.docB].filter(Boolean);
       docs.forEach((doc) => {
-        const nodes = doc.querySelectorAll("StbNode");
+        const nodes = doc.querySelectorAll('StbNode');
         nodes.forEach((node) => {
-          const id = node.getAttribute("id");
+          const id = node.getAttribute('id');
           if (!id || seen.has(id)) return;
           seen.add(id);
 
-          const name = node.getAttribute("name");
-          const x = node.getAttribute("X") ?? node.getAttribute("x");
-          const y = node.getAttribute("Y") ?? node.getAttribute("y");
-          const z = node.getAttribute("Z") ?? node.getAttribute("z");
+          const name = node.getAttribute('name');
+          const x = node.getAttribute('X') ?? node.getAttribute('x');
+          const y = node.getAttribute('Y') ?? node.getAttribute('y');
+          const z = node.getAttribute('Z') ?? node.getAttribute('z');
           const coords = [x, y, z].filter(
             (val) => val !== null && val !== undefined
           );
@@ -419,19 +419,19 @@ export class SuggestionEngine {
             label += ` / ${name}`;
           }
           if (coords.length === 3) {
-            label += ` (${coords.join(", ")})`;
+            label += ` (${coords.join(', ')})`;
           }
 
           suggestions.push({
             value: id,
             label,
-            source: "structural",
-            meta: { name, coordinates: coords },
+            source: 'structural',
+            meta: { name, coordinates: coords }
           });
         });
       });
     } catch (error) {
-      console.warn("ノードサジェストの取得中にエラーが発生しました:", error);
+      console.warn('ノードサジェストの取得中にエラーが発生しました:', error);
     }
 
     return suggestions;
@@ -448,11 +448,11 @@ export class SuggestionEngine {
       return suggestions;
     }
 
-    const normalizedCurrent = currentValue ? currentValue.toString() : "";
+    const normalizedCurrent = currentValue ? currentValue.toString() : '';
 
     return suggestions.sort((a, b) => {
-      const valueA = a.value ?? "";
-      const valueB = b.value ?? "";
+      const valueA = a.value ?? '';
+      const valueB = b.value ?? '';
 
       // 1. 現在値との完全一致を最優先
       if (valueA === normalizedCurrent) return -1;
@@ -563,7 +563,7 @@ export class SuggestionEngine {
    * 使用統計を記録（インスタンスメソッド）
    */
   recordUsage(elementType, attributeName, value) {
-    if (!value || value.trim() === "") return;
+    if (!value || value.trim() === '') return;
 
     const normalizedValue = value.trim();
     const currentCount = this.usageStats.get(normalizedValue) || 0;
@@ -584,13 +584,13 @@ export class SuggestionEngine {
    */
   loadUsageStats() {
     try {
-      const stored = localStorage.getItem("stbDiffViewer_usageStats");
+      const stored = localStorage.getItem('stbDiffViewer_usageStats');
       if (stored) {
         const data = JSON.parse(stored);
         this.usageStats = new Map(Object.entries(data));
       }
     } catch (error) {
-      console.warn("使用統計の読み込み中にエラーが発生しました:", error);
+      console.warn('使用統計の読み込み中にエラーが発生しました:', error);
       this.usageStats = new Map();
     }
   }
@@ -601,9 +601,9 @@ export class SuggestionEngine {
   saveUsageStats() {
     try {
       const data = Object.fromEntries(this.usageStats);
-      localStorage.setItem("stbDiffViewer_usageStats", JSON.stringify(data));
+      localStorage.setItem('stbDiffViewer_usageStats', JSON.stringify(data));
     } catch (error) {
-      console.warn("使用統計の保存中にエラーが発生しました:", error);
+      console.warn('使用統計の保存中にエラーが発生しました:', error);
     }
   }
 
@@ -613,7 +613,7 @@ export class SuggestionEngine {
   static clearCache() {
     const engine = new SuggestionEngine();
     engine.cache.clear();
-    console.log("サジェストキャッシュがクリアされました");
+    console.log('サジェストキャッシュがクリアされました');
   }
 
   /**
@@ -623,7 +623,7 @@ export class SuggestionEngine {
     const engine = new SuggestionEngine();
     engine.usageStats.clear();
     engine.saveUsageStats();
-    console.log("使用統計がクリアされました");
+    console.log('使用統計がクリアされました');
   }
 
   /**
@@ -637,7 +637,7 @@ export class SuggestionEngine {
       topUsedValues: Array.from(engine.usageStats.entries())
         .sort(([, a], [, b]) => b - a)
         .slice(0, 10)
-        .map(([value, count]) => ({ value, count })),
+        .map(([value, count]) => ({ value, count }))
     };
   }
 }

@@ -13,20 +13,20 @@
  * コードの再利用性と保守性を高めます。
  */
 
-import { getState } from "../../core/globalState.js";
-import { createLogger } from "../../utils/logger.js";
+import { getState } from '../../core/globalState.js';
+import { createLogger } from '../../utils/logger.js';
 
-import * as THREE from "three";
+import * as THREE from 'three';
 import {
   renderer,
   scene,
   camera,
   controls,
-  elementGroups as viewerElementGroups,
-} from "../core/core.js"; // elementGroups もインポート
-import { materials } from "../rendering/materials.js"; // materials をインポート
+  elementGroups as viewerElementGroups
+} from '../core/core.js'; // elementGroups もインポート
+import { materials } from '../rendering/materials.js'; // materials をインポート
 
-const log = createLogger("viewer:utils");
+const log = createLogger('viewer:utils');
 
 // animate 関数は core.js で定義されているため、utils.js からは削除
 
@@ -45,7 +45,7 @@ export function clearSceneContent(
 ) {
   if (!groups) {
     console.warn(
-      "[viewer:utils] No element groups provided to clearSceneContent"
+      '[viewer:utils] No element groups provided to clearSceneContent'
     );
     return new THREE.Box3();
   }
@@ -72,7 +72,7 @@ export function clearSceneContent(
       label.parent.remove(label);
     }
   });
-  if (nodeLabels && typeof nodeLabels.length === "number") {
+  if (nodeLabels && typeof nodeLabels.length === 'number') {
     nodeLabels.length = 0;
   }
 
@@ -154,8 +154,8 @@ export function adjustCameraToFitModel(modelBounds, camera, controls) {
     // ★★★ デフォルト位置も mm 単位に ★★★
     camera.position.set(10000, 10000, 20000); // 10m, 10m, 20m
     // 広いモデルでも自由に回せるよう、回転制限を緩和
-    if ("minAzimuthAngle" in controls) controls.minAzimuthAngle = -Infinity;
-    if ("maxAzimuthAngle" in controls) controls.maxAzimuthAngle = Infinity;
+    if ('minAzimuthAngle' in controls) controls.minAzimuthAngle = -Infinity;
+    if ('maxAzimuthAngle' in controls) controls.maxAzimuthAngle = Infinity;
     controls.update();
     return;
   }
@@ -209,8 +209,8 @@ export function adjustCameraToFitModel(modelBounds, camera, controls) {
     )}mm, ${controls.target.y.toFixed(0)}mm, ${controls.target.z.toFixed(0)}mm)`
   );
   // 広いモデルでも自由に回せるよう、回転制限を緩和
-  if ("minAzimuthAngle" in controls) controls.minAzimuthAngle = -Infinity;
-  if ("maxAzimuthAngle" in controls) controls.maxAzimuthAngle = Infinity;
+  if ('minAzimuthAngle' in controls) controls.minAzimuthAngle = -Infinity;
+  if ('maxAzimuthAngle' in controls) controls.maxAzimuthAngle = Infinity;
   controls.update();
 
   // ファークリップ面を再調整
@@ -232,32 +232,32 @@ export function applyClipping(axis, centerCoord, range = 1000) {
     `applyClipping called for axis ${axis} at ${centerCoord}mm with range ${range}mm. Checking renderer state...` // ログの単位を明確化
   );
   if (!renderer) {
-    log.error("Renderer is not initialized when applyClipping was called!");
-    alert("クリッピングエラー: レンダラーが初期化されていません。");
+    log.error('Renderer is not initialized when applyClipping was called!');
+    alert('クリッピングエラー: レンダラーが初期化されていません。');
     return;
   }
-  log.trace("Renderer found in applyClipping:", renderer);
+  log.trace('Renderer found in applyClipping:', renderer);
   try {
-    let planeNormal1 = new THREE.Vector3();
-    let planeNormal2 = new THREE.Vector3();
+    const planeNormal1 = new THREE.Vector3();
+    const planeNormal2 = new THREE.Vector3();
     let constant1 = 0;
     let constant2 = 0;
 
     // ★★★ 定数計算は mm 単位で行われる ★★★
     switch (axis) {
-      case "X":
+      case 'X':
         planeNormal1.set(1, 0, 0);
         planeNormal2.set(-1, 0, 0);
         constant1 = -(centerCoord - range); // X > center - range
         constant2 = centerCoord + range; // X < center + range => -X > -(center + range)
         break;
-      case "Y":
+      case 'Y':
         planeNormal1.set(0, 1, 0);
         planeNormal2.set(0, -1, 0);
         constant1 = -(centerCoord - range); // Y > center - range
         constant2 = centerCoord + range; // Y < center + range => -Y > -(center + range)
         break;
-      case "Z":
+      case 'Z':
       default: // デフォルトはZ軸（階）
         planeNormal1.set(0, 0, 1);
         planeNormal2.set(0, 0, -1);
@@ -268,7 +268,7 @@ export function applyClipping(axis, centerCoord, range = 1000) {
 
     const clipPlanes = [
       new THREE.Plane(planeNormal1, constant1),
-      new THREE.Plane(planeNormal2, constant2),
+      new THREE.Plane(planeNormal2, constant2)
     ];
 
     // ★★★ applyClipPlanes を呼び出すように変更 ★★★
@@ -283,8 +283,8 @@ export function applyClipping(axis, centerCoord, range = 1000) {
       )}mm ± ${range.toFixed(0)}mm.`
     );
   } catch (error) {
-    log.error("Error setting clipping planes:", error);
-    alert("クリッピング中にエラーが発生しました。");
+    log.error('Error setting clipping planes:', error);
+    alert('クリッピング中にエラーが発生しました。');
   }
 }
 
@@ -293,26 +293,26 @@ export function applyClipping(axis, centerCoord, range = 1000) {
  * - clippingPlanesを空にし、localClippingEnabledをfalseに
  */
 export function clearClippingPlanes() {
-  log.debug("clearClippingPlanes called. Checking renderer state...");
+  log.debug('clearClippingPlanes called. Checking renderer state...');
   if (!renderer) {
     log.error(
-      "Renderer is not initialized when clearClippingPlanes was called!"
+      'Renderer is not initialized when clearClippingPlanes was called!'
     );
-    alert("クリッピング解除エラー: レンダラーが初期化されていません。");
+    alert('クリッピング解除エラー: レンダラーが初期化されていません。');
     return;
   }
-  log.trace("Renderer found in clearClippingPlanes:", renderer);
+  log.trace('Renderer found in clearClippingPlanes:', renderer);
   try {
-    log.trace("Attempting to clear clipping...");
+    log.trace('Attempting to clear clipping...');
     renderer.clippingPlanes.length = 0;
     renderer.localClippingEnabled = false;
     log.info(
-      "Clipping planes cleared. localClippingEnabled:",
+      'Clipping planes cleared. localClippingEnabled:',
       renderer.localClippingEnabled
     );
   } catch (error) {
-    log.error("Error clearing clipping planes:", error);
-    alert("クリッピング解除中にエラーが発生しました。");
+    log.error('Error clearing clipping planes:', error);
+    alert('クリッピング解除中にエラーが発生しました。');
   }
 }
 
@@ -324,11 +324,11 @@ export function clearClippingPlanes() {
  */
 export function applyClipPlanes(planes) {
   if (!renderer) {
-    log.error("Renderer not available in applyClipPlanes.");
+    log.error('Renderer not available in applyClipPlanes.');
     return;
   }
   if (!planes || planes.length === 0) {
-    log.warn("No planes provided to applyClipPlanes.");
+    log.warn('No planes provided to applyClipPlanes.');
     // Optionally clear existing planes if none are provided
     // clearClippingPlanes();
     return;
@@ -397,9 +397,9 @@ export function updateMaterialClippingPlanes() {
       }
     });
   });
-  log.info("Updated clipping planes for all materials.");
+  log.info('Updated clipping planes for all materials.');
   // 再描画を要求
-  const scheduleRender = getState("rendering.scheduleRender");
+  const scheduleRender = getState('rendering.scheduleRender');
   if (scheduleRender) {
     scheduleRender();
   }
@@ -410,45 +410,45 @@ export function updateMaterialClippingPlanes() {
 
 /**
  * STBファイル(XML)のencoding宣言を自動判別してデコードする
- * @param {string|File} src - ファイルURLまたはFileオブジェクト
+ * @param {string|File} stb-diff-viewer - ファイルURLまたはFileオブジェクト
  * @returns {Promise<XMLDocument>}
  */
-export async function loadStbXmlAutoEncoding(src) {
+export async function loadStbXmlAutoEncoding(stbFile) {
   let arrayBuffer;
-  if (typeof src === "string") {
+  if (typeof stbFile === 'string') {
     // URLの場合
-    const response = await fetch(src);
+    const response = await fetch(stbFile);
     arrayBuffer = await response.arrayBuffer();
-  } else if (src instanceof File) {
+  } else if (stbFile instanceof File) {
     // Fileオブジェクトの場合
-    arrayBuffer = await src.arrayBuffer();
+    arrayBuffer = await stbFile.arrayBuffer();
   } else {
-    throw new Error("Invalid src for loadStbXmlAutoEncoding");
+    throw new Error('Invalid stbFile for loadStbXmlAutoEncoding');
   }
 
   // 先頭数百バイトだけ仮デコードしてencoding属性を抽出
   const headBytes = arrayBuffer.slice(0, 256);
-  let encoding = "utf-8";
-  let xmlDecl = "";
+  let encoding = 'utf-8';
+  let xmlDecl = '';
 
   // UTF-8で仮デコード
-  xmlDecl = new TextDecoder("utf-8").decode(headBytes);
+  xmlDecl = new TextDecoder('utf-8').decode(headBytes);
   let match = xmlDecl.match(/<\?xml\s+[^>]*encoding=["']([\w\-]+)["']/i);
   if (!match) {
     // Shift_JISで仮デコード
-    xmlDecl = new TextDecoder("shift_jis").decode(headBytes);
+    xmlDecl = new TextDecoder('shift_jis').decode(headBytes);
     match = xmlDecl.match(/<\?xml\s+[^>]*encoding=["']/i);
   }
   if (match) {
     encoding = match[1].toLowerCase();
   }
-  if (encoding === "utf8") encoding = "utf-8";
-  if (encoding === "shift-jis" || encoding === "sjis") encoding = "shift_jis";
+  if (encoding === 'utf8') encoding = 'utf-8';
+  if (encoding === 'shift-jis' || encoding === 'sjis') encoding = 'shift_jis';
 
   const decoder = new TextDecoder(encoding);
   const xmlText = decoder.decode(arrayBuffer);
   const parser = new DOMParser();
-  const xmlDoc = parser.parseFromString(xmlText, "application/xml");
+  const xmlDoc = parser.parseFromString(xmlText, 'application/xml');
   return xmlDoc;
 }
 
@@ -458,7 +458,7 @@ export async function loadStbXmlAutoEncoding(src) {
  */
 export function getModelBounds() {
   if (!scene || !elementGroups) {
-    log.warn("Scene or elementGroups not available for bounds calculation");
+    log.warn('Scene or elementGroups not available for bounds calculation');
     return null;
   }
 
@@ -482,15 +482,15 @@ export function getModelBounds() {
   }
 
   if (!hasElements) {
-    log.warn("No elements found for bounds calculation");
+    log.warn('No elements found for bounds calculation');
     return null;
   }
 
-  log.info("Model bounds calculated:", {
+  log.info('Model bounds calculated:', {
     min: box.min,
     max: box.max,
     center: box.getCenter(new THREE.Vector3()),
-    size: box.getSize(new THREE.Vector3()),
+    size: box.getSize(new THREE.Vector3())
   });
 
   return box;

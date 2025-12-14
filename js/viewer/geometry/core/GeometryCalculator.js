@@ -65,7 +65,7 @@ export function normalizeVector(vector) {
   return {
     x: vector.x / length,
     y: vector.y / length,
-    z: vector.z / length,
+    z: vector.z / length
   };
 }
 
@@ -80,7 +80,7 @@ export function subtractVectors(vector1, vector2) {
   return {
     x: vector1.x - vector2.x,
     y: vector1.y - vector2.y,
-    z: vector1.z - vector2.z,
+    z: vector1.z - vector2.z
   };
 }
 
@@ -95,7 +95,7 @@ export function addVectors(vector1, vector2) {
   return {
     x: vector1.x + vector2.x,
     y: vector1.y + vector2.y,
-    z: vector1.z + vector2.z,
+    z: vector1.z + vector2.z
   };
 }
 
@@ -110,7 +110,7 @@ export function multiplyVector(vector, scalar) {
   return {
     x: vector.x * scalar,
     y: vector.y * scalar,
-    z: vector.z * scalar,
+    z: vector.z * scalar
   };
 }
 
@@ -125,7 +125,7 @@ export function calculateMidpoint(point1, point2) {
   return {
     x: (point1.x + point2.x) / 2,
     y: (point1.y + point2.y) / 2,
-    z: (point1.z + point2.z) / 2,
+    z: (point1.z + point2.z) / 2
   };
 }
 
@@ -141,7 +141,7 @@ export function lerpVectors(point1, point2, t) {
   return {
     x: point1.x + (point2.x - point1.x) * t,
     y: point1.y + (point2.y - point1.y) * t,
-    z: point1.z + (point2.z - point1.z) * t,
+    z: point1.z + (point2.z - point1.z) * t
   };
 }
 
@@ -188,7 +188,7 @@ export function calculateQuaternionFromVectors(from, to) {
     x: axis.x / qLength,
     y: axis.y / qLength,
     z: axis.z / qLength,
-    w: w / qLength,
+    w: w / qLength
   };
 }
 
@@ -203,7 +203,7 @@ export function crossProduct(vector1, vector2) {
   return {
     x: vector1.y * vector2.z - vector1.z * vector2.y,
     y: vector1.z * vector2.x - vector1.x * vector2.z,
-    z: vector1.x * vector2.y - vector1.y * vector2.x,
+    z: vector1.x * vector2.y - vector1.y * vector2.x
   };
 }
 
@@ -234,7 +234,7 @@ export function calculateQuaternionFromAxisAngle(axis, angle) {
     x: axis.x * s,
     y: axis.y * s,
     z: axis.z * s,
-    w: Math.cos(halfAngle),
+    w: Math.cos(halfAngle)
   };
 }
 
@@ -250,7 +250,7 @@ export function multiplyQuaternions(q1, q2) {
     x: q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y,
     y: q1.w * q2.y + q1.y * q2.w + q1.z * q2.x - q1.x * q2.z,
     z: q1.w * q2.z + q1.z * q2.w + q1.x * q2.y - q1.y * q2.x,
-    w: q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z,
+    w: q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z
   };
 }
 
@@ -265,7 +265,7 @@ export function applyOffset(node, offset = { x: 0, y: 0, z: 0 }) {
   return {
     x: node.x + (offset.x || 0),
     y: node.y + (offset.y || 0),
-    z: node.z + (offset.z || 0),
+    z: node.z + (offset.z || 0)
   };
 }
 
@@ -316,7 +316,7 @@ export function calculatePlacement(
     center,
     length,
     direction,
-    rotation,
+    rotation
   };
 }
 
@@ -340,13 +340,13 @@ export function calculateColumnPlacement(
   const adjustedBottom = {
     x: bottomNode.x + (bottomOffset.x || 0),
     y: bottomNode.y + (bottomOffset.y || 0),
-    z: bottomNode.z,
+    z: bottomNode.z
   };
 
   const adjustedTop = {
     x: topNode.x + (topOffset.x || 0),
     y: topNode.y + (topOffset.y || 0),
-    z: topNode.z,
+    z: topNode.z
   };
 
   // 中心点を計算
@@ -378,7 +378,7 @@ export function calculateColumnPlacement(
     direction,
     rotation,
     adjustedBottom,
-    adjustedTop,
+    adjustedTop
   };
 }
 
@@ -390,12 +390,12 @@ export function calculateColumnPlacement(
  */
 export function inferSectionTypeFromDimensions(dimensions) {
   if (!dimensions) {
-    return "RECTANGLE";
+    return 'RECTANGLE';
   }
 
   // 円形鋼管: outer_diameter または diameter が存在
   if (dimensions.outer_diameter || dimensions.diameter) {
-    return "PIPE";
+    return 'PIPE';
   }
 
   // 角形鋼管: outer_height + outer_width + wall_thickness
@@ -404,7 +404,7 @@ export function inferSectionTypeFromDimensions(dimensions) {
     dimensions.outer_width &&
     dimensions.wall_thickness
   ) {
-    return "BOX";
+    return 'BOX';
   }
 
   // BOX形: width + height + thickness
@@ -413,7 +413,7 @@ export function inferSectionTypeFromDimensions(dimensions) {
     dimensions.height &&
     (dimensions.thickness || dimensions.wall_thickness)
   ) {
-    return "BOX";
+    return 'BOX';
   }
 
   // H形鋼: overall_depth + overall_width + web_thickness + flange_thickness
@@ -423,7 +423,7 @@ export function inferSectionTypeFromDimensions(dimensions) {
     dimensions.web_thickness &&
     dimensions.flange_thickness
   ) {
-    return "H";
+    return 'H';
   }
 
   // チャンネル材: overall_depth + flange_width + web_thickness + flange_thickness
@@ -433,7 +433,7 @@ export function inferSectionTypeFromDimensions(dimensions) {
     dimensions.web_thickness &&
     dimensions.flange_thickness
   ) {
-    return "C";
+    return 'C';
   }
 
   // L形鋼: depth + width + thickness
@@ -444,7 +444,7 @@ export function inferSectionTypeFromDimensions(dimensions) {
     !dimensions.overall_depth &&
     !dimensions.web_thickness
   ) {
-    return "L";
+    return 'L';
   }
 
   // 円形断面: radius のみ
@@ -453,7 +453,7 @@ export function inferSectionTypeFromDimensions(dimensions) {
     !dimensions.thickness &&
     !dimensions.wall_thickness
   ) {
-    return "CIRCLE";
+    return 'CIRCLE';
   }
 
   // RC柱: width + height (肉厚情報なし)
@@ -465,9 +465,178 @@ export function inferSectionTypeFromDimensions(dimensions) {
     !dimensions.web_thickness &&
     !dimensions.flange_thickness
   ) {
-    return "RECTANGLE";
+    return 'RECTANGLE';
   }
 
   // デフォルト: 矩形断面
-  return "RECTANGLE";
+  return 'RECTANGLE';
+}
+
+/**
+ * ベクトルの内積を計算
+ *
+ * @param {Vector3} vector1 - ベクトル1
+ * @param {Vector3} vector2 - ベクトル2
+ * @returns {number} 内積
+ */
+export function dotProduct(vector1, vector2) {
+  return vector1.x * vector2.x + vector1.y * vector2.y + vector1.z * vector2.z;
+}
+
+/**
+ * 梁の基底ベクトルを計算
+ *
+ * ST-Bridge座標系（Z軸が鉛直上向き）において、
+ * 梁の断面が正しい向きになるように基底ベクトルを計算します。
+ *
+ * 基底ベクトルの定義:
+ * - zAxis: 梁軸方向（始点→終点）
+ * - yAxis: せい方向（鉛直上向きに最も近い方向）
+ * - xAxis: 幅方向（Y × Z の右手系）
+ *
+ * @param {Vector3} direction - 梁軸方向（正規化済み）
+ * @returns {Object} { xAxis, yAxis, zAxis }
+ */
+export function calculateBeamBasis(direction) {
+  const zAxis = normalizeVector(direction);
+  const globalUp = { x: 0, y: 0, z: 1 }; // STB座標系での鉛直上向き
+
+  // 垂直梁の判定（梁軸が鉛直に近い場合）
+  const verticalDot = Math.abs(dotProduct(zAxis, globalUp));
+  if (verticalDot > 0.99) {
+    // ほぼ垂直な梁の場合、X軸を水平方向に設定
+    const globalX = { x: 1, y: 0, z: 0 };
+    let xAxis = normalizeVector(globalX);
+    const yAxis = normalizeVector(crossProduct(zAxis, xAxis));
+    // 直交性を保証するため再計算
+    xAxis = normalizeVector(crossProduct(yAxis, zAxis));
+
+    return { xAxis, yAxis, zAxis };
+  }
+
+  // 一般的な梁（水平または斜め）の場合
+  // X軸: globalUp（鉛直）と zAxis（梁軸）に直交する方向 = 水平方向
+  const xAxis = normalizeVector(crossProduct(globalUp, zAxis));
+
+  // Y軸: zAxis × xAxis（右手系を保証）= せい方向（鉛直に近い）
+  const yAxis = normalizeVector(crossProduct(zAxis, xAxis));
+
+  return { xAxis, yAxis, zAxis };
+}
+
+/**
+ * 基底ベクトルから回転四元数を計算
+ *
+ * @param {Vector3} xAxis - X軸ベクトル
+ * @param {Vector3} yAxis - Y軸ベクトル
+ * @param {Vector3} zAxis - Z軸ベクトル
+ * @returns {Quaternion} 回転四元数
+ */
+export function calculateQuaternionFromBasis(xAxis, yAxis, zAxis) {
+  // 回転行列から四元数を計算
+  // 回転行列: [xAxis, yAxis, zAxis] の各列がベクトル
+  const m00 = xAxis.x, m01 = yAxis.x, m02 = zAxis.x;
+  const m10 = xAxis.y, m11 = yAxis.y, m12 = zAxis.y;
+  const m20 = xAxis.z, m21 = yAxis.z, m22 = zAxis.z;
+
+  const trace = m00 + m11 + m22;
+  let x, y, z, w;
+
+  if (trace > 0) {
+    const s = 0.5 / Math.sqrt(trace + 1.0);
+    w = 0.25 / s;
+    x = (m21 - m12) * s;
+    y = (m02 - m20) * s;
+    z = (m10 - m01) * s;
+  } else if (m00 > m11 && m00 > m22) {
+    const s = 2.0 * Math.sqrt(1.0 + m00 - m11 - m22);
+    w = (m21 - m12) / s;
+    x = 0.25 * s;
+    y = (m01 + m10) / s;
+    z = (m02 + m20) / s;
+  } else if (m11 > m22) {
+    const s = 2.0 * Math.sqrt(1.0 + m11 - m00 - m22);
+    w = (m02 - m20) / s;
+    x = (m01 + m10) / s;
+    y = 0.25 * s;
+    z = (m12 + m21) / s;
+  } else {
+    const s = 2.0 * Math.sqrt(1.0 + m22 - m00 - m11);
+    w = (m10 - m01) / s;
+    x = (m02 + m20) / s;
+    y = (m12 + m21) / s;
+    z = 0.25 * s;
+  }
+
+  return { x, y, z, w };
+}
+
+/**
+ * 梁要素の配置情報を計算（天端基準対応）
+ *
+ * @param {Vector3} startNode - 始点ノード
+ * @param {Vector3} endNode - 終点ノード
+ * @param {Object} options - オプション
+ * @param {Object} options.startOffset - 始点オフセット {x, y, z} (グローバル座標)
+ * @param {Object} options.endOffset - 終点オフセット {x, y, z} (グローバル座標)
+ * @param {number} options.rollAngle - ロール角度（ラジアン、オプション）
+ * @param {string} options.placementMode - 配置モード ('center' | 'top-aligned')
+ * @param {number} options.sectionHeight - 断面高さ（天端基準シフト用、mm）
+ * @returns {PlacementResult} 配置情報（basis情報を含む）
+ */
+export function calculateBeamPlacement(
+  startNode,
+  endNode,
+  {
+    startOffset = { x: 0, y: 0, z: 0 },
+    endOffset = { x: 0, y: 0, z: 0 },
+    rollAngle = 0,
+    placementMode = 'center',
+    sectionHeight = 0
+  } = {}
+) {
+  // 1. グローバルオフセットを適用
+  let adjustedStart = applyOffset(startNode, startOffset);
+  let adjustedEnd = applyOffset(endNode, endOffset);
+
+  // 2. 方向ベクトルと基底ベクトルを計算
+  const directionVector = subtractVectors(adjustedEnd, adjustedStart);
+  const direction = normalizeVector(directionVector);
+  const basis = calculateBeamBasis(direction);
+
+  // 3. 天端基準シフトを適用（配置モードが 'top-aligned' の場合）
+  if (placementMode === 'top-aligned' && sectionHeight > 0 && isFinite(sectionHeight)) {
+    // ローカルY軸（せい方向）に沿って -sectionHeight/2 シフト
+    const shift = multiplyVector(basis.yAxis, -sectionHeight / 2);
+    adjustedStart = addVectors(adjustedStart, shift);
+    adjustedEnd = addVectors(adjustedEnd, shift);
+  }
+
+  // 4. 中心点と長さを計算
+  const center = calculateMidpoint(adjustedStart, adjustedEnd);
+  const length = calculateDistance(adjustedStart, adjustedEnd);
+
+  // 5. 基底ベクトルから回転四元数を計算
+  let rotation = calculateQuaternionFromBasis(basis.xAxis, basis.yAxis, basis.zAxis);
+
+  // 6. ロール角度が指定されている場合は追加回転を適用
+  if (rollAngle !== 0) {
+    const rollQuaternion = calculateQuaternionFromAxisAngle(
+      basis.zAxis,
+      rollAngle
+    );
+    rotation = multiplyQuaternions(rotation, rollQuaternion);
+  }
+
+  return {
+    center,
+    length,
+    direction,
+    rotation,
+    adjustedStart,
+    adjustedEnd,
+    basis,
+    placementMode,
+    sectionHeight
+  };
 }

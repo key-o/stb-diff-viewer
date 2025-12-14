@@ -10,49 +10,49 @@
  * より良い整理のため、大きなui.jsモジュールから分割されました。
  */
 
-import { getCurrentStories, getCurrentAxesData } from "./state.js";
+import { getCurrentStories, getCurrentAxesData } from './state.js';
 
 // --- UI Element References ---
-const storySelector = document.getElementById("storySelector");
-const xAxisSelector = document.getElementById("xAxisSelector");
-const yAxisSelector = document.getElementById("yAxisSelector");
+const storySelector = document.getElementById('storySelector');
+const xAxisSelector = document.getElementById('xAxisSelector');
+const yAxisSelector = document.getElementById('yAxisSelector');
 
 /**
  * Update story selector with current story data
  */
 export function updateStorySelector() {
   if (!storySelector) {
-    console.warn("Story selector element not found");
+    console.warn('Story selector element not found');
     return;
   }
 
   const stories = getCurrentStories();
-  
+
   // Clear existing options except the first "All Stories" option
   const allOption = storySelector.querySelector('option[value="all"]');
   storySelector.innerHTML = '';
-  
+
   if (allOption) {
     storySelector.appendChild(allOption);
   } else {
     // Create "All Stories" option if it doesn't exist
-    const allStoriesOption = document.createElement("option");
-    allStoriesOption.value = "all";
-    allStoriesOption.textContent = "全ての階";
+    const allStoriesOption = document.createElement('option');
+    allStoriesOption.value = 'all';
+    allStoriesOption.textContent = '全ての階';
     storySelector.appendChild(allStoriesOption);
   }
 
   // Add story options
   stories.forEach((story) => {
-    const option = document.createElement("option");
+    const option = document.createElement('option');
     option.value = story.id;
     option.textContent = `${story.name} (高さ: ${story.height}mm)`;
     storySelector.appendChild(option);
   });
 
   // Set default selection
-  storySelector.value = "all";
-  
+  storySelector.value = 'all';
+
   console.log(`Story selector updated with ${stories.length} stories`);
 }
 
@@ -61,10 +61,10 @@ export function updateStorySelector() {
  */
 export function updateAxisSelectors() {
   const axesData = getCurrentAxesData();
-  
+
   updateXAxisSelector(axesData.xAxes);
   updateYAxisSelector(axesData.yAxes);
-  
+
   console.log(`Axis selectors updated: X=${axesData.xAxes.length}, Y=${axesData.yAxes.length}`);
 }
 
@@ -74,34 +74,34 @@ export function updateAxisSelectors() {
  */
 function updateXAxisSelector(xAxes) {
   if (!xAxisSelector) {
-    console.warn("X-axis selector element not found");
+    console.warn('X-axis selector element not found');
     return;
   }
 
   // Clear existing options except "All" option
   const allOption = xAxisSelector.querySelector('option[value="all"]');
   xAxisSelector.innerHTML = '';
-  
+
   if (allOption) {
     xAxisSelector.appendChild(allOption);
   } else {
     // Create "All X-Axes" option
-    const allXOption = document.createElement("option");
-    allXOption.value = "all";
-    allXOption.textContent = "全てのX軸";
+    const allXOption = document.createElement('option');
+    allXOption.value = 'all';
+    allXOption.textContent = '全てのX軸';
     xAxisSelector.appendChild(allXOption);
   }
 
   // Add X-axis options
   xAxes.forEach((axis) => {
-    const option = document.createElement("option");
+    const option = document.createElement('option');
     option.value = axis.id;
     option.textContent = `${axis.name} (X: ${axis.distance}mm)`;
     xAxisSelector.appendChild(option);
   });
 
   // Set default selection
-  xAxisSelector.value = "all";
+  xAxisSelector.value = 'all';
 }
 
 /**
@@ -110,34 +110,34 @@ function updateXAxisSelector(xAxes) {
  */
 function updateYAxisSelector(yAxes) {
   if (!yAxisSelector) {
-    console.warn("Y-axis selector element not found");
+    console.warn('Y-axis selector element not found');
     return;
   }
 
   // Clear existing options except "All" option
   const allOption = yAxisSelector.querySelector('option[value="all"]');
   yAxisSelector.innerHTML = '';
-  
+
   if (allOption) {
     yAxisSelector.appendChild(allOption);
   } else {
     // Create "All Y-Axes" option
-    const allYOption = document.createElement("option");
-    allYOption.value = "all";
-    allYOption.textContent = "全てのY軸";
+    const allYOption = document.createElement('option');
+    allYOption.value = 'all';
+    allYOption.textContent = '全てのY軸';
     yAxisSelector.appendChild(allYOption);
   }
 
   // Add Y-axis options
   yAxes.forEach((axis) => {
-    const option = document.createElement("option");
+    const option = document.createElement('option');
     option.value = axis.id;
     option.textContent = `${axis.name} (Y: ${axis.distance}mm)`;
     yAxisSelector.appendChild(option);
   });
 
   // Set default selection
-  yAxisSelector.value = "all";
+  yAxisSelector.value = 'all';
 }
 
 /**
@@ -201,10 +201,10 @@ export function setYAxisSelection(axisId) {
  * Reset all selectors to default ("all") values
  */
 export function resetSelectorsToDefault() {
-  setStorySelection("all");
-  setXAxisSelection("all");
-  setYAxisSelection("all");
-  console.log("All selectors reset to default values");
+  setStorySelection('all');
+  setXAxisSelection('all');
+  setYAxisSelection('all');
+  console.log('All selectors reset to default values');
 }
 
 /**
@@ -243,17 +243,17 @@ export function validateSelectorElements() {
 
   if (!storySelector) {
     validation.isValid = false;
-    validation.missing.push("storySelector");
+    validation.missing.push('storySelector');
   }
 
   if (!xAxisSelector) {
     validation.isValid = false;
-    validation.missing.push("xAxisSelector");
+    validation.missing.push('xAxisSelector');
   }
 
   if (!yAxisSelector) {
     validation.isValid = false;
-    validation.missing.push("yAxisSelector");
+    validation.missing.push('yAxisSelector');
   }
 
   return validation;

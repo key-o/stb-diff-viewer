@@ -10,17 +10,19 @@
  * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
-import * as THREE from "three";
-import { parseElements } from "../parser/stbXmlParser.js";
+import * as THREE from 'three';
+import { parseElements } from '../parser/stbXmlParser.js';
 import {
   compareElements,
   compareElementsWithImportance,
+  compareElementsWithTolerance,
   lineElementKeyExtractor,
   polyElementKeyExtractor,
-  nodeElementKeyExtractor,
-} from "../comparator.js";
-import { SUPPORTED_ELEMENTS } from "../viewer/index.js";
-import { COMPARISON_KEY_TYPE } from "../config/comparisonKeyConfig.js";
+  nodeElementKeyExtractor
+} from '../comparator.js';
+import { SUPPORTED_ELEMENTS } from '../viewer/index.js';
+import { COMPARISON_KEY_TYPE } from '../config/comparisonKeyConfig.js';
+import { getToleranceConfig } from '../config/toleranceConfig.js';
 
 /**
  * Process element comparison for all supported element types
@@ -40,16 +42,16 @@ export function processElementComparison(
   const { modelADocument, modelBDocument, nodeMapA, nodeMapB } = modelData;
 
   const comparisonResults = new Map();
-  let modelBounds = new THREE.Box3();
+  const modelBounds = new THREE.Box3();
 
   const { comparisonKeyType = COMPARISON_KEY_TYPE.POSITION_BASED } = options;
 
-  console.log("=== Starting Element Comparison ===");
-  console.log("Supported elements:", SUPPORTED_ELEMENTS);
-  console.log("Comparison key type:", comparisonKeyType);
+  console.log('=== Starting Element Comparison ===');
+  console.log('Supported elements:', SUPPORTED_ELEMENTS);
+  console.log('Comparison key type:', comparisonKeyType);
 
   for (const elementType of SUPPORTED_ELEMENTS) {
-    if (elementType === "Axis" || elementType === "Story") continue;
+    if (elementType === 'Axis' || elementType === 'Story') continue;
 
     const isSelected = selectedElementTypes.includes(elementType);
     console.log(`--- Processing ${elementType} (Selected: ${isSelected}) ---`);
@@ -59,8 +61,8 @@ export function processElementComparison(
 
     try {
       // Parse elements from both models
-      elementsA = parseElements(modelADocument, "Stb" + elementType);
-      elementsB = parseElements(modelBDocument, "Stb" + elementType);
+      elementsA = parseElements(modelADocument, 'Stb' + elementType);
+      elementsB = parseElements(modelBDocument, 'Stb' + elementType);
 
       console.log(
         `${elementType} - Model A: ${elementsA.length}, Model B: ${elementsB.length}`
@@ -82,28 +84,28 @@ export function processElementComparison(
         elementType,
         isSelected,
         elementsA,
-        elementsB,
+        elementsB
       });
 
       console.log(`${elementType} comparison complete:`, {
         matched: comparisonResult.matched.length,
         onlyA: comparisonResult.onlyA.length,
-        onlyB: comparisonResult.onlyB.length,
+        onlyB: comparisonResult.onlyB.length
       });
     } catch (error) {
       console.error(`Error processing ${elementType}:`, error);
       console.error(`Error stack:`, error.stack);
       console.error(
-        `Elements A length: ${elementsA ? elementsA.length : "undefined"}`
+        `Elements A length: ${elementsA ? elementsA.length : 'undefined'}`
       );
       console.error(
-        `Elements B length: ${elementsB ? elementsB.length : "undefined"}`
+        `Elements B length: ${elementsB ? elementsB.length : 'undefined'}`
       );
       console.error(
-        `Node map A size: ${nodeMapA ? nodeMapA.size : "undefined"}`
+        `Node map A size: ${nodeMapA ? nodeMapA.size : 'undefined'}`
       );
       console.error(
-        `Node map B size: ${nodeMapB ? nodeMapB.size : "undefined"}`
+        `Node map B size: ${nodeMapB ? nodeMapB.size : 'undefined'}`
       );
       comparisonResults.set(elementType, {
         matched: [],
@@ -113,16 +115,16 @@ export function processElementComparison(
         isSelected,
         elementsA: elementsA || [],
         elementsB: elementsB || [],
-        error: error.message,
+        error: error.message
       });
     }
   }
 
-  console.log("=== Element Comparison Complete ===");
+  console.log('=== Element Comparison Complete ===');
 
   return {
     comparisonResults,
-    modelBounds,
+    modelBounds
   };
 }
 
@@ -150,7 +152,7 @@ function compareElementsByType(
   const {
     useImportanceFiltering = true,
     targetImportanceLevels = null,
-    comparisonKeyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+    comparisonKeyType = COMPARISON_KEY_TYPE.POSITION_BASED
   } = options;
 
   let comparisonResult = null;
@@ -159,12 +161,44 @@ function compareElementsByType(
     elementsACount: elementsA.length,
     elementsBCount: elementsB.length,
     useImportanceFiltering,
-    targetImportanceLevels,
+    targetImportanceLevels
   });
 
-  // Create comparison function based on importance filtering setting
+  // Get tolerance configuration
+  const toleranceConfig = getToleranceConfig();
+  const useToleranceComparison = toleranceConfig.enabled && !toleranceConfig.strictMode;
+
+  // Create comparison function based on tolerance and importance filtering settings
   const performComparison = (keyExtractor) => {
     try {
+      // Use tolerance-based comparison if enabled
+      if (useToleranceComparison) {
+        console.log(`Using tolerance-based comparison for ${elementType}`, toleranceConfig);
+        const toleranceResult = compareElementsWithTolerance(
+          elementsA,
+          elementsB,
+          nodeMapA,
+          nodeMapB,
+          keyExtractor,
+          toleranceConfig
+        );
+
+        // Convert 5-level tolerance result to 3-level result for compatibility
+        // TODO: Update rendering pipeline to support 5-level classification
+        return {
+          matched: [...toleranceResult.exact, ...toleranceResult.withinTolerance],
+          onlyA: toleranceResult.onlyA,
+          onlyB: toleranceResult.onlyB,
+          // Preserve tolerance-specific data for future use
+          _toleranceData: {
+            exact: toleranceResult.exact,
+            withinTolerance: toleranceResult.withinTolerance,
+            mismatch: toleranceResult.mismatch
+          }
+        };
+      }
+
+      // Use importance-based comparison
       if (useImportanceFiltering) {
         console.log(`Using importance-based comparison for ${elementType}`);
         return compareElementsWithImportance(
@@ -173,7 +207,7 @@ function compareElementsByType(
           nodeMapA,
           nodeMapB,
           keyExtractor,
-          "Stb" + elementType,
+          'Stb' + elementType,
           { targetImportanceLevels }
         );
       } else {
@@ -194,56 +228,56 @@ function compareElementsByType(
 
   try {
     switch (elementType) {
-      case "Node":
+      case 'Node':
         console.log(`Processing Node elements`);
         comparisonResult = performComparison(nodeElementKeyExtractor);
         break;
 
-      case "Column":
+      case 'Column':
         console.log(`Processing Column elements with bottom/top nodes`);
         comparisonResult = performComparison((el, nm) =>
           lineElementKeyExtractor(
             el,
             nm,
-            "id_node_bottom",
-            "id_node_top",
+            'id_node_bottom',
+            'id_node_top',
             comparisonKeyType
           )
         );
         break;
 
-      case "Girder":
-      case "Beam":
+      case 'Girder':
+      case 'Beam':
         console.log(`Processing ${elementType} elements with start/end nodes`);
         comparisonResult = performComparison((el, nm) =>
           lineElementKeyExtractor(
             el,
             nm,
-            "id_node_start",
-            "id_node_end",
+            'id_node_start',
+            'id_node_end',
             comparisonKeyType
           )
         );
         break;
 
-      case "Brace":
+      case 'Brace':
         console.log(`Processing Brace elements with start/end nodes`);
         comparisonResult = performComparison((el, nm) =>
           lineElementKeyExtractor(
             el,
             nm,
-            "id_node_start",
-            "id_node_end",
+            'id_node_start',
+            'id_node_end',
             comparisonKeyType
           )
         );
         break;
 
-      case "Slab":
-      case "Wall":
+      case 'Slab':
+      case 'Wall':
         console.log(`Processing ${elementType} elements with node order`);
         comparisonResult = performComparison((el, nm) =>
-          polyElementKeyExtractor(el, nm, "StbNodeIdOrder", comparisonKeyType)
+          polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType)
         );
         break;
 
@@ -252,7 +286,7 @@ function compareElementsByType(
         comparisonResult = {
           matched: [],
           onlyA: [...elementsA],
-          onlyB: [...elementsB],
+          onlyB: [...elementsB]
         };
     }
   } catch (error) {
@@ -264,7 +298,7 @@ function compareElementsByType(
     comparisonResult || {
       matched: [],
       onlyA: [],
-      onlyB: [],
+      onlyB: []
     }
   );
 }
@@ -292,7 +326,7 @@ export function calculateElementBounds(comparisonResults, nodeMapA, nodeMapB) {
   if (bounds.isEmpty()) {
     bounds.expandByPoint(new THREE.Vector3(-1000, -1000, -1000));
     bounds.expandByPoint(new THREE.Vector3(1000, 1000, 1000));
-    console.warn("No valid geometry found, using default bounds");
+    console.warn('No valid geometry found, using default bounds');
   }
 
   return bounds;
@@ -311,7 +345,7 @@ export function getComparisonStatistics(comparisonResults) {
     onlyBElements: 0,
     elementTypes: {},
     selectedTypes: [],
-    errors: [],
+    errors: []
   };
 
   for (const [elementType, result] of comparisonResults.entries()) {
@@ -320,7 +354,7 @@ export function getComparisonStatistics(comparisonResults) {
       onlyA: result.onlyA.length,
       onlyB: result.onlyB.length,
       total: result.matched.length + result.onlyA.length + result.onlyB.length,
-      isSelected: result.isSelected,
+      isSelected: result.isSelected
     };
 
     stats.elementTypes[elementType] = typeStats;
@@ -336,7 +370,7 @@ export function getComparisonStatistics(comparisonResults) {
     if (result.error) {
       stats.errors.push({
         elementType,
-        error: result.error,
+        error: result.error
       });
     }
   }

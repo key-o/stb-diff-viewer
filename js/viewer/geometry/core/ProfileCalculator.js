@@ -28,7 +28,7 @@ export function calculateHShapeProfile({
   overallDepth = 450.0,
   overallWidth = 200.0,
   webThickness = 9.0,
-  flangeThickness = 14.0,
+  flangeThickness = 14.0
 } = {}) {
   const halfWidth = overallWidth / 2;
   const halfDepth = overallDepth / 2;
@@ -49,7 +49,7 @@ export function calculateHShapeProfile({
     { x: -halfWidth, y: -innerDepth },      // Bottom flange inner-left
     { x: -halfWeb, y: -innerDepth },        // Web bottom-left
     { x: -halfWeb, y: innerDepth },         // Web top-left
-    { x: -halfWidth, y: innerDepth },       // Top flange inner-left
+    { x: -halfWidth, y: innerDepth }       // Top flange inner-left
   ];
 
   return { vertices, holes: [] };
@@ -67,7 +67,7 @@ export function calculateHShapeProfile({
 export function calculateBoxProfile({
   width = 150.0,
   height = 150.0,
-  wallThickness = 9.0,
+  wallThickness = 9.0
 } = {}) {
   const halfWidth = width / 2;
   const halfHeight = height / 2;
@@ -79,7 +79,7 @@ export function calculateBoxProfile({
     { x: -halfWidth, y: -halfHeight },
     { x: halfWidth, y: -halfHeight },
     { x: halfWidth, y: halfHeight },
-    { x: -halfWidth, y: halfHeight },
+    { x: -halfWidth, y: halfHeight }
   ];
 
   // 内部の穴（反時計回り）
@@ -89,7 +89,7 @@ export function calculateBoxProfile({
       { x: -innerHalfWidth, y: -innerHalfHeight },
       { x: innerHalfWidth, y: -innerHalfHeight },
       { x: innerHalfWidth, y: innerHalfHeight },
-      { x: -innerHalfWidth, y: innerHalfHeight },
+      { x: -innerHalfWidth, y: innerHalfHeight }
     ]);
   }
 
@@ -108,7 +108,7 @@ export function calculateBoxProfile({
 export function calculatePipeProfile({
   outerDiameter = 150.0,
   wallThickness = 6.0,
-  segments = 32,
+  segments = 32
 } = {}) {
   const outerRadius = outerDiameter / 2;
   const innerRadius = Math.max(0, outerRadius - wallThickness);
@@ -119,7 +119,7 @@ export function calculatePipeProfile({
     const angle = (i / segments) * Math.PI * 2;
     vertices.push({
       x: Math.cos(angle) * outerRadius,
-      y: Math.sin(angle) * outerRadius,
+      y: Math.sin(angle) * outerRadius
     });
   }
 
@@ -131,7 +131,7 @@ export function calculatePipeProfile({
       const angle = (i / segments) * Math.PI * 2;
       holeVertices.push({
         x: Math.cos(-angle) * innerRadius,
-        y: Math.sin(-angle) * innerRadius,
+        y: Math.sin(-angle) * innerRadius
       });
     }
     holes.push(holeVertices);
@@ -142,10 +142,10 @@ export function calculatePipeProfile({
     holes,
     // 円弧メタデータ（Three.js変換時に使用）
     _meta: {
-      type: "circular",
+      type: 'circular',
       outerRadius,
-      innerRadius,
-    },
+      innerRadius
+    }
   };
 }
 
@@ -159,7 +159,7 @@ export function calculatePipeProfile({
  */
 export function calculateRectangleProfile({
   width = 400.0,
-  height = 400.0,
+  height = 400.0
 } = {}) {
   const halfWidth = width / 2;
   const halfHeight = height / 2;
@@ -168,7 +168,7 @@ export function calculateRectangleProfile({
     { x: -halfWidth, y: -halfHeight },
     { x: halfWidth, y: -halfHeight },
     { x: halfWidth, y: halfHeight },
-    { x: -halfWidth, y: halfHeight },
+    { x: -halfWidth, y: halfHeight }
   ];
 
   return { vertices, holes: [] };
@@ -184,14 +184,14 @@ export function calculateRectangleProfile({
  */
 export function calculateCircleProfile({
   radius = 100.0,
-  segments = 32,
+  segments = 32
 } = {}) {
   const vertices = [];
   for (let i = 0; i <= segments; i++) {
     const angle = (i / segments) * Math.PI * 2;
     vertices.push({
       x: Math.cos(angle) * radius,
-      y: Math.sin(angle) * radius,
+      y: Math.sin(angle) * radius
     });
   }
 
@@ -199,9 +199,9 @@ export function calculateCircleProfile({
     vertices,
     holes: [],
     _meta: {
-      type: "circular",
-      radius,
-    },
+      type: 'circular',
+      radius
+    }
   };
 }
 
@@ -219,7 +219,7 @@ export function calculateChannelProfile({
   overallDepth = 300.0,
   flangeWidth = 90.0,
   webThickness = 9.0,
-  flangeThickness = 13.0,
+  flangeThickness = 13.0
 } = {}) {
   // IFC U-Shape仕様準拠: 開口部を左側に配置、中心を原点とする
   const xLeft = -flangeWidth / 2;        // 外側左端（開口部側）
@@ -240,7 +240,7 @@ export function calculateChannelProfile({
     { x: xLeft, y: yTop },                        // top-left outer
     { x: xLeft, y: yTop - flangeThickness },      // down along left outer edge (no flange on open side)
     { x: xLeft, y: yBot + flangeThickness },      // continue down
-    { x: xLeft, y: yBot },                        // close at bottom-left
+    { x: xLeft, y: yBot }                        // close at bottom-left
   ];
 
   return { vertices, holes: [] };
@@ -258,7 +258,7 @@ export function calculateChannelProfile({
 export function calculateLShapeProfile({
   depth = 65.0,
   width = 65.0,
-  thickness = 6.0,
+  thickness = 6.0
 } = {}) {
   // L字形状（原点を左下角として、右方向にwidth、上方向にdepth）
   const vertices = [
@@ -267,7 +267,7 @@ export function calculateLShapeProfile({
     { x: width, y: thickness },
     { x: thickness, y: thickness },
     { x: thickness, y: depth },
-    { x: 0, y: depth },
+    { x: 0, y: depth }
   ];
 
   return { vertices, holes: [] };
@@ -287,7 +287,7 @@ export function calculateTShapeProfile({
   overallDepth = 200.0,
   flangeWidth = 150.0,
   webThickness = 8.0,
-  flangeThickness = 12.0,
+  flangeThickness = 12.0
 } = {}) {
   const halfFlangeWidth = flangeWidth / 2;
   const halfWebThickness = webThickness / 2;
@@ -301,7 +301,7 @@ export function calculateTShapeProfile({
     { x: halfWebThickness, y: overallDepth },
     { x: -halfWebThickness, y: overallDepth },
     { x: -halfWebThickness, y: flangeThickness },
-    { x: -halfFlangeWidth, y: flangeThickness },
+    { x: -halfFlangeWidth, y: flangeThickness }
   ];
 
   return { vertices, holes: [] };
@@ -321,7 +321,7 @@ export function calculate2LBackToBackProfile({
   depth = 65.0,
   width = 65.0,
   thickness = 6.0,
-  gap = 0,
+  gap = 0
 } = {}) {
   // 左側のL形（反転）
   const halfGap = gap / 2;
@@ -345,7 +345,7 @@ export function calculate2LBackToBackProfile({
     { x: width, y: thickness },
     { x: thickness + halfGap, y: thickness },
     { x: thickness + halfGap, y: 0 },
-    { x: -thickness - halfGap, y: 0 },
+    { x: -thickness - halfGap, y: 0 }
   ];
 
   // 2つの独立した領域として定義（外周と穴）
@@ -354,7 +354,7 @@ export function calculate2LBackToBackProfile({
     { x: -width, y: 0 },
     { x: width, y: 0 },
     { x: width, y: depth },
-    { x: -width, y: depth },
+    { x: -width, y: depth }
   ];
 
   // 穴: 中央の空洞部分
@@ -362,7 +362,7 @@ export function calculate2LBackToBackProfile({
     { x: -thickness - halfGap, y: thickness },
     { x: thickness + halfGap, y: thickness },
     { x: thickness + halfGap, y: depth },
-    { x: -thickness - halfGap, y: depth },
+    { x: -thickness - halfGap, y: depth }
   ];
 
   return { vertices: outerVertices, holes: [hole] };
@@ -382,7 +382,7 @@ export function calculate2LFaceToFaceProfile({
   depth = 65.0,
   width = 65.0,
   thickness = 6.0,
-  gap = 0,
+  gap = 0
 } = {}) {
   // 上側のL形と下側のL形を配置
   const halfGap = gap / 2;
@@ -406,7 +406,7 @@ export function calculate2LFaceToFaceProfile({
     { x: width, y: topOffset - thickness },
     { x: width, y: topOffset },
     { x: 0, y: topOffset },
-    { x: 0, y: topOffset - depth },
+    { x: 0, y: topOffset - depth }
   ];
 
   // 簡略化: 2つの独立した形状として返す
@@ -429,7 +429,7 @@ export function calculate2CBackToBackProfile({
   flangeWidth = 90.0,
   webThickness = 9.0,
   flangeThickness = 13.0,
-  gap = 0,
+  gap = 0
 } = {}) {
   const halfGap = gap / 2;
   const xLeftOuter = -flangeWidth;
@@ -445,7 +445,7 @@ export function calculate2CBackToBackProfile({
     { x: xLeftOuter, y: yBot },
     { x: xRightOuter, y: yBot },
     { x: xRightOuter, y: yTop },
-    { x: xLeftOuter, y: yTop },
+    { x: xLeftOuter, y: yTop }
   ];
 
   // 内側の穴（フランジとウェブの間の空洞）
@@ -453,14 +453,14 @@ export function calculate2CBackToBackProfile({
     { x: xLeftOuter + flangeThickness, y: yBot + flangeThickness },
     { x: xLeftInner, y: yBot + flangeThickness },
     { x: xLeftInner, y: yTop - flangeThickness },
-    { x: xLeftOuter + flangeThickness, y: yTop - flangeThickness },
+    { x: xLeftOuter + flangeThickness, y: yTop - flangeThickness }
   ];
 
   const rightHole = [
     { x: xRightInner, y: yBot + flangeThickness },
     { x: xRightOuter - flangeThickness, y: yBot + flangeThickness },
     { x: xRightOuter - flangeThickness, y: yTop - flangeThickness },
-    { x: xRightInner, y: yTop - flangeThickness },
+    { x: xRightInner, y: yTop - flangeThickness }
   ];
 
   return { vertices, holes: [leftHole, rightHole] };
@@ -482,7 +482,7 @@ export function calculate2CFaceToFaceProfile({
   flangeWidth = 90.0,
   webThickness = 9.0,
   flangeThickness = 13.0,
-  gap = 0,
+  gap = 0
 } = {}) {
   const halfGap = gap / 2;
   const xLeft = -flangeWidth / 2;
@@ -499,7 +499,7 @@ export function calculate2CFaceToFaceProfile({
     { x: xLeft, y: yBotOuter },
     { x: xRight, y: yBotOuter },
     { x: xRight, y: yTopOuter },
-    { x: xLeft, y: yTopOuter },
+    { x: xLeft, y: yTopOuter }
   ];
 
   // 中央の穴（開口部が向き合う空洞）
@@ -507,7 +507,7 @@ export function calculate2CFaceToFaceProfile({
     { x: xWebLeft, y: yBotInner - flangeThickness },
     { x: xRight, y: yBotInner - flangeThickness },
     { x: xRight, y: yTopInner + flangeThickness },
-    { x: xWebLeft, y: yTopInner + flangeThickness },
+    { x: xWebLeft, y: yTopInner + flangeThickness }
   ];
 
   return { vertices, holes: [hole] };
@@ -524,41 +524,41 @@ export function calculateProfile(profileType, params) {
   const type = profileType.toUpperCase();
 
   switch (type) {
-    case "H":
-    case "I":
-    case "IBEAM":
-    case "H-SECTION":
+    case 'H':
+    case 'I':
+    case 'IBEAM':
+    case 'H-SECTION':
       return calculateHShapeProfile(params);
 
-    case "BOX":
-    case "BOX-SECTION":
-    case "SQUARE-SECTION":
+    case 'BOX':
+    case 'BOX-SECTION':
+    case 'SQUARE-SECTION':
       return calculateBoxProfile(params);
 
-    case "PIPE":
-    case "PIPE-SECTION":
-    case "ROUND-SECTION":
+    case 'PIPE':
+    case 'PIPE-SECTION':
+    case 'ROUND-SECTION':
       return calculatePipeProfile(params);
 
-    case "RECTANGLE":
-    case "RECT":
-    case "RC-SECTION":
+    case 'RECTANGLE':
+    case 'RECT':
+    case 'RC-SECTION':
       return calculateRectangleProfile(params);
 
-    case "CIRCLE":
+    case 'CIRCLE':
       return calculateCircleProfile(params);
 
-    case "C":
-    case "CHANNEL":
-    case "U-SHAPE":
+    case 'C':
+    case 'CHANNEL':
+    case 'U-SHAPE':
       return calculateChannelProfile(params);
 
-    case "L":
-    case "L-SHAPE":
+    case 'L':
+    case 'L-SHAPE':
       return calculateLShapeProfile(params);
 
-    case "T":
-    case "T-SHAPE":
+    case 'T':
+    case 'T-SHAPE':
       return calculateTShapeProfile(params);
 
     default:

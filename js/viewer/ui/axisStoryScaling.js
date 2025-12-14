@@ -5,8 +5,8 @@
  * 常に見やすいサイズで表示するための機能を提供します。
  */
 
-import * as THREE from "three";
-import { camera, scene } from "../core/core.js";
+import * as THREE from 'three';
+import { camera, scene } from '../core/core.js';
 
 // --- 設定定数 ---
 const AXIS_STORY_BASE_SCALE = 1.0; // 基準スケール
@@ -15,7 +15,7 @@ const MAX_SCALE_FACTOR = 2.0; // 最大スケール係数（より抑制）
 const DISTANCE_SCALE_FACTOR = 0.00005; // 距離に対するスケール係数（より緩やかに）
 
 // --- スケール調整対象要素の管理 ---
-let axisStoryElements = new Set();
+const axisStoryElements = new Set();
 
 /**
  * Axis/Story要素をスケール調整対象として登録
@@ -24,8 +24,8 @@ let axisStoryElements = new Set();
 export function registerAxisStoryElement(element) {
   if (
     element &&
-    (element.userData.elementType === "Axis" ||
-      element.userData.elementType === "Story")
+    (element.userData.elementType === 'Axis' ||
+      element.userData.elementType === 'Story')
   ) {
     axisStoryElements.add(element);
     // 初期スケールを保存
@@ -60,7 +60,7 @@ function calculateScaleFactor() {
 
   // controlsが利用可能な場合はそのターゲットを使用
   if (
-    typeof window !== "undefined" &&
+    typeof window !== 'undefined' &&
     window.controls &&
     window.controls.target
   ) {
@@ -105,8 +105,8 @@ export function autoRegisterAxisStoryElements() {
   scene.traverse((child) => {
     if (
       child.userData &&
-      (child.userData.elementType === "Axis" ||
-        child.userData.elementType === "Story")
+      (child.userData.elementType === 'Axis' ||
+        child.userData.elementType === 'Story')
     ) {
       registerAxisStoryElement(child);
     }

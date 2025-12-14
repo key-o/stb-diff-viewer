@@ -9,63 +9,16 @@
  * - 複数のプロパティ名フォールバック
  * - 断面タイプの取得
  * - 円形/矩形断面の判定
+ *
+ * 属性キー定義は attributeKeys.js に統一されています。
  */
 
-/**
- * 幅を表す可能性のあるプロパティ名（優先順位順）
- */
-const WIDTH_KEYS = [
-  "width",      // 標準
-  "Width",      // ST-Bridge形式
-  "WIDTH",      // 大文字形式
-  "B",          // 鋼材形式（フランジ幅）
-  "b",          // 小文字
-  "outer_width", // 外側幅
-  "overall_width", // 全幅
-  "X",          // 座標系表記
-  "x",          // 小文字
-];
-
-/**
- * 高さを表す可能性のあるプロパティ名（優先順位順）
- */
-const HEIGHT_KEYS = [
-  "height",     // 標準
-  "Height",     // ST-Bridge形式
-  "HEIGHT",     // 大文字形式
-  "H",          // 鋼材形式（せい）
-  "h",          // 小文字
-  "depth",      // 梁用（せい）
-  "Depth",      // 大文字開始
-  "overall_depth", // 全せい
-  "overall_height", // 全高
-  "Y",          // 座標系表記
-  "y",          // 小文字
-  "A",          // 鋼材形式（せい）
-  "a",          // 小文字
-];
-
-/**
- * 直径を表す可能性のあるプロパティ名
- */
-const DIAMETER_KEYS = [
-  "diameter",   // 標準
-  "Diameter",   // 大文字開始
-  "D",          // ST-Bridge形式
-  "d",          // 小文字
-];
-
-/**
- * 肉厚を表す可能性のあるプロパティ名
- */
-const THICKNESS_KEYS = [
-  "thickness",  // 標準
-  "Thickness",  // 大文字開始
-  "t",          // 一般的な記号
-  "T",          // 大文字
-  "t1",         // ST-Bridge形式（ウェブ厚）
-  "t2",         // ST-Bridge形式（フランジ厚）
-];
+import {
+  WIDTH_KEYS,
+  HEIGHT_KEYS,
+  DIAMETER_KEYS,
+  THICKNESS_KEYS
+} from './attributeKeys.js';
 
 /**
  * 断面データから寸法オブジェクトを取得
@@ -78,7 +31,7 @@ export function getDimensions(sectionData) {
   if (!sectionData) return {};
 
   // dimensions プロパティがあればそれを使用
-  if (sectionData.dimensions && typeof sectionData.dimensions === "object") {
+  if (sectionData.dimensions && typeof sectionData.dimensions === 'object') {
     return sectionData.dimensions;
   }
 
@@ -246,13 +199,13 @@ export function isCircularSection(sectionData) {
   const dims = getDimensions(sectionData);
 
   // profile_hint が CIRCLE の場合
-  if (dims.profile_hint === "CIRCLE") {
+  if (dims.profile_hint === 'CIRCLE') {
     return true;
   }
 
   // section_type に CIRCLE, PIPE が含まれる場合
-  const sectionType = getSectionType(sectionData, "").toUpperCase();
-  if (sectionType.includes("CIRCLE") || sectionType.includes("PIPE")) {
+  const sectionType = getSectionType(sectionData, '').toUpperCase();
+  if (sectionType.includes('CIRCLE') || sectionType.includes('PIPE')) {
     return true;
   }
 
@@ -285,13 +238,13 @@ export function isRectangularSection(sectionData) {
   const dims = getDimensions(sectionData);
 
   // profile_hint が RECTANGLE の場合
-  if (dims.profile_hint === "RECTANGLE") {
+  if (dims.profile_hint === 'RECTANGLE') {
     return true;
   }
 
   // section_type に RECT が含まれる場合
-  const sectionType = getSectionType(sectionData, "").toUpperCase();
-  if (sectionType.includes("RECT")) {
+  const sectionType = getSectionType(sectionData, '').toUpperCase();
+  if (sectionType.includes('RECT')) {
     return true;
   }
 
@@ -316,7 +269,7 @@ export function validateSectionData(sectionData) {
   const errors = [];
 
   if (!sectionData) {
-    errors.push("Section data is null or undefined");
+    errors.push('Section data is null or undefined');
     return { valid: false, errors };
   }
 
@@ -326,9 +279,9 @@ export function validateSectionData(sectionData) {
   if (isCircularSection(sectionData)) {
     const diameter = getDiameter(sectionData);
     if (diameter === undefined) {
-      errors.push("Circular section missing diameter");
+      errors.push('Circular section missing diameter');
     } else if (diameter <= 0) {
-      errors.push("Circular section diameter must be positive");
+      errors.push('Circular section diameter must be positive');
     }
   }
   // 矩形断面の場合
@@ -337,19 +290,19 @@ export function validateSectionData(sectionData) {
     const height = getHeight(sectionData);
 
     if (width === undefined && height === undefined) {
-      errors.push("Section missing both width and height");
+      errors.push('Section missing both width and height');
     }
     if (width !== undefined && width <= 0) {
-      errors.push("Section width must be positive");
+      errors.push('Section width must be positive');
     }
     if (height !== undefined && height <= 0) {
-      errors.push("Section height must be positive");
+      errors.push('Section height must be positive');
     }
   }
 
   return {
     valid: errors.length === 0,
-    errors,
+    errors
   };
 }
 
@@ -369,9 +322,9 @@ export function getDebugInfo(sectionData) {
       height: getHeight(sectionData),
       diameter: getDiameter(sectionData),
       radius: getRadius(sectionData),
-      thickness: getThickness(sectionData),
+      thickness: getThickness(sectionData)
     },
     rawDimensions: getDimensions(sectionData),
-    validation: validateSectionData(sectionData),
+    validation: validateSectionData(sectionData)
   };
 }

@@ -5,7 +5,7 @@
  * 切り替えを管理します。
  */
 
-import * as THREE from "three";
+import * as THREE from 'three';
 import {
   camera,
   orthographicCamera,
@@ -13,15 +13,15 @@ import {
   getActiveCamera,
   setActiveCamera,
   scene,
-  renderer,
-} from "../core/core.js";
+  renderer
+} from '../core/core.js';
 
 /**
  * カメラモード定数
  */
 export const CAMERA_MODES = {
-  PERSPECTIVE: "perspective",
-  ORTHOGRAPHIC: "orthographic",
+  PERSPECTIVE: 'perspective',
+  ORTHOGRAPHIC: 'orthographic'
 };
 
 // 現在のカメラモード
@@ -43,7 +43,7 @@ export function getCameraMode() {
  */
 export function setCameraMode(mode, transitionDuration = 0) {
   if (mode !== CAMERA_MODES.PERSPECTIVE && mode !== CAMERA_MODES.ORTHOGRAPHIC) {
-    console.warn("[CameraManager] Invalid camera mode:", mode);
+    console.warn('[CameraManager] Invalid camera mode:', mode);
     return false;
   }
 
@@ -56,19 +56,19 @@ export function setCameraMode(mode, transitionDuration = 0) {
     mode === CAMERA_MODES.PERSPECTIVE ? camera : orthographicCamera;
 
   if (!newCamera) {
-    console.error("[CameraManager] Camera not initialized:", mode);
+    console.error('[CameraManager] Camera not initialized:', mode);
     return false;
   }
 
   // 現在のカメラの位置と向きを新しいカメラにコピー
   if (oldCamera && oldCamera !== newCamera) {
     console.log(
-      "[CameraManager] Copying camera state from",
+      '[CameraManager] Copying camera state from',
       oldCamera.type,
-      "to",
+      'to',
       newCamera.type
     );
-    console.log("[CameraManager] Old camera position:", oldCamera.position);
+    console.log('[CameraManager] Old camera position:', oldCamera.position);
     newCamera.position.copy(oldCamera.position);
     newCamera.up.copy(oldCamera.up);
     newCamera.rotation.copy(oldCamera.rotation);
@@ -90,26 +90,26 @@ export function setCameraMode(mode, transitionDuration = 0) {
       newCamera.zoom = 1.0; // ズームをリセット
 
       console.log(
-        "[CameraManager] Adjusted orthographic frustum based on distance:",
+        '[CameraManager] Adjusted orthographic frustum based on distance:',
         distance,
         {
           left: newCamera.left,
           right: newCamera.right,
           top: newCamera.top,
           bottom: newCamera.bottom,
-          zoom: newCamera.zoom,
+          zoom: newCamera.zoom
         }
       );
     }
 
     newCamera.updateProjectionMatrix();
-    console.log("[CameraManager] New camera position:", newCamera.position);
+    console.log('[CameraManager] New camera position:', newCamera.position);
   }
 
   // カメラを切り替え
   setActiveCamera(newCamera);
   currentMode = mode;
-  console.log("[CameraManager] Active camera is now:", newCamera.type);
+  console.log('[CameraManager] Active camera is now:', newCamera.type);
 
   // コントロールのカメラを更新
   if (controls && controls._cc) {
@@ -122,7 +122,7 @@ export function setCameraMode(mode, transitionDuration = 0) {
   // カメラモードに応じてコントロールを更新
   updateControlsForMode(mode);
 
-  console.log("[CameraManager] Camera mode changed:", mode);
+  console.log('[CameraManager] Camera mode changed:', mode);
   return true;
 }
 
@@ -141,7 +141,7 @@ function updateControlsForMode(mode) {
     controls.enablePan = true;
 
     // Orthographic 用の各種設定
-    if ("dollyToCursor" in controls) controls.dollyToCursor = true;
+    if ('dollyToCursor' in controls) controls.dollyToCursor = true;
     // infinityDolly は OrthographicCamera では無関係なので設定しない
     // if ("infinityDolly" in controls) controls.infinityDolly = true;
 
@@ -156,16 +156,16 @@ function updateControlsForMode(mode) {
     controls.mouseButtons = {
       LEFT: THREE.MOUSE.PAN,
       MIDDLE: THREE.MOUSE.DOLLY,
-      RIGHT: THREE.MOUSE.PAN,
+      RIGHT: THREE.MOUSE.PAN
     };
 
-    console.log("[CameraManager] 2D mode settings applied:", {
+    console.log('[CameraManager] 2D mode settings applied:', {
       enableRotate: controls.enableRotate,
       enableZoom: controls.enableZoom,
       enablePan: controls.enablePan,
       dollyToCursor: controls.dollyToCursor,
       minZoom: controls._cc?.minZoom,
-      maxZoom: controls._cc?.maxZoom,
+      maxZoom: controls._cc?.maxZoom
     });
   } else {
     // 3Dモード: 回転・ズーム・パンすべて有効
@@ -173,13 +173,13 @@ function updateControlsForMode(mode) {
     controls.enableZoom = true;
     controls.enablePan = true;
 
-    if ("dollyToCursor" in controls) controls.dollyToCursor = false;
-    if ("infinityDolly" in controls) controls.infinityDolly = false;
+    if ('dollyToCursor' in controls) controls.dollyToCursor = false;
+    if ('infinityDolly' in controls) controls.infinityDolly = false;
 
     controls.mouseButtons = {
       LEFT: THREE.MOUSE.ROTATE,
       MIDDLE: THREE.MOUSE.DOLLY,
-      RIGHT: THREE.MOUSE.PAN,
+      RIGHT: THREE.MOUSE.PAN
     };
   }
 }
@@ -204,7 +204,7 @@ export function toggleCameraMode() {
  */
 export function setOrthographicSize(size) {
   if (!orthographicCamera) {
-    console.warn("[CameraManager] OrthographicCamera not initialized");
+    console.warn('[CameraManager] OrthographicCamera not initialized');
     return;
   }
 
@@ -223,13 +223,13 @@ export function setOrthographicSize(size) {
 export function getDebugInfo() {
   return {
     currentMode,
-    activeCameraType: getActiveCamera()?.type || "none",
+    activeCameraType: getActiveCamera()?.type || 'none',
     perspectiveCameraExists: !!camera,
     orthographicCameraExists: !!orthographicCamera,
     controlsEnabled: {
       rotate: controls?.enableRotate,
       zoom: controls?.enableZoom,
-      pan: controls?.enablePan,
-    },
+      pan: controls?.enablePan
+    }
   };
 }

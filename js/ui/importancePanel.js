@@ -1,6 +1,6 @@
 /**
  * @fileoverview 重要度設定UIパネル
- * 
+ *
  * ST-Bridge要素の重要度設定を管理するUIコンポーネント。
  * タブ別の要素表示、重要度レベル変更、CSV入出力機能を提供します。
  */
@@ -23,7 +23,7 @@ class ImportancePanel {
     this.isVisible = false;
     this.elementContainer = null;
     this.statisticsContainer = null;
-    
+
     this.setupEventListeners();
   }
 
@@ -35,7 +35,7 @@ class ImportancePanel {
     window.addEventListener('importanceSettingsChanged', (event) => {
       this.updateStatistics();
       this.refreshCurrentTab();
-      
+
       // 自動再描画を実行
       this.triggerAutoRedraw(event.detail);
     });
@@ -48,18 +48,18 @@ class ImportancePanel {
   async triggerAutoRedraw(changeDetails = {}) {
     try {
       console.log('Starting auto-redraw after importance change:', changeDetails);
-      
+
       // 比較結果の重要度情報を更新
       await this.updateVisualizationWithImportance();
-      
+
       // 3D表示を再描画
       this.rerenderElements();
-      
+
       // 統計情報を更新
       this.updateComparisonStatistics();
-      
+
       console.log('Auto-redraw completed successfully');
-      
+
       // 成功の通知イベントを発行
       window.dispatchEvent(new CustomEvent('importanceAutoRedrawCompleted', {
         detail: {
@@ -68,10 +68,10 @@ class ImportancePanel {
           timestamp: new Date().toISOString()
         }
       }));
-      
+
     } catch (error) {
       console.error('Auto-redraw failed:', error);
-      
+
       // エラーの通知イベントを発行
       window.dispatchEvent(new CustomEvent('importanceAutoRedrawError', {
         detail: {
@@ -92,9 +92,9 @@ class ImportancePanel {
       console.log('No comparison results available for importance update');
       return;
     }
-    
+
     console.log('Updating visualization with importance settings...');
-    
+
     // 各要素タイプの比較結果を重要度で更新
     for (const [elementType, result] of currentResults.entries()) {
       try {
@@ -109,10 +109,10 @@ class ImportancePanel {
         console.error(`Failed to update importance for ${elementType}:`, error);
       }
     }
-    
+
     // 更新された結果をグローバル状態に保存
     setState('comparisonResults', currentResults);
-    
+
     console.log('Visualization importance update completed');
   }
 
@@ -122,13 +122,13 @@ class ImportancePanel {
   rerenderElements() {
     try {
       console.log('Rerendering 3D elements...');
-      
+
       // 3Dビューアーの再描画を要求
       const viewer = getState('viewer');
       if (viewer && typeof viewer.requestRender === 'function') {
         viewer.requestRender();
       }
-      
+
       // カスタム再描画イベントを発行（他のモジュールが対応できるように）
       window.dispatchEvent(new CustomEvent('requestElementRerender', {
         detail: {
@@ -136,9 +136,9 @@ class ImportancePanel {
           timestamp: new Date().toISOString()
         }
       }));
-      
+
       console.log('Element rerender request completed');
-      
+
     } catch (error) {
       console.error('Failed to rerender elements:', error);
       throw error;
@@ -151,12 +151,12 @@ class ImportancePanel {
   updateComparisonStatistics() {
     try {
       console.log('Updating comparison statistics...');
-      
+
       const currentResults = getState('comparisonResults');
       if (!currentResults) {
         return;
       }
-      
+
       // 統計更新イベントを発行
       window.dispatchEvent(new CustomEvent('updateComparisonStatistics', {
         detail: {
@@ -165,9 +165,9 @@ class ImportancePanel {
           timestamp: new Date().toISOString()
         }
       }));
-      
+
       console.log('Comparison statistics update completed');
-      
+
     } catch (error) {
       console.error('Failed to update comparison statistics:', error);
     }
@@ -175,7 +175,7 @@ class ImportancePanel {
 
   /**
    * パネルを初期化する
-   * @param {HTMLElement} containerElement - パネルを配置するコンテナ要素
+  * @param {HTMLElement} containerElement - パネルを配置するコンテナー要素
    */
   initialize(containerElement) {
     this.containerElement = containerElement;
@@ -370,12 +370,12 @@ class ImportancePanel {
    */
   switchTab(tabId) {
     this.currentTab = tabId;
-    
+
     // タブボタンのアクティブ状態を更新
     document.querySelectorAll('.tab-button').forEach(button => {
       button.classList.toggle('active', button.dataset.tab === tabId);
     });
-    
+
     this.refreshCurrentTab();
   }
 
@@ -384,10 +384,10 @@ class ImportancePanel {
    */
   refreshCurrentTab() {
     if (!this.elementContainer) return;
-    
+
     const elementPaths = this.manager.getElementPathsByTab(this.currentTab);
     const filteredPaths = this.filterElementPaths(elementPaths);
-    
+
     this.renderElementList(filteredPaths);
   }
 
@@ -402,7 +402,7 @@ class ImportancePanel {
       if (this.filterText && !path.toLowerCase().includes(this.filterText.toLowerCase())) {
         return false;
       }
-      
+
       // 重要度フィルター
       if (this.filterImportance !== 'all') {
         const importance = this.manager.getImportanceLevel(path);
@@ -410,7 +410,7 @@ class ImportancePanel {
           return false;
         }
       }
-      
+
       return true;
     });
   }
@@ -424,12 +424,12 @@ class ImportancePanel {
       this.elementContainer.innerHTML = '<div class="no-elements">該当する要素がありません</div>';
       return;
     }
-    
+
     const elementsHTML = elementPaths.map(path => {
       const importance = this.manager.getImportanceLevel(path);
       const importanceName = IMPORTANCE_LEVEL_NAMES[importance];
       const color = IMPORTANCE_COLORS[importance];
-      
+
       return `
         <div class="element-item" data-path="${path}">
           <div class="element-path" title="${path}">
@@ -448,7 +448,7 @@ class ImportancePanel {
         </div>
       `;
     }).join('');
-    
+
     this.elementContainer.innerHTML = `
       <div class="elements-header">
         <div class="element-count">${elementPaths.length} 件の要素</div>
@@ -457,24 +457,24 @@ class ImportancePanel {
         ${elementsHTML}
       </div>
     `;
-    
+
     // 重要度変更イベントを関連付け
     this.elementContainer.querySelectorAll('.importance-select').forEach(select => {
       select.addEventListener('change', (e) => {
         const path = e.target.dataset.path;
         const oldImportance = select.dataset.previousValue;
         const newImportance = e.target.value;
-        
+
         // 前の値を記録（次回の比較用）
         select.dataset.previousValue = newImportance;
-        
+
         this.manager.setImportanceLevel(path, newImportance);
-        
+
         // インジケーターの色を更新
         const indicator = e.target.parentElement.querySelector('.importance-indicator');
         indicator.style.backgroundColor = IMPORTANCE_COLORS[newImportance];
         indicator.title = IMPORTANCE_LEVEL_NAMES[newImportance];
-        
+
         // 詳細な変更情報をイベントで通知
         window.dispatchEvent(new CustomEvent('importanceSettingsChanged', {
           detail: {
@@ -487,7 +487,7 @@ class ImportancePanel {
           }
         }));
       });
-      
+
       // 初期値を記録
       select.dataset.previousValue = select.value;
     });
@@ -514,9 +514,9 @@ class ImportancePanel {
    */
   updateStatistics() {
     if (!this.statisticsContainer) return;
-    
+
     const stats = this.manager.getStatistics();
-    
+
     const statsHTML = `
       <div class="statistics-grid">
         <div class="stat-item">
@@ -541,7 +541,7 @@ class ImportancePanel {
         </div>
       </div>
     `;
-    
+
     this.statisticsContainer.innerHTML = statsHTML;
   }
 
@@ -554,24 +554,24 @@ class ImportancePanel {
       alert('重要度レベルを選択してください。');
       return;
     }
-    
+
     const elementPaths = this.manager.getElementPathsByTab(this.currentTab);
     const filteredPaths = this.filterElementPaths(elementPaths);
-    
+
     if (filteredPaths.length === 0) {
       alert('適用対象の要素がありません。');
       return;
     }
-    
+
     const confirmMessage = `現在のタブの${filteredPaths.length}個の要素を「${IMPORTANCE_LEVEL_NAMES[bulkLevel]}」に設定しますか？`;
     if (!confirm(confirmMessage)) {
       return;
     }
-    
+
     filteredPaths.forEach(path => {
       this.manager.setImportanceLevel(path, bulkLevel);
     });
-    
+
     // 一括変更の詳細情報をイベントで通知
     window.dispatchEvent(new CustomEvent('importanceSettingsChanged', {
       detail: {
@@ -583,7 +583,7 @@ class ImportancePanel {
         timestamp: new Date().toISOString()
       }
     }));
-    
+
     this.refreshCurrentTab();
     alert(`${filteredPaths.length}個の要素の重要度を変更しました。`);
   }
@@ -596,16 +596,16 @@ class ImportancePanel {
       const csvContent = this.manager.exportToCSV();
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement('a');
-      
+
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
       link.setAttribute('download', `importance_settings_${new Date().toISOString().slice(0, 10)}.csv`);
       link.style.visibility = 'hidden';
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       alert('重要度設定をCSVファイルに出力しました。');
     } catch (error) {
       console.error('CSV export failed:', error);
@@ -619,11 +619,11 @@ class ImportancePanel {
    */
   async importFromCSV(file) {
     if (!file) return;
-    
+
     try {
       const csvContent = await this.readFileAsText(file);
       const success = this.manager.importFromCSV(csvContent);
-      
+
       if (success) {
         this.refreshCurrentTab();
         alert('重要度設定をCSVファイルから読み込みました。');
@@ -658,9 +658,9 @@ class ImportancePanel {
     if (!confirm(confirmMessage)) {
       return;
     }
-    
+
     this.manager.resetToDefaults();
-    
+
     // リセットの詳細情報をイベントで通知
     window.dispatchEvent(new CustomEvent('importanceSettingsChanged', {
       detail: {
@@ -668,261 +668,18 @@ class ImportancePanel {
         timestamp: new Date().toISOString()
       }
     }));
-    
+
     this.refreshCurrentTab();
     alert('重要度設定をデフォルトに戻しました。');
   }
 
   /**
    * パネルのスタイルを動的に追加する
+   * 注: スタイルは importance.css に外部化されました
    */
   static addStyles() {
-    if (document.getElementById('importance-panel-styles')) return;
-
-    const styles = `
-      <style id="importance-panel-styles">
-        .importance-panel {
-          position: fixed;
-          top: 50px;
-          right: 20px;
-          width: 400px;
-          max-height: 80vh;
-          background: white;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-          z-index: 1000;
-          flex-direction: column;
-          display: none;
-        }
-
-        .importance-panel.visible {
-          display: flex;
-        }
-        
-        .importance-panel .panel-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 16px;
-          border-bottom: 1px solid #eee;
-          background: #f8f9fa;
-          border-radius: 8px 8px 0 0;
-        }
-        
-        .importance-panel .panel-header h3 {
-          margin: 0;
-          font-size: 16px;
-          color: #333;
-        }
-        
-        .importance-panel .close-button {
-          background: none;
-          border: none;
-          font-size: 18px;
-          cursor: pointer;
-          color: #666;
-          padding: 0;
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-        }
-        
-        .importance-panel .close-button:hover {
-          background: #e9ecef;
-        }
-        
-        .importance-panel .panel-controls {
-          padding: 12px 16px;
-          border-bottom: 1px solid #eee;
-          background: #f8f9fa;
-        }
-        
-        .importance-panel .control-group {
-          margin-bottom: 8px;
-        }
-        
-        .importance-panel .control-group:last-child {
-          margin-bottom: 0;
-        }
-        
-        .importance-panel .control-group label {
-          display: inline-block;
-          font-weight: bold;
-          margin-right: 8px;
-          font-size: 12px;
-          color: #555;
-        }
-        
-        .importance-panel .control-group input,
-        .importance-panel .control-group select {
-          font-size: 12px;
-          padding: 4px 6px;
-          border: 1px solid #ddd;
-          border-radius: 3px;
-          margin-right: 8px;
-        }
-        
-        .importance-panel .control-group button {
-          font-size: 12px;
-          padding: 4px 8px;
-          border: 1px solid #ddd;
-          border-radius: 3px;
-          background: white;
-          cursor: pointer;
-          margin-right: 4px;
-        }
-        
-        .importance-panel .control-group button:hover {
-          background: #f0f0f0;
-        }
-        
-        .importance-panel .panel-tabs {
-          background: #f8f9fa;
-          border-bottom: 1px solid #eee;
-          padding: 8px 16px;
-          overflow-x: auto;
-        }
-        
-        .importance-panel .tab-buttons {
-          display: flex;
-          gap: 4px;
-          white-space: nowrap;
-        }
-        
-        .importance-panel .tab-button {
-          padding: 6px 12px;
-          font-size: 11px;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          background: white;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        
-        .importance-panel .tab-button:hover {
-          background: #e9ecef;
-        }
-        
-        .importance-panel .tab-button.active {
-          background: #007bff;
-          color: white;
-          border-color: #007bff;
-        }
-        
-        .importance-panel .panel-content {
-          flex: 1;
-          overflow-y: auto;
-          min-height: 200px;
-        }
-        
-        .importance-panel .statistics-container {
-          padding: 12px 16px;
-          border-bottom: 1px solid #eee;
-          background: #f8f9fa;
-        }
-        
-        .importance-panel .statistics-grid {
-          display: grid;
-          grid-template-columns: repeat(5, 1fr);
-          gap: 8px;
-        }
-        
-        .importance-panel .stat-item {
-          text-align: center;
-          padding: 8px 4px;
-          border-radius: 4px;
-          background: white;
-          border: 1px solid #eee;
-        }
-        
-        .importance-panel .stat-item.high { border-left: 4px solid #ff4444; }
-        .importance-panel .stat-item.medium { border-left: 4px solid #ffaa00; }
-        .importance-panel .stat-item.low { border-left: 4px solid #888888; }
-        .importance-panel .stat-item.na { border-left: 4px solid #cccccc; }
-        
-        .importance-panel .stat-label {
-          font-size: 10px;
-          color: #666;
-          margin-bottom: 2px;
-        }
-        
-        .importance-panel .stat-value {
-          font-size: 14px;
-          font-weight: bold;
-          color: #333;
-        }
-        
-        .importance-panel .elements-container {
-          flex: 1;
-        }
-        
-        .importance-panel .elements-header {
-          padding: 8px 16px;
-          background: #f8f9fa;
-          border-bottom: 1px solid #eee;
-          font-size: 12px;
-          color: #666;
-        }
-        
-        .importance-panel .elements-list {
-          max-height: 300px;
-          overflow-y: auto;
-        }
-        
-        .importance-panel .element-item {
-          display: flex;
-          align-items: center;
-          padding: 8px 16px;
-          border-bottom: 1px solid #f0f0f0;
-          font-size: 11px;
-        }
-        
-        .importance-panel .element-item:hover {
-          background: #f8f9fa;
-        }
-        
-        .importance-panel .element-path {
-          flex: 1;
-          margin-right: 12px;
-          font-family: monospace;
-          color: #333;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-        }
-        
-        .importance-panel .element-importance {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        
-        .importance-panel .importance-select {
-          font-size: 10px;
-          padding: 2px 4px;
-          border: 1px solid #ddd;
-          border-radius: 3px;
-          background: white;
-        }
-        
-        .importance-panel .importance-indicator {
-          width: 12px;
-          height: 12px;
-          border-radius: 50%;
-          border: 1px solid #ccc;
-        }
-        
-        .importance-panel .no-elements {
-          padding: 20px;
-          text-align: center;
-          color: #666;
-          font-style: italic;
-        }
-      </style>
-    `;
-    
-    document.head.insertAdjacentHTML('beforeend', styles);
+    // スタイルは stb-diff-viewer/style/components/importance.css で定義
+    // このメソッドは互換性のために残されています
   }
 }
 
@@ -945,7 +702,7 @@ export function getImportancePanel() {
 
 /**
  * 重要度設定パネルを初期化する
- * @param {HTMLElement} containerElement - パネルを配置するコンテナ
+ * @param {HTMLElement} containerElement - パネルを配置するコンテナー
  * @returns {ImportancePanel} 初期化済みのインスタンス
  */
 export function initializeImportancePanel(containerElement = document.body) {

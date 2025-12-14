@@ -1,29 +1,37 @@
 /**
- * @fileoverview 基礎形状生成モジュール
+ * @fileoverview 基礎形状生成モジュール（リファクタリング版）
  *
- * 新しい共通ユーティリティ（ElementGeometryUtils）を活用した基礎形状生成:
+ * BaseElementGeneratorを継承した統一アーキテクチャ:
  * - 単一ノード（id_node）+ level_bottom属性による配置
  * - STB形式とJSON形式の両対応
  * - 直方体形状（width_X, width_Y, depth）
  * - 地中配置（負のZ座標）対応
  *
- * 設計思想:
- * - ElementGeometryUtilsで共通処理を統一
- * - 1ノード要素専用の新しい配置ロジックを導入
- * - 柱・梁とは異なる配置基準（底面中心基準）
+ * リファクタリング: 2025-12
+ * - BaseElementGenerator基底クラスを使用
+ * - 統一されたバリデーションとメタデータ構築
  */
 
-import * as THREE from "three";
-import { materials } from "../rendering/materials.js";
-import { ElementGeometryUtils } from "./ElementGeometryUtils.js";
-import { createLogger } from "../../utils/logger.js";
-
-const log = createLogger("viewer:geometry:footing");
+import * as THREE from 'three';
+import { materials } from '../rendering/materials.js';
+import { ElementGeometryUtils } from './ElementGeometryUtils.js';
+import { BaseElementGenerator } from './core/BaseElementGenerator.js';
 
 /**
  * 基礎形状生成クラス
  */
-export class FootingGenerator {
+export class FootingGenerator extends BaseElementGenerator {
+  /**
+   * ジェネレーター設定
+   */
+  static getConfig() {
+    return {
+      elementName: 'Footing',
+      loggerName: 'viewer:geometry:footing',
+      defaultElementType: 'Footing'
+    };
+  }
+
   /**
    * 基礎要素からメッシュを作成
    * @param {Array} footingElements - 基礎要素配列
@@ -39,72 +47,51 @@ export class FootingGenerator {
     nodes,
     footingSections,
     steelSections,
-    elementType = "Footing",
+    elementType = 'Footing',
     isJsonInput = false
   ) {
-    log.info(`Creating ${footingElements.length} footing meshes`);
-    const meshes = [];
-
-    for (const footing of footingElements) {
-      try {
-        const mesh = this._createSingleFootingMesh(
-          footing,
-          nodes,
-          footingSections,
-          steelSections,
-          elementType,
-          isJsonInput
-        );
-
-        if (mesh) {
-          meshes.push(mesh);
-        }
-      } catch (error) {
-        log.error(`Error creating footing ${footing.id}:`, error);
-      }
-    }
-
-    log.info(`Generated ${meshes.length} footing meshes`);
-    return meshes;
+    return this.createMeshes(
+      footingElements,
+      nodes,
+      footingSections,
+      steelSections,
+      elementType,
+      isJsonInput
+    );
   }
 
   /**
-   * 単一基礎メッシュを作成（ElementGeometryUtils活用）
-   * @private
+   * 単一基礎メッシュを作成（BaseElementGeneratorの抽象メソッドを実装）
+   * @param {Object} footing - 基礎要素
+   * @param {Object} context - コンテキスト
+   * @returns {THREE.Mesh|null} メッシュまたはnull
    */
-  static _createSingleFootingMesh(
-    footing,
-    nodes,
-    footingSections,
-    steelSections,
-    elementType,
-    isJsonInput
-  ) {
+  static _createSingleMesh(footing, context) {
+    const { nodes, sections, elementType, isJsonInput, log } = context;
+
     // 1. ノード位置の取得（ElementGeometryUtils使用）
     const nodePositions = ElementGeometryUtils.getNodePositions(
       footing,
       nodes,
       {
-        nodeType: "1node",
+        nodeType: '1node',
         isJsonInput: isJsonInput,
-        node1Key: "id_node",
+        node1Key: 'id_node'
       }
     );
 
-    if (!nodePositions.valid) {
-      log.warn(`Skipping footing ${footing.id}: Invalid node position`);
+    if (!this._validateNodePositions(nodePositions, footing, context)) {
       return null;
     }
 
     // 2. 断面データの取得（ElementGeometryUtils使用）
     const sectionData = ElementGeometryUtils.getSectionData(
       footing,
-      footingSections,
+      sections,
       isJsonInput
     );
 
-    if (!sectionData) {
-      log.warn(`Skipping footing ${footing.id}: Missing section data`);
+    if (!this._validateSectionData(sectionData, footing, context)) {
       return null;
     }
 
@@ -137,7 +124,7 @@ export class FootingGenerator {
     const offsetAndRotation = ElementGeometryUtils.getOffsetAndRotation(
       footing,
       {
-        nodeType: "1node",
+        nodeType: '1node'
       }
     );
 
@@ -148,7 +135,7 @@ export class FootingGenerator {
       depth,
       {
         offset: offsetAndRotation.startOffset,
-        rotation: (offsetAndRotation.rollAngle * Math.PI) / 180, // 度→ラジアン変換
+        rotation: (offsetAndRotation.rollAngle * Math.PI) / 180 // 度→ラジアン変換
       }
     );
 
@@ -166,6 +153,10 @@ export class FootingGenerator {
     // 7. 直方体ジオメトリを作成
     const geometry = new THREE.BoxGeometry(widthX, widthY, depth);
 
+    if (!this._validateGeometry(geometry, footing, context)) {
+      return null;
+    }
+
     // 8. メッシュ作成（ElementGeometryUtils使用）
     const mesh = ElementGeometryUtils.createMeshWithMetadata(
       geometry,
@@ -175,9 +166,9 @@ export class FootingGenerator {
         elementType: elementType,
         isJsonInput: isJsonInput,
         length: depth,
-        sectionType: "RECTANGLE",
-        profileMeta: { profileSource: "BoxGeometry", profileType: "RECTANGLE" },
-        sectionData: sectionData,
+        sectionType: 'RECTANGLE',
+        profileMeta: { profileSource: 'BoxGeometry', profileType: 'RECTANGLE' },
+        sectionData: sectionData
       }
     );
 
@@ -192,7 +183,7 @@ export class FootingGenerator {
       depth: depth,
       levelBottom: levelBottom,
       bottomZ: placement.bottomZ,
-      topZ: placement.topZ,
+      topZ: placement.topZ
     };
 
     // 11. 配置基準線を添付（オプション - 基礎では省略可能）
@@ -203,7 +194,7 @@ export class FootingGenerator {
 }
 
 // デバッグ・開発支援
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   window.FootingGenerator = FootingGenerator;
 }
 

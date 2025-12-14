@@ -10,7 +10,7 @@
  * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
-import * as THREE from "three";
+import * as THREE from 'three';
 import {
   materials,
   elementGroups,
@@ -19,10 +19,11 @@ import {
   drawPolyElements,
   drawAxes,
   drawStories,
-} from "../viewer/index.js";
-import { PileGenerator } from "../viewer/geometry/PileGenerator.js";
-import { FootingGenerator } from "../viewer/geometry/FootingGenerator.js";
-import { ProfileBasedColumnGenerator } from "../viewer/geometry/ProfileBasedColumnGenerator.js";
+  getActiveCamera
+} from '../viewer/index.js';
+import { PileGenerator } from '../viewer/geometry/PileGenerator.js';
+import { FootingGenerator } from '../viewer/geometry/FootingGenerator.js';
+import { ProfileBasedColumnGenerator } from '../viewer/geometry/ProfileBasedColumnGenerator.js';
 
 /**
  * Orchestrate rendering of all compared elements
@@ -36,12 +37,12 @@ export function orchestrateElementRendering(
   modelBounds,
   globalData
 ) {
-  console.log("=== Starting Element Rendering ===");
+  console.log('=== Starting Element Rendering ===');
 
   const renderingResults = {
     nodeLabels: [],
     renderedElements: new Map(),
-    errors: [],
+    errors: []
   };
 
   // Process each element type for rendering
@@ -63,13 +64,13 @@ export function orchestrateElementRendering(
 
       console.log(`${elementType} rendering complete:`, {
         meshesCreated: elementRenderResult.meshCount,
-        labelsCreated: elementRenderResult.labels?.length || 0,
+        labelsCreated: elementRenderResult.labels?.length || 0
       });
     } catch (error) {
       console.error(`Error rendering ${elementType}:`, error);
       renderingResults.errors.push({
         elementType,
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -78,15 +79,15 @@ export function orchestrateElementRendering(
   try {
     renderAuxiliaryElements(globalData, renderingResults, modelBounds);
   } catch (error) {
-    console.error("Error rendering auxiliary elements:", error);
+    console.error('Error rendering auxiliary elements:', error);
     renderingResults.errors.push({
-      elementType: "auxiliary",
-      error: error.message,
+      elementType: 'auxiliary',
+      error: error.message
     });
   }
 
-  console.log("=== Element Rendering Complete ===");
-  console.log("Total labels created:", renderingResults.nodeLabels.length);
+  console.log('=== Element Rendering Complete ===');
+  console.log('Total labels created:', renderingResults.nodeLabels.length);
 
   return renderingResults;
 }
@@ -116,7 +117,7 @@ function renderElementType(
   const result = {
     meshCount: 0,
     labels: [],
-    groupVisible: group.visible,
+    groupVisible: group.visible
   };
 
   // Skip rendering if error occurred during comparison
@@ -132,7 +133,7 @@ function renderElementType(
 
   // Render based on element type
   switch (elementType) {
-    case "Node":
+    case 'Node':
       result.labels = drawNodes(
         comparisonResult,
         materials,
@@ -142,11 +143,11 @@ function renderElementType(
       );
       break;
 
-    case "Column":
-    case "Post":
-    case "Girder":
-    case "Beam":
-    case "Brace":
+    case 'Column':
+    case 'Post':
+    case 'Girder':
+    case 'Beam':
+    case 'Brace':
       result.labels = drawLineElements(
         comparisonResult,
         materials,
@@ -157,8 +158,8 @@ function renderElementType(
       );
       break;
 
-    case "Slab":
-    case "Wall":
+    case 'Slab':
+    case 'Wall':
       result.labels = drawPolyElements(
         comparisonResult,
         materials,
@@ -168,9 +169,9 @@ function renderElementType(
       );
       break;
 
-    case "Pile":
-    case "Footing":
-    case "FoundationColumn":
+    case 'Pile':
+    case 'Footing':
+    case 'FoundationColumn':
       // 杭・基礎・基礎柱は線分要素として描画
       // 将来的には専用のジェネレーターを使った3D表示も可能
       result.labels = drawLineElements(
@@ -207,16 +208,18 @@ function renderAuxiliaryElements(globalData, renderingResults, modelBounds) {
     try {
       const axisLabels = drawAxes(
         axesData,
-        elementGroups["Axis"],
+        stories,
+        elementGroups['Axis'],
         modelBounds,
-        true
+        true,
+        getActiveCamera()
       );
       renderingResults.nodeLabels.push(...axisLabels);
       console.log(
         `Rendered axes: X=${axesData.xAxes.length}, Y=${axesData.yAxes.length}`
       );
     } catch (error) {
-      console.error("Error rendering axes:", error);
+      console.error('Error rendering axes:', error);
     }
   }
 
@@ -225,14 +228,14 @@ function renderAuxiliaryElements(globalData, renderingResults, modelBounds) {
     try {
       const storyLabels = drawStories(
         stories,
-        elementGroups["Story"],
+        elementGroups['Story'],
         modelBounds,
         true
       );
       renderingResults.nodeLabels.push(...storyLabels);
       console.log(`Rendered ${stories.length} stories`);
     } catch (error) {
-      console.error("Error rendering stories:", error);
+      console.error('Error rendering stories:', error);
     }
   }
 }
@@ -287,7 +290,7 @@ export function calculateRenderingBounds(renderedElements, nodeMapA, nodeMapB) {
   if (bounds.isEmpty()) {
     bounds.expandByPoint(new THREE.Vector3(-1000, -1000, -1000));
     bounds.expandByPoint(new THREE.Vector3(1000, 1000, 1000));
-    console.warn("Empty bounds detected, using default bounds");
+    console.warn('Empty bounds detected, using default bounds');
   }
 
   return bounds;
@@ -306,7 +309,7 @@ export function getRenderingStatistics(renderingResults) {
       totalLabels: 0,
       elementTypes: {},
       errors: 0,
-      errorDetails: [],
+      errorDetails: []
     };
   }
 
@@ -315,20 +318,20 @@ export function getRenderingStatistics(renderingResults) {
     totalLabels: (renderingResults.nodeLabels || []).length,
     elementTypes: {},
     errors: (renderingResults.errors || []).length,
-    errorDetails: renderingResults.errors || [],
+    errorDetails: renderingResults.errors || []
   };
 
   // Safely iterate over rendered elements
   if (renderingResults.renderedElements) {
     for (const [
       elementType,
-      result,
+      result
     ] of renderingResults.renderedElements.entries()) {
       stats.elementTypes[elementType] = {
         meshCount: result?.meshCount || 0,
         labelCount: result?.labels?.length || 0,
         isVisible: !!result?.groupVisible,
-        hasError: !!result?.error,
+        hasError: !!result?.error
       };
 
       stats.totalMeshes += result?.meshCount || 0;

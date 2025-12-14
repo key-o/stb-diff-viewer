@@ -1,0 +1,784 @@
+/**
+ * ツリー表示コンポーネント
+ *
+ * 要素ツリーと断面ツリーの表示スタイルを定義します。
+ */
+
+/* ========================================
+   ツリービュータブ
+   ======================================== */
+
+.tree-view-tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) 12px;
+  border-bottom: var(--border-width) solid var(--border-color-light);
+  background: var(--bg-secondary);
+}
+
+.tree-tab-btn {
+  padding: 6px 16px;
+  border: var(--border-width) solid var(--border-color-light);
+  border-radius: var(--border-radius);
+  background: var(--sidebar-btn-bg);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin: 0;
+}
+
+.tree-tab-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--color-primary-light);
+}
+
+.tree-tab-btn.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--text-white);
+}
+
+.tree-tab-option {
+  margin-left: auto;
+}
+
+.tree-tab-content {
+  position: relative;
+}
+
+.tree-tab-panel {
+  display: none;
+}
+
+.tree-tab-panel.active {
+  display: block;
+}
+
+/* ========================================
+  ツリーコンテナー
+  ======================================== */
+
+#element-tree-container,
+#section-tree-container {
+  max-height: calc(80vh - 100px);
+  overflow-y: auto;
+  font-size: var(--font-size-md);
+}
+
+/* ========================================
+   ツリーノード
+   ======================================== */
+
+.tree-node {
+  user-select: none;
+  margin: 2px 0;
+}
+
+.tree-node-header {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-xs) 6px;
+  cursor: pointer;
+  border-radius: var(--border-radius-sm);
+  transition: background-color 0.15s ease;
+}
+
+.tree-node-header:hover {
+  background-color: var(--bg-hover);
+}
+
+.tree-node-header.selected {
+  background-color: rgba(0, 123, 255, 0.2);
+  font-weight: var(--font-weight-bold);
+}
+
+/* ========================================
+   ツリートグル
+   ======================================== */
+
+.tree-toggle {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: var(--spacing-xs);
+  font-size: 0.7em;
+  transition: transform 0.2s ease;
+  cursor: pointer;
+}
+
+.tree-toggle.expanded {
+  transform: rotate(90deg);
+}
+
+.tree-toggle.collapsed {
+  transform: rotate(0deg);
+}
+
+/* ========================================
+   ツリーアイコンとラベル
+   ======================================== */
+
+.tree-icon {
+  margin-right: var(--spacing-xs);
+  font-size: 0.9em;
+}
+
+.tree-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tree-count {
+  margin-left: var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  background: #e9ecef;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+/* ========================================
+   ツリー子要素
+   ======================================== */
+
+.tree-children {
+  margin-left: var(--spacing-lg);
+  border-left: var(--border-width) solid var(--border-color-light);
+  padding-left: var(--spacing-sm);
+}
+
+.tree-children.collapsed {
+  display: none;
+}
+
+/* ========================================
+   ツリーアイテム（リーフノード）
+   ======================================== */
+
+.tree-item {
+  padding: var(--spacing-xs) 6px;
+  cursor: pointer;
+  border-radius: var(--border-radius-sm);
+  transition: background-color 0.15s ease;
+  display: flex;
+  align-items: center;
+}
+
+.tree-item:hover {
+  background-color: var(--bg-hover);
+}
+
+.tree-item.selected {
+  background-color: rgba(0, 123, 255, 0.15);
+}
+
+.tree-item.highlighted {
+  background-color: rgba(255, 193, 7, 0.3);
+}
+
+/* ========================================
+   差分ステータスインジケーター
+   ======================================== */
+
+.tree-item[data-status="matched"] .tree-label {
+  color: var(--color-matched);
+}
+
+.tree-item[data-status="only-a"] .tree-label {
+  color: #28a745;
+}
+
+.tree-item[data-status="only-b"] .tree-label {
+  color: var(--color-danger);
+}
+
+.tree-item[data-status="modified"] .tree-label {
+  color: var(--color-warning);
+}
+
+/* ========================================
+   断面ツリー専用スタイル
+   ======================================== */
+
+.section-tree-group {
+  margin-bottom: var(--spacing-sm);
+}
+
+.section-tree-group-header {
+  font-weight: var(--font-weight-medium);
+  padding: var(--spacing-sm) var(--spacing-sm);
+  background: #f8f9fa;
+  border-radius: var(--border-radius-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+/* ========================================
+   ツリー検索
+   ======================================== */
+
+.tree-search {
+  padding: var(--spacing-sm);
+  border-bottom: var(--border-width) solid var(--border-color-light);
+}
+
+.tree-search input {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+}
+
+.tree-search input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* ========================================
+   空状態メッセージ
+   ======================================== */
+
+.tree-empty-message {
+  padding: var(--spacing-md);
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ========================================
+   ツリーノード追加スタイル
+   ======================================== */
+
+.tree-toggle.empty {
+  visibility: hidden;
+}
+
+.tree-node-label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tree-node-icon {
+  font-size: 1em;
+}
+
+.tree-node-text {
+  font-size: 0.85em;
+}
+
+.tree-node-count {
+  font-size: 0.75em;
+  color: #666;
+  margin-left: 4px;
+}
+
+.tree-node-children {
+  margin-left: 20px;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.2s ease;
+}
+
+.tree-node-children.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+.tree-node-children.expanded {
+  max-height: 10000px;
+  opacity: 1;
+}
+
+.tree-leaf-node .tree-node-header {
+  padding-left: 24px;
+}
+
+/* ========================================
+   ツリー要素情報
+   ======================================== */
+
+.tree-element-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.tree-element-id {
+  font-family: monospace;
+  font-size: 0.8em;
+  color: #495057;
+}
+
+.tree-element-guid {
+  font-family: monospace;
+  font-size: 0.65em;
+  color: #868e96;
+  font-style: italic;
+  margin-top: 1px;
+}
+
+.tree-element-status {
+  font-size: 0.7em;
+  padding: 2px 4px;
+  border-radius: 2px;
+  margin-left: 6px;
+  align-self: flex-start;
+}
+
+.tree-element-status.matched {
+  background-color: #e7f3ff;
+  color: #0066cc;
+}
+
+.tree-element-status.onlyA {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.tree-element-status.onlyB {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+/* ========================================
+   断面ツリー詳細スタイル
+   ======================================== */
+
+/* 断面タイプコンテナ */
+.section-type-container {
+  margin: 8px 0;
+}
+
+.section-type-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  cursor: pointer;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border-left: 3px solid #6c757d;
+  transition: background-color 0.15s ease;
+}
+
+.section-type-header:hover {
+  background-color: #e9ecef;
+}
+
+.section-type-name {
+  font-weight: 600;
+  font-size: 0.95em;
+  color: #343a40;
+  flex: 1;
+  margin-left: 6px;
+}
+
+.section-count {
+  font-size: 0.75em;
+  color: #6c757d;
+  background-color: #dee2e6;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.sections-container {
+  margin-left: 12px;
+  margin-top: 4px;
+}
+
+/* 個別断面アイテム */
+.section-item-container {
+  margin: 6px 0;
+}
+
+.section-item-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  cursor: pointer;
+  background-color: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+}
+
+.section-item-header:hover {
+  background-color: #f1f3f5;
+  border-color: #adb5bd;
+}
+
+.section-icon {
+  margin-right: 6px;
+  font-size: 1em;
+}
+
+.section-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 4px;
+}
+
+.section-name {
+  font-family: monospace;
+  font-size: 0.85em;
+  color: #212529;
+  font-weight: 500;
+}
+
+.section-type-label {
+  font-size: 0.7em;
+  color: #6c757d;
+  background-color: #f8f9fa;
+  padding: 1px 5px;
+  border-radius: 2px;
+  align-self: flex-start;
+}
+
+.element-count {
+  font-size: 0.75em;
+  color: #495057;
+  background-color: #e9ecef;
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.section-elements-container {
+  margin-left: 24px;
+  margin-top: 4px;
+}
+
+/* 要素グループコンテナ（階/符号ごと） */
+.element-group-container {
+  margin: 4px 0;
+}
+
+.element-group-header {
+  display: flex;
+  align-items: center;
+  padding: 5px 8px;
+  cursor: pointer;
+  background-color: #f8f9fa;
+  border-radius: 3px;
+  transition: background-color 0.15s ease;
+}
+
+.element-group-header:hover {
+  background-color: #e9ecef;
+}
+
+.group-name {
+  font-size: 0.8em;
+  color: #495057;
+  font-weight: 500;
+  margin-left: 4px;
+  flex: 1;
+}
+
+.group-count {
+  font-size: 0.7em;
+  color: #6c757d;
+  background-color: #dee2e6;
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+.group-elements-container {
+  margin-left: 16px;
+  margin-top: 2px;
+}
+
+/* 個別要素アイテム */
+.section-tree-element-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 4px 6px 4px 8px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  border-radius: 2px;
+  transition: all 0.15s ease;
+}
+
+.section-tree-element-item:hover {
+  background-color: #f8f9fa;
+  border-left-color: #228be6;
+}
+
+.section-toggle,
+.group-toggle {
+  font-size: 0.8em;
+  margin-right: 4px;
+  transition: transform 0.2s ease;
+}
+
+.section-toggle.expanded,
+.group-toggle.expanded {
+  transform: rotate(90deg);
+}
+
+/* ========================================
+   ツリー検索UI
+   ======================================== */
+
+.tree-search-container {
+  padding: 8px;
+  background: linear-gradient(to bottom, #f8f9fa, #ffffff);
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* 検索対象フィルタ（チェックボックス） */
+.tree-search-target-filter {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.tree-search-target-label {
+  font-size: 11px;
+  color: #6c757d;
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.tree-search-target-option {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 12px;
+  color: #495057;
+  gap: 4px;
+  padding: 2px 0;
+  transition: color 0.15s ease;
+}
+
+.tree-search-target-option:hover {
+  color: #228be6;
+}
+
+.tree-search-target-option input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  accent-color: #228be6;
+}
+
+.tree-search-input-wrapper {
+  flex: 1;
+  min-width: 180px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.tree-search-icon {
+  position: absolute;
+  left: 8px;
+  font-size: 12px;
+  color: #868e96;
+  pointer-events: none;
+}
+
+.tree-search-input {
+  width: 100%;
+  padding: 6px 28px 6px 28px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tree-search-input:focus {
+  outline: none;
+  border-color: #228be6;
+  box-shadow: 0 0 0 2px rgba(34, 139, 230, 0.2);
+}
+
+.tree-search-input::placeholder {
+  color: #adb5bd;
+  font-size: 11px;
+}
+
+.tree-search-clear {
+  position: absolute;
+  right: 6px;
+  background: none;
+  border: none;
+  color: #868e96;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  line-height: 1;
+  border-radius: 2px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.tree-search-clear:hover {
+  color: #495057;
+  background-color: #e9ecef;
+}
+
+/* フィルタラッパー */
+.tree-filter-wrapper {
+  position: relative;
+}
+
+.tree-filter-btn {
+  padding: 6px 10px;
+  background: #e9ecef;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  color: #495057;
+  transition: all 0.15s ease;
+}
+
+.tree-filter-btn:hover {
+  background: #dee2e6;
+  border-color: #adb5bd;
+}
+
+/* フィルタドロップダウン */
+.tree-filter-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  min-width: 130px;
+  padding: 4px 0;
+}
+
+.tree-filter-option {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #495057;
+  transition: background-color 0.1s ease;
+  gap: 8px;
+}
+
+.tree-filter-option:hover {
+  background: #f1f3f5;
+}
+
+.tree-filter-option input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.tree-filter-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* 検索結果カウント */
+.tree-search-result-count {
+  width: 100%;
+  font-size: 11px;
+  color: #6c757d;
+  padding-top: 2px;
+  display: none;
+}
+
+/* 検索エラー表示 */
+.tree-search-error {
+  width: 100%;
+  font-size: 11px;
+  color: #dc3545;
+  padding-top: 2px;
+  background: #fff5f5;
+  border-radius: 2px;
+  padding: 4px 8px;
+  margin-top: 4px;
+}
+
+/* 検索ハイライト */
+.search-highlight {
+  background: linear-gradient(to bottom, #fff3bf, #ffe066);
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: 500;
+}
+
+/* フィルタで非表示 */
+.tree-node.filtered-out {
+  display: none;
+}
+
+/* 検索結果なしメッセージ */
+.tree-no-result-message,
+.section-tree-no-result-message {
+  padding: 20px;
+  text-align: center;
+  color: #868e96;
+  font-size: 13px;
+}
+
+/* ========================================
+   ツリートグルアイコン共通
+   ======================================== */
+
+.tree-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
+  color: #6c757d;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.tree-toggle-icon.expanded {
+  transform: rotate(90deg);
+}
+
+/* ========================================
+   差分アイコン
+   ======================================== */
+
+.tree-diff-icon {
+  font-size: 10px;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+
+.tree-diff-icon.matched {
+  color: #12b886;
+}
+
+.tree-diff-icon.onlyA {
+  color: #37b24d;
+}
+
+.tree-diff-icon.onlyB {
+  color: #f03e3e;
+}

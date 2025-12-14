@@ -14,10 +14,11 @@
 
 import {
   IMPORTANCE_LEVELS,
-  IMPORTANCE_LEVEL_NAMES,
-} from "../core/importanceManager.js";
-import { getState, setState } from "../core/globalState.js";
-import { applyImportanceVisibilityFilter } from "../viewer/rendering/materials.js";
+  IMPORTANCE_LEVEL_NAMES
+} from '../core/importanceManager.js';
+import { getState, setState } from '../core/globalState.js';
+import { applyImportanceVisibilityFilter } from '../viewer/rendering/materials.js';
+import { UI_TIMING } from '../config/uiTimingConfig.js';
 
 /**
  * 重要度フィルタリングクラス
@@ -41,39 +42,39 @@ export class ImportanceFilter {
   createDefaultPresets() {
     return {
       all: {
-        name: "全て表示",
+        name: '全て表示',
         levels: new Set(Object.values(IMPORTANCE_LEVELS)),
-        description: "すべての重要度レベルを表示",
+        description: 'すべての重要度レベルを表示'
       },
       highOnly: {
-        name: "高重要度のみ",
+        name: '高重要度のみ',
         levels: new Set([IMPORTANCE_LEVELS.REQUIRED]),
-        description: "高重要度の要素のみ表示",
+        description: '高重要度の要素のみ表示'
       },
       mediumHigh: {
-        name: "中・高重要度",
+        name: '中・高重要度',
         levels: new Set([
           IMPORTANCE_LEVELS.REQUIRED,
-          IMPORTANCE_LEVELS.OPTIONAL,
+          IMPORTANCE_LEVELS.OPTIONAL
         ]),
-        description: "中重要度と高重要度の要素を表示",
+        description: '中重要度と高重要度の要素を表示'
       },
       lowExcluded: {
-        name: "低重要度除外",
+        name: '低重要度除外',
         levels: new Set([
           IMPORTANCE_LEVELS.REQUIRED,
-          IMPORTANCE_LEVELS.OPTIONAL,
+          IMPORTANCE_LEVELS.OPTIONAL
         ]),
-        description: "低重要度と対象外を除いた要素を表示",
+        description: '低重要度と対象外を除いた要素を表示'
       },
       differencesOnly: {
-        name: "差分のみ（カスタム）",
+        name: '差分のみ（カスタム）',
         levels: new Set([
           IMPORTANCE_LEVELS.REQUIRED,
-          IMPORTANCE_LEVELS.OPTIONAL,
+          IMPORTANCE_LEVELS.OPTIONAL
         ]),
-        description: "差分要素で重要度が高い要素のみ表示",
-      },
+        description: '差分要素で重要度が高い要素のみ表示'
+      }
     };
   }
 
@@ -82,21 +83,21 @@ export class ImportanceFilter {
    */
   setupEventListeners() {
     // フィルタ変更通知を受信
-    window.addEventListener("importanceFilterChanged", (event) => {
+    window.addEventListener('importanceFilterChanged', (event) => {
       this.handleFilterChange(event.detail);
     });
 
     // 重要度設定変更時のフィルタ再適用
-    window.addEventListener("importanceSettingsChanged", (event) => {
+    window.addEventListener('importanceSettingsChanged', (event) => {
       if (this.isEnabled) {
         this.applyFilter();
       }
     });
 
     // 比較結果更新時のフィルタ再適用
-    window.addEventListener("updateComparisonStatistics", (event) => {
+    window.addEventListener('updateComparisonStatistics', (event) => {
       if (this.isEnabled) {
-        setTimeout(() => this.applyFilter(), 100); // 少し遅らせて実行
+        setTimeout(() => this.applyFilter(), UI_TIMING.FILTER_APPLY_DELAY_MS);
       }
     });
   }
@@ -121,10 +122,10 @@ export class ImportanceFilter {
 
     this.saveToHistory();
     this.applyFilter();
-    this.notifyFilterChange("toggle", {
+    this.notifyFilterChange('toggle', {
       level,
       wasActive,
-      isActive: !wasActive,
+      isActive: !wasActive
     });
   }
 
@@ -138,9 +139,9 @@ export class ImportanceFilter {
 
     this.saveToHistory();
     this.applyFilter();
-    this.notifyFilterChange("bulk", {
+    this.notifyFilterChange('bulk', {
       previousFilters,
-      currentFilters: this.activeFilters,
+      currentFilters: this.activeFilters
     });
   }
 
@@ -170,7 +171,7 @@ export class ImportanceFilter {
     }
 
     this.setActiveFilters(new Set(preset.levels));
-    this.notifyFilterChange("preset", { presetName, preset });
+    this.notifyFilterChange('preset', { presetName, preset });
   }
 
   /**
@@ -178,14 +179,14 @@ export class ImportanceFilter {
    */
   applyFilter() {
     if (!this.isEnabled) {
-      console.log("Importance filter is disabled");
+      console.log('Importance filter is disabled');
       return;
     }
 
     try {
-      const elementGroups = getState("elementGroups");
+      const elementGroups = getState('elementGroups');
       if (!elementGroups) {
-        console.log("No element groups available for filtering");
+        console.log('No element groups available for filtering');
         return;
       }
 
@@ -219,10 +220,10 @@ export class ImportanceFilter {
       this.notifyFilterApplied({
         totalElements,
         visibleElements,
-        activeFilters: Array.from(this.activeFilters),
+        activeFilters: Array.from(this.activeFilters)
       });
     } catch (error) {
-      console.error("Failed to apply importance filter:", error);
+      console.error('Failed to apply importance filter:', error);
     }
   }
 
@@ -241,18 +242,18 @@ export class ImportanceFilter {
    * 描画更新を要求
    */
   requestRender() {
-    const viewer = getState("viewer");
-    if (viewer && typeof viewer.requestRender === "function") {
+    const viewer = getState('viewer');
+    if (viewer && typeof viewer.requestRender === 'function') {
       viewer.requestRender();
     }
 
     // カスタム描画更新イベントを発行
     window.dispatchEvent(
-      new CustomEvent("requestRender", {
+      new CustomEvent('requestRender', {
         detail: {
-          reason: "importanceFilter",
-          timestamp: new Date().toISOString(),
-        },
+          reason: 'importanceFilter',
+          timestamp: new Date().toISOString()
+        }
       })
     );
   }
@@ -263,7 +264,7 @@ export class ImportanceFilter {
   saveToHistory() {
     const currentState = {
       filters: new Set(this.activeFilters),
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toISOString()
     };
 
     this.filterHistory.unshift(currentState);
@@ -285,7 +286,7 @@ export class ImportanceFilter {
 
       this.activeFilters = new Set(previousState.filters);
       this.applyFilter();
-      this.notifyFilterChange("undo", { previousState });
+      this.notifyFilterChange('undo', { previousState });
 
       return true;
     }
@@ -308,7 +309,7 @@ export class ImportanceFilter {
       this.showAllElements();
     }
 
-    this.notifyFilterChange("enabledToggle", { enabled, wasEnabled });
+    this.notifyFilterChange('enabledToggle', { enabled, wasEnabled });
   }
 
   /**
@@ -316,7 +317,7 @@ export class ImportanceFilter {
    */
   showAllElements() {
     try {
-      const elementGroups = getState("elementGroups");
+      const elementGroups = getState('elementGroups');
       if (!elementGroups) return;
 
       elementGroups.forEach((group) => {
@@ -328,7 +329,7 @@ export class ImportanceFilter {
 
       this.requestRender();
     } catch (error) {
-      console.error("Failed to show all elements:", error);
+      console.error('Failed to show all elements:', error);
     }
   }
 
@@ -339,14 +340,14 @@ export class ImportanceFilter {
    */
   notifyFilterChange(action, details = {}) {
     window.dispatchEvent(
-      new CustomEvent("importanceFilterChanged", {
+      new CustomEvent('importanceFilterChanged', {
         detail: {
           action,
           activeFilters: Array.from(this.activeFilters),
           isEnabled: this.isEnabled,
           timestamp: new Date().toISOString(),
-          ...details,
-        },
+          ...details
+        }
       })
     );
   }
@@ -357,12 +358,12 @@ export class ImportanceFilter {
    */
   notifyFilterApplied(stats) {
     window.dispatchEvent(
-      new CustomEvent("importanceFilterApplied", {
+      new CustomEvent('importanceFilterApplied', {
         detail: {
           ...stats,
           isEnabled: this.isEnabled,
-          timestamp: new Date().toISOString(),
-        },
+          timestamp: new Date().toISOString()
+        }
       })
     );
   }
@@ -373,11 +374,11 @@ export class ImportanceFilter {
    */
   handleFilterChange(details) {
     // 外部からのフィルタ変更要求を処理
-    if (details.action === "setFilters" && details.filters) {
+    if (details.action === 'setFilters' && details.filters) {
       this.setActiveFilters(new Set(details.filters));
-    } else if (details.action === "toggleLevel" && details.level) {
+    } else if (details.action === 'toggleLevel' && details.level) {
       this.toggleImportanceLevel(details.level);
-    } else if (details.action === "applyPreset" && details.preset) {
+    } else if (details.action === 'applyPreset' && details.preset) {
       this.applyPreset(details.preset);
     }
   }
@@ -393,8 +394,8 @@ export class ImportanceFilter {
       presets: Object.keys(this.presets),
       history: this.filterHistory.map((h) => ({
         filters: Array.from(h.filters),
-        timestamp: h.timestamp,
-      })),
+        timestamp: h.timestamp
+      }))
     };
   }
 
@@ -403,13 +404,13 @@ export class ImportanceFilter {
    * @returns {Object} フィルタ統計
    */
   getStats() {
-    const elementGroups = getState("elementGroups");
+    const elementGroups = getState('elementGroups');
     if (!elementGroups) {
       return {
         totalElements: 0,
         visibleElements: 0,
         hiddenElements: 0,
-        filterEfficiency: 0,
+        filterEfficiency: 0
       };
     }
 
@@ -437,7 +438,7 @@ export class ImportanceFilter {
       hiddenElements,
       filterEfficiency: Math.round(filterEfficiency * 100) / 100,
       activeFilterCount: this.activeFilters.size,
-      isEnabled: this.isEnabled,
+      isEnabled: this.isEnabled
     };
   }
 
@@ -445,12 +446,12 @@ export class ImportanceFilter {
    * デバッグ情報を出力
    */
   debug() {
-    console.group("ImportanceFilter Debug Info");
-    console.log("Active filters:", Array.from(this.activeFilters));
-    console.log("Is enabled:", this.isEnabled);
-    console.log("Presets:", this.presets);
-    console.log("History:", this.filterHistory);
-    console.log("Stats:", this.getStats());
+    console.group('ImportanceFilter Debug Info');
+    console.log('Active filters:', Array.from(this.activeFilters));
+    console.log('Is enabled:', this.isEnabled);
+    console.log('Presets:', this.presets);
+    console.log('History:', this.filterHistory);
+    console.log('Stats:', this.getStats());
     console.groupEnd();
   }
 }
@@ -489,84 +490,19 @@ export class FilterStatusIndicator {
       </div>
     `;
 
-    this.container.insertAdjacentHTML("beforeend", indicatorHTML);
-    this.element = document.getElementById("importance-filter-indicator");
+    this.container.insertAdjacentHTML('beforeend', indicatorHTML);
+    this.element = document.getElementById('importance-filter-indicator');
 
     this.addStyles();
   }
 
   /**
    * スタイルを追加
+   * 注: スタイルは importance.css に外部化されました
    */
   addStyles() {
-    const styles = `
-      <style id="filter-indicator-styles">
-        .filter-indicator {
-          position: fixed;
-          bottom: 20px;
-          left: 20px;
-          background: rgba(255, 255, 255, 0.95);
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          padding: 8px 12px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-          font-size: 12px;
-          z-index: 999;
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        
-        .filter-status {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        
-        .filter-icon {
-          font-size: 14px;
-        }
-        
-        .filter-text {
-          font-weight: bold;
-          color: #333;
-        }
-        
-        .filter-count {
-          color: #666;
-          font-family: monospace;
-        }
-        
-        .filter-controls {
-          display: flex;
-          gap: 4px;
-        }
-        
-        .filter-btn {
-          padding: 2px 6px;
-          border: 1px solid #ccc;
-          border-radius: 3px;
-          background: white;
-          cursor: pointer;
-          font-size: 10px;
-          transition: all 0.2s;
-        }
-        
-        .filter-btn:hover {
-          background: #f0f0f0;
-        }
-        
-        .filter-btn.toggle-btn.active {
-          background: #007bff;
-          color: white;
-          border-color: #007bff;
-        }
-      </style>
-    `;
-
-    if (!document.getElementById("filter-indicator-styles")) {
-      document.head.insertAdjacentHTML("beforeend", styles);
-    }
+    // スタイルは stb-diff-viewer/style/components/importance.css で定義
+    // このメソッドは互換性のために残されています
   }
 
   /**
@@ -574,19 +510,19 @@ export class FilterStatusIndicator {
    */
   setupEventListeners() {
     // ボタンクリックイベント
-    this.element.addEventListener("click", (e) => {
-      if (e.target.classList.contains("filter-btn")) {
+    this.element.addEventListener('click', (e) => {
+      if (e.target.classList.contains('filter-btn')) {
         const action = e.target.dataset.action;
         this.handleAction(action);
       }
     });
 
     // フィルタ状態変更の監視
-    window.addEventListener("importanceFilterChanged", (event) => {
+    window.addEventListener('importanceFilterChanged', (event) => {
       this.updateDisplay(event.detail);
     });
 
-    window.addEventListener("importanceFilterApplied", (event) => {
+    window.addEventListener('importanceFilterApplied', (event) => {
       this.updateStats(event.detail);
     });
   }
@@ -608,16 +544,16 @@ export class FilterStatusIndicator {
     if (!this.filter) return;
 
     switch (action) {
-      case "showAll":
+      case 'showAll':
         this.filter.showAllLevels();
         break;
-      case "hideAll":
+      case 'hideAll':
         this.filter.hideAllLevels();
         break;
-      case "undo":
+      case 'undo':
         this.filter.undo();
         break;
-      case "toggle":
+      case 'toggle':
         this.filter.setEnabled(!this.filter.isEnabled);
         break;
     }
@@ -636,14 +572,14 @@ export class FilterStatusIndicator {
       this.filter.activeFilters.size < Object.values(IMPORTANCE_LEVELS).length;
 
     // 表示/非表示の制御
-    this.element.style.display = isActive ? "flex" : "none";
+    this.element.style.display = isActive ? 'flex' : 'none';
 
     // 統計表示の更新
     this.updateStats(stats);
 
     // トグルボタンの状態更新
     const toggleBtn = this.element.querySelector('[data-action="toggle"]');
-    toggleBtn.classList.toggle("active", this.filter.isEnabled);
+    toggleBtn.classList.toggle('active', this.filter.isEnabled);
   }
 
   /**
@@ -651,16 +587,16 @@ export class FilterStatusIndicator {
    * @param {Object} stats - 統計情報
    */
   updateStats(stats) {
-    const countElement = this.element.querySelector(".filter-count");
+    const countElement = this.element.querySelector('.filter-count');
     countElement.textContent = `${stats.visibleElements}/${stats.totalElements}`;
 
     // 効率性に応じた色分け
     if (stats.filterEfficiency > 50) {
-      countElement.style.color = "#28a745"; // 緑: 高効率
+      countElement.style.color = '#28a745'; // 緑: 高効率
     } else if (stats.filterEfficiency > 20) {
-      countElement.style.color = "#ffc107"; // 黄: 中効率
+      countElement.style.color = '#ffc107'; // 黄: 中効率
     } else {
-      countElement.style.color = "#666"; // グレー: 低効率
+      countElement.style.color = '#666'; // グレー: 低効率
     }
   }
 
@@ -670,7 +606,7 @@ export class FilterStatusIndicator {
    */
   setVisible(visible) {
     this.isVisible = visible;
-    this.element.style.display = visible ? "flex" : "none";
+    this.element.style.display = visible ? 'flex' : 'none';
   }
 }
 
@@ -688,10 +624,10 @@ export function initializeImportanceFilterSystem(
   const indicator = new FilterStatusIndicator(indicatorContainer);
   indicator.setFilter(globalImportanceFilter);
 
-  console.log("Importance filter system initialized");
+  console.log('Importance filter system initialized');
 
   return {
     filter: globalImportanceFilter,
-    indicator,
+    indicator
   };
 }

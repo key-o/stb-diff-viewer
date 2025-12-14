@@ -21,7 +21,7 @@ export const COMPARISON_KEY_TYPE = {
    * - GUID属性が存在する場合のみ有効
    * - GUID属性が無い要素は位置情報ベースにフォールバック
    */
-  GUID_BASED: 'guid',
+  GUID_BASED: 'guid'
 };
 
 /**
@@ -36,7 +36,7 @@ export const DEFAULT_COMPARISON_KEY_TYPE = COMPARISON_KEY_TYPE.POSITION_BASED;
  */
 export const COMPARISON_KEY_TYPE_LABELS = {
   [COMPARISON_KEY_TYPE.POSITION_BASED]: '位置情報',
-  [COMPARISON_KEY_TYPE.GUID_BASED]: 'GUID',
+  [COMPARISON_KEY_TYPE.GUID_BASED]: 'GUID'
 };
 
 /**
@@ -46,7 +46,7 @@ export const COMPARISON_KEY_TYPE_LABELS = {
 export const COMPARISON_KEY_TYPE_DESCRIPTIONS = {
   [COMPARISON_KEY_TYPE.POSITION_BASED]: '要素の座標位置を基準に対応関係を判定します',
   [COMPARISON_KEY_TYPE.GUID_BASED]:
-    '要素のGUID属性を基準に対応関係を判定します（GUID無しの要素は位置情報で判定）',
+    '要素のGUID属性を基準に対応関係を判定します（GUID無しの要素は位置情報で判定）'
 };
 
 /**

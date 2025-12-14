@@ -14,7 +14,7 @@ export const VALID_IMPORTANCE_LEVELS = ['high', 'medium', 'low', 'notApplicable'
 // 重要度レベルの日本語名マッピング
 export const IMPORTANCE_LEVEL_NAMES = {
   high: '高重要度',
-  medium: '中重要度', 
+  medium: '中重要度',
   low: '低重要度',
   notApplicable: '対象外'
 };
@@ -27,44 +27,44 @@ export const IMPORTANCE_LEVEL_NAMES = {
 export function validateImportanceSettings(settings) {
   const errors = [];
   const warnings = [];
-  
+
   if (!settings || typeof settings !== 'object') {
     errors.push('Settings must be a valid object');
     return { isValid: false, errors, warnings };
   }
-  
+
   // 設定オブジェクトの構造検証
   const structureValidation = validateSettingsStructure(settings);
   errors.push(...structureValidation.errors);
   warnings.push(...structureValidation.warnings);
-  
+
   // 要素設定の検証
   if (settings.elements) {
     const elementsValidation = validateElementsSettings(settings.elements);
     errors.push(...elementsValidation.errors);
     warnings.push(...elementsValidation.warnings);
   }
-  
+
   // 属性設定の検証
   if (settings.attributes) {
     const attributesValidation = validateAttributesSettings(settings.attributes);
     errors.push(...attributesValidation.errors);
     warnings.push(...attributesValidation.warnings);
   }
-  
+
   // XPathパターン設定の検証
   if (settings.xpathPatterns) {
     const xpathValidation = validateXPathPatterns(settings.xpathPatterns);
     errors.push(...xpathValidation.errors);
     warnings.push(...xpathValidation.warnings);
   }
-  
+
   return {
     isValid: errors.length === 0,
     errors,
     warnings,
     summary: {
-      totalChecked: Object.keys(settings.elements || {}).length + 
+      totalChecked: Object.keys(settings.elements || {}).length +
                    Object.keys(settings.attributes || {}).length +
                    Object.keys(settings.xpathPatterns || {}).length,
       errorsCount: errors.length,
@@ -81,7 +81,7 @@ export function validateImportanceSettings(settings) {
 function validateSettingsStructure(settings) {
   const errors = [];
   const warnings = [];
-  
+
   // 必須プロパティの存在確認
   const requiredProperties = ['elements', 'attributes'];
   for (const prop of requiredProperties) {
@@ -91,16 +91,16 @@ function validateSettingsStructure(settings) {
       errors.push(`Property ${prop} must be an object`);
     }
   }
-  
+
   // オプションプロパティの型確認
   if (settings.xpathPatterns && typeof settings.xpathPatterns !== 'object') {
     errors.push('Property xpathPatterns must be an object');
   }
-  
+
   if (settings.lastModified && typeof settings.lastModified !== 'string') {
     warnings.push('Property lastModified should be a string (ISO date)');
   }
-  
+
   return { errors, warnings };
 }
 
@@ -112,13 +112,13 @@ function validateSettingsStructure(settings) {
 function validateElementsSettings(elements) {
   const errors = [];
   const warnings = [];
-  
+
   for (const [elementPath, importance] of Object.entries(elements)) {
     // 重要度レベルの検証
     if (!VALID_IMPORTANCE_LEVELS.includes(importance)) {
       errors.push(`Invalid importance level "${importance}" for element "${elementPath}"`);
     }
-    
+
     // 要素パスの形式検証
     const pathValidation = validateElementPath(elementPath);
     if (!pathValidation.isValid) {
@@ -128,13 +128,13 @@ function validateElementsSettings(elements) {
         warnings.push(`Potentially invalid element path "${elementPath}": ${pathValidation.message}`);
       }
     }
-    
+
     // STB要素名の妥当性チェック
     if (!pathValidation.isStbElement) {
       warnings.push(`Element path "${elementPath}" does not appear to be a valid STB element`);
     }
   }
-  
+
   return { errors, warnings };
 }
 
@@ -146,13 +146,13 @@ function validateElementsSettings(elements) {
 function validateAttributesSettings(attributes) {
   const errors = [];
   const warnings = [];
-  
+
   for (const [attributePath, importance] of Object.entries(attributes)) {
     // 重要度レベルの検証
     if (!VALID_IMPORTANCE_LEVELS.includes(importance)) {
       errors.push(`Invalid importance level "${importance}" for attribute "${attributePath}"`);
     }
-    
+
     // 属性パスの形式検証
     const pathValidation = validateAttributePath(attributePath);
     if (!pathValidation.isValid) {
@@ -163,7 +163,7 @@ function validateAttributesSettings(attributes) {
       }
     }
   }
-  
+
   return { errors, warnings };
 }
 
@@ -175,20 +175,20 @@ function validateAttributesSettings(attributes) {
 function validateXPathPatterns(xpathPatterns) {
   const errors = [];
   const warnings = [];
-  
+
   for (const [xpath, importance] of Object.entries(xpathPatterns)) {
     // 重要度レベルの検証
     if (!VALID_IMPORTANCE_LEVELS.includes(importance)) {
       errors.push(`Invalid importance level "${importance}" for XPath pattern "${xpath}"`);
     }
-    
+
     // XPath構文の基本的な検証
     const xpathValidation = validateXPathSyntax(xpath);
     if (!xpathValidation.isValid) {
       errors.push(`Invalid XPath syntax "${xpath}": ${xpathValidation.message}`);
     }
   }
-  
+
   return { errors, warnings };
 }
 
@@ -206,14 +206,14 @@ export function validateElementPath(elementPath) {
       isStbElement: false
     };
   }
-  
+
   // STB要素の基本パターンチェック
   const stbElementPattern = /^(\/\/?)?(Stb[A-Za-z_][A-Za-z0-9_]*)/;
   const stbMatch = elementPath.match(stbElementPattern);
-  
+
   if (stbMatch) {
     const elementName = stbMatch[2];
-    
+
     // 既知のSTB要素名かチェック
     const knownElements = [
       'StbColumn', 'StbGirder', 'StbBeam', 'StbBrace', 'StbNode', 'StbSlab', 'StbWall',
@@ -222,11 +222,11 @@ export function validateElementPath(elementPath) {
       'StbSecBeam_RC', 'StbSecBeam_S', 'StbSecBeam_SRC', 'StbSecBrace_S',
       'StbSecSlab_RC', 'StbSecWall_RC'
     ];
-    
-    const isKnownElement = knownElements.some(known => 
+
+    const isKnownElement = knownElements.some(known =>
       elementName === known || elementName.startsWith(known)
     );
-    
+
     return {
       isValid: true,
       severity: 'info',
@@ -235,7 +235,7 @@ export function validateElementPath(elementPath) {
       elementName
     };
   }
-  
+
   // XPath形式のチェック
   if (elementPath.startsWith('//') || elementPath.startsWith('/')) {
     return {
@@ -245,7 +245,7 @@ export function validateElementPath(elementPath) {
       isStbElement: false
     };
   }
-  
+
   // 単純な文字列の場合
   if (/^[A-Za-z][A-Za-z0-9_]*$/.test(elementPath)) {
     return {
@@ -255,7 +255,7 @@ export function validateElementPath(elementPath) {
       isStbElement: elementPath.startsWith('Stb')
     };
   }
-  
+
   return {
     isValid: false,
     severity: 'error',
@@ -277,21 +277,21 @@ export function validateAttributePath(attributePath) {
       message: 'Attribute path must be a non-empty string'
     };
   }
-  
+
   // @で始まる属性パターン
   if (attributePath.startsWith('@')) {
     const attrName = attributePath.substring(1);
-    
+
     if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(attrName)) {
       // 既知のSTB属性名かチェック
       const knownAttributes = [
-        'id', 'guid', 'name', 'material', 'shape', 
+        'id', 'guid', 'name', 'material', 'shape',
         'strength_concrete', 'strength_rebar', 'pos', 'rotate', 'offset',
         'id_node_start', 'id_node_end', 'id_node_bottom', 'id_node_top'
       ];
-      
+
       const isKnownAttribute = knownAttributes.includes(attrName);
-      
+
       return {
         isValid: true,
         severity: isKnownAttribute ? 'info' : 'warning',
@@ -306,7 +306,7 @@ export function validateAttributePath(attributePath) {
       };
     }
   }
-  
+
   // 単純な属性名
   if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(attributePath)) {
     return {
@@ -316,7 +316,7 @@ export function validateAttributePath(attributePath) {
       attributeName: attributePath
     };
   }
-  
+
   return {
     isValid: false,
     severity: 'error',
@@ -336,10 +336,10 @@ export function validateXPathSyntax(xpath) {
       message: 'XPath must be a non-empty string'
     };
   }
-  
+
   try {
     // 基本的なXPath構文チェック
-    
+
     // 括弧の対応チェック
     const openBrackets = (xpath.match(/\[/g) || []).length;
     const closeBrackets = (xpath.match(/\]/g) || []).length;
@@ -349,7 +349,7 @@ export function validateXPathSyntax(xpath) {
         message: 'Unmatched brackets in XPath'
       };
     }
-    
+
     // 引用符の対応チェック
     const singleQuotes = (xpath.match(/'/g) || []).length;
     const doubleQuotes = (xpath.match(/"/g) || []).length;
@@ -359,7 +359,7 @@ export function validateXPathSyntax(xpath) {
         message: 'Unmatched quotes in XPath'
       };
     }
-    
+
     // 禁止文字のチェック
     if (/[<>]/.test(xpath)) {
       return {
@@ -367,19 +367,19 @@ export function validateXPathSyntax(xpath) {
         message: 'Invalid characters in XPath'
       };
     }
-    
+
     // ブラウザのXPath評価を試行（エラーキャッチ）
     if (typeof document !== 'undefined' && document.evaluate) {
       // テスト用の空のXMLドキュメントを作成
       const testDoc = document.implementation.createDocument('', '', null);
       document.evaluate(xpath, testDoc, null, XPathResult.ANY_TYPE, null);
     }
-    
+
     return {
       isValid: true,
       message: 'Valid XPath syntax'
     };
-    
+
   } catch (error) {
     return {
       isValid: false,
@@ -404,7 +404,7 @@ export function getImportanceLevelName(level) {
  */
 export function logValidationResult(validationResult, context = '') {
   const prefix = context ? `[${context}] ` : '';
-  
+
   if (validationResult.isValid) {
     console.log(`${prefix}✅ Validation passed`);
     if (validationResult.warnings && validationResult.warnings.length > 0) {
@@ -417,7 +417,7 @@ export function logValidationResult(validationResult, context = '') {
       console.warn(`${prefix}Warnings:`, validationResult.warnings);
     }
   }
-  
+
   if (validationResult.summary) {
     console.log(`${prefix}Summary:`, validationResult.summary);
   }
@@ -430,11 +430,11 @@ export function logValidationResult(validationResult, context = '') {
  */
 export function generateValidationReport(validationResult) {
   const lines = [];
-  
+
   lines.push('=== Importance Settings Validation Report ===');
   lines.push(`Validation Status: ${validationResult.isValid ? 'PASSED' : 'FAILED'}`);
   lines.push('');
-  
+
   if (validationResult.summary) {
     lines.push('Summary:');
     lines.push(`  Total items checked: ${validationResult.summary.totalChecked}`);
@@ -442,7 +442,7 @@ export function generateValidationReport(validationResult) {
     lines.push(`  Warnings: ${validationResult.summary.warningsCount}`);
     lines.push('');
   }
-  
+
   if (validationResult.errors && validationResult.errors.length > 0) {
     lines.push('Errors:');
     validationResult.errors.forEach((error, index) => {
@@ -450,7 +450,7 @@ export function generateValidationReport(validationResult) {
     });
     lines.push('');
   }
-  
+
   if (validationResult.warnings && validationResult.warnings.length > 0) {
     lines.push('Warnings:');
     validationResult.warnings.forEach((warning, index) => {
@@ -458,8 +458,8 @@ export function generateValidationReport(validationResult) {
     });
     lines.push('');
   }
-  
+
   lines.push(`Report generated at: ${new Date().toISOString()}`);
-  
+
   return lines.join('\n');
 }

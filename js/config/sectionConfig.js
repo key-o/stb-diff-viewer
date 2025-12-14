@@ -13,141 +13,211 @@
 export const SECTION_CONFIG = {
   Column: {
     selectors: [
-      "StbSecColumn_RC",
-      "StbSecColumn_S",
-      "StbSecColumn_SRC",
-      "StbSecColumn_CFT",
+      'StbSecColumn_RC',
+      'StbSecColumn_S',
+      'StbSecColumn_SRC',
+      'StbSecColumn_CFT'
     ],
+    // 注: attributeFilterは設定しない。間柱(POST)がkind_column="POST"で
+    // フィルタリングされるため、それ以外（属性なし、COLUMN等）が自動的に柱となる
     steelFigures: [
-      "StbSecSteelFigureColumn_S",
-      "StbSecSteelFigureColumn_CFT",
-      "StbSecSteelFigureColumn_SRC",
+      'StbSecSteelFigureColumn_S',
+      'StbSecSteelFigureColumn_CFT',
+      'StbSecSteelFigureColumn_SRC'
     ],
     // RCでは図形フィギュア要素だけでなく、直下にRect/Circle要素が来る形式もある
     // 例: <StbSecColumn_RC> <StbSecColumn_RC_Rect width_X="500" width_Y="500"/> </StbSecColumn_RC>
     // これらも寸法抽出の対象に含める
     concreteFigures: [
-      "StbSecFigureColumn_RC",
-      "StbSecFigureColumn_SRC",
+      'StbSecFigureColumn_RC',
+      'StbSecFigureColumn_SRC',
       // 直下定義のRC図形
-      "StbSecColumn_RC_Rect",
-      "StbSecColumn_RC_Circle",
-      // 将来拡張（SRC/CFTでも直下定義されるケース用、存在しなくても問題なし）
-      "StbSecColumn_SRC_Rect",
-      "StbSecColumn_SRC_Circle",
-      "StbSecColumn_CFT_Rect",
-      "StbSecColumn_CFT_Circle",
-    ],
+      'StbSecColumn_RC_Rect',
+      'StbSecColumn_RC_Circle',
+      // 将来拡張（stb-diff-viewer/CFTでも直下定義されるケース用、存在しなくても問題なし）
+      'StbSecColumn_SRC_Rect',
+      'StbSecColumn_SRC_Circle',
+      'StbSecColumn_CFT_Rect',
+      'StbSecColumn_CFT_Circle'
+    ]
   },
 
   Post: {
+    // 間柱は柱の断面タグを使用し、kind_column="POST" で区別する
     selectors: [
-      "StbSecPost_RC",
-      "StbSecPost_S",
-      "StbSecPost_SRC",
-      "StbSecPost_CFT",
+      'StbSecColumn_RC',
+      'StbSecColumn_S',
+      'StbSecColumn_SRC',
+      'StbSecColumn_CFT'
     ],
+    // kind_column属性でフィルタリング
+    attributeFilter: {
+      kind_column: 'POST'
+    },
     steelFigures: [
-      "StbSecSteelFigurePost_S",
-      "StbSecSteelFigurePost_CFT",
-      "StbSecSteelFigurePost_SRC",
+      'StbSecSteelFigureColumn_S',
+      'StbSecSteelFigureColumn_CFT',
+      'StbSecSteelFigureColumn_SRC'
     ],
     // 間柱もRC図形を持つ可能性がある
     concreteFigures: [
-      "StbSecFigurePost_RC",
-      "StbSecFigurePost_SRC",
+      'StbSecFigureColumn_RC',
+      'StbSecFigureColumn_SRC',
       // 直下定義のRC図形
-      "StbSecPost_RC_Rect",
-      "StbSecPost_RC_Circle",
-      // 将来拡張用
-      "StbSecPost_SRC_Rect",
-      "StbSecPost_SRC_Circle",
-      "StbSecPost_CFT_Rect",
-      "StbSecPost_CFT_Circle",
-    ],
+      'StbSecColumn_RC_Rect',
+      'StbSecColumn_RC_Circle',
+      // 将来拡張（stb-diff-viewer/CFTでも直下定義されるケース用、存在しなくても問題なし）
+      'StbSecColumn_SRC_Rect',
+      'StbSecColumn_SRC_Circle',
+      'StbSecColumn_CFT_Rect',
+      'StbSecColumn_CFT_Circle'
+    ]
   },
 
-  Beam: {
+  // 大梁断面: StbSecGirder_* と StbSecBeam_* (kind_beam="GIRDER") の両方を含む
+  Girder: {
     selectors: [
-      "StbSecGirder_RC",
-      "StbSecGirder_S",
-      "StbSecGirder_SRC",
-      "StbSecBeam_RC",
-      "StbSecBeam_S",
-      "StbSecBeam_SRC",
+      'StbSecGirder_RC',
+      'StbSecGirder_S',
+      'StbSecGirder_SRC',
+      'StbSecBeam_RC',
+      'StbSecBeam_S',
+      'StbSecBeam_SRC'
     ],
+    // kind_beam属性でフィルタリング（StbSecGirder_* はフィルター適用外）
+    attributeFilter: {
+      kind_beam: 'GIRDER'
+    },
+    // StbSecGirder_* タグはフィルターをスキップ（常に大梁として扱う）
+    skipFilterForTags: ['StbSecGirder_RC', 'StbSecGirder_S', 'StbSecGirder_SRC'],
+    // kind_beam属性がない場合も大梁として扱う（デフォルトGIRDER）
+    skipFilterIfAttributeMissing: true,
     steelFigures: [
-      "StbSecSteelFigureGirder_S",
-      "StbSecSteelFigureBeam_S",
-      "StbSecSteelFigureGirder_SRC",
-      "StbSecSteelFigureBeam_SRC",
+      'StbSecSteelFigureGirder_S',
+      'StbSecSteelFigureBeam_S',
+      'StbSecSteelFigureGirder_SRC',
+      'StbSecSteelFigureBeam_SRC'
     ],
     concreteFigures: [
-      "StbSecFigureBeam_RC",
-      "StbSecFigureGirder_RC",
-      "StbSecFigureBeam_SRC",
-      "StbSecFigureGirder_SRC",
-      // 直下定義のRC図形（柱と同様の形式）
-      "StbSecBeam_RC_Rect",
-      "StbSecGirder_RC_Rect",
+      'StbSecFigureGirder_RC',
+      'StbSecFigureBeam_RC',
+      'StbSecFigureGirder_SRC',
+      'StbSecFigureBeam_SRC',
+      // 直下定義のRC図形
+      'StbSecGirder_RC_Rect',
+      'StbSecBeam_RC_Rect'
+    ]
+  },
+
+  // 小梁断面: StbSecBeam_* (kind_beam="BEAM") のみ
+  Beam: {
+    selectors: [
+      'StbSecBeam_RC',
+      'StbSecBeam_S',
+      'StbSecBeam_SRC'
     ],
+    // kind_beam属性でフィルタリング
+    attributeFilter: {
+      kind_beam: 'BEAM'
+    },
+    steelFigures: [
+      'StbSecSteelFigureBeam_S',
+      'StbSecSteelFigureBeam_SRC'
+    ],
+    concreteFigures: [
+      'StbSecFigureBeam_RC',
+      'StbSecFigureBeam_SRC',
+      // 直下定義のRC図形
+      'StbSecBeam_RC_Rect'
+    ]
   },
 
   Brace: {
-    selectors: ["StbSecBrace_S"],
-    steelFigures: ["StbSecSteelFigureBrace_S"],
+    selectors: ['StbSecBrace_S'],
+    steelFigures: ['StbSecSteelFigureBrace_S']
   },
 
   // 杭・基礎要素
   Pile: {
     selectors: [
-      "StbSecPile_RC",
-      "StbSecPile_S",
-      "StbSecPileProduct",
+      'StbSecPile_RC',
+      'StbSecPile_S',
+      'StbSecPileProduct'
     ],
     steelFigures: [
-      "StbSecSteelFigurePile_S",
+      'StbSecSteelFigurePile_S'
     ],
     concreteFigures: [
-      "StbSecFigurePile_RC",
+      'StbSecFigurePile_RC',
       // RC杭の断面形状タイプ
-      "StbSecPile_RC_Straight",         // 直杭
-      "StbSecPile_RC_ExtendedFoot",     // 根固め部拡大杭
-      "StbSecPile_RC_ExtendedTop",      // 頭部拡大杭
-      "StbSecPile_RC_ExtendedTopFoot",  // 頭部・根固め部拡大杭
-      "StbSecPile_RC_Rect",
-      "StbSecPile_RC_Circle",
-    ],
+      'StbSecPile_RC_Straight',         // 直杭
+      'StbSecPile_RC_ExtendedFoot',     // 根固め部拡大杭
+      'StbSecPile_RC_ExtendedTop',      // 頭部拡大杭
+      'StbSecPile_RC_ExtendedTopFoot',  // 頭部・根固め部拡大杭
+      'StbSecPile_RC_Rect',
+      'StbSecPile_RC_Circle'
+    ]
   },
 
   Footing: {
     selectors: [
-      "StbSecFoundation_RC",
+      'StbSecFoundation_RC'
     ],
     concreteFigures: [
-      "StbSecFigureFoundation_RC",
-      "StbSecFoundation_RC_Rect",
-      "StbSecFoundation_RC_Circle",
-    ],
+      'StbSecFigureFoundation_RC',
+      'StbSecFoundation_RC_Rect',
+      'StbSecFoundation_RC_Circle'
+    ]
   },
 
   FoundationColumn: {
     selectors: [
-      "StbSecFoundationColumn_RC",
-      "StbSecFoundationColumn_S",
-      "StbSecFoundationColumn_SRC",
+      'StbSecFoundationColumn_RC',
+      'StbSecFoundationColumn_S',
+      'StbSecFoundationColumn_SRC'
     ],
     steelFigures: [
-      "StbSecSteelFigureFoundationColumn_S",
-      "StbSecSteelFigureFoundationColumn_SRC",
+      'StbSecSteelFigureFoundationColumn_S',
+      'StbSecSteelFigureFoundationColumn_SRC'
     ],
     concreteFigures: [
-      "StbSecFigureFoundationColumn_RC",
-      "StbSecFigureFoundationColumn_SRC",
-      "StbSecFoundationColumn_RC_Rect",
-      "StbSecFoundationColumn_RC_Circle",
-    ],
+      'StbSecFigureFoundationColumn_RC',
+      'StbSecFigureFoundationColumn_SRC',
+      'StbSecFoundationColumn_RC_Rect',
+      'StbSecFoundationColumn_RC_Circle'
+    ]
   },
+
+  // 床・壁要素
+  Slab: {
+    selectors: [
+      'StbSecSlab_RC',
+      'StbSecSlab_S',
+      'StbSecSlab_SRC'
+    ],
+    concreteFigures: [
+      'StbSecFigureSlab_RC',
+      'StbSecSlab_RC_Straight',    // 均一厚スラブ
+      'StbSecSlab_RC_Hollow',      // 中空スラブ
+      'StbSecSlab_RC_Waffle'       // ワッフルスラブ
+    ]
+  },
+
+  Wall: {
+    selectors: [
+      'StbSecWall_RC',
+      'StbSecWall_S',
+      'StbSecWall_SRC'
+    ],
+    steelFigures: [
+      'StbSecSteelFigureWall_S',
+      'StbSecSteelFigureWall_SRC'
+    ],
+    concreteFigures: [
+      'StbSecFigureWall_RC',
+      'StbSecWall_RC_Straight'     // 均一厚壁
+    ]
+  }
 };
 
 /**

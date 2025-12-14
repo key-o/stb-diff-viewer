@@ -12,7 +12,7 @@ async function loadGlobalConfig() {
   if (globalConfig) return globalConfig;
 
   try {
-    const response = await fetch("../../config/api-endpoints.json");
+    const response = await fetch('../../config/api-endpoints.json');
     if (!response.ok) {
       throw new Error(`設定ファイル読み込み失敗: ${response.status}`);
     }
@@ -20,33 +20,33 @@ async function loadGlobalConfig() {
     return globalConfig;
   } catch (error) {
     console.warn(
-      "統合設定ファイルの読み込みに失敗、フォールバック設定を使用:",
+      '統合設定ファイルの読み込みに失敗、フォールバック設定を使用:',
       error
     );
     // フォールバック設定
     return {
       environments: {
         development: {
-          stb2ifc_api: "http://localhost:5001",
+          stb2ifc_api: 'http://localhost:5001',
           cors_enabled: true,
-          debug: true,
+          debug: true
         },
         production: {
-          stb2ifc_api: "https://stb2ifc-api-e23mdd6kwq-an.a.run.app",
+          stb2ifc_api: 'https://stb2ifc-api-e23mdd6kwq-an.a.run.app',
           cors_enabled: false,
-          debug: false,
-        },
+          debug: false
+        }
       },
       fallback: {
-        cors_proxy: "https://cors-anywhere.herokuapp.com/",
+        cors_proxy: 'https://cors-anywhere.herokuapp.com/',
         timeout: 30000,
-        retry_attempts: 3,
+        retry_attempts: 3
       },
       features: {
         ifc_conversion: true,
         schema_validation: true,
-        importance_rating: true,
-      },
+        importance_rating: true
+      }
     };
   }
 }
@@ -56,12 +56,12 @@ function detectEnvironment() {
   const hostname = window.location.hostname;
   const search = window.location.search;
 
-  if (hostname === "localhost" || hostname === "127.0.0.1") {
-    return "development";
-  } else if (search.includes("env=staging")) {
-    return "staging";
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return 'development';
+  } else if (search.includes('env=staging')) {
+    return 'staging';
   } else {
-    return "production";
+    return 'production';
   }
 }
 
@@ -77,23 +77,23 @@ function transformConfigForBrowser(config, environment) {
       apiBaseUrl: envConfig.stb2ifc_api,
       corsEnabled: envConfig.cors_enabled,
       debug: envConfig.debug,
-      timeout: config.fallback.timeout,
+      timeout: config.fallback.timeout
     },
     features: {
       ifcConversion: config.features.ifc_conversion,
       schemaValidation: config.features.schema_validation,
       importanceRating: config.features.importance_rating,
-      devTools: environment === "development",
+      devTools: environment === 'development'
     },
     logging: {
-      level: envConfig.debug ? "debug" : "warn",
-      console: envConfig.debug,
+      level: envConfig.debug ? 'debug' : 'warn',
+      console: envConfig.debug
     },
     corsProxy: {
       proxyUrl: config.fallback.cors_proxy,
       retryAttempts: config.fallback.retry_attempts,
-      retryDelay: 1000,
-    },
+      retryDelay: 1000
+    }
   };
 }
 
@@ -104,14 +104,14 @@ export async function getEnvironmentConfig() {
 
   return {
     environment: env,
-    ...transformConfigForBrowser(config, env),
+    ...transformConfigForBrowser(config, env)
   };
 }
 
 // API エンドポイント取得（非同期）
-export async function getApiEndpoint(service = "stb2ifc") {
+export async function getApiEndpoint(service = 'stb2ifc') {
   const config = await getEnvironmentConfig();
-  if (service === "stb2ifc") {
+  if (service === 'stb2ifc') {
     return config.stb2ifc.apiBaseUrl;
   }
   throw new Error(`Unknown service: ${service}`);
@@ -139,12 +139,12 @@ export async function getLogLevel() {
 export async function displayEnvironmentInfo() {
   const config = await getEnvironmentConfig();
   if (config.stb2ifc.debug) {
-    console.group("🌍 Environment Configuration");
-    console.log("Environment:", config.environment);
-    console.log("STB2IFC API:", config.stb2ifc.apiBaseUrl);
-    console.log("Features:", config.features);
-    console.log("Debug Mode:", config.stb2ifc.debug);
-    console.log("Config Source: ../../config/api-endpoints.json");
+    console.group('🌍 Environment Configuration');
+    console.log('Environment:', config.environment);
+    console.log('STB2IFC API:', config.stb2ifc.apiBaseUrl);
+    console.log('Features:', config.features);
+    console.log('Debug Mode:', config.stb2ifc.debug);
+    console.log('Config Source: ../../config/api-endpoints.json');
     console.groupEnd();
   }
 }
@@ -155,14 +155,14 @@ export async function overrideConfig(overrides) {
   if (config.stb2ifc.debug) {
     // グローバル設定を一時的に上書き
     Object.assign(globalConfig.environments[config.environment], overrides);
-    console.warn("⚠️ Configuration overridden:", overrides);
+    console.warn('⚠️ Configuration overridden:', overrides);
   }
 }
 
 // 同期版のフォールバック関数（後方互換性のため）
 export function getEnvironmentConfigSync() {
   console.warn(
-    "getEnvironmentConfigSync は非推奨です。getEnvironmentConfig() を使用してください。"
+    'getEnvironmentConfigSync は非推奨です。getEnvironmentConfig() を使用してください。'
   );
 
   const env = detectEnvironment();
@@ -171,18 +171,18 @@ export function getEnvironmentConfigSync() {
     environment: env,
     stb2ifc: {
       apiBaseUrl:
-        env === "development"
-          ? "http://localhost:5001"
-          : "https://stb2ifc-api-e23mdd6kwq-an.a.run.app",
-      corsEnabled: env === "development",
-      debug: env === "development",
-      timeout: 30000,
+        env === 'development'
+          ? 'http://localhost:5001'
+          : 'https://stb2ifc-api-e23mdd6kwq-an.a.run.app',
+      corsEnabled: env === 'development',
+      debug: env === 'development',
+      timeout: 30000
     },
     features: {
       ifcConversion: true,
       schemaValidation: true,
       importanceRating: true,
-      devTools: env === "development",
-    },
+      devTools: env === 'development'
+    }
   };
 }

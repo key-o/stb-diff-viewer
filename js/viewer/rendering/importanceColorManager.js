@@ -23,23 +23,23 @@ class ImportanceColorManager extends BaseColorStateManager {
       [IMPORTANCE_LEVELS.REQUIRED]: {
         opacity: 1.0,
         outlineWidth: 2.0,
-        saturation: 1.0,
+        saturation: 1.0
       },
       [IMPORTANCE_LEVELS.OPTIONAL]: {
         opacity: 0.8,
         outlineWidth: 1.0,
-        saturation: 0.7,
+        saturation: 0.7
       },
       [IMPORTANCE_LEVELS.UNNECESSARY]: {
         opacity: 0.4,
         outlineWidth: 0.5,
-        saturation: 0.3,
+        saturation: 0.3
       },
       [IMPORTANCE_LEVELS.NOT_APPLICABLE]: {
         opacity: 0.1,
         outlineWidth: 0.0,
-        saturation: 0.1,
-      },
+        saturation: 0.1
+      }
     };
   }
 

@@ -8,26 +8,26 @@
  * - 現在の表示状態の保持
  */
 
-import { getAllLabels, setAllLabels } from "./state.js";
+import { getAllLabels, setAllLabels } from './state.js';
 import {
   generateLabelText,
-  updateLabelVisibility,
-} from "./unifiedLabelManager.js";
-import { createLabelSprite } from "../viewer/ui/labels.js";
-import { getState } from "../core/globalState.js";
+  updateLabelVisibility
+} from './unifiedLabelManager.js';
+import { createLabelSprite } from '../viewer/ui/labels.js';
+import { getState } from '../core/globalState.js';
 
 /**
  * 全てのラベルを現在の設定で再生成する
  * 既存のラベルを削除し、新しい設定で作り直す
  */
 export function regenerateAllLabels() {
-  console.log("Starting label regeneration...");
+  console.log('Starting label regeneration...');
 
   try {
     const existingLabels = getAllLabels();
 
     if (existingLabels.length === 0) {
-      console.log("No existing labels to regenerate");
+      console.log('No existing labels to regenerate');
       return;
     }
 
@@ -52,7 +52,7 @@ export function regenerateAllLabels() {
       `Label regeneration completed: ${newLabels.length} labels updated`
     );
   } catch (error) {
-    console.error("Error during label regeneration:", error);
+    console.error('Error during label regeneration:', error);
   }
 }
 
@@ -74,7 +74,7 @@ function extractLabelInformation(labels) {
     yAxisId: label.userData.yAxisId,
     parentGroup: label.parent,
     originalElement: label.userData.originalElement,
-    visible: label.visible,
+    visible: label.visible
   }));
 }
 
@@ -110,7 +110,7 @@ function createUpdatedLabels(labelInfo) {
     let labelText;
 
     // ラベルテキストを生成
-    if (info.modelSource === "matched" && info.elementIdA && info.elementIdB) {
+    if (info.modelSource === 'matched' && info.elementIdA && info.elementIdB) {
       // マッチした要素の場合は両方のIDを表示
       labelText = `${info.elementIdA} / ${info.elementIdB}`;
     } else if (info.originalElement) {
@@ -182,7 +182,7 @@ function isMatchingLabel(label, elementType, elementId) {
   return [
     label.userData.elementId,
     label.userData.elementIdA,
-    label.userData.elementIdB,
+    label.userData.elementIdB
   ].some((id) => id === elementId);
 }
 
@@ -205,9 +205,9 @@ function buildReplacementLabel(
   );
 
   if (!replacement) {
-    console.warn("Failed to create replacement label sprite", {
+    console.warn('Failed to create replacement label sprite', {
       elementType,
-      labelText,
+      labelText
     });
     return originalLabel;
   }
@@ -216,7 +216,7 @@ function buildReplacementLabel(
   replacement.userData = {
     ...replacement.userData,
     ...originalLabel.userData,
-    originalElement: elementData || originalLabel.userData.originalElement,
+    originalElement: elementData || originalLabel.userData.originalElement
   };
 
   if (parentGroup) {
@@ -230,7 +230,7 @@ function buildReplacementLabel(
 
 function determineLabelText(label, elementData, elementType) {
   if (
-    label.userData?.modelSource === "matched" &&
+    label.userData?.modelSource === 'matched' &&
     label.userData.elementIdA &&
     label.userData.elementIdB
   ) {
@@ -279,8 +279,8 @@ export function updateLabelsForElement(elementType, elementId, elementData) {
   setAllLabels(nextLabels);
   updateLabelVisibility();
 
-  const scheduleRender = getState("rendering.scheduleRender");
-  if (typeof scheduleRender === "function") {
+  const scheduleRender = getState('rendering.scheduleRender');
+  if (typeof scheduleRender === 'function') {
     scheduleRender();
   }
 
@@ -354,11 +354,11 @@ export function getLabelRegenerationStatistics() {
     total: allLabels.length,
     byElementType: {},
     withElementData: 0,
-    withoutElementData: 0,
+    withoutElementData: 0
   };
 
   allLabels.forEach((label) => {
-    const elementType = label.userData.elementType || "unknown";
+    const elementType = label.userData.elementType || 'unknown';
 
     if (!stats.byElementType[elementType]) {
       stats.byElementType[elementType] = 0;

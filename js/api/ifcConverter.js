@@ -5,13 +5,13 @@
  * 環境設定に基づいてAPIエンドポイントを動的に決定
  */
 
-import { getEnvironmentConfig } from "../config/environment.js";
+import { getEnvironmentConfig } from '../config/environment.js';
 
 export class IFCConverter {
   constructor(apiBaseUrl = null) {
     this.apiBaseUrl = apiBaseUrl; // nullの場合は環境設定から取得
     this.isServerRunning = false;
-    this.corsProxyUrl = "https://cors-anywhere.herokuapp.com/"; // フォールバック
+    this.corsProxyUrl = 'https://cors-anywhere.herokuapp.com/'; // フォールバック
     this.config = null;
 
     // 環境設定の初期化
@@ -37,10 +37,10 @@ export class IFCConverter {
 
       console.log(`🔧 IFCConverter initialized with API: ${this.apiBaseUrl}`);
     } catch (error) {
-      console.warn("環境設定の読み込みに失敗、デフォルト設定を使用:", error);
+      console.warn('環境設定の読み込みに失敗、デフォルト設定を使用:', error);
       // フォールバック
       this.apiBaseUrl =
-        this.apiBaseUrl || "https://stb2ifc-api-e23mdd6kwq-an.a.run.app";
+        this.apiBaseUrl || 'https://stb2ifc-api-e23mdd6kwq-an.a.run.app';
     }
   }
 
@@ -57,9 +57,9 @@ export class IFCConverter {
   isCorsError(error) {
     return (
       error.message &&
-      (error.message.includes("CORS") ||
-        error.message.includes("Access-Control-Allow-Origin") ||
-        error.message.includes("ERR_FAILED"))
+      (error.message.includes('CORS') ||
+        error.message.includes('Access-Control-Allow-Origin') ||
+        error.message.includes('ERR_FAILED'))
     );
   }
 
@@ -67,9 +67,9 @@ export class IFCConverter {
    * CORS警告を表示
    */
   showCorsWarning() {
-    const corsWarning = document.getElementById("cors-warning");
+    const corsWarning = document.getElementById('cors-warning');
     if (corsWarning) {
-      corsWarning.style.display = "block";
+      corsWarning.style.display = 'block';
     }
   }
 
@@ -77,9 +77,9 @@ export class IFCConverter {
    * CORS警告を非表示
    */
   hideCorsWarning() {
-    const corsWarning = document.getElementById("cors-warning");
+    const corsWarning = document.getElementById('cors-warning');
     if (corsWarning) {
-      corsWarning.style.display = "none";
+      corsWarning.style.display = 'none';
     }
   }
 
@@ -90,20 +90,20 @@ export class IFCConverter {
     // 直接接続を試行
     try {
       const response = await fetch(`${this.apiBaseUrl}/health`, {
-        method: "GET",
-        mode: "cors",
+        method: 'GET',
+        mode: 'cors',
         headers: {
-          Accept: "application/json",
-        },
+          Accept: 'application/json'
+        }
       });
       this.isServerRunning = response.ok;
       return this.isServerRunning;
     } catch (error) {
-      console.warn("直接接続でのAPIサーバーヘルスチェック失敗:", error.message);
+      console.warn('直接接続でのAPIサーバーヘルスチェック失敗:', error.message);
 
       // CORS問題の場合は、プロキシ経由を提案
       if (this.isCorsError(error)) {
-        console.info("CORS問題を検出しました。代替手段を検討してください。");
+        console.info('CORS問題を検出しました。代替手段を検討してください。');
         this.showCorsWarning(); // CORS警告を表示
       }
 
@@ -121,24 +121,24 @@ export class IFCConverter {
   async convertSTBFileToIFC(stbFile, options = {}) {
     if (!(await this.checkServerHealth())) {
       throw new Error(
-        "IFC変換APIサーバーが利用できません。インターネット接続を確認してください。"
+        'IFC変換APIサーバーが利用できません。インターネット接続を確認してください。'
       );
     }
 
     // FormDataを使用してSTBファイルを直接送信
     const formData = new FormData();
-    formData.append("stb_file", stbFile);
+    formData.append('stb_file', stbFile);
 
     // オプションも必要に応じて追加
     if (Object.keys(options).length > 0) {
-      formData.append("options", JSON.stringify(options));
+      formData.append('options', JSON.stringify(options));
     }
 
     try {
       const response = await fetch(`${this.apiBaseUrl}/convert/stb-to-ifc`, {
-        method: "POST",
-        mode: "cors",
-        body: formData, // multipart/form-data として送信
+        method: 'POST',
+        mode: 'cors',
+        body: formData // multipart/form-data として送信
       });
 
       if (!response.ok) {
@@ -156,7 +156,7 @@ export class IFCConverter {
       const ifcBlob = await response.blob();
       return ifcBlob;
     } catch (error) {
-      console.error("STBファイル変換エラー:", error);
+      console.error('STBファイル変換エラー:', error);
       throw error;
     }
   }
@@ -170,31 +170,31 @@ export class IFCConverter {
   async convertToIFC(stbData, options = {}) {
     if (!(await this.checkServerHealth())) {
       throw new Error(
-        "IFC変換APIサーバーが利用できません。インターネット接続を確認してください。"
+        'IFC変換APIサーバーが利用できません。インターネット接続を確認してください。'
       );
     }
 
     const payload = {
       stb_data: stbData,
       options: {
-        output_format: "ifc",
+        output_format: 'ifc',
         include_geometry: options.includeGeometry ?? true,
         include_materials: options.includeMaterials ?? true,
-        units: options.units ?? "mm",
-        ...options,
-      },
+        units: options.units ?? 'mm',
+        ...options
+      }
     };
 
     try {
       const response = await fetch(
         `${this.apiBaseUrl}/convert/stb-to-ifc/json`,
         {
-          method: "POST",
-          mode: "cors",
+          method: 'POST',
+          mode: 'cors',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(payload)
         }
       );
 
@@ -209,7 +209,7 @@ export class IFCConverter {
       const ifcBlob = await response.blob();
       return ifcBlob;
     } catch (error) {
-      console.error("IFC変換エラー:", error);
+      console.error('IFC変換エラー:', error);
       throw error;
     }
   }
@@ -222,16 +222,16 @@ export class IFCConverter {
   async validateForConversion(stbData) {
     try {
       const response = await fetch(`${this.apiBaseUrl}/validate/stb-data`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ stb_data: stbData }),
+        body: JSON.stringify({ stb_data: stbData })
       });
 
       return await response.json();
     } catch (error) {
-      console.error("検証エラー:", error);
+      console.error('検証エラー:', error);
       throw error;
     }
   }
@@ -246,7 +246,7 @@ export class IFCConverter {
       const response = await fetch(`${this.apiBaseUrl}/progress/${taskId}`);
       return await response.json();
     } catch (error) {
-      console.error("進捗取得エラー:", error);
+      console.error('進捗取得エラー:', error);
       throw error;
     }
   }
@@ -266,12 +266,12 @@ export class IFCConverterUI {
 
   createConvertButton() {
     // 既存のUIにIFC変換ボタンを追加
-    const otherSettingsSection = document.querySelector("#other-settings");
+    const otherSettingsSection = document.querySelector('#other-settings');
     if (otherSettingsSection) {
-      const convertButton = document.createElement("button");
-      convertButton.id = "convertToIFCBtn";
-      convertButton.className = "btn btn-primary";
-      convertButton.innerHTML = "🏗️ IFCファイルに変換";
+      const convertButton = document.createElement('button');
+      convertButton.id = 'convertToIFCBtn';
+      convertButton.className = 'btn btn-primary';
+      convertButton.innerHTML = '🏗️ IFCファイルに変換';
       convertButton.onclick = () => this.handleConvertClick();
 
       otherSettingsSection.appendChild(convertButton);
@@ -279,9 +279,9 @@ export class IFCConverterUI {
   }
 
   createProgressIndicator() {
-    const progressDiv = document.createElement("div");
-    progressDiv.id = "ifc-conversion-progress";
-    progressDiv.style.display = "none";
+    const progressDiv = document.createElement('div');
+    progressDiv.id = 'ifc-conversion-progress';
+    progressDiv.style.display = 'none';
     progressDiv.innerHTML = `
       <div class="conversion-progress">
         <div class="progress-bar">
@@ -291,7 +291,7 @@ export class IFCConverterUI {
       </div>
     `;
 
-    document.getElementById("overlay").appendChild(progressDiv);
+    document.getElementById('overlay').appendChild(progressDiv);
   }
 
   async handleConvertClick() {
@@ -301,18 +301,18 @@ export class IFCConverterUI {
 
       if (originalFile) {
         // STBファイル直接変換（効率的）
-        console.log("STBファイル直接変換を開始:", originalFile.name);
+        console.log('STBファイル直接変換を開始:', originalFile.name);
         await this.handleDirectSTBConversion(originalFile);
       } else {
         // フォールバック: 表示データからJSON変換
-        console.log("表示データからJSON変換を開始");
+        console.log('表示データからJSON変換を開始');
         await this.handleJSONBasedConversion();
       }
     } catch (error) {
       this.showProgress(false);
 
       // CORS問題の特別処理
-      if (error.message && error.message.includes("CORS")) {
+      if (error.message && error.message.includes('CORS')) {
         this.converter.showCorsWarning(); // CORS警告を表示
         alert(
           `CORS設定エラー:\n\nGoogle Cloud RunのAPIサーバーでCORS設定に問題があります。\n\n代替案:\n1. ローカルプロキシサーバーの使用\n2. サーバー管理者にCORS設定の修正を依頼\n\n詳細: ${error.message}`
@@ -321,37 +321,37 @@ export class IFCConverterUI {
         alert(`IFC変換エラー:\n${error.message}`);
       }
 
-      console.error("IFC変換エラー:", error);
+      console.error('IFC変換エラー:', error);
     }
   }
 
   async handleDirectSTBConversion(stbFile) {
     this.showProgress(true);
-    this.updateProgress(0, "STBファイル直接変換開始...");
+    this.updateProgress(0, 'STBファイル直接変換開始...');
 
     // サーバー状態確認
     const serverOk = await this.converter.checkServerHealth();
     if (!serverOk) {
       throw new Error(
-        "IFC変換APIサーバーが利用できません。\n\nインターネット接続を確認してから再度お試しください。"
+        'IFC変換APIサーバーが利用できません。\n\nインターネット接続を確認してから再度お試しください。'
       );
     }
 
-    this.updateProgress(25, "STBファイル送信中...");
+    this.updateProgress(25, 'STBファイル送信中...');
 
     // STBファイル直接変換
     const ifcBlob = await this.converter.convertSTBFileToIFC(stbFile, {
       include_geometry: true,
       include_materials: true,
-      units: "mm",
+      units: 'mm'
     });
 
-    this.updateProgress(100, "変換完了");
+    this.updateProgress(100, '変換完了');
 
     // ファイルダウンロード
     this.downloadIFCFile(
       ifcBlob,
-      `${stbFile.name.replace(".stb", "")}_converted.ifc`
+      `${stbFile.name.replace('.stb', '')}_converted.ifc`
     );
 
     setTimeout(() => this.showProgress(false), 1000);
@@ -363,37 +363,37 @@ export class IFCConverterUI {
 
     if (!modelData) {
       alert(
-        "変換するモデルデータがありません。まずSTBファイルを読み込んでください。"
+        '変換するモデルデータがありません。まずSTBファイルを読み込んでください。'
       );
       return;
     }
 
-    console.log("取得したモデルデータ:", modelData);
+    console.log('取得したモデルデータ:', modelData);
 
     this.showProgress(true);
-    this.updateProgress(0, "JSON変換開始...");
+    this.updateProgress(0, 'JSON変換開始...');
 
     // サーバー状態確認
     const serverOk = await this.converter.checkServerHealth();
     if (!serverOk) {
       throw new Error(
-        "IFC変換APIサーバーが利用できません。\n\nインターネット接続を確認してから再度お試しください。"
+        'IFC変換APIサーバーが利用できません。\n\nインターネット接続を確認してから再度お試しください。'
       );
     }
 
-    this.updateProgress(25, "JSON送信中...");
+    this.updateProgress(25, 'JSON送信中...');
 
     // IFC変換実行（従来方式）
     const ifcBlob = await this.converter.convertToIFC(modelData, {
       includeGeometry: true,
       includeMaterials: true,
-      units: "mm",
+      units: 'mm'
     });
 
-    this.updateProgress(100, "変換完了");
+    this.updateProgress(100, '変換完了');
 
     // ファイルダウンロード
-    this.downloadIFCFile(ifcBlob, "converted_model.ifc");
+    this.downloadIFCFile(ifcBlob, 'converted_model.ifc');
 
     setTimeout(() => this.showProgress(false), 1000);
   }
@@ -401,15 +401,15 @@ export class IFCConverterUI {
   getOriginalSTBFile() {
     // グローバル状態から元のSTBファイルを取得
     if (window.globalState && window.globalState.get) {
-      const originalFileA = window.globalState.get("files.originalFileA");
-      const originalFileB = window.globalState.get("files.originalFileB");
+      const originalFileA = window.globalState.get('files.originalFileA');
+      const originalFileB = window.globalState.get('files.originalFileB');
 
       // どちらか利用可能なファイルを返す（Aを優先）
       if (originalFileA) {
-        console.log("元のSTBファイルA を使用:", originalFileA.name);
+        console.log('元のSTBファイルA を使用:', originalFileA.name);
         return originalFileA;
       } else if (originalFileB) {
-        console.log("元のSTBファイルB を使用:", originalFileB.name);
+        console.log('元のSTBファイルB を使用:', originalFileB.name);
         return originalFileB;
       }
     }
@@ -418,39 +418,39 @@ export class IFCConverterUI {
     if (window.originalSTBFiles) {
       if (window.originalSTBFiles.fileA) {
         console.log(
-          "フォールバック: 元のSTBファイルA を使用:",
+          'フォールバック: 元のSTBファイルA を使用:',
           window.originalSTBFiles.fileA.name
         );
         return window.originalSTBFiles.fileA;
       } else if (window.originalSTBFiles.fileB) {
         console.log(
-          "フォールバック: 元のSTBファイルB を使用:",
+          'フォールバック: 元のSTBファイルB を使用:',
           window.originalSTBFiles.fileB.name
         );
         return window.originalSTBFiles.fileB;
       }
     }
 
-    console.log("元のSTBファイルが見つかりません");
+    console.log('元のSTBファイルが見つかりません');
     return null;
   }
 
   getCurrentModelData() {
     // グローバル状態から現在のモデルデータを取得
     if (window.globalState && window.globalState.get) {
-      const documentA = window.globalState.get("models.documentA");
-      const documentB = window.globalState.get("models.documentB");
-      const nodeMapA = window.globalState.get("models.nodeMapA");
-      const nodeMapB = window.globalState.get("models.nodeMapB");
-      const stories = window.globalState.get("models.stories");
-      const axesData = window.globalState.get("models.axesData");
+      const documentA = window.globalState.get('models.documentA');
+      const documentB = window.globalState.get('models.documentB');
+      const nodeMapA = window.globalState.get('models.nodeMapA');
+      const nodeMapB = window.globalState.get('models.nodeMapB');
+      const stories = window.globalState.get('models.stories');
+      const axesData = window.globalState.get('models.axesData');
 
-      console.log("グローバル状態から取得:", {
+      console.log('グローバル状態から取得:', {
         hasDocumentA: !!documentA,
         hasDocumentB: !!documentB,
         storiesCount: stories?.length || 0,
         nodeMapASize: nodeMapA?.size || 0,
-        nodeMapBSize: nodeMapB?.size || 0,
+        nodeMapBSize: nodeMapB?.size || 0
       });
 
       // XML文書からSTBデータを抽出
@@ -458,24 +458,24 @@ export class IFCConverterUI {
       let stbDataB = null;
 
       if (documentA) {
-        stbDataA = this.extractStbDataFromDocument(documentA, nodeMapA, "A");
+        stbDataA = this.extractStbDataFromDocument(documentA, nodeMapA, 'A');
       }
 
       if (documentB) {
-        stbDataB = this.extractStbDataFromDocument(documentB, nodeMapB, "B");
+        stbDataB = this.extractStbDataFromDocument(documentB, nodeMapB, 'B');
       }
 
       // 両方ある場合は統合、片方だけの場合はそれを返す
       if (stbDataA && stbDataB) {
         return this.mergeModels(stbDataA, stbDataB, stories, axesData);
       } else if (stbDataA) {
-        return this.enrichWithMetadata(stbDataA, stories, axesData, "A");
+        return this.enrichWithMetadata(stbDataA, stories, axesData, 'A');
       } else if (stbDataB) {
-        return this.enrichWithMetadata(stbDataB, stories, axesData, "B");
+        return this.enrichWithMetadata(stbDataB, stories, axesData, 'B');
       }
     }
 
-    console.log("グローバル状態またはモデルデータが見つかりません");
+    console.log('グローバル状態またはモデルデータが見つかりません');
     return null;
   }
 
@@ -485,53 +485,53 @@ export class IFCConverterUI {
     try {
       // 基本的なSTBデータ構造を抽出
       const projectName =
-        document.querySelector("StbCommon project_name")?.textContent ||
-        document.querySelector("StbCommon ProjectName")?.textContent ||
+        document.querySelector('StbCommon project_name')?.textContent ||
+        document.querySelector('StbCommon ProjectName')?.textContent ||
         `Model ${modelId}`;
 
       // 節点データを抽出
       const nodes = [];
-      const nodeElements = document.querySelectorAll("StbNode");
+      const nodeElements = document.querySelectorAll('StbNode');
       nodeElements.forEach((node) => {
         nodes.push({
-          id: node.getAttribute("id") || "",
-          x: parseFloat(node.getAttribute("X") || 0),
-          y: parseFloat(node.getAttribute("Y") || 0),
-          z: parseFloat(node.getAttribute("Z") || 0),
+          id: node.getAttribute('id') || '',
+          x: parseFloat(node.getAttribute('X') || 0),
+          y: parseFloat(node.getAttribute('Y') || 0),
+          z: parseFloat(node.getAttribute('Z') || 0)
         });
       });
 
       // 構造要素を抽出
       const elements = {
-        columns: this.extractElements(document, "StbColumn"),
-        girders: this.extractElements(document, "StbGirder"),
-        beams: this.extractElements(document, "StbBeam"),
-        braces: this.extractElements(document, "StbBrace"),
-        slabs: this.extractElements(document, "StbSlab"),
-        walls: this.extractElements(document, "StbWall"),
+        columns: this.extractElements(document, 'StbColumn'),
+        girders: this.extractElements(document, 'StbGirder'),
+        beams: this.extractElements(document, 'StbBeam'),
+        braces: this.extractElements(document, 'StbBrace'),
+        slabs: this.extractElements(document, 'StbSlab'),
+        walls: this.extractElements(document, 'StbWall')
       };
 
       // 軸データを抽出
       const axes = [];
-      const axisElements = document.querySelectorAll("StbAxis");
+      const axisElements = document.querySelectorAll('StbAxis');
       axisElements.forEach((axis) => {
         axes.push({
-          id: axis.getAttribute("id") || "",
-          name: axis.getAttribute("name") || "",
-          x: parseFloat(axis.getAttribute("X") || 0),
-          y: parseFloat(axis.getAttribute("Y") || 0),
-          z: parseFloat(axis.getAttribute("Z") || 0),
+          id: axis.getAttribute('id') || '',
+          name: axis.getAttribute('name') || '',
+          x: parseFloat(axis.getAttribute('X') || 0),
+          y: parseFloat(axis.getAttribute('Y') || 0),
+          z: parseFloat(axis.getAttribute('Z') || 0)
         });
       });
 
       // 階データを抽出
-      const storyElements = document.querySelectorAll("StbStory");
+      const storyElements = document.querySelectorAll('StbStory');
       const storyData = [];
       storyElements.forEach((story) => {
         storyData.push({
-          id: story.getAttribute("id") || "",
-          name: story.getAttribute("name") || "",
-          height: parseFloat(story.getAttribute("height") || 0),
+          id: story.getAttribute('id') || '',
+          name: story.getAttribute('name') || '',
+          height: parseFloat(story.getAttribute('height') || 0)
         });
       });
 
@@ -542,7 +542,7 @@ export class IFCConverterUI {
         girders: elements.girders.length,
         beams: elements.beams.length,
         axes: axes.length,
-        stories: storyData.length,
+        stories: storyData.length
       });
 
       return {
@@ -551,7 +551,7 @@ export class IFCConverterUI {
         nodes: nodes,
         ...elements,
         axes: axes,
-        stories: storyData,
+        stories: storyData
       };
     } catch (error) {
       console.error(`STBデータ抽出エラー (Model ${modelId}):`, error);
@@ -584,18 +584,18 @@ export class IFCConverterUI {
         source: `model_${modelId}`,
         extraction_time: new Date().toISOString(),
         global_stories: stories || [],
-        global_axes: axesData || { xAxes: [], yAxes: [] },
-      },
+        global_axes: axesData || { xAxes: [], yAxes: [] }
+      }
     };
   }
 
   mergeModels(modelA, modelB, stories, axesData) {
     // 2つのモデルを統合するロジック
     return {
-      project_name: `${modelA.project_name || "ModelA"} + ${
-        modelB.project_name || "ModelB"
+      project_name: `${modelA.project_name || 'ModelA'} + ${
+        modelB.project_name || 'ModelB'
       }`,
-      model_id: "merged",
+      model_id: 'merged',
 
       // 節点データを統合（重複除去）
       nodes: this.mergeNodeArrays(modelA.nodes || [], modelB.nodes || []),
@@ -616,12 +616,12 @@ export class IFCConverterUI {
       ),
 
       metadata: {
-        source: "merged",
+        source: 'merged',
         original_models: [modelA.model_id, modelB.model_id],
         merge_time: new Date().toISOString(),
         global_stories: stories || [],
-        global_axes: axesData || { xAxes: [], yAxes: [] },
-      },
+        global_axes: axesData || { xAxes: [], yAxes: [] }
+      }
     };
   }
 
@@ -678,15 +678,15 @@ export class IFCConverterUI {
   }
 
   showProgress(show) {
-    const progressDiv = document.getElementById("ifc-conversion-progress");
+    const progressDiv = document.getElementById('ifc-conversion-progress');
     if (progressDiv) {
-      progressDiv.style.display = show ? "block" : "none";
+      progressDiv.style.display = show ? 'block' : 'none';
     }
   }
 
   updateProgress(percentage, text) {
-    const progressFill = document.querySelector(".progress-fill");
-    const progressText = document.querySelector(".progress-text");
+    const progressFill = document.querySelector('.progress-fill');
+    const progressText = document.querySelector('.progress-text');
 
     if (progressFill) {
       progressFill.style.width = `${percentage}%`;
@@ -698,7 +698,7 @@ export class IFCConverterUI {
 
   downloadIFCFile(blob, filename) {
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
+    const a = document.createElement('a');
     a.href = url;
     a.download = filename;
     document.body.appendChild(a);
@@ -709,7 +709,7 @@ export class IFCConverterUI {
 }
 
 // スタイル追加
-const style = document.createElement("style");
+const style = document.createElement('style');
 style.textContent = `
   .conversion-progress {
     padding: 15px;

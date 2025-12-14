@@ -12,14 +12,14 @@
  * 保守性とパフォーマンスを向上させます。
  */
 
-import { getState, setState } from "../core/globalState.js";
-import { getAllLabels } from "./state.js";
+import { getState, setState } from '../core/globalState.js';
+import { getAllLabels } from './state.js';
 import {
   getCurrentStorySelection,
   getCurrentXAxisSelection,
-  getCurrentYAxisSelection,
-} from "./selectors.js";
-import labelDisplayManager from "../viewer/rendering/labelDisplayManager.js";
+  getCurrentYAxisSelection
+} from './selectors.js';
+import labelDisplayManager from '../viewer/rendering/labelDisplayManager.js';
 
 // ラベル更新のバッチ処理用
 let labelUpdateScheduled = false;
@@ -27,16 +27,16 @@ const pendingLabelUpdates = new Set();
 
 // ラベル内容タイプの定義
 export const LABEL_CONTENT_TYPES = {
-  ID: "id",
-  NAME: "name",
-  SECTION: "section",
+  ID: 'id',
+  NAME: 'name',
+  SECTION: 'section'
 };
 
 // ラベル内容の説明
 const CONTENT_TYPE_DESCRIPTIONS = {
-  [LABEL_CONTENT_TYPES.ID]: "タグ（デフォルト）",
-  [LABEL_CONTENT_TYPES.NAME]: "インスタンス名（Name）",
-  [LABEL_CONTENT_TYPES.SECTION]: "断面名（Section）",
+  [LABEL_CONTENT_TYPES.ID]: 'タグ（デフォルト）',
+  [LABEL_CONTENT_TYPES.NAME]: 'インスタンス名（Name）',
+  [LABEL_CONTENT_TYPES.SECTION]: '断面名（Section）'
 };
 
 /**
@@ -44,7 +44,7 @@ const CONTENT_TYPE_DESCRIPTIONS = {
  */
 export function initializeLabelManager() {
   console.log(
-    "[LabelManager] Initializing label management system"
+    '[LabelManager] Initializing label management system'
   );
 
   // ラベル内容選択リスナーを設定
@@ -54,7 +54,7 @@ export function initializeLabelManager() {
   setupLabelToggleListeners();
 
   console.log(
-    "[LabelManager] Label management system initialized"
+    '[LabelManager] Label management system initialized'
   );
 }
 
@@ -62,13 +62,13 @@ export function initializeLabelManager() {
  * ラベル内容変更リスナーを設定
  */
 function setupLabelContentListener() {
-  const labelContentSelector = document.getElementById("labelContentSelector");
+  const labelContentSelector = document.getElementById('labelContentSelector');
 
   if (labelContentSelector) {
-    labelContentSelector.addEventListener("change", handleLabelContentChange);
-    console.log("[LabelManager] Label content listener setup complete");
+    labelContentSelector.addEventListener('change', handleLabelContentChange);
+    console.log('[LabelManager] Label content listener setup complete');
   } else {
-    console.warn("[LabelManager] Label content selector not found");
+    console.warn('[LabelManager] Label content selector not found');
   }
 }
 
@@ -77,25 +77,25 @@ function setupLabelContentListener() {
  */
 function setupLabelToggleListeners() {
   const labelTypes = [
-    "Node",
-    "Column",
-    "Girder",
-    "Beam",
-    "Brace",
-    "Slab",
-    "Wall",
-    "Axis",
-    "Story",
+    'Node',
+    'Column',
+    'Girder',
+    'Beam',
+    'Brace',
+    'Slab',
+    'Wall',
+    'Axis',
+    'Story'
   ];
 
   labelTypes.forEach((type) => {
     const checkbox = document.getElementById(`toggleLabel-${type}`);
     if (checkbox) {
-      checkbox.addEventListener("change", () => handleLabelToggleChange(type));
+      checkbox.addEventListener('change', () => handleLabelToggleChange(type));
     }
   });
 
-  console.log("[LabelManager] Label toggle listeners setup complete");
+  console.log('[LabelManager] Label toggle listeners setup complete');
 }
 
 /**
@@ -109,7 +109,7 @@ function handleLabelContentChange(event) {
   );
 
   // グローバル状態を更新
-  setState("ui.labelContentType", newContentType);
+  setState('ui.labelContentType', newContentType);
 
   // 全ラベルを再生成・更新
   regenerateAllLabels();
@@ -133,7 +133,7 @@ function handleLabelToggleChange(elementType) {
  * @returns {string} ラベルに表示するテキスト
  */
 export function generateLabelText(element, elementType) {
-  const contentType = getState("ui.labelContentType") || LABEL_CONTENT_TYPES.ID;
+  const contentType = getState('ui.labelContentType') || LABEL_CONTENT_TYPES.ID;
 
   try {
     switch (contentType) {
@@ -176,13 +176,13 @@ function generateIdLabel(element, elementType) {
  */
 function generateNameLabel(element, elementType) {
   // STB形式での一般的な名前属性を試行
-  const nameFields = ["name", "instance_name", "label", "title"];
+  const nameFields = ['name', 'instance_name', 'label', 'title'];
 
   for (const field of nameFields) {
     if (
       element[field] &&
-      typeof element[field] === "string" &&
-      element[field].trim() !== ""
+      typeof element[field] === 'string' &&
+      element[field].trim() !== ''
     ) {
       return element[field];
     }
@@ -205,20 +205,22 @@ function generateSectionLabel(element, elementType) {
   }
 
   // 2. グローバル状態から断面マップを取得
-  const sectionMaps = getState("models.sectionMaps");
+  const sectionMaps = getState('models.sectionMaps');
   if (sectionMaps && element.id_section) {
     let sectionMap = null;
 
     // 要素タイプに応じて適切な断面マップを選択
     switch (elementType) {
-      case "Column":
+      case 'Column':
         sectionMap = sectionMaps.columnSections;
         break;
-      case "Beam":
-      case "Girder":
+      case 'Girder':
+        sectionMap = sectionMaps.girderSections || sectionMaps.beamSections;
+        break;
+      case 'Beam':
         sectionMap = sectionMaps.beamSections;
         break;
-      case "Brace":
+      case 'Brace':
         sectionMap = sectionMaps.braceSections;
         break;
     }
@@ -264,7 +266,7 @@ function performLabelVisibilityUpdate() {
   const allLabels = getAllLabels();
 
   if (allLabels.length === 0) {
-    console.log("[LabelManager] No labels to update");
+    console.log('[LabelManager] No labels to update');
     return;
   }
 
@@ -295,7 +297,7 @@ function performLabelVisibilityUpdate() {
   );
 
   // 再描画をリクエスト
-  const scheduleRender = getState("rendering.scheduleRender");
+  const scheduleRender = getState('rendering.scheduleRender');
   if (scheduleRender) {
     scheduleRender();
   }
@@ -323,11 +325,11 @@ function updateLabelVisibilityForType(elementType) {
   console.log(
     `[LabelManager] Updated ${
       typeLabels.length
-    } ${elementType} labels to ${isVisible ? "visible" : "hidden"}`
+    } ${elementType} labels to ${isVisible ? 'visible' : 'hidden'}`
   );
 
   // 再描画をリクエスト
-  const scheduleRender = getState("rendering.scheduleRender");
+  const scheduleRender = getState('rendering.scheduleRender');
   if (scheduleRender) {
     scheduleRender();
   }
@@ -381,7 +383,7 @@ function isLabelTypeVisible(elementType) {
 function isLabelWithinClippingBounds(label) {
   // 階クリッピング
   const storySelection = getCurrentStorySelection();
-  if (storySelection && storySelection !== "all") {
+  if (storySelection && storySelection !== 'all') {
     // 階クリッピングのロジック（既存のコードから移植）
     // 実装は省略
   }
@@ -403,13 +405,13 @@ function isLabelModelVisible(label) {
   const userData = label.userData;
 
   // モデルA/Bの表示状態をチェック
-  const showModelA = document.getElementById("toggleModelA")?.checked ?? true;
-  const showModelB = document.getElementById("toggleModelB")?.checked ?? true;
+  const showModelA = document.getElementById('toggleModelA')?.checked ?? true;
+  const showModelB = document.getElementById('toggleModelB')?.checked ?? true;
 
-  if (userData.modelSource === "A" && !showModelA) {
+  if (userData.modelSource === 'A' && !showModelA) {
     return false;
   }
-  if (userData.modelSource === "B" && !showModelB) {
+  if (userData.modelSource === 'B' && !showModelB) {
     return false;
   }
 
@@ -420,10 +422,10 @@ function isLabelModelVisible(label) {
  * 全ラベルを再生成
  */
 export function regenerateAllLabels() {
-  console.log("[LabelManager] Regenerating all labels");
+  console.log('[LabelManager] Regenerating all labels');
 
   // ラベル再生成ロジック
-  import("./labelRegeneration.js").then(
+  import('./labelRegeneration.js').then(
     ({ regenerateAllLabels: regenerateAllLabelsImpl }) => {
       if (regenerateAllLabelsImpl) {
         regenerateAllLabelsImpl();
@@ -457,7 +459,7 @@ export function getAvailableLabelContentTypes() {
  * この関数は colorModes.js から呼び出される
  */
 export function handleColorModeChange() {
-  console.log("[LabelManager] Handling color mode change");
+  console.log('[LabelManager] Handling color mode change');
 
   // ラベルの表示状態を再計算
   updateLabelVisibility();

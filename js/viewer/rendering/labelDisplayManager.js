@@ -5,25 +5,25 @@
  * BaseElementStateManagerを継承してシンプルな実装を提供します。
  */
 
-import { BaseElementStateManager } from "./baseElementStateManager.js";
+import { BaseElementStateManager } from './baseElementStateManager.js';
 
 /**
  * ラベル表示可能な要素タイプ
  */
 const LABEL_TYPES = [
-  "Node",
-  "Column",
-  "Girder",
-  "Beam",
-  "Brace",
-  "Post",
-  "Slab",
-  "Wall",
-  "Axis",
-  "Story",
-  "FoundationColumn",
-  "Footing",
-  "Pile",
+  'Node',
+  'Column',
+  'Girder',
+  'Beam',
+  'Brace',
+  'Post',
+  'Slab',
+  'Wall',
+  'Axis',
+  'Story',
+  'FoundationColumn',
+  'Footing',
+  'Pile'
 ];
 
 /**
@@ -33,7 +33,7 @@ const LABEL_TYPES = [
 class LabelDisplayManager extends BaseElementStateManager {
   constructor() {
     // 基底クラスのコンストラクタを呼び出し（デフォルトはすべて非表示）
-    super(LABEL_TYPES, false, "LabelDisplayManager");
+    super(LABEL_TYPES, false, 'LabelDisplayManager');
   }
 
   /**
@@ -43,7 +43,7 @@ class LabelDisplayManager extends BaseElementStateManager {
    * @protected
    */
   _validateState(state) {
-    return typeof state === "boolean";
+    return typeof state === 'boolean';
   }
 
   /**
@@ -196,11 +196,11 @@ class LabelDisplayManager extends BaseElementStateManager {
       callbackCounts: Object.fromEntries(
         Array.from(this.callbacks.entries()).map(([type, callbacks]) => [
           type,
-          callbacks.length,
+          callbacks.length
         ])
       ),
       globalCallbackCount: this.globalCallbacks.length,
-      debugMode: this.debugMode,
+      debugMode: this.debugMode
     };
   }
 }

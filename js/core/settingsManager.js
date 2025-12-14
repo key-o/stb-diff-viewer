@@ -26,7 +26,7 @@ export class SettingsManager {
 
     console.log('設定マネージャーが初期化されました');
   }
-  
+
   /**
    * デフォルト重要度設定を読み込む
    * @returns {Object} デフォルト設定オブジェクト
@@ -58,7 +58,7 @@ export class SettingsManager {
         'StbSecSlab_RC': 'medium',
         'StbSecWall_RC': 'medium'
       },
-      
+
       // 属性の重要度設定
       attributes: {
         'id': 'notApplicable',         // ID属性 - 対象外
@@ -72,7 +72,7 @@ export class SettingsManager {
         'rotate': 'low',               // 回転情報 - 低重要度
         'offset': 'low'                // オフセット情報 - 低重要度
       },
-      
+
       // XPathパターンベースの設定
       xpathPatterns: {
         // 構造要素全般
@@ -85,7 +85,7 @@ export class SettingsManager {
       }
     };
   }
-  
+
   /**
    * ユーザー設定をローカルストレージから読み込む
    * @returns {Object} ユーザー設定オブジェクト
@@ -101,7 +101,7 @@ export class SettingsManager {
     } catch (error) {
       console.warn('localStorageからのユーザー設定の読み込みに失敗しました:', error);
     }
-    
+
     return {
       elements: {},
       attributes: {},
@@ -109,7 +109,7 @@ export class SettingsManager {
       lastModified: null
     };
   }
-  
+
   /**
    * ユーザー設定をローカルストレージに保存する
    */
@@ -117,21 +117,21 @@ export class SettingsManager {
     try {
       // 最終更新時刻を設定
       this.userSettings.lastModified = new Date().toISOString();
-      
+
       localStorage.setItem(this.storageKey, JSON.stringify(this.userSettings));
       console.log('ユーザー設定をlocalStorageに保存しました');
-      
+
       // 設定保存イベントを発行
       this.notifySettingsSaved();
-      
+
     } catch (error) {
       console.error('ユーザー設定のlocalStorageへの保存に失敗しました:', error);
-      
+
       // 保存失敗イベントを発行
       this.notifySettingsError('設定の保存に失敗しました', error);
     }
   }
-  
+
   /**
    * 要素の重要度を取得する
    * @param {string} elementPath - 要素のパス（XPath形式）
@@ -142,20 +142,20 @@ export class SettingsManager {
     if (this.userSettings.elements[elementPath]) {
       return this.userSettings.elements[elementPath];
     }
-    
+
     if (this.userSettings.attributes[elementPath]) {
       return this.userSettings.attributes[elementPath];
     }
-    
+
     // 2. デフォルト設定から検索
     if (this.defaultSettings.elements[elementPath]) {
       return this.defaultSettings.elements[elementPath];
     }
-    
+
     if (this.defaultSettings.attributes[elementPath]) {
       return this.defaultSettings.attributes[elementPath];
     }
-    
+
     // 3. パターンマッチング（要素名ベース）
     const elementName = this.extractElementName(elementPath);
     if (elementName) {
@@ -165,7 +165,7 @@ export class SettingsManager {
           return importance;
         }
       }
-      
+
       // ユーザー設定から部分マッチを試行
       for (const [pattern, importance] of Object.entries(this.userSettings.elements)) {
         if (elementName.includes(pattern) || pattern.includes(elementName)) {
@@ -173,7 +173,7 @@ export class SettingsManager {
         }
       }
     }
-    
+
     // 4. 属性パターンマッチング
     if (elementPath.startsWith('@')) {
       const attrName = elementPath.substring(1);
@@ -183,11 +183,11 @@ export class SettingsManager {
         }
       }
     }
-    
+
     // 5. デフォルト値
     return 'low';
   }
-  
+
   /**
    * 要素の重要度を設定する
    * @param {string} elementPath - 要素のパス
@@ -198,31 +198,31 @@ export class SettingsManager {
     if (!this.validateImportanceLevel(importance)) {
       throw new Error(`無効な重要度レベル: ${importance}`);
     }
-    
+
     if (!this.validateElementPath(elementPath)) {
       console.warn(`無効な可能性のある要素パス: ${elementPath}`);
     }
-    
+
     // 設定カテゴリの判定
     const category = elementPath.startsWith('@') ? 'attributes' : 'elements';
-    
+
     // ユーザー設定に保存
     if (!this.userSettings[category]) {
       this.userSettings[category] = {};
     }
-    
+
     const oldImportance = this.getImportance(elementPath);
     this.userSettings[category][elementPath] = importance;
-    
+
     // 保存
     this.saveUserSettings();
-    
+
     // 変更通知
     this.notifyImportanceChanged(elementPath, importance, oldImportance);
-    
+
     console.log(`${elementPath}の重要度を設定しました: ${oldImportance} -> ${importance}`);
   }
-  
+
   /**
    * 要素パスから要素名を抽出する
    * @param {string} elementPath - 要素パス
@@ -234,15 +234,15 @@ export class SettingsManager {
     if (xpathMatch) {
       return xpathMatch[1];
     }
-    
+
     // 単純な要素名の場合
     if (elementPath.startsWith('Stb')) {
       return elementPath;
     }
-    
+
     return null;
   }
-  
+
   /**
    * 重要度レベルの妥当性を検証する
    * @param {string} importance - 重要度レベル
@@ -252,7 +252,7 @@ export class SettingsManager {
     const validLevels = ['high', 'medium', 'low', 'notApplicable'];
     return validLevels.includes(importance);
   }
-  
+
   /**
    * 要素パスの妥当性を検証する
    * @param {string} elementPath - 要素パス
@@ -262,7 +262,7 @@ export class SettingsManager {
     // XPath風のパスかチェック
     return /^(\/|\.)?(Stb[A-Za-z_]+|@[a-zA-Z_][a-zA-Z0-9_]*)/.test(elementPath);
   }
-  
+
   /**
    * 全設定をリセットする
    */
@@ -273,13 +273,13 @@ export class SettingsManager {
       xpathPatterns: {},
       lastModified: new Date().toISOString()
     };
-    
+
     this.saveUserSettings();
     this.notifySettingsReset();
-    
+
     console.log('設定をデフォルトにリセットしました');
   }
-  
+
   /**
    * 設定をエクスポートする
    * @returns {Object} エクスポート用設定オブジェクト
@@ -292,7 +292,7 @@ export class SettingsManager {
       userSettings: this.userSettings
     };
   }
-  
+
   /**
    * 設定をインポートする
    * @param {Object} settings - インポートする設定
@@ -304,13 +304,13 @@ export class SettingsManager {
       if (settings.version !== '1.0') {
         console.warn(`サポートされていない設定バージョン: ${settings.version}`);
       }
-      
+
       // 設定の妥当性チェック
       if (this.validateImportedSettings(settings.userSettings)) {
         this.userSettings = settings.userSettings;
         this.saveUserSettings();
         this.notifySettingsImported();
-        
+
         console.log('設定のインポートが成功しました');
         return true;
       } else {
@@ -322,7 +322,7 @@ export class SettingsManager {
       return false;
     }
   }
-  
+
   /**
    * インポートされた設定の妥当性を検証する
    * @param {Object} settings - 検証する設定
@@ -332,7 +332,7 @@ export class SettingsManager {
     if (!settings || typeof settings !== 'object') {
       return false;
     }
-    
+
     // 必要なプロパティの存在チェック
     const requiredProps = ['elements', 'attributes'];
     for (const prop of requiredProps) {
@@ -340,16 +340,16 @@ export class SettingsManager {
         return false;
       }
     }
-    
+
     // 重要度値の検証
     const allImportances = [
       ...Object.values(settings.elements),
       ...Object.values(settings.attributes)
     ];
-    
+
     return allImportances.every(importance => this.validateImportanceLevel(importance));
   }
-  
+
   /**
    * ローカルストレージの変更を監視する
    */
@@ -362,7 +362,7 @@ export class SettingsManager {
       }
     });
   }
-  
+
   /**
    * 設定変更リスナーを追加する
    * @param {Function} listener - リスナー関数
@@ -370,7 +370,7 @@ export class SettingsManager {
   addListener(listener) {
     this.listeners.add(listener);
   }
-  
+
   /**
    * 設定変更リスナーを削除する
    * @param {Function} listener - リスナー関数
@@ -378,7 +378,7 @@ export class SettingsManager {
   removeListener(listener) {
     this.listeners.delete(listener);
   }
-  
+
   /**
    * リスナーに通知する
    * @private
@@ -394,7 +394,7 @@ export class SettingsManager {
       }
     });
   }
-  
+
   /**
    * 重要度変更を通知する
    * @private
@@ -404,7 +404,7 @@ export class SettingsManager {
     const elementRatings = getImportanceState('elementRatings') || new Map();
     elementRatings.set(elementPath, newImportance);
     setImportanceState('elementRatings', elementRatings);
-    
+
     // イベント発行
     const event = new CustomEvent(IMPORTANCE_EVENTS.RATING_CHANGED, {
       detail: {
@@ -414,7 +414,7 @@ export class SettingsManager {
       }
     });
     document.dispatchEvent(event);
-    
+
     // リスナー通知
     this.notifyListeners('importanceChanged', {
       elementPath,
@@ -422,7 +422,7 @@ export class SettingsManager {
       oldImportance
     });
   }
-  
+
   /**
    * 設定保存完了を通知する
    * @private
@@ -435,10 +435,10 @@ export class SettingsManager {
       }
     });
     document.dispatchEvent(event);
-    
+
     this.notifyListeners('settingsSaved', this.userSettings);
   }
-  
+
   /**
    * 設定リセットを通知する
    * @private
@@ -446,7 +446,7 @@ export class SettingsManager {
   notifySettingsReset() {
     this.notifyListeners('settingsReset', {});
   }
-  
+
   /**
    * 設定インポート完了を通知する
    * @private
@@ -459,10 +459,10 @@ export class SettingsManager {
       }
     });
     document.dispatchEvent(event);
-    
+
     this.notifyListeners('settingsImported', this.userSettings);
   }
-  
+
   /**
    * 設定再読み込みを通知する
    * @private
@@ -475,10 +475,10 @@ export class SettingsManager {
       }
     });
     document.dispatchEvent(event);
-    
+
     this.notifyListeners('settingsReloaded', this.userSettings);
   }
-  
+
   /**
    * 設定エラーを通知する
    * @private
@@ -486,7 +486,7 @@ export class SettingsManager {
   notifySettingsError(message, error) {
     this.notifyListeners('settingsError', { message, error });
   }
-  
+
   /**
    * 現在の設定状態を取得する
    * @returns {Object} 設定状態
@@ -524,12 +524,12 @@ export function getGlobalSettingsManager() {
  */
 export function initializeSettingsManager() {
   globalSettingsManager = new SettingsManager();
-  
+
   // 開発時のデバッグ用にwindowに公開
   if (typeof window !== 'undefined') {
     window.importanceSettingsManager = globalSettingsManager;
   }
-  
+
   console.log('グローバル設定マネージャーが初期化されました');
   return globalSettingsManager;
 }

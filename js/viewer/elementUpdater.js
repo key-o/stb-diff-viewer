@@ -268,10 +268,15 @@ function generatePostMesh(postData, nodeMap, sections) {
  * 梁メッシュを生成
  */
 function generateBeamMesh(beamData, nodeMap, sections, elementType) {
+  // elementType に応じて適切な断面マップを選択
+  const sectionMap = elementType === 'Girder'
+    ? (sections.girderSections || sections.beamSections)
+    : (sections.beamSections || sections.girderSections);
+
   const meshes = ProfileBasedBeamGenerator.createBeamMeshes(
     [beamData],
     nodeMap,
-    sections.beamSections || sections.girderSections,
+    sectionMap,
     sections.steelSections,
     elementType,
     false

@@ -1,1341 +1,49 @@
 <!DOCTYPE html>
 <html lang="ja">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>STB Diff Viewer</title>
-    <link rel="stylesheet" href="./style/style.css" />
+    <link rel="stylesheet" href="./style/variables.css">
+    <link rel="stylesheet" href="./style/style.css">
+    <link rel="stylesheet" href="./style/utilities.css">
+    <link rel="stylesheet" href="./style/components/floating.css">
+    <link rel="stylesheet" href="./style/components/accordion.css">
+    <link rel="stylesheet" href="./style/components/buttons.css">
+    <link rel="stylesheet" href="./style/components/tree.css">
+    <link rel="stylesheet" href="./style/components/forms.css">
+    <link rel="stylesheet" href="./style/components/panels.css">
+    <link rel="stylesheet" href="./style/components/color-modes.css">
+    <link rel="stylesheet" href="./style/components/diff.css">
+    <link rel="stylesheet" href="./style/components/clipping.css">
+    <link rel="stylesheet" href="./style/components/comparison.css">
+    <link rel="stylesheet" href="./style/components/importance.css">
+    <link rel="stylesheet" href="./style/components/dxf.css">
+    <link rel="stylesheet" href="./style/components/diffList.css">
+    <link rel="stylesheet" href="./style/components/theme.css">
+    <link rel="stylesheet" href="./style/components/toast.css">
     <!-- Import map for bare module specifiers used in ES modules (browser) -->
     <script type="importmap">
       {
         "imports": {
           "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
           "camera-controls": "https://unpkg.com/camera-controls@3.1.0/dist/camera-controls.module.js"
         }
       }
     </script>
-    <!-- 要素情報パネル用のスタイル -->
-    <style>
-      /* 要素情報パネル専用スタイル（リサイズ機能付き） */
-      #component-info.component-info-resizable {
-        top: 10px;
-        left: 10px;
-        min-width: 300px;
-        min-height: 100px;
-        width: 30vw;
-        max-width: 70vw;
-        overflow: hidden; /* 外側のoverflowはhidden */
-        resize: both; /* リサイズ機能を保持 */
-        padding: 0; /* ヘッダーを含むのでパディングは0に */
-        display: none; /* 初期状態は非表示 */
-        flex-direction: column;
-      }
-
-      #component-info.visible {
-        display: flex; /* visibleクラスが付与された時に表示 */
-      }
-
-      /* 要素情報パネルのコンテンツエリア（flexレイアウト用） */
-      #component-info #component-info-content-wrapper {
-        flex: 1;
-        overflow: auto;
-        padding: 10px;
-        max-height: none; /* flexレイアウトで高さを管理 */
-      }
-      #component-info h3 {
-        margin-top: 0;
-        margin-bottom: 8px;
-        font-size: 1.1em;
-        color: #111;
-      }
-      #component-info pre {
-        margin: 0;
-        white-space: pre-wrap; /* 折り返し表示 */
-        word-wrap: break-word;
-      }
-      #element-info-content {
-        margin-top: 0;
-      }
-      /* 凡例パネルのスタイル */
-      #legendPanel {
-        position: fixed; /* 画面に対して固定 */
-        bottom: 10px; /* 画面下からの距離 */
-        left: 10px; /* 画面左からの距離 */
-        background-color: rgba(
-          240,
-          240,
-          240,
-          0.85
-        ); /* 背景色 (component-infoと合わせる) */
-        border: 1px solid #ccc; /* 境界線 (component-infoと合わせる) */
-        padding: 10px; /* パディング (component-infoと合わせる) */
-        min-width: 150px; /* 最小幅 */
-        max-width: 300px; /* 最大幅をビューポート基準に */
-        z-index: 10; /* 重なり順序 (component-infoと同じ) */
-        border-radius: 4px; /* 角丸 (component-infoと合わせる) */
-        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* 影 (component-infoと合わせる) */
-        /* display: none; はHTML要素のstyle属性で制御されるため、ここでは不要 */
-      }
-      /* ★★★ ここまで追加 ★★★ */
-
-      /* ★★★ 編集機能用スタイル ★★★ */
-      .btn {
-        padding: 4px 8px;
-        margin: 2px;
-        border: 1px solid #ccc;
-        border-radius: 3px;
-        background-color: #f8f9fa;
-        color: #495057; /* グレー文字を明示的に指定 */
-        cursor: pointer;
-        font-size: 0.8em;
-      }
-      .btn-primary {
-        background-color: #007bff;
-        color: white;
-        border-color: #007bff;
-      }
-      .btn-warning {
-        background-color: #ffc107;
-        color: #212529;
-        border-color: #ffc107;
-      }
-      .btn-success {
-        background-color: #28a745;
-        color: white;
-        border-color: #28a745;
-      }
-      .btn-danger {
-        background-color: #dc3545;
-        color: white;
-        border-color: #dc3545;
-      }
-      .btn-sm {
-        padding: 2px 6px;
-        font-size: 0.7em;
-      }
-      /* カメラモードボタンのアクティブ状態 */
-      .camera-mode-btn {
-        transition: all 0.2s ease;
-        background-color: #6c757d; /* グレー背景 */
-        color: white; /* 白文字 */
-        border-color: #6c757d;
-        font-weight: 500;
-      }
-      .camera-mode-btn.active {
-        background-color: #007bff; /* 青背景 */
-        color: white; /* 白文字 */
-        border-color: #007bff;
-        font-weight: 600;
-      }
-      .camera-mode-btn:hover {
-        background-color: #5a6268; /* 濃いグレー */
-        border-color: #5a6268;
-        color: white;
-      }
-      .camera-mode-btn.active:hover {
-        background-color: #0056b3; /* 濃い青 */
-        border-color: #0056b3;
-        color: white;
-      }
-      .edit-btn {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        color: #6c757d;
-        cursor: pointer;
-        font-size: 0.8em;
-        margin-left: 5px;
-        padding: 1px 3px;
-        border-radius: 2px;
-      }
-      .edit-btn:hover {
-        background-color: #e9ecef;
-        color: #495057;
-        border-color: #adb5bd;
-      }
-      #editing-controls {
-        background-color: #f8f9fa;
-        padding: 8px;
-        border-radius: 4px;
-        border: 1px solid #dee2e6;
-        margin-bottom: 10px;
-      }
-      /* ★★★ 編集機能用スタイル終了 ★★★ */
-
-      /* ★★★ 色分けUI用スタイル ★★★ */
-      #color-mode-controls {
-        background-color: #f8f9fa;
-        padding: 8px;
-        border-radius: 4px;
-        border: 1px solid #dee2e6;
-      }
-      .form-control {
-        width: 100%;
-        padding: 4px 8px;
-        border: 1px solid #ced4da;
-        border-radius: 3px;
-        font-size: 0.9em;
-      }
-      .color-legend-container {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 5px;
-      }
-      .legend-item {
-        display: flex;
-        align-items: center;
-        font-size: 0.75em;
-      }
-      .legend-color-box {
-        width: 24px;
-        height: 24px;
-        border: 2px solid #555;
-        margin-right: 8px;
-        display: inline-block;
-        border-radius: 4px;
-        cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-      }
-      .legend-color-box:hover {
-        border-color: #333;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-      }
-      .legend-label {
-        white-space: nowrap;
-        font-weight: 500;
-        color: #333;
-      }
-      /* 色付けモード用追加スタイル */
-      .element-color-settings {
-        display: none;
-        margin-top: 10px;
-        padding: 10px;
-        background-color: #f8f9fa;
-        border-radius: 6px;
-        border: 1px solid #e9ecef;
-      }
-      .schema-color-settings {
-        display: none;
-        margin-top: 10px;
-        padding: 10px;
-        background-color: #f8f9fa;
-        border-radius: 6px;
-        border: 1px solid #e9ecef;
-      }
-      .importance-color-settings {
-        display: none;
-        margin-top: 10px;
-        padding: 10px;
-        background-color: #f8f9fa;
-        border-radius: 6px;
-        border: 1px solid #e9ecef;
-      }
-      .color-setting-label {
-        font-size: 1em;
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 8px;
-        display: block;
-      }
-      .legend-item {
-        display: flex;
-        align-items: center;
-        font-size: 0.85em;
-        margin-bottom: 8px;
-        padding: 4px;
-        border-radius: 4px;
-        transition: background-color 0.2s;
-      }
-      .legend-item:hover {
-        background-color: rgba(0, 0, 0, 0.05);
-      }
-      /* 色プレビュー表示の改善 */
-      .color-preview {
-        width: 16px;
-        height: 16px;
-        border-radius: 50%;
-        border: 2px solid #fff;
-        box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
-        margin-left: 8px;
-        display: inline-block;
-      }
-      .color-setting-help {
-        font-size: 0.8em;
-        color: #666;
-        margin-bottom: 8px;
-        font-style: italic;
-      }
-      .margin-left-8 {
-        margin-left: 8px;
-      }
-      .legend-panel-hidden {
-        display: none;
-      }
-      .legend-color-matched {
-        background-color: #00aaff;
-      }
-      .legend-color-onlya {
-        background-color: #00ff00;
-      }
-      .legend-color-onlyb {
-        background-color: #ff0000;
-      }
-      .editing-summary {
-        margin-top: 8px;
-        font-size: 0.9em;
-      }
-      .legend-color {
-        width: 12px;
-        height: 12px;
-        border: 1px solid #ccc;
-        margin-right: 4px;
-        display: inline-block;
-      }
-      .placement-line-control {
-        margin-left: 20px;
-        margin-top: 8px;
-        font-size: 0.9em;
-        color: #666;
-      }
-
-      /* ★★★ アコーディオンスタイル ★★★ */
-      .accordion-section {
-        border: 1px solid #dee2e6;
-        border-radius: 6px;
-        margin-bottom: 8px;
-        background: #fff;
-        overflow: hidden;
-      }
-
-      .accordion-header {
-        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-        border-bottom: 1px solid #dee2e6;
-        padding: 12px 15px;
-        cursor: pointer;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-weight: 600;
-        color: #495057;
-        transition: all 0.2s ease;
-        user-select: none;
-      }
-
-      .accordion-header:hover {
-        background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
-        color: #212529;
-      }
-
-      .accordion-header span:first-child {
-        display: flex;
-        align-items: center;
-        font-size: 0.95em;
-      }
-
-      .accordion-arrow {
-        font-size: 0.8em;
-        transition: transform 0.3s ease;
-        color: #6c757d;
-      }
-
-      .accordion-header.collapsed .accordion-arrow {
-        transform: rotate(-90deg);
-      }
-
-      .accordion-content {
-        padding: 15px;
-        background: #fff;
-        transition: all 0.3s ease;
-        max-height: 1000px;
-        overflow: hidden;
-      }
-
-      .accordion-content.collapsed {
-        max-height: 0;
-        padding-top: 0;
-        padding-bottom: 0;
-        opacity: 0;
-      }
-
-      /* アコーディオン内の要素の調整 */
-      .accordion-content hr {
-        margin: 15px 0;
-        border: none;
-        border-top: 1px solid #dee2e6;
-      }
-
-      .accordion-content label {
-        margin-bottom: 8px;
-        font-size: 0.9em;
-      }
-
-      /* ファイル選択ボタンと選択ファイル名を縦に並べるためのラッパー */
-      .file-input-wrapper {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        margin-bottom: 10px;
-        max-width: 100%;
-      }
-
-      /* カスタムファイル選択ボタンとファイル名表示 */
-      /* input を display:none にすると一部ブラウザで programmatic click が無効になるため
-         画面外へ配置して隠す（クリックは可能） */
-      .file-input-wrapper input[type="file"] {
-        position: absolute;
-        left: -9999px;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-      }
-
-      .custom-file-btn {
-        display: inline-block;
-        padding: 6px 10px;
-        border: 1px solid #ccc;
-        background: #fff;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 0.9em;
-        color: #212529; /* 明示的に文字色を指定して白文字にならないようにする */
-        text-align: center;
-        align-self: flex-start; /* 親のflexで幅全体に伸びないようにする */
-      }
-
-      .custom-file-btn:hover {
-        background: #f1f3f5;
-      }
-
-      .selected-filename {
-        font-size: 0.9em;
-        color: #333;
-        min-height: 1.2em;
-        word-break: break-all;
-      }
-
-      /* ⚠️ 警告: 視認性を意図的に悪くする特殊クラス
-         このクラスは非推奨です。視認性とアクセシビリティの観点から使用を避けてください。
-         実際のスタイルが有効になるのは両方のクラスが付与された場合のみ。
-         これは誤って他箇所で使われるのを防ぐためのセーフガードです。
-         新規実装では使用せず、適切なコントラストを持つスタイルを使用してください。
-         例: <button class="allow-white-on-white white-on-white">... */
-      .allow-white-on-white.white-on-white {
-        background: #fff;
-        color: #fff;
-        border: 1px solid #e9ecef;
-        padding: 6px 10px;
-        border-radius: 4px;
-      }
-
-      .accordion-content select,
-      .accordion-content input[type="file"],
-      .accordion-content button {
-        margin-bottom: 10px;
-      }
-
-      .accordion-content button {
-        font-size: 0.85em;
-        padding: 8px 12px;
-      }
-
-      /* 初期表示で開いているセクションの調整 */
-      .accordion-section:first-child .accordion-content,
-      .accordion-section:nth-child(2) .accordion-content,
-      .accordion-section:nth-child(3) .accordion-content {
-        /* ファイル読み込み、表示設定、要素表示設定は初期表示で開く */
-      }
-      /* ★★★ アコーディオンスタイル終了 ★★★ */
-
-      /* ★★★ 差分比較UI用スタイル ★★★ */
-      .diff-comparison-intro p {
-        font-size: 0.9em;
-        color: #666;
-        margin: 0 0 10px 0;
-      }
-
-      .btn-primary.compare-button {
-        background: #007bff;
-        color: white;
-        border: none;
-        padding: 10px 15px;
-        border-radius: 5px;
-        font-weight: bold;
-        cursor: pointer;
-        transition: background-color 0.2s;
-      }
-
-      .btn-primary.compare-button:hover {
-        background: #0056b3;
-      }
-
-      #diff-summary {
-        display: none;
-        margin-top: 15px;
-        padding: 10px;
-        background: #f8f9fa;
-        border-radius: 5px;
-        border-left: 4px solid #007bff;
-      }
-
-      .diff-summary-title {
-        font-weight: bold;
-        margin-bottom: 8px;
-        color: #495057;
-      }
-
-      #diff-summary-content {
-        font-size: 0.9em;
-        color: #666;
-      }
-
-      .diff-stat-item {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 4px;
-        padding: 2px 0;
-      }
-
-      .diff-stat-value {
-        font-weight: 600;
-        color: #495057;
-      }
-
-      .diff-stat-matched {
-        color: #007bff;
-      }
-
-      .diff-stat-only-a {
-        color: #28a745;
-      }
-
-      .diff-stat-only-b {
-        color: #dc3545;
-      }
-      .diff-mode-description {
-        font-size: 0.9em;
-        color: #666;
-        margin-bottom: 8px;
-      }
-
-      .legend-description {
-        font-size: 0.9em;
-        color: #666;
-      }
-
-      /* ★★★ 差分比較UI用スタイル終了 ★★★ */
-
-      /* ★★★ クリッピング範囲調整スタイル ★★★ */
-      .clipping-group {
-        margin-bottom: 20px;
-      }
-
-      .clip-range-controls {
-        margin-top: 10px;
-        padding: 12px;
-        background: #f8f9fa;
-        border-radius: 6px;
-        border: 1px solid #e9ecef;
-        animation: slideDown 0.3s ease;
-      }
-
-      @keyframes slideDown {
-        from {
-          opacity: 0;
-          max-height: 0;
-          padding-top: 0;
-          padding-bottom: 0;
-        }
-        to {
-          opacity: 1;
-          max-height: 100px;
-          padding-top: 12px;
-          padding-bottom: 12px;
-        }
-      }
-
-      .range-control-group {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .range-control-group label {
-        font-size: 0.85em;
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 4px;
-      }
-
-      .range-slider-container {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .range-label {
-        font-size: 0.75em;
-        color: #6c757d;
-        white-space: nowrap;
-        min-width: 30px;
-        text-align: center;
-      }
-
-      .clip-range-slider {
-        flex: 1;
-        height: 6px;
-        background: #dee2e6;
-        border-radius: 3px;
-        outline: none;
-        -webkit-appearance: none;
-        appearance: none;
-      }
-
-      .clip-range-slider::-webkit-slider-thumb {
-        -webkit-appearance: none;
-        appearance: none;
-        width: 18px;
-        height: 18px;
-        background: #007bff;
-        border-radius: 50%;
-        cursor: pointer;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        transition: all 0.2s ease;
-      }
-
-      .clip-range-slider::-webkit-slider-thumb:hover {
-        background: #0056b3;
-        transform: scale(1.1);
-      }
-
-      .clip-range-slider::-moz-range-thumb {
-        width: 18px;
-        height: 18px;
-        background: #007bff;
-        border-radius: 50%;
-        cursor: pointer;
-        border: none;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        transition: all 0.2s ease;
-      }
-
-      .clip-range-slider::-moz-range-thumb:hover {
-        background: #0056b3;
-        transform: scale(1.1);
-      }
-
-      .range-value-display {
-        text-align: center;
-        font-size: 0.9em;
-        font-weight: 600;
-        color: #495057;
-        background: #fff;
-        padding: 4px 8px;
-        border-radius: 4px;
-        border: 1px solid #dee2e6;
-        min-width: 60px;
-      }
-
-      .clip-apply-btn {
-        background: #28a745;
-        color: white;
-        border: none;
-        padding: 6px 12px;
-        border-radius: 4px;
-        font-size: 0.85em;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-        margin-top: 5px;
-      }
-
-      .clip-apply-btn:hover {
-        background: #218838;
-      }
-
-      .clip-apply-btn:active {
-        background: #1e7e34;
-      }
-
-      .clear-clip-btn {
-        background: #dc3545;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        font-size: 0.85em;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-      }
-
-      .clear-clip-btn:hover {
-        background: #c82333;
-      }
-
-      .preview-clip-btn {
-        background: #17a2b8;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        font-size: 0.85em;
-        cursor: pointer;
-        transition: background-color 0.2s ease;
-        margin-left: 8px;
-      }
-
-      .preview-clip-btn:hover {
-        background: #138496;
-      }
-
-      .clipping-controls {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-top: 10px;
-      }
-
-      /* クリッピング状態インジケーター */
-      .clipping-active {
-        border-left: 4px solid #28a745;
-        background: linear-gradient(135deg, #f8fff9 0%, #f1f9f1 100%);
-      }
-
-      .clipping-group.active .clip-apply-btn {
-        background: #ffc107;
-        color: #212529;
-      }
-
-      .clipping-group.active .clip-apply-btn:hover {
-        background: #e0a800;
-      }
-      /* ★★★ クリッピング範囲調整スタイル終了 ★★★ */
-
-      /* ★★★ CORS問題対応UI ★★★ */
-      .cors-warning {
-        background: #fff3cd;
-        border: 1px solid #ffeaa7;
-        border-radius: 4px;
-        padding: 10px;
-        margin: 10px 0;
-        font-size: 0.9em;
-        color: #856404;
-        display: none;
-      }
-
-      .cors-warning .warning-title {
-        font-weight: bold;
-        margin-bottom: 8px;
-        color: #d63031;
-      }
-
-      .cors-solutions {
-        margin-top: 8px;
-      }
-
-      .cors-solutions ol {
-        margin: 8px 0;
-        padding-left: 20px;
-      }
-
-      .cors-solutions li {
-        margin-bottom: 4px;
-      }
-
-      .cors-link {
-        color: #007bff;
-        text-decoration: underline;
-        cursor: pointer;
-      }
-      /* ★★★ CORS問題対応UI終了 ★★★ */
-
-      /* ★★★ 比較キー選択UI ★★★ */
-      .comparison-key-selector {
-        background-color: #f8f9fa;
-        padding: 10px;
-        border-radius: 6px;
-        border: 1px solid #e9ecef;
-      }
-
-      .comparison-key-settings {
-        margin-top: 12px;
-      }
-
-      .comparison-key-settings.hidden {
-        display: none;
-      }
-
-      .settings-separator {
-        margin: 15px 0;
-        border: none;
-        border-top: 1px solid #ddd;
-      }
-
-      .selector-header {
-        margin-bottom: 10px;
-      }
-
-      .selector-label {
-        font-weight: 600;
-        font-size: 0.95em;
-        color: #495057;
-      }
-
-      .selector-options {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .selector-option {
-        background: white;
-        padding: 8px 10px;
-        border: 1px solid #dee2e6;
-        border-radius: 4px;
-        transition: all 0.2s ease;
-      }
-
-      .selector-option:hover {
-        background: #f1f3f5;
-        border-color: #adb5bd;
-      }
-
-      .radio-label {
-        display: flex;
-        align-items: flex-start;
-        cursor: pointer;
-        width: 100%;
-      }
-
-      .radio-label input[type="radio"] {
-        margin-right: 8px;
-        margin-top: 2px;
-        flex-shrink: 0;
-        cursor: pointer;
-      }
-
-      .radio-text {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-      }
-
-      .radio-text strong {
-        font-size: 0.9em;
-        color: #212529;
-      }
-
-      .radio-description {
-        font-size: 0.8em;
-        color: #6c757d;
-        line-height: 1.4;
-      }
-
-      .selector-info {
-        margin-top: 10px;
-        padding-top: 8px;
-        border-top: 1px solid #dee2e6;
-      }
-
-      .selector-info small {
-        font-size: 0.75em;
-        color: #6c757d;
-        font-style: italic;
-      }
-      /* ★★★ 比較キー選択UI終了 ★★★ */
-
-      /* ★★★ 要素表示設定フローティングウィンドウ ★★★ */
-      /* 要素表示設定ウィンドウ専用スタイル */
-      #element-settings-float {
-        left: calc(50% - 160px); /* 中央寄せ (min-widthの半分) */
-        min-width: 320px;
-        max-width: 400px;
-      }
-
-      /* 表示モード設定ウィンドウ専用スタイル */
-      #display-settings-float {
-        min-width: 400px;
-        max-width: 500px;
-      }
-
-      /* 表示範囲設定ウィンドウ専用スタイル */
-      #clipping-settings-float {
-        min-width: 400px;
-        max-width: 500px;
-      }
-
-      .float-window-header {
-        background-color: #4a5568;
-        color: white;
-        padding: 8px 12px;
-        cursor: move;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        border-radius: 4px 4px 0 0;
-        user-select: none;
-      }
-
-      .float-window-title {
-        font-weight: bold;
-        font-size: 0.95em;
-      }
-
-      .float-window-controls {
-        display: flex;
-        gap: 8px;
-      }
-
-      .float-window-btn {
-        background: none;
-        border: none;
-        color: white;
-        cursor: pointer;
-        padding: 2px 6px;
-        border-radius: 3px;
-        font-size: 0.9em;
-      }
-
-      .float-window-btn:hover {
-        background-color: rgba(255, 255, 255, 0.2);
-      }
-
-      .float-window-content {
-        padding: 12px;
-      }
-
-      .float-window-content label {
-        display: block;
-        margin-bottom: 6px;
-        font-size: 0.85em;
-      }
-
-      .float-window-content input[type="checkbox"] {
-        margin-right: 5px;
-      }
-
-      .float-window-content hr {
-        margin: 10px 0;
-        border: none;
-        border-top: 1px solid #ddd;
-      }
-
-      .margin-left-8 {
-        margin-left: 8px;
-      }
-
-      /* トグルボタン共通スタイル */
-      #toggle-element-settings-btn,
-      #toggle-display-settings-btn,
-      #toggle-clipping-settings-btn,
-      #toggle-component-info-btn,
-      #toggle-element-tree-btn,
-      #toggle-section-tree-btn {
-        background-color: #4a5568;
-        color: white;
-        border: none;
-        padding: 10px 15px;
-        border-radius: 5px;
-        cursor: pointer;
-        font-size: 0.9em;
-        width: calc(100% - 10px);
-        margin-top: 10px;
-      }
-
-      #toggle-element-settings-btn:hover,
-      #toggle-display-settings-btn:hover,
-      #toggle-clipping-settings-btn:hover,
-      #toggle-component-info-btn:hover,
-      #toggle-element-tree-btn:hover,
-      #toggle-section-tree-btn:hover {
-        background-color: #2d3748;
-      }
-
-      /* グループ化モード選択 */
-      .grouping-mode-select {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        border-radius: 3px;
-        padding: 3px 6px;
-        font-size: 0.75em;
-        cursor: pointer;
-        margin-right: 8px;
-      }
-
-      .grouping-mode-select:hover {
-        background-color: #e9ecef;
-      }
-      /* ★★★ フローティングウィンドウ終了 ★★★ */
-
-      /* ★★★ フローティングウィンドウ共通スタイル ★★★ */
-      .floating-window {
-        position: fixed;
-        top: 80px;
-        left: calc(50% - 200px); /* 中央寄せ */
-        background-color: rgba(240, 240, 240, 0.95);
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        min-width: 400px;
-        max-width: 600px;
-        max-height: 80vh;
-        z-index: 100;
-        font-size: 0.9em;
-        color: #333;
-        display: none; /* 初期状態は非表示 */
-      }
-
-      .floating-window.visible {
-        display: block; /* visibleクラスが付与された時に表示 */
-      }
-
-      /* フローティングウィンドウのコンテンツエリア */
-      .floating-window:not(#component-info) .float-window-content {
-        max-height: calc(80vh - 50px); /* ヘッダー分を引く */
-        overflow-y: auto;
-        padding: 12px;
-      }
-      /* ★★★ フローティングウィンドウ共通スタイル終了 ★★★ */
-
-      /* ★★★ ツリー表示スタイル ★★★ */
-      #element-tree-float {
-        min-width: 350px;
-        max-width: 500px;
-        left: 10px;
-        top: 80px;
-      }
-
-      #element-tree-container {
-        max-height: calc(80vh - 50px);
-        overflow-y: auto;
-        font-size: 0.9em;
-      }
-
-      .tree-node {
-        user-select: none;
-        margin: 2px 0;
-      }
-
-      .tree-node-header {
-        display: flex;
-        align-items: center;
-        padding: 4px 6px;
-        cursor: pointer;
-        border-radius: 3px;
-        transition: background-color 0.15s ease;
-      }
-
-      .tree-node-header:hover {
-        background-color: rgba(0, 0, 0, 0.05);
-      }
-
-      .tree-node-header.selected {
-        background-color: rgba(0, 123, 255, 0.2);
-        font-weight: 600;
-      }
-
-      .tree-toggle {
-        width: 16px;
-        height: 16px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        margin-right: 4px;
-        font-size: 0.7em;
-        transition: transform 0.2s ease;
-        cursor: pointer;
-      }
-
-      .tree-toggle.collapsed {
-        transform: rotate(-90deg);
-      }
-
-      .tree-toggle.empty {
-        visibility: hidden;
-      }
-
-      .tree-node-label {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-
-      .tree-node-icon {
-        font-size: 1em;
-      }
-
-      .tree-node-text {
-        font-size: 0.85em;
-      }
-
-      .tree-node-count {
-        font-size: 0.75em;
-        color: #666;
-        margin-left: 4px;
-      }
-
-      .tree-node-children {
-        margin-left: 20px;
-        overflow: hidden;
-        transition: max-height 0.3s ease, opacity 0.2s ease;
-      }
-
-      .tree-node-children.collapsed {
-        max-height: 0;
-        opacity: 0;
-      }
-
-      .tree-node-children.expanded {
-        max-height: 10000px;
-        opacity: 1;
-      }
-
-      .tree-leaf-node .tree-node-header {
-        padding-left: 24px;
-      }
-
-      .tree-element-info {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        flex: 1;
-      }
-
-      .tree-element-id {
-        font-family: monospace;
-        font-size: 0.8em;
-        color: #495057;
-      }
-
-      .tree-element-guid {
-        font-family: monospace;
-        font-size: 0.65em;
-        color: #868e96;
-        font-style: italic;
-        margin-top: 1px;
-      }
-
-      .tree-element-status {
-        font-size: 0.7em;
-        padding: 2px 4px;
-        border-radius: 2px;
-        margin-left: 6px;
-        align-self: flex-start;
-      }
-
-      .tree-element-status.matched {
-        background-color: #e7f3ff;
-        color: #0066cc;
-      }
-
-      .tree-element-status.onlyA {
-        background-color: #e8f5e9;
-        color: #2e7d32;
-      }
-
-      .tree-element-status.onlyB {
-        background-color: #ffebee;
-        color: #c62828;
-      }
-
-      /* ★★★ 断面ツリー表示スタイル ★★★ */
-      #section-tree-float {
-        min-width: 380px;
-        max-width: 550px;
-        left: 380px; /* 要素ツリーの右側に配置 */
-        top: 80px;
-      }
-
-      #section-tree-container {
-        max-height: calc(80vh - 50px);
-        overflow-y: auto;
-        font-size: 0.9em;
-      }
-
-      /* 断面タイプコンテナ */
-      .section-type-container {
-        margin: 8px 0;
-      }
-
-      .section-type-header {
-        display: flex;
-        align-items: center;
-        padding: 8px 10px;
-        cursor: pointer;
-        background-color: #f8f9fa;
-        border-radius: 4px;
-        border-left: 3px solid #6c757d;
-        transition: background-color 0.15s ease;
-      }
-
-      .section-type-header:hover {
-        background-color: #e9ecef;
-      }
-
-      .section-type-name {
-        font-weight: 600;
-        font-size: 0.95em;
-        color: #343a40;
-        flex: 1;
-        margin-left: 6px;
-      }
-
-      .section-count {
-        font-size: 0.75em;
-        color: #6c757d;
-        background-color: #dee2e6;
-        padding: 2px 8px;
-        border-radius: 10px;
-      }
-
-      .sections-container {
-        margin-left: 12px;
-        margin-top: 4px;
-      }
-
-      /* 個別断面アイテム */
-      .section-item-container {
-        margin: 6px 0;
-      }
-
-      .section-item-header {
-        display: flex;
-        align-items: center;
-        padding: 6px 8px;
-        cursor: pointer;
-        background-color: #ffffff;
-        border: 1px solid #dee2e6;
-        border-radius: 3px;
-        transition: all 0.15s ease;
-      }
-
-      .section-item-header:hover {
-        background-color: #f1f3f5;
-        border-color: #adb5bd;
-      }
-
-      .section-icon {
-        margin-right: 6px;
-        font-size: 1em;
-      }
-
-      .section-info {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-        margin-left: 4px;
-      }
-
-      .section-name {
-        font-family: monospace;
-        font-size: 0.85em;
-        color: #212529;
-        font-weight: 500;
-      }
-
-      .section-type-label {
-        font-size: 0.7em;
-        color: #6c757d;
-        background-color: #f8f9fa;
-        padding: 1px 5px;
-        border-radius: 2px;
-        align-self: flex-start;
-      }
-
-      .element-count {
-        font-size: 0.75em;
-        color: #495057;
-        background-color: #e9ecef;
-        padding: 2px 6px;
-        border-radius: 8px;
-      }
-
-      .section-elements-container {
-        margin-left: 24px;
-        margin-top: 4px;
-      }
-
-      /* 要素グループコンテナ（階/符号ごと） */
-      .element-group-container {
-        margin: 4px 0;
-      }
-
-      .element-group-header {
-        display: flex;
-        align-items: center;
-        padding: 5px 8px;
-        cursor: pointer;
-        background-color: #f8f9fa;
-        border-radius: 3px;
-        transition: background-color 0.15s ease;
-      }
-
-      .element-group-header:hover {
-        background-color: #e9ecef;
-      }
-
-      .group-name {
-        font-size: 0.8em;
-        color: #495057;
-        font-weight: 500;
-        margin-left: 4px;
-        flex: 1;
-      }
-
-      .group-count {
-        font-size: 0.7em;
-        color: #6c757d;
-        background-color: #dee2e6;
-        padding: 1px 6px;
-        border-radius: 8px;
-      }
-
-      .group-elements-container {
-        margin-left: 16px;
-        margin-top: 2px;
-      }
-
-      /* 個別要素アイテム */
-      .section-tree-element-item {
-        display: flex;
-        align-items: flex-start;
-        padding: 4px 6px 4px 8px;
-        cursor: pointer;
-        border-left: 2px solid transparent;
-        border-radius: 2px;
-        transition: all 0.15s ease;
-      }
-
-      .section-tree-element-item:hover {
-        background-color: #f8f9fa;
-        border-left-color: #228be6;
-      }
-
-      .section-toggle,
-      .group-toggle {
-        font-size: 0.8em;
-        margin-right: 4px;
-        transition: transform 0.2s ease;
-      }
-
-      .section-toggle.expanded,
-      .group-toggle.expanded {
-        transform: rotate(90deg);
-      }
-
-      /* ★★★ 断面ツリー表示スタイル終了 ★★★ */
-
-      /* ★★★ ツリー表示スタイル終了 ★★★ */
-    </style>
+    <!-- DXF Parser Library -->
+    <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
   </head>
   <body>
     <div id="overlay">
       <!-- モデル読み込みと比較セクション -->
       <div class="accordion-section">
-        <div class="accordion-header" data-target="file-loading">
+        <div class="accordion-header" data-target="file-loading" role="button" tabindex="0" aria-controls="file-loading" aria-expanded="true">
           <span>📊 モデル読み込みと比較</span>
           <span class="accordion-arrow">▼</span>
         </div>
-        <div class="accordion-content" id="file-loading">
+        <div class="accordion-content" id="file-loading" aria-hidden="false">
           <div class="diff-comparison-intro">
             <p>2つのSTBモデルを比較して差分を確認します</p>
           </div>
@@ -1344,7 +52,7 @@
             <button type="button" class="custom-file-btn" data-target="fileA">
               ファイルを選択
             </button>
-            <input type="file" id="fileA" accept=".stb,.xml" />
+            <input type="file" id="fileA" accept=".stb,.xml">
             <div class="selected-filename" id="fileA-name">
               選択されていません
             </div>
@@ -1355,20 +63,20 @@
             <button type="button" class="custom-file-btn" data-target="fileB">
               ファイルを選択
             </button>
-            <input type="file" id="fileB" accept=".stb,.xml" />
+            <input type="file" id="fileB" accept=".stb,.xml">
             <div class="selected-filename" id="fileB-name">
               選択されていません
             </div>
           </div>
 
-          <hr style="margin: 15px 0" />
+          <hr class="section-divider">
 
-          <button id="compareButton" class="btn-primary compare-button">
+          <button type="button" id="compareButton" class="btn-primary compare-button">
             🔍 STB読込
           </button>
 
           <!-- 差分結果サマリー表示エリア -->
-          <div id="diff-summary">
+          <div id="diff-summary" class="hidden">
             <div class="diff-summary-title">📈 差分サマリー</div>
             <div id="diff-summary-content">
               <!-- 動的に生成される差分統計 -->
@@ -1377,40 +85,54 @@
         </div>
       </div>
 
-      <!-- 表示モード設定セクション -->
-      <button id="toggle-display-settings-btn">🎨 表示モード設定</button>
+      <!-- 表示設定セクションをモデル読み込みの下に移動（初期開いた状態） -->
+      <div class="accordion-section">
+        <div class="accordion-header" data-target="display-group-settings" role="button" tabindex="0" aria-controls="display-group-settings" aria-expanded="true">
+          <span>👁️ 表示設定</span>
+          <span class="accordion-arrow">▼</span>
+        </div>
+        <div class="accordion-content" id="display-group-settings" aria-hidden="false">
+          <!-- 表示要素設定セクション -->
+          <button type="button" id="toggle-element-settings-btn" aria-controls="element-settings-float" aria-expanded="false">🏗️ 表示要素設定</button>
 
-      <!-- 表示要素設定セクション -->
-      <button id="toggle-element-settings-btn">🏗️ 表示要素設定</button>
+          <!-- 表示範囲設定セクション -->
+          <button type="button" id="toggle-clipping-settings-btn" aria-controls="clipping-settings-float" aria-expanded="false">✂️ 表示範囲設定</button>
 
-      <!-- 表示範囲設定セクション -->
-      <button id="toggle-clipping-settings-btn">✂️ 表示範囲設定</button>
+          <!-- 表示モード設定セクション -->
+          <button type="button" id="toggle-camera-settings-btn" aria-controls="camera-settings-float" aria-expanded="false">🔄 表示モード設定</button>
+        </div>
+      </div>
+
+      <!-- 色付けモード設定セクション -->
+      <button type="button" id="toggle-display-settings-btn" aria-controls="display-settings-float" aria-expanded="false">🎨 色付けモード設定</button>
+
+      <!-- 許容差設定セクション -->
+      <button type="button" id="toggle-tolerance-settings-btn" aria-controls="tolerance-settings-float" aria-expanded="false">⚙️ 許容差設定</button>
+
 
       <!-- 要素情報パネル -->
-      <button id="toggle-component-info-btn">📋 要素情報パネル</button>
+      <button type="button" id="toggle-component-info-btn" aria-controls="component-info" aria-expanded="false">📋 要素情報パネル</button>
 
-      <!-- 要素ツリー表示 -->
-      <button id="toggle-element-tree-btn">🌳 要素ツリー表示</button>
-
-      <button id="toggle-section-tree-btn">📐 断面ツリー表示</button>
+      <!-- ツリービュー（要素・断面統合） -->
+      <button type="button" id="toggle-tree-view-btn">🌳 ツリービュー</button>
 
       <!-- 重要度設定セクション -->
       <div class="accordion-section">
-        <div class="accordion-header" data-target="importance-settings">
+        <div class="accordion-header" data-target="importance-settings" role="button" tabindex="0" aria-controls="importance-settings" aria-expanded="false">
           <span>🏷️ 重要度設定</span>
           <span class="accordion-arrow">▼</span>
         </div>
-        <div class="accordion-content collapsed" id="importance-settings">
-          <button id="toggleImportanceBtn" class="btn btn-primary">
+        <div class="accordion-content collapsed" id="importance-settings" aria-hidden="true">
+          <button type="button" id="toggleImportanceBtn" class="btn btn-primary">
             🏷️ 重要度パネル表示
           </button>
-          <button
+          <button type="button"
             onclick="window.toggleImportanceStatistics()"
             class="btn btn-primary"
           >
             📊 統計表示
           </button>
-          <button
+          <button type="button"
             onclick="window.toggleBulkOperations()"
             class="btn btn-primary"
           >
@@ -1418,16 +140,42 @@
           </button>
         </div>
       </div>
+      <!-- DXF CAD はフローティングウィンドウへ移設しました -->
+      <div class="accordion-section">
+        <div class="accordion-header" data-target="dxf-loading" role="button" tabindex="0" aria-controls="dxf-loading" aria-expanded="false">
+          <span>📐 DXF CADデータ読み込み</span>
+          <span class="accordion-arrow">▼</span>
+        </div>
+        <div class="accordion-content collapsed" id="dxf-loading" aria-hidden="true">
+          <p>詳細設定はフローティングウィンドウで行います。</p>
+          <button type="button" id="toggle-dxf-floating-btn" class="btn-primary">DXFパネルを開く</button>
+        </div>
+      </div>
 
       <!-- その他設定セクション -->
       <div class="accordion-section">
-        <div class="accordion-header" data-target="other-settings">
+        <div class="accordion-header" data-target="other-settings" role="button" tabindex="0" aria-controls="other-settings" aria-expanded="false">
           <span>⚙️ その他設定</span>
           <span class="accordion-arrow">▼</span>
         </div>
-        <div class="accordion-content collapsed" id="other-settings">
-          <button id="toggleLegendBtn" class="btn btn-primary">
+        <div class="accordion-content collapsed" id="other-settings" aria-hidden="true">
+          <!-- テーマ切り替え -->
+          <div class="theme-settings">
+            <span class="theme-settings-label">テーマ:</span>
+            <div class="theme-button-group" id="theme-button-group">
+              <button type="button" data-theme="light" class="active">ライト</button>
+              <button type="button" data-theme="dark">ダーク</button>
+              <button type="button" data-theme="system">自動</button>
+            </div>
+          </div>
+
+          <button type="button" id="toggleLegendBtn" class="btn btn-primary">
             🔍 差分凡例・操作方法を表示
+          </button>
+
+          <!-- IFC出力ボタン -->
+          <button type="button" id="exportIfcBtn" class="btn btn-secondary">
+            📦 IFCファイルに変換 (WIP)
           </button>
 
           <!-- CORS問題対応セクション -->
@@ -1448,7 +196,7 @@
                 </li>
                 <li>サーバー管理者にCORS設定の修正を依頼</li>
               </ol>
-              <button
+              <button type="button"
                 id="try-cors-proxy"
                 class="btn btn-warning"
                 onclick="window.enableCorsProxy()"
@@ -1480,9 +228,17 @@
           });
         }
 
-        // 対象をワイヤー
-        wire("fileA");
-        wire("fileB");
+        function wireAll() {
+          wire("fileA");
+          wire("fileB");
+          wire("dxfFile");
+        }
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', wireAll);
+        } else {
+          wireAll();
+        }
       })();
     </script>
 
@@ -1503,13 +259,13 @@
           <span class="legend-color legend-color-onlyb"></span>
           <span><strong>モデルB専用</strong></span>
         </div>
-        <hr />
+        <hr >
         <div class="legend-item">
           <span class="legend-description">
             色分けで差分を直感的に確認できます
           </span>
         </div>
-        <hr />
+        <hr >
         <div class="legend-item">
           <span><b>操作方法:</b></span>
         </div>
@@ -1531,7 +287,7 @@
       <div class="float-window-header" id="component-info-header">
         <span class="float-window-title">📋 要素情報</span>
         <div class="float-window-controls">
-          <button class="float-window-btn" id="close-component-info-btn">
+          <button class="float-window-btn" id="close-component-info-btn" aria-label="閉じる" type="button">
             ✕
           </button>
         </div>
@@ -1539,29 +295,16 @@
 
       <div class="float-window-content" id="component-info-content-wrapper">
         <!-- 編集機能UI (最小化) -->
-        <div
-          id="editing-controls"
-          style="font-size: 0.8em; opacity: 0.7; margin-bottom: 8px"
-        >
+        <div id="editing-controls" class="editing-controls-muted">
           <button
             id="edit-mode-button"
             class="btn btn-sm"
-            style="
-              font-size: 0.7em;
-              padding: 2px 6px;
-              background: #f8f9fa;
-              border: 1px solid #dee2e6;
-              color: #6c757d;
-            "
             onclick="window.toggleEditMode()"
             title="高度な編集機能（開発者向け)"
-          >
+           type="button">
             編集
           </button>
-          <span
-            id="editing-summary"
-            style="font-size: 0.7em; color: #6c757d; margin-left: 5px"
-          >
+          <span id="editing-summary" class="editing-summary-text">
             修正: 0件
           </span>
         </div>
@@ -1571,34 +314,6 @@
     <!-- /要素情報表示パネル -->
 
     <canvas id="three-canvas"></canvas>
-
-    <!-- 開発者向けリンク (本番環境では削除) -->
-    <div
-      id="dev-tools"
-      style="
-        position: fixed;
-        bottom: 10px;
-        right: 10px;
-        z-index: 1000;
-        display: none;
-      "
-    >
-      <a
-        href="test.html"
-        style="
-          background: #666;
-          color: white;
-          padding: 4px 8px;
-          text-decoration: none;
-          border-radius: 3px;
-          font-size: 11px;
-          opacity: 0.7;
-        "
-        title="開発者向けテスト環境"
-      >
-        🧪 Tests
-      </a>
-    </div>
 
     <!-- 環境設定管理 -->
     <script type="module">
@@ -1615,7 +330,10 @@
 
           // 開発環境でのみテストリンクとデバッグ情報を表示
           if (window.envConfig.features.devTools) {
-            document.getElementById("dev-tools").style.display = "block";
+            const devToolsEl = document.getElementById("dev-tools");
+            if (devToolsEl) {
+              devToolsEl.style.display = "block";
+            }
             await displayEnvironmentInfo();
           }
 
@@ -1685,451 +403,284 @@
     ></script>
 
     <!-- ★★★ 追加: selectComponentInfo.js の script タグは不要 (main.js から import されるため) ★★★ -->
-    <!-- <script type="module" src="selectComponentInfo.js"></script> -->
+    <!-- <script type="module" stb-diff-viewer="selectComponentInfo.js"></script> -->
 
     <!-- 表示要素設定フローティングウィンドウ -->
     <div id="element-settings-float" class="floating-window">
       <div class="float-window-header" id="element-settings-header">
         <span class="float-window-title">🏗️ 表示要素設定</span>
         <div class="float-window-controls">
-          <button class="float-window-btn" id="close-element-settings-btn">
+          <button class="float-window-btn" id="close-element-settings-btn" aria-label="閉じる" type="button">
             ✕
           </button>
         </div>
       </div>
       <div class="float-window-content">
         <div id="elementSelector">
-          <!-- カメラモード切り替え -->
-          <label><strong>カメラモード</strong></label>
-          <div
-            style="
-              display: flex;
-              gap: 4px;
-              margin-top: 4px;
-              margin-bottom: 10px;
-            "
-          >
-            <button
-              type="button"
-              class="btn btn-sm camera-mode-btn active"
-              data-mode="perspective"
-              id="cameraPerspectiveBtn"
-            >
-              🔭 3D（透視投影）
-            </button>
-            <button
-              type="button"
-              class="btn btn-sm camera-mode-btn"
-              data-mode="orthographic"
-              id="cameraOrthographicBtn"
-            >
-              📐 2D（平行投影）
-            </button>
-          </div>
-          <!-- Hidden radio buttons for compatibility -->
-          <input
-            type="radio"
-            name="cameraMode"
-            value="perspective"
-            id="cameraPerspective"
-            checked
-            style="display: none"
-          />
-          <input
-            type="radio"
-            name="cameraMode"
-            value="orthographic"
-            id="cameraOrthographic"
-            style="display: none"
-          />
-
-          <!-- ビュー方向選択（2Dモード時のみ表示） -->
-          <div
-            id="viewDirectionPanel"
-            style="display: none; margin-bottom: 10px"
-          >
-            <label><strong>ビュー方向</strong></label>
-            <div
-              style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px"
-            >
-              <button type="button" class="btn btn-sm" data-view="top">
-                平面図
-              </button>
-              <button type="button" class="btn btn-sm" data-view="front">
-                正面図
-              </button>
-              <button type="button" class="btn btn-sm" data-view="right">
-                右側面図
-              </button>
-              <button type="button" class="btn btn-sm" data-view="left">
-                左側面図
-              </button>
-              <button type="button" class="btn btn-sm" data-view="iso">
-                等角図
-              </button>
-            </div>
-          </div>
-
-          <hr style="margin: 15px 0" />
-
           <label><strong>モデル表示</strong></label>
           <label>
-            <input
-              type="checkbox"
+            <input type="checkbox"
               id="toggleModelA"
               name="modelVisibility"
               value="A"
               checked
-            />
+            >
             モデルAを表示
           </label>
-          <br />
+          <br>
           <label>
-            <input
-              type="checkbox"
+            <input type="checkbox"
               id="toggleModelB"
               name="modelVisibility"
               value="B"
               checked
-            />
+            >
             モデルBを表示
           </label>
 
-          <hr style="margin: 15px 0" />
+          <hr class="section-divider" >
 
           <!-- ラベル表示内容設定 -->
           <label><strong>ラベル表示内容</strong></label>
           <select
             id="labelContentSelector"
-            class="form-control"
+            class="form-control mb-2"
             title="ラベルに表示する内容を選択"
-            style="margin-bottom: 10px"
           >
             <option value="id">タグ（デフォルト）</option>
             <option value="name">インスタンス名（Name）</option>
             <option value="section">断面名（Section）</option>
           </select>
 
-          <hr style="margin: 15px 0" />
+          <hr class="section-divider" >
 
           <label><strong>比較/表示する要素</strong></label>
-          <label>
-            <input
-              type="checkbox"
-              name="elements"
-              value="Node"
-              id="toggleNodeView"
-              checked
-            />
-            節点 (Node)
-          </label>
-          <label for="toggleLabel-Node">
-            <input
-              type="checkbox"
-              name="labelToggle"
-              value="Node"
-              id="toggleLabel-Node"
-            />
-            ID
-          </label>
-          <br />
-          <label>
-            <input type="checkbox" name="elements" value="Column" checked />
-            柱 (Column)
-          </label>
-          <label for="toggleColumnView" class="margin-left-8">
-            <input
-              type="checkbox"
-              id="toggleColumnView"
-              name="columnViewMode"
-            />
-            立体表示
-          </label>
-          <label for="toggleLabel-Column" class="margin-left-8">
-            <input
-              type="checkbox"
-              name="labelToggle"
-              value="Column"
-              id="toggleLabel-Column"
-            />
-            ID
-          </label>
-          <br />
-          <label>
-            <input type="checkbox" name="elements" value="Girder" checked />
-            大梁 (Girder)
-          </label>
-          <label for="toggleGirderView" class="margin-left-8">
-            <input
-              type="checkbox"
-              id="toggleGirderView"
-              name="girderViewMode"
-            />
-            立体表示
-          </label>
-          <label for="toggleLabel-Girder" class="margin-left-8">
-            <input
-              type="checkbox"
-              name="labelToggle"
-              value="Girder"
-              id="toggleLabel-Girder"
-            />
-            ID
-          </label>
-          <br />
-          <label>
-            <input type="checkbox" name="elements" value="Beam" checked />
-            小梁 (Beam)
-          </label>
-          <label for="toggleBeam3DView" class="margin-left-8">
-            <input
-              type="checkbox"
-              id="toggleBeam3DView"
-              name="beam3DViewMode"
-            />
-            立体表示
-          </label>
-          <label for="toggleLabel-Beam" class="margin-left-8">
-            <input
-              type="checkbox"
-              name="labelToggle"
-              value="Beam"
-              id="toggleLabel-Beam"
-            />
-            ID
-          </label>
-          <br />
+          <table class="element-settings-table">
+            <thead>
+              <tr>
+                <th>要素</th>
+                <th>表示</th>
+                <th>立体</th>
+                <th>ラベル</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>節点 (StbNode)</td>
+                <td><input type="checkbox" name="elements" value="Node" id="toggleNodeView" title="節点を表示" checked></td>
+                <td>-</td>
+                <td><input type="checkbox" name="labelToggle" value="Node" id="toggleLabel-Node" title="節点ラベルを表示"></td>
+              </tr>
+              <tr>
+                <td>通り芯 (StbAxis)</td>
+                <td><input type="checkbox" name="elements" value="Axis" id="toggleAxisView" title="通り芯を表示" checked></td>
+                <td>-</td>
+                <td><input type="checkbox" name="labelToggle" value="Axis" id="toggleLabel-Axis" title="通り芯ラベルを表示" checked></td>
+              </tr>
+              <tr>
+                <td>階 (StbStory)</td>
+                <td><input type="checkbox" name="elements" value="Story" id="toggleStoryView" title="階を表示" checked></td>
+                <td>-</td>
+                <td><input type="checkbox" name="labelToggle" value="Story" id="toggleLabel-Story" title="階ラベルを表示" checked></td>
+              </tr>
+              <tr>
+                <td>柱 (StbColumn)</td>
+                <td><input type="checkbox" name="elements" value="Column" title="柱を表示" checked></td>
+                <td><input type="checkbox" id="toggleColumnView" name="columnViewMode" title="柱を立体表示" checked></td>
+                <td><input type="checkbox" name="labelToggle" value="Column" id="toggleLabel-Column" title="柱ラベルを表示"></td>
+              </tr>
+              <tr>
+                <td>大梁 (StbGirder)</td>
+                <td><input type="checkbox" name="elements" value="Girder" title="大梁を表示" checked></td>
+                <td><input type="checkbox" id="toggleGirderView" name="girderViewMode" title="大梁を立体表示" checked></td>
+                <td><input type="checkbox" name="labelToggle" value="Girder" id="toggleLabel-Girder" title="大梁ラベルを表示"></td>
+              </tr>
+              <tr>
+                <td>小梁 (StbBeam)</td>
+                <td><input type="checkbox" name="elements" value="Beam" title="小梁を表示" checked></td>
+                <td><input type="checkbox" id="toggleBeam3DView" name="beam3DViewMode" title="小梁を立体表示" checked></td>
+                <td><input type="checkbox" name="labelToggle" value="Beam" id="toggleLabel-Beam" title="小梁ラベルを表示"></td>
+              </tr>
+              <tr>
+                <td>ブレース (StbBrace)</td>
+                <td><input type="checkbox" name="elements" value="Brace" id="toggleBraceView" title="ブレースを表示" checked></td>
+                <td><input type="checkbox" id="toggleBrace3DView" name="brace3DViewMode" title="ブレースを立体表示" checked></td>
+                <td><input type="checkbox" name="labelToggle" value="Brace" id="toggleLabel-Brace" title="ブレースラベルを表示"></td>
+              </tr>
+              <tr>
+                <td>間柱 (StbPost)</td>
+                <td><input type="checkbox" name="elements" value="Post" id="togglePostView" title="間柱を表示" checked></td>
+                <td><input type="checkbox" id="togglePost3DView" name="post3DViewMode" title="間柱を立体表示" checked></td>
+                <td><input type="checkbox" name="labelToggle" value="Post" id="toggleLabel-Post" title="間柱ラベルを表示"></td>
+              </tr>
+              <tr>
+                <td>スラブ (StbSlab)</td>
+                <td><input type="checkbox" name="elements" value="Slab" id="toggleSlabView" title="スラブを表示" checked></td>
+                <td><input type="checkbox" id="toggleSlab3DView" name="slab3DViewMode" title="スラブを立体表示" checked></td>
+                <td><input type="checkbox" name="labelToggle" value="Slab" id="toggleLabel-Slab" title="スラブラベルを表示"></td>
+              </tr>
+              <tr>
+                <td>壁 (StbWall)</td>
+                <td><input type="checkbox" name="elements" value="Wall" id="toggleWallView" title="壁を表示" checked></td>
+                <td><input type="checkbox" id="toggleWall3DView" name="wall3DViewMode" title="壁を立体表示" checked></td>
+                <td><input type="checkbox" name="labelToggle" value="Wall" id="toggleLabel-Wall" title="壁ラベルを表示"></td>
+              </tr>
+              <tr>
+                <td>杭 (StbPile)</td>
+                <td><input type="checkbox" name="elements" value="Pile" id="togglePileView" title="杭を表示" checked></td>
+                <td><input type="checkbox" id="togglePile3DView" name="pile3DViewMode" title="杭を立体表示" checked></td>
+                <td><input type="checkbox" name="labelToggle" value="Pile" id="toggleLabel-Pile" title="杭ラベルを表示"></td>
+              </tr>
+              <tr>
+                <td>基礎 (StbFooting)</td>
+                <td><input type="checkbox" name="elements" value="Footing" id="toggleFootingView" title="基礎を表示" checked></td>
+                <td><input type="checkbox" id="toggleFooting3DView" name="footing3DViewMode" title="基礎を立体表示" checked></td>
+                <td><input type="checkbox" name="labelToggle" value="Footing" id="toggleLabel-Footing" title="基礎ラベルを表示"></td>
+              </tr>
+              <tr>
+                <td>基礎柱 (StbFoundationColumn)</td>
+                <td><input type="checkbox" name="elements" value="FoundationColumn" id="toggleFoundationColumnView" title="基礎柱を表示" checked></td>
+                <td><input type="checkbox" id="toggleFoundationColumn3DView" name="foundationColumn3DViewMode" title="基礎柱を立体表示" checked></td>
+                <td><input type="checkbox" name="labelToggle" value="FoundationColumn" id="toggleLabel-FoundationColumn" title="基礎柱ラベルを表示"></td>
+              </tr>
+            </tbody>
+          </table>
 
           <!-- 配置基準線表示切り替え -->
           <div class="placement-line-control">
             <label for="togglePlacementLines">
-              <input type="checkbox" id="togglePlacementLines" checked />
+              <input type="checkbox" id="togglePlacementLines" checked>
               立体表示時の配置基準線を表示
             </label>
           </div>
+        </div>
+      </div>
+    </div>
 
-          <br />
-          <label>
-            <input
-              type="checkbox"
-              name="elements"
-              value="Brace"
-              id="toggleBraceView"
-              checked
-            />
-            ブレース (Brace)
-          </label>
-          <label for="toggleBrace3DView" class="margin-left-8">
-            <input
-              type="checkbox"
-              id="toggleBrace3DView"
-              name="brace3DViewMode"
-            />
-            立体表示
-          </label>
-          <label for="toggleLabel-Brace" class="margin-left-8">
-            <input
-              type="checkbox"
-              name="labelToggle"
-              value="Brace"
-              id="toggleLabel-Brace"
-            />
-            ID
-          </label>
-          <br />
-          <label>
-            <input
-              type="checkbox"
-              name="elements"
-              value="Post"
-              id="togglePostView"
-              checked
-            />
-            間柱 (Post)
-          </label>
-          <label for="togglePost3DView" class="margin-left-8">
-            <input
-              type="checkbox"
-              id="togglePost3DView"
-              name="post3DViewMode"
-            />
-            立体表示
-          </label>
-          <label for="toggleLabel-Post" class="margin-left-8">
-            <input
-              type="checkbox"
-              name="labelToggle"
-              value="Post"
-              id="toggleLabel-Post"
-            />
-            ID
-          </label>
-          <br />
-          <label>
-            <input
-              type="checkbox"
-              name="elements"
-              value="Pile"
-              id="togglePileView"
-              checked
-            />
-            杭 (Pile)
-          </label>
-          <label for="togglePile3DView" class="margin-left-8">
-            <input
-              type="checkbox"
-              id="togglePile3DView"
-              name="pile3DViewMode"
-            />
-            立体表示
-          </label>
-          <label for="toggleLabel-Pile" class="margin-left-8">
-            <input
-              type="checkbox"
-              name="labelToggle"
-              value="Pile"
-              id="toggleLabel-Pile"
-            />
-            ID
-          </label>
-          <br />
-          <label>
-            <input
-              type="checkbox"
-              name="elements"
-              value="Footing"
-              id="toggleFootingView"
-              checked
-            />
-            基礎 (Footing)
-          </label>
-          <label for="toggleFooting3DView" class="margin-left-8">
-            <input
-              type="checkbox"
-              id="toggleFooting3DView"
-              name="footing3DViewMode"
-            />
-            立体表示
-          </label>
-          <label for="toggleLabel-Footing" class="margin-left-8">
-            <input
-              type="checkbox"
-              name="labelToggle"
-              value="Footing"
-              id="toggleLabel-Footing"
-            />
-            ID
-          </label>
-          <br />
-          <label>
-            <input
-              type="checkbox"
-              name="elements"
-              value="FoundationColumn"
-              id="toggleFoundationColumnView"
-              checked
-            />
-            基礎柱 (FoundationColumn)
-          </label>
-          <label for="toggleFoundationColumn3DView" class="margin-left-8">
-            <input
-              type="checkbox"
-              id="toggleFoundationColumn3DView"
-              name="foundationColumn3DViewMode"
-            />
-            立体表示
-          </label>
-          <label for="toggleLabel-FoundationColumn" class="margin-left-8">
-            <input
-              type="checkbox"
-              name="labelToggle"
-              value="FoundationColumn"
-              id="toggleLabel-FoundationColumn"
-            />
-            ID
-          </label>
-          <br />
-          <label>
-            <input
-              type="checkbox"
-              name="elements"
-              value="Slab"
-              id="toggleSlabView"
-              checked
-            />
-            スラブ (Slab)
-          </label>
-          <label for="toggleLabel-Slab">
-            <input
-              type="checkbox"
-              name="labelToggle"
-              value="Slab"
-              id="toggleLabel-Slab"
-            />
-            ID
-          </label>
-          <br />
-          <label>
-            <input
-              type="checkbox"
-              name="elements"
-              value="Wall"
-              id="toggleWallView"
-              checked
-            />
-            壁 (Wall)
-          </label>
-          <label for="toggleLabel-Wall">
-            <input
-              type="checkbox"
-              name="labelToggle"
-              value="Wall"
-              id="toggleLabel-Wall"
-            />
-            ID
-          </label>
-          <br />
-          <label>
-            <input
-              type="checkbox"
-              name="elements"
-              value="Axis"
-              id="toggleAxisView"
-              checked
-            />
-            通り芯 (Axis)
-          </label>
-          <label for="toggleLabel-Axis">
-            <input
-              type="checkbox"
-              name="labelToggle"
-              value="Axis"
-              id="toggleLabel-Axis"
-              checked
-            />
-            名称
-          </label>
-          <br />
-          <label>
-            <input
-              type="checkbox"
-              name="elements"
-              value="Story"
-              id="toggleStoryView"
-              checked
-            />
-            階 (Story)
-          </label>
-          <label for="toggleLabel-Story">
-            <input
-              type="checkbox"
-              name="labelToggle"
-              value="Story"
-              id="toggleLabel-Story"
-              checked
-            />
-            名称/高さ
-          </label>
+    <!-- 許容差設定ウィンドウはWindowManagerで動的生成します -->
+
+    <!-- DXF フローティングウィンドウ -->
+    <div id="dxf-floating" class="floating-window">
+      <div class="float-window-header" id="dxf-floating-header">
+        <span class="float-window-title">📐 DXF CADデータ</span>
+        <div class="float-window-controls">
+          <button class="float-window-btn" id="close-dxf-floating-btn" aria-label="閉じる" type="button">✕</button>
+        </div>
+      </div>
+
+      <div class="float-window-content">
+        <div class="dxf-intro">
+          <p>DXFファイルを読み込んで2D/3D表示します</p>
+        </div>
+        <div class="file-input-wrapper">
+          <label for="dxfFile"><strong>DXFファイル</strong></label>
+          <button type="button" class="custom-file-btn" data-target="dxfFile">ファイルを選択</button>
+          <input type="file" id="dxfFile" accept=".dxf">
+          <div class="selected-filename" id="dxfFile-name">選択されていません</div>
+        </div>
+
+        <hr class="section-divider">
+
+        <div id="dxf-placement-options" class="dxf-placement-options">
+          <label><strong>配置設定</strong></label>
+
+          <div class="dxf-placement-plane">
+            <label for="dxfPlacementPlane">配置面:</label>
+            <select id="dxfPlacementPlane">
+              <option value="xy">XY平面 (平面図 → 階に配置)</option>
+              <option value="xz">XZ平面 (Y通り断面図)</option>
+              <option value="yz">YZ平面 (X通り断面図)</option>
+            </select>
+          </div>
+
+          <div class="dxf-placement-position">
+            <label for="dxfPlacementPosition">配置位置:</label>
+            <select id="dxfPlacementPosition">
+              <option value="origin">原点 (0)</option>
+            </select>
+          </div>
+
+          <div class="dxf-placement-offset">
+            <label>
+              <input type="checkbox" id="dxfManualOffset"> 手動オフセット指定
+            </label>
+            <div id="dxf-manual-offset-inputs" class="hidden">
+              <div class="offset-input-row">
+                <label for="dxfOffsetX">X:</label>
+                <input type="number" id="dxfOffsetX" value="0" step="100"><span>mm</span>
+              </div>
+              <div class="offset-input-row">
+                <label for="dxfOffsetY">Y:</label>
+                <input type="number" id="dxfOffsetY" value="0" step="100"><span>mm</span>
+              </div>
+              <div class="offset-input-row">
+                <label for="dxfOffsetZ">Z:</label>
+                <input type="number" id="dxfOffsetZ" value="0" step="100"><span>mm</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <div class="dxf-buttons">
+          <button type="button" id="loadDxfButton" class="btn-primary">📐 DXF読込</button>
+          <button type="button" id="toggleDxfEditMode" class="btn-secondary">位置調整モード開始</button>
+          <button type="button" id="clearDxfButton" class="btn-secondary">クリア</button>
+        </div>
+
+        <div id="dxf-summary" class="hidden"></div>
+
+        <div id="dxf-layer-panel" class="hidden">
+          <hr class="section-divider">
+          <label><strong>レイヤー表示設定</strong></label>
+          <div id="dxf-layer-list" class="dxf-layer-list"></div>
+        </div>
+
+        <div id="dxf-export-panel" class="hidden">
+          <hr class="section-divider">
+          <label><strong>DXFエクスポート</strong></label>
+          <div class="dxf-export-intro">
+            <p>選択したレイヤーを2D CADデータとしてエクスポートします</p>
+          </div>
+          <div class="dxf-export-layer-select">
+            <div class="dxf-export-layer-header">
+              <span>エクスポートするレイヤー:</span>
+              <div class="dxf-export-layer-actions">
+                <button type="button" id="selectAllExportLayers" class="btn-link">全選択</button>
+                <span class="separator">|</span>
+                <button type="button" id="deselectAllExportLayers" class="btn-link">全解除</button>
+              </div>
+            </div>
+            <div id="dxf-export-layer-list" class="dxf-export-layer-list"></div>
+          </div>
+          <div id="dxf-export-stats" class="dxf-export-stats"><span id="export-entity-count">選択: 0 要素</span></div>
+          <div class="dxf-export-filename"><label for="dxfExportFilename">ファイル名:</label><input type="text" id="dxfExportFilename" placeholder="export" value="export"></div>
+          <button type="button" id="exportDxfButton" class="btn-primary dxf-export-btn">DXFエクスポート</button>
+        </div>
+
+        <div id="stb-dxf-export-panel" class="hidden">
+          <hr class="section-divider">
+          <label><strong>STB→DXFエクスポート</strong></label>
+          <div class="dxf-export-intro">
+            <p>立体表示中の部材を2D CADデータとしてエクスポートします</p>
+            <p class="stb-export-note">※ 2Dモード + 立体表示オンの場合のみ使用可能</p>
+          </div>
+          <div id="stb-export-status" class="stb-export-status"><span id="stb-export-status-text">状態を確認中...</span></div>
+          <div id="stb-export-element-select" class="dxf-export-layer-select hidden">
+            <div class="dxf-export-layer-header">
+              <span>エクスポートする部材:</span>
+              <div class="dxf-export-layer-actions">
+                <button type="button" id="selectAllStbExportTypes" class="btn-link">全選択</button>
+                <span class="separator">|</span>
+                <button type="button" id="deselectAllStbExportTypes" class="btn-link">全解除</button>
+              </div>
+            </div>
+            <div id="stb-export-type-list" class="dxf-export-layer-list"></div>
+          </div>
+          <div id="stb-export-stats" class="dxf-export-stats hidden"><span id="stb-export-mesh-count">選択: 0 メッシュ</span></div>
+          <div id="stb-export-filename-group" class="dxf-export-filename hidden"><label for="stbDxfExportFilename">ファイル名:</label><input type="text" id="stbDxfExportFilename" placeholder="stb_export" value="stb_export"></div>
+          <button type="button" id="exportStbDxfButton" class="btn-primary dxf-export-btn" disabled>STB→DXFエクスポート</button>
         </div>
       </div>
     </div>
@@ -2137,9 +688,9 @@
     <!-- 表示モード設定フローティングウィンドウ -->
     <div id="display-settings-float" class="floating-window">
       <div class="float-window-header" id="display-settings-header">
-        <span class="float-window-title">🎨 表示モード設定</span>
+        <span class="float-window-title">🎨 色付けモード設定</span>
         <div class="float-window-controls">
-          <button class="float-window-btn" id="close-display-settings-btn">
+          <button class="float-window-btn" id="close-display-settings-btn" aria-label="閉じる" type="button">
             ✕
           </button>
         </div>
@@ -2163,7 +714,7 @@
           </select>
 
           <div id="comparison-key-settings" class="comparison-key-settings">
-            <hr class="settings-separator" />
+            <hr class="settings-separator" >
             <div id="comparison-key-selector-container">
               <!-- comparisonKeySelector.jsによって動的に生成される -->
             </div>
@@ -2193,34 +744,66 @@
             </div>
             <div class="color-legend-container">
               <div class="legend-item">
-                <input
-                  type="color"
+                <input type="color"
                   id="schema-valid-color"
                   value="#00aaff"
                   class="legend-color-box"
                   title="正常要素の色を変更"
-                />
+                >
                 <span class="legend-label">正常要素</span>
                 <span
                   class="color-preview"
                   id="schema-valid-preview"
                   title="現在の色: #00aaff"
                 ></span>
+                <span id="schema-valid-count" class="legend-count badge badge-valid"></span>
               </div>
               <div class="legend-item">
                 <input
                   type="color"
+                  id="schema-info-color"
+                  value="#32CD32"
+                  class="legend-color-box"
+                  title="自動修復可能要素の色を変更"
+                />
+                <span class="legend-label">自動修復</span>
+                <span
+                  class="color-preview"
+                  id="schema-info-preview"
+                  title="現在の色: #32CD32"
+                ></span>
+                <span id="schema-info-count" class="legend-count badge badge-info"></span>
+              </div>
+              <div class="legend-item">
+                <input
+                  type="color"
+                  id="schema-warning-color"
+                  value="#FFA500"
+                  class="legend-color-box"
+                  title="要確認要素の色を変更"
+                />
+                <span class="legend-label">要確認</span>
+                <span
+                  class="color-preview"
+                  id="schema-warning-preview"
+                  title="現在の色: #FFA500"
+                ></span>
+                <span id="schema-warning-count" class="legend-count badge badge-warning"></span>
+              </div>
+              <div class="legend-item">
+                <input type="color"
                   id="schema-error-color"
                   value="#ff0000"
                   class="legend-color-box"
                   title="エラー要素の色を変更"
                 />
-                <span class="legend-label">エラー要素</span>
+                <span class="legend-label">手動修正</span>
                 <span
                   class="color-preview"
                   id="schema-error-preview"
                   title="現在の色: #ff0000"
                 ></span>
+                <span id="schema-error-count" class="legend-count badge badge-error"></span>
               </div>
             </div>
           </div>
@@ -2244,7 +827,7 @@
       <div class="float-window-header" id="clipping-settings-header">
         <span class="float-window-title">✂️ 表示範囲設定</span>
         <div class="float-window-controls">
-          <button class="float-window-btn" id="close-clipping-settings-btn">
+          <button class="float-window-btn" id="close-clipping-settings-btn" aria-label="閉じる" type="button">
             ✕
           </button>
         </div>
@@ -2254,29 +837,24 @@
         <div class="clipping-group">
           <label for="storySelector"><strong>階の表示制限</strong></label>
           <select id="storySelector"></select>
-          <button id="applyStoryClipButton" class="clip-apply-btn">
+          <button id="applyStoryClipButton" class="clip-apply-btn" type="button">
             この階でクリップ
           </button>
 
           <!-- 階クリッピング範囲調整 -->
-          <div
-            id="storyClipControls"
-            class="clip-range-controls"
-            style="display: none"
-          >
+          <div id="storyClipControls" class="clip-range-controls hidden">
             <div class="range-control-group">
               <label for="storyClipRange">クリッピング範囲:</label>
               <div class="range-slider-container">
                 <span class="range-label">狭い</span>
-                <input
-                  type="range"
+                <input type="range"
                   id="storyClipRange"
                   min="500"
                   max="5000"
                   value="1000"
                   step="100"
                   class="clip-range-slider"
-                />
+                >
                 <span class="range-label">広い</span>
               </div>
               <div class="range-value-display">
@@ -2286,35 +864,30 @@
           </div>
         </div>
 
-        <hr style="margin: 15px 0" />
+        <hr class="section-divider" >
 
         <!-- X軸クリッピング設定 -->
         <div class="clipping-group">
           <label for="xAxisSelector"><strong>X軸選択</strong></label>
           <select id="xAxisSelector"></select>
-          <button id="applyXAxisClipButton" class="clip-apply-btn">
+          <button id="applyXAxisClipButton" class="clip-apply-btn" type="button">
             X軸でクリップ
           </button>
 
           <!-- X軸クリッピング範囲調整 -->
-          <div
-            id="xAxisClipControls"
-            class="clip-range-controls"
-            style="display: none"
-          >
+          <div id="xAxisClipControls" class="clip-range-controls hidden">
             <div class="range-control-group">
               <label for="xAxisClipRange">クリッピング範囲:</label>
               <div class="range-slider-container">
                 <span class="range-label">狭い</span>
-                <input
-                  type="range"
+                <input type="range"
                   id="xAxisClipRange"
                   min="500"
                   max="10000"
                   value="2000"
                   step="250"
                   class="clip-range-slider"
-                />
+                >
                 <span class="range-label">広い</span>
               </div>
               <div class="range-value-display">
@@ -2324,35 +897,30 @@
           </div>
         </div>
 
-        <hr style="margin: 15px 0" />
+        <hr class="section-divider" >
 
         <!-- Y軸クリッピング設定 -->
         <div class="clipping-group">
           <label for="yAxisSelector"><strong>Y軸選択</strong></label>
           <select id="yAxisSelector"></select>
-          <button id="applyYAxisClipButton" class="clip-apply-btn">
+          <button id="applyYAxisClipButton" class="clip-apply-btn" type="button">
             Y軸でクリップ
           </button>
 
           <!-- Y軸クリッピング範囲調整 -->
-          <div
-            id="yAxisClipControls"
-            class="clip-range-controls"
-            style="display: none"
-          >
+          <div id="yAxisClipControls" class="clip-range-controls hidden">
             <div class="range-control-group">
               <label for="yAxisClipRange">クリッピング範囲:</label>
               <div class="range-slider-container">
                 <span class="range-label">狭い</span>
-                <input
-                  type="range"
+                <input type="range"
                   id="yAxisClipRange"
                   min="500"
                   max="10000"
                   value="2000"
                   step="250"
                   class="clip-range-slider"
-                />
+                >
                 <span class="range-label">広い</span>
               </div>
               <div class="range-value-display">
@@ -2362,34 +930,29 @@
           </div>
         </div>
 
-        <hr style="margin: 15px 0" />
+        <hr class="section-divider" >
 
         <!-- 2D奥行きクリッピング設定 -->
-        <div
-          class="clipping-group"
-          id="depth2DClippingGroup"
-          style="display: none"
-        >
+        <div class="clipping-group hidden" id="depth2DClippingGroup">
           <label><strong>2D表示奥行き範囲</strong></label>
-          <p style="font-size: 0.85em; color: #666; margin: 5px 0">
+          <p class="help-text">
             2Dビュー時に表示する奥行き（Z軸）範囲を調整します
           </p>
 
           <!-- 奥行きクリッピング範囲調整 -->
-          <div class="clip-range-controls" style="display: block">
+          <div class="clip-range-controls">
             <div class="range-control-group">
               <label for="depth2DClipRange">表示奥行き範囲:</label>
               <div class="range-slider-container">
                 <span class="range-label">狭い</span>
-                <input
-                  type="range"
+                <input type="range"
                   id="depth2DClipRange"
                   min="1000"
                   max="20000"
                   value="5000"
                   step="500"
                   class="clip-range-slider"
-                />
+                >
                 <span class="range-label">広い</span>
               </div>
               <div class="range-value-display">
@@ -2397,20 +960,19 @@
               </div>
             </div>
 
-            <div class="range-control-group" style="margin-top: 10px">
+            <div class="range-control-group mt-2">
               <label for="depth2DClipCenter">奥行き中心位置:</label>
               <div class="range-slider-container">
-                <span class="range-label" style="min-width: 50px">下</span>
-                <input
-                  type="range"
+                <span class="range-label short">下</span>
+                <input type="range"
                   id="depth2DClipCenter"
                   min="-50000"
                   max="50000"
                   value="0"
                   step="500"
                   class="clip-range-slider"
-                />
-                <span class="range-label" style="min-width: 50px">上</span>
+                >
+                <span class="range-label short">上</span>
               </div>
               <div class="range-value-display">
                 <span id="depth2DCenterValue">0.0</span>m
@@ -2419,79 +981,100 @@
 
             <button
               id="applyDepth2DClipButton"
-              class="clip-apply-btn"
-              style="width: 100%; margin-top: 10px"
-            >
+              class="clip-apply-btn w-100 mt-2"
+             type="button">
               2D奥行きクリップを適用
             </button>
           </div>
         </div>
 
-        <hr style="margin: 15px 0" />
+        <hr class="section-divider" >
 
         <!-- クリッピング制御ボタン -->
         <div class="clipping-controls">
-          <button id="clearClipButton" class="clear-clip-btn">
+          <button id="clearClipButton" class="clear-clip-btn" type="button">
             クリッピング解除
           </button>
-          <button
-            id="previewClipButton"
-            class="preview-clip-btn"
-            style="display: none"
-          >
+          <button id="previewClipButton" class="preview-clip-btn hidden" type="button">
             プレビュー表示
           </button>
         </div>
       </div>
     </div>
 
-    <!-- 要素ツリー表示フローティングウィンドウ -->
-    <div id="element-tree-float" class="floating-window">
-      <div class="float-window-header" id="element-tree-header">
-        <span class="float-window-title">🌳 要素ツリー</span>
+    <!-- 表示モード設定フローティングウィンドウ -->
+    <div id="camera-settings-float" class="floating-window">
+      <div class="float-window-header" id="camera-settings-header">
+        <span class="float-window-title">🔄 表示モード設定</span>
         <div class="float-window-controls">
-          <button class="float-window-btn" id="close-element-tree-btn">
+          <button class="float-window-btn" id="close-camera-settings-btn" aria-label="閉じる" type="button">
             ✕
           </button>
         </div>
       </div>
       <div class="float-window-content">
-        <div id="element-tree-container">
-          <!-- ツリービューがここに動的に生成される -->
-          <div style="padding: 10px; text-align: center; color: #666">
-            モデルを読み込んでください
+        <!-- 表示モード切り替え -->
+        <label><strong>表示モード</strong></label>
+        <div class="camera-mode-container">
+          <button
+            type="button"
+            class="btn btn-sm camera-mode-btn active"
+            data-mode="perspective"
+            id="cameraPerspectiveBtn"
+          >
+            🏠 立体表示
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm camera-mode-btn"
+            data-mode="orthographic"
+            id="cameraOrthographicBtn"
+          >
+            📄 図面表示
+          </button>
+        </div>
+        <!-- Hidden radio buttons for compatibility -->
+        <input type="radio"
+          name="cameraMode"
+          value="perspective"
+          id="cameraPerspective"
+          checked
+          class="sr-only"
+        >
+        <label class="sr-only" for="cameraPerspective">立体表示</label>
+        <input type="radio"
+          name="cameraMode"
+          value="orthographic"
+          id="cameraOrthographic"
+          class="sr-only"
+        >
+        <label class="sr-only" for="cameraOrthographic">図面表示</label>
+
+        <!-- ビュー方向選択（2Dモード時のみ表示） -->
+        <div id="viewDirectionPanel" class="hidden">
+          <hr class="section-divider">
+          <label><strong>ビュー方向</strong></label>
+          <div class="view-direction-buttons">
+            <button type="button" class="btn btn-sm" data-view="top">
+              平面図
+            </button>
+            <button type="button" class="btn btn-sm" data-view="front">
+              正面図
+            </button>
+            <button type="button" class="btn btn-sm" data-view="right">
+              右側面図
+            </button>
+            <button type="button" class="btn btn-sm" data-view="left">
+              左側面図
+            </button>
+            <button type="button" class="btn btn-sm" data-view="iso">
+              等角図
+            </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 断面ツリービュー フローティングウィンドウ -->
-    <div id="section-tree-float" class="floating-window">
-      <div class="float-window-header" id="section-tree-header">
-        <span class="float-window-title">📐 断面ツリー</span>
-        <div class="float-window-controls">
-          <!-- グループ化モード切替 -->
-          <select
-            id="section-grouping-mode"
-            class="grouping-mode-select"
-            title="グループ化モード"
-          >
-            <option value="floor">階ごと</option>
-            <option value="code">符号ごと</option>
-          </select>
-          <button class="float-window-btn" id="close-section-tree-btn">
-            ✕
-          </button>
-        </div>
-      </div>
-      <div class="float-window-content">
-        <div id="section-tree-container">
-          <!-- 断面ツリービューがここに動的に生成される -->
-          <div style="padding: 10px; text-align: center; color: #666">
-            モデルを読み込んでください
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- ツリーウィンドウ（要素ツリー、断面ツリー）はJSで動的に生成されます -->
   </body>
 </html>

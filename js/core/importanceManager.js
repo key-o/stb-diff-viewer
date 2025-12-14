@@ -1,9 +1,9 @@
 /**
  * @fileoverview 重要度管理システム
- * 
+ *
  * StbDiffCheckerの重要度判定機能をJavaScriptに移植した中核システム。
  * ST-Bridge要素の重要度設定、管理、検証を提供します。
- * 
+ *
  * 重要度レベル:
  * - required: 高重要度（必須）
  * - optional: 中重要度（任意）
@@ -17,7 +17,7 @@ import { getState, setState } from './globalState.js';
 // 重要度レベル定数（C#版との互換性を保つ）
 export const IMPORTANCE_LEVELS = {
   REQUIRED: 'required',
-  OPTIONAL: 'optional', 
+  OPTIONAL: 'optional',
   UNNECESSARY: 'unnecessary',
   NOT_APPLICABLE: 'notApplicable'
 };
@@ -100,7 +100,7 @@ class ImportanceManager {
 
       this.isInitialized = true;
       this.notifySettingsChanged();
-      
+
       console.log('重要度マネージャーが正常に初期化されました');
       return true;
     } catch (error) {
@@ -125,15 +125,15 @@ class ImportanceManager {
   async loadDefaultSettings() {
     // デフォルトで全要素を「高重要度」に設定
     const defaultImportance = IMPORTANCE_LEVELS.REQUIRED;
-    
+
     // 各タブの要素パスを生成
     for (const tab of STB_ELEMENT_TABS) {
       const elementPaths = this.generateElementPathsForTab(tab.id);
-      
+
       if (!this.elementPathsByTab.has(tab.id)) {
         this.elementPathsByTab.set(tab.id, []);
       }
-      
+
       for (const path of elementPaths) {
         // 重複チェック
         if (!this.orderedElementPaths.includes(path)) {
@@ -162,7 +162,7 @@ class ImportanceManager {
 
     // 特定要素の追加属性
     const additionalPaths = this.getAdditionalPathsForElement(tabId);
-    
+
     return [...basePaths, ...additionalPaths];
   }
 
@@ -250,13 +250,13 @@ class ImportanceManager {
    */
   exportToCSV() {
     const lines = ['Element Path,Importance Level'];
-    
+
     for (const path of this.orderedElementPaths) {
       const importance = this.getImportanceLevel(path);
       const importanceName = IMPORTANCE_LEVEL_NAMES[importance];
       lines.push(`"${path}","${importanceName}"`);
     }
-    
+
     return lines.join('\n');
   }
 
@@ -268,10 +268,10 @@ class ImportanceManager {
   importFromCSV(csvContent) {
     try {
       const lines = csvContent.split('\n').filter(line => line.trim());
-      
+
       // ヘッダー行をスキップ
       const dataLines = lines.slice(1);
-      
+
       for (const line of dataLines) {
         const [pathStr, importanceStr] = this.parseCSVLine(line);
         if (pathStr && importanceStr) {
@@ -281,7 +281,7 @@ class ImportanceManager {
           }
         }
       }
-      
+
       this.notifySettingsChanged();
       return true;
     } catch (error) {
@@ -301,13 +301,13 @@ class ImportanceManager {
     if (matches) {
       return [matches[1], matches[2]];
     }
-    
+
     // カンマ区切りの場合
     const parts = line.split(',');
     if (parts.length >= 2) {
       return [parts[0].trim(), parts[1].trim()];
     }
-    
+
     return [null, null];
   }
 

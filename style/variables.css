@@ -1,0 +1,246 @@
+/**
+ * CSS変数定義
+ *
+ * プロジェクト全体で使用する色、サイズ、スペーシングなどの
+ * 変数を一元管理します。
+ */
+
+:root {
+  /* ========================================
+     カラーパレット - ライトテーマ（デフォルト）
+     ======================================== */
+
+  /* プライマリカラー（落ち着いた青） */
+  --color-primary: #4a6fa5;
+  --color-primary-hover: #3d5a80;
+  --color-primary-active: #2c4a6e;
+  --color-primary-light: #6b8cbe;
+
+  /* セカンダリカラー */
+  --color-secondary: #6b7280;
+  --color-secondary-hover: #4b5563;
+  --color-secondary-light: #9ca3af;
+
+  /* アクセントカラー（暖色系） */
+  --color-accent: #e07a5f;
+  --color-accent-hover: #c96a52;
+
+  /* ステータスカラー */
+  --color-success: #059669;
+  --color-danger: #dc2626;
+  --color-warning: #d97706;
+  --color-info: #0891b2;
+
+  /* 差分表示カラー（視認性重視で維持） */
+  --color-matched: #00aaff;       /* 一致要素 */
+  --color-only-a: #ff6b6b;        /* モデルAのみ */
+  --color-only-b: #4ecdc4;        /* モデルBのみ */
+  --color-modified: #ffd93d;      /* 変更要素 */
+
+  /* 背景色 */
+  --bg-body: #ffffff;
+  --bg-panel: #f8f9fa;
+  --bg-window: rgba(248, 249, 250, 0.98);
+  --bg-hover: rgba(74, 111, 165, 0.08);
+  --bg-active: rgba(74, 111, 165, 0.15);
+  --bg-disabled: #e5e7eb;
+  --bg-secondary: #f3f4f6;
+  --bg-canvas: #111111;
+
+  /* テキストカラー */
+  --text-primary: #374151;
+  --text-secondary: #6b7280;
+  --text-muted: #9ca3af;
+  --text-white: #ffffff;
+  --text-heading: #1f2937;
+
+  /* 境界線 */
+  --border-color: #d1d5db;
+  --border-color-light: #e5e7eb;
+  --border-color-dark: #9ca3af;
+
+  /* ========================================
+     スペーシング
+     ======================================== */
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 15px;
+  --spacing-lg: 20px;
+  --spacing-xl: 30px;
+
+  /* ========================================
+     フォント
+     ======================================== */
+
+  --font-family-base: sans-serif;
+  --font-family-monospace: 'Courier New', monospace;
+
+  --font-size-xs: 0.75em;
+  --font-size-sm: 0.85em;
+  --font-size-md: 0.9em;
+  --font-size-base: 1em;
+  --font-size-lg: 1.1em;
+  --font-size-xl: 1.25em;
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+
+  /* ========================================
+     ボーダー・角丸
+     ======================================== */
+
+  --border-width: 1px;
+  --border-radius: 4px;
+  --border-radius-sm: 3px;
+  --border-radius-lg: 6px;
+
+  /* ========================================
+     シャドウ
+     ======================================== */
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+
+  /* ========================================
+     Z-index
+     ======================================== */
+
+  --z-base: 1;
+  --z-panel: 10;
+  --z-floating: 100;
+  --z-modal: 1000;
+  --z-tooltip: 2000;
+  --z-toast: 3000;
+
+  /* ========================================
+     トランジション
+     ======================================== */
+
+  --transition-fast: 0.15s ease;
+  --transition-base: 0.3s ease;
+  --transition-slow: 0.5s ease;
+
+  /* ========================================
+     レイアウト
+     ======================================== */
+
+  --panel-width: 300px;
+  --window-min-width: 320px;
+  --window-max-width: 600px;
+
+  /* ========================================
+     ボタン
+     ======================================== */
+
+  --btn-padding-y: 6px;
+  --btn-padding-x: 12px;
+  --btn-padding-y-sm: 4px;
+  --btn-padding-x-sm: 8px;
+  --btn-padding-y-lg: 10px;
+  --btn-padding-x-lg: 16px;
+
+  /* ========================================
+     フォームコントロール
+     ======================================== */
+
+  --input-padding-y: 6px;
+  --input-padding-x: 12px;
+  --input-border-color: var(--border-color);
+  --input-border-radius: var(--border-radius);
+  --input-focus-border-color: var(--color-primary);
+
+  /* ========================================
+     アコーディオン
+     ======================================== */
+
+  --accordion-header-bg: #f3f4f6;
+  --accordion-header-hover-bg: #e5e7eb;
+  --accordion-border-color: var(--border-color-light);
+
+  /* ========================================
+     サイドバーボタン（統一スタイル）
+     ======================================== */
+
+  --sidebar-btn-bg: #ffffff;
+  --sidebar-btn-hover-bg: var(--bg-hover);
+  --sidebar-btn-active-bg: var(--color-primary);
+  --sidebar-btn-border: var(--border-color-light);
+  --sidebar-btn-text: var(--text-primary);
+  --sidebar-btn-icon-color: var(--color-primary);
+}
+
+/* ========================================
+   ダークテーマ
+   ======================================== */
+
+[data-theme="dark"] {
+  /* プライマリカラー（明るめの青） */
+  --color-primary: #6b8cbe;
+  --color-primary-hover: #7a9bcb;
+  --color-primary-active: #5a7bae;
+  --color-primary-light: #8ba8d4;
+
+  /* セカンダリカラー */
+  --color-secondary: #9ca3af;
+  --color-secondary-hover: #b0b7c3;
+  --color-secondary-light: #6b7280;
+
+  /* アクセントカラー */
+  --color-accent: #f0917a;
+  --color-accent-hover: #e07a5f;
+
+  /* ステータスカラー（ダーク用に調整） */
+  --color-success: #10b981;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-info: #22d3ee;
+
+  /* 差分表示カラー（ダークテーマ用） */
+  --color-matched: #38bdf8;
+  --color-only-a: #fb7185;
+  --color-only-b: #5eead4;
+  --color-modified: #fde047;
+
+  /* 背景色 */
+  --bg-body: #1a1a1a;
+  --bg-panel: #242424;
+  --bg-window: rgba(36, 36, 36, 0.98);
+  --bg-hover: rgba(107, 140, 190, 0.15);
+  --bg-active: rgba(107, 140, 190, 0.25);
+  --bg-disabled: #3a3a3a;
+  --bg-secondary: #2d2d2d;
+  --bg-canvas: #0a0a0a;
+
+  /* テキストカラー */
+  --text-primary: #e5e7eb;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --text-white: #ffffff;
+  --text-heading: #f3f4f6;
+
+  /* 境界線 */
+  --border-color: #4b5563;
+  --border-color-light: #374151;
+  --border-color-dark: #6b7280;
+
+  /* シャドウ（ダーク用） */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.35);
+
+  /* アコーディオン */
+  --accordion-header-bg: #2d2d2d;
+  --accordion-header-hover-bg: #3a3a3a;
+  --accordion-border-color: #4b5563;
+
+  /* サイドバーボタン */
+  --sidebar-btn-bg: #2d2d2d;
+  --sidebar-btn-hover-bg: rgba(107, 140, 190, 0.15);
+  --sidebar-btn-active-bg: #6b8cbe;
+  --sidebar-btn-border: #4b5563;
+  --sidebar-btn-text: #e5e7eb;
+  --sidebar-btn-icon-color: #8ba8d4;
+}

@@ -5,30 +5,30 @@
  * BaseElementStateManagerを継承してシンプルな実装を提供します。
  */
 
-import { BaseElementStateManager } from "./baseElementStateManager.js";
+import { BaseElementStateManager } from './baseElementStateManager.js';
 
 /**
  * 表示可能な要素タイプ
  */
 const ELEMENT_TYPES = [
-  "Column",
-  "Beam",
-  "Girder",
-  "Brace",
-  "Post",
-  "Slab",
-  "Wall",
-  "FoundationColumn",
-  "Footing",
-  "Pile",
+  'Column',
+  'Beam',
+  'Girder',
+  'Brace',
+  'Post',
+  'Slab',
+  'Wall',
+  'FoundationColumn',
+  'Footing',
+  'Pile'
 ];
 
 /**
  * 表示モード
  */
 const DISPLAY_MODES = {
-  LINE: "line",
-  SOLID: "solid",
+  LINE: 'line',
+  SOLID: 'solid'
 };
 
 /**
@@ -37,8 +37,8 @@ const DISPLAY_MODES = {
  */
 class DisplayModeManager extends BaseElementStateManager {
   constructor() {
-    // 基底クラスのコンストラクタを呼び出し
-    super(ELEMENT_TYPES, DISPLAY_MODES.LINE, "DisplayModeManager");
+    // 基底クラスのコンストラクタを呼び出し（デフォルトは立体表示）
+    super(ELEMENT_TYPES, DISPLAY_MODES.SOLID, 'DisplayModeManager');
   }
 
   /**
@@ -147,11 +147,11 @@ class DisplayModeManager extends BaseElementStateManager {
       callbackCounts: Object.fromEntries(
         Array.from(this.callbacks.entries()).map(([type, callbacks]) => [
           type,
-          callbacks.length,
+          callbacks.length
         ])
       ),
       globalCallbackCount: this.globalCallbacks.length,
-      debugMode: this.debugMode,
+      debugMode: this.debugMode
     };
   }
 }

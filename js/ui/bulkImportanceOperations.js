@@ -38,7 +38,7 @@ export class BulkImportanceOperations {
     this.maxHistorySize = 50;
     this.isVisible = false;
     this.containerElement = null;
-    
+
     this.loadPresets();
     this.setupEventListeners();
   }
@@ -55,7 +55,7 @@ export class BulkImportanceOperations {
 
   /**
    * 一括操作パネルを初期化する
-   * @param {HTMLElement} containerElement - パネルを配置するコンテナ要素
+  * @param {HTMLElement} containerElement - パネルを配置するコンテナー要素
    */
   initialize(containerElement) {
     this.containerElement = containerElement;
@@ -278,292 +278,11 @@ export class BulkImportanceOperations {
 
   /**
    * スタイルを追加する
+   * 注: スタイルは importance.css に外部化されました
    */
   addStyles() {
-    if (document.getElementById('bulk-operations-styles')) return;
-    
-    const styles = `
-      <style id="bulk-operations-styles">
-        .bulk-operations-panel {
-          position: fixed;
-          top: 50px;
-          right: 20px;
-          width: 450px;
-          max-height: 85vh;
-          background: white;
-          border: 1px solid #ccc;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-          z-index: 1000;
-          overflow-y: auto;
-          display: none;
-        }
-
-        .bulk-operations-panel.visible {
-          display: block;
-        }
-        
-        .bulk-operations-panel .panel-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px 16px;
-          border-bottom: 1px solid #eee;
-          background: #f8f9fa;
-          border-radius: 8px 8px 0 0;
-        }
-        
-        .bulk-operations-panel .panel-header h3 {
-          margin: 0;
-          font-size: 16px;
-          color: #333;
-        }
-        
-        .bulk-operations-panel .close-button {
-          background: none;
-          border: none;
-          font-size: 18px;
-          cursor: pointer;
-          color: #666;
-          padding: 0;
-          width: 24px;
-          height: 24px;
-          border-radius: 50%;
-        }
-        
-        .bulk-operations-panel .close-button:hover {
-          background: #e9ecef;
-        }
-        
-        .bulk-operations-panel .panel-content {
-          padding: 16px;
-        }
-        
-        .operation-section {
-          margin-bottom: 20px;
-          border: 1px solid #eee;
-          border-radius: 6px;
-        }
-        
-        .section-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 8px 12px;
-          background: #f8f9fa;
-          border-bottom: 1px solid #eee;
-          cursor: pointer;
-        }
-        
-        .section-header h4 {
-          margin: 0;
-          font-size: 14px;
-          color: #333;
-        }
-        
-        .expand-button {
-          background: none;
-          border: none;
-          font-size: 12px;
-          color: #666;
-          cursor: pointer;
-          transition: transform 0.2s;
-        }
-        
-        .expand-button.expanded {
-          transform: rotate(180deg);
-        }
-        
-        .section-content {
-          padding: 12px;
-        }
-        
-        .section-content.collapsed {
-          display: none;
-        }
-        
-        .type-selector, .importance-selector, .filter-options, .operation-controls {
-          margin-bottom: 12px;
-        }
-        
-        .type-selector label, .importance-selector label {
-          display: block;
-          font-weight: bold;
-          margin-bottom: 4px;
-          font-size: 12px;
-          color: #555;
-        }
-        
-        .type-selector select, .importance-selector select {
-          width: 100%;
-          padding: 4px 6px;
-          border: 1px solid #ddd;
-          border-radius: 3px;
-          font-size: 12px;
-        }
-        
-        .type-controls {
-          display: flex;
-          gap: 8px;
-          margin-top: 4px;
-        }
-        
-        .btn {
-          padding: 4px 8px;
-          border: 1px solid #ddd;
-          border-radius: 3px;
-          background: white;
-          cursor: pointer;
-          font-size: 11px;
-          transition: all 0.2s;
-        }
-        
-        .btn:hover {
-          background: #f0f0f0;
-        }
-        
-        .btn.btn-primary {
-          background: #007bff;
-          color: white;
-          border-color: #007bff;
-        }
-        
-        .btn.btn-success {
-          background: #28a745;
-          color: white;
-          border-color: #28a745;
-        }
-        
-        .btn.btn-warning {
-          background: #ffc107;
-          color: #212529;
-          border-color: #ffc107;
-        }
-        
-        .btn.btn-danger {
-          background: #dc3545;
-          color: white;
-          border-color: #dc3545;
-        }
-        
-        .btn.btn-info {
-          background: #17a2b8;
-          color: white;
-          border-color: #17a2b8;
-        }
-        
-        .btn.btn-secondary {
-          background: #6c757d;
-          color: white;
-          border-color: #6c757d;
-        }
-        
-        .btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        
-        .filter-options label {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 12px;
-          color: #555;
-        }
-        
-        .filter-options input[type="text"] {
-          width: 100%;
-          padding: 4px 6px;
-          border: 1px solid #ddd;
-          border-radius: 3px;
-          font-size: 11px;
-          margin-top: 4px;
-        }
-        
-        .preview-results {
-          margin-top: 12px;
-          padding: 8px;
-          background: #f8f9fa;
-          border: 1px solid #eee;
-          border-radius: 3px;
-          font-size: 11px;
-        }
-        
-        .preview-item {
-          padding: 4px 0;
-          border-bottom: 1px solid #eee;
-          display: flex;
-          justify-content: space-between;
-        }
-        
-        .preview-item:last-child {
-          border-bottom: none;
-        }
-        
-        .form-group {
-          margin-bottom: 8px;
-        }
-        
-        .form-group label {
-          display: block;
-          font-weight: bold;
-          margin-bottom: 4px;
-          font-size: 12px;
-          color: #555;
-        }
-        
-        .form-group input, .form-group textarea {
-          width: 100%;
-          padding: 4px 6px;
-          border: 1px solid #ddd;
-          border-radius: 3px;
-          font-size: 12px;
-        }
-        
-        .history-list {
-          max-height: 200px;
-          overflow-y: auto;
-          border: 1px solid #eee;
-          border-radius: 3px;
-        }
-        
-        .history-item {
-          padding: 8px;
-          border-bottom: 1px solid #f0f0f0;
-          font-size: 11px;
-        }
-        
-        .history-item:last-child {
-          border-bottom: none;
-        }
-        
-        .history-item .operation-time {
-          color: #666;
-          font-size: 10px;
-        }
-        
-        .history-item .operation-description {
-          font-weight: bold;
-          color: #333;
-          margin-bottom: 2px;
-        }
-        
-        .export-controls, .import-options-detail {
-          margin-bottom: 8px;
-        }
-        
-        .export-controls label, .import-options-detail label {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 12px;
-          color: #555;
-          margin-bottom: 4px;
-        }
-      </style>
-    `;
-    
-    document.head.insertAdjacentHTML('beforeend', styles);
+    // スタイルは stb-diff-viewer/style/components/importance.css で定義
+    // このメソッドは互換性のために残されています
   }
 
   /**
@@ -599,11 +318,11 @@ export class BulkImportanceOperations {
    */
   setupSectionToggle() {
     const sections = ['type-bulk', 'presets', 'rules', 'history', 'import-export'];
-    
+
     sections.forEach(sectionId => {
       const expandButton = document.getElementById(`expand-${sectionId}`);
       const content = document.getElementById(`${sectionId}-content`);
-      
+
       if (expandButton && content) {
         expandButton.addEventListener('click', () => {
           const isExpanded = !content.classList.contains('collapsed');
@@ -621,14 +340,14 @@ export class BulkImportanceOperations {
     // 全選択/選択解除
     document.getElementById('select-all-types').addEventListener('click', () => {
       const select = document.getElementById('bulk-element-type');
-      for (let option of select.options) {
+      for (const option of select.options) {
         option.selected = true;
       }
     });
 
     document.getElementById('clear-type-selection').addEventListener('click', () => {
       const select = document.getElementById('bulk-element-type');
-      for (let option of select.options) {
+      for (const option of select.options) {
         option.selected = false;
       }
     });
@@ -755,7 +474,7 @@ export class BulkImportanceOperations {
     }
 
     const affectedPaths = this.getAffectedPaths(selectedTypes, usePattern ? pattern : null);
-    
+
     const previewContainer = document.getElementById('bulk-preview-results');
     previewContainer.innerHTML = `
       <div class="preview-summary">
@@ -763,15 +482,15 @@ export class BulkImportanceOperations {
       </div>
       <div class="preview-details">
         ${selectedTypes.map(type => {
-          const typePaths = affectedPaths.filter(path => path.includes(type));
-          return `<div class="preview-item">
+    const typePaths = affectedPaths.filter(path => path.includes(type));
+    return `<div class="preview-item">
             <span>${type}</span>
             <span>${typePaths.length} 個</span>
           </div>`;
-        }).join('')}
+  }).join('')}
       </div>
     `;
-    
+
     previewContainer.style.display = 'block';
     document.getElementById('execute-bulk-operation').disabled = false;
   }
@@ -787,7 +506,7 @@ export class BulkImportanceOperations {
     const pattern = document.getElementById('bulk-pattern-text').value;
 
     const affectedPaths = this.getAffectedPaths(selectedTypes, usePattern ? pattern : null);
-    
+
     if (affectedPaths.length === 0) {
       alert('変更対象となる要素がありません。');
       return;
@@ -852,7 +571,7 @@ export class BulkImportanceOperations {
     // パターンフィルタリング
     if (pattern && pattern.trim()) {
       const filterPattern = pattern.trim().toLowerCase();
-      affectedPaths = affectedPaths.filter(path => 
+      affectedPaths = affectedPaths.filter(path =>
         path.toLowerCase().includes(filterPattern)
       );
     }
@@ -925,7 +644,7 @@ export class BulkImportanceOperations {
     this.presets.delete(presetName);
     this.savePresets();
     this.updatePresetList();
-    
+
     alert(`プリセット「${presetName}」を削除しました。`);
   }
 
@@ -949,7 +668,7 @@ export class BulkImportanceOperations {
 
     // 現在の設定を取得
     const currentSettings = this.manager.exportSettings();
-    
+
     const preset = {
       name,
       description: description || `${new Date().toLocaleDateString()} に作成`,
@@ -1142,7 +861,7 @@ export class BulkImportanceOperations {
     }
 
     const lastOperation = this.operationHistory[0];
-    
+
     if (!confirm(`「${lastOperation.description}」を元に戻しますか？`)) {
       return;
     }
@@ -1182,7 +901,7 @@ export class BulkImportanceOperations {
    */
   updateHistoryDisplay() {
     const container = document.getElementById('operation-history-list');
-    
+
     if (this.operationHistory.length === 0) {
       container.innerHTML = '<div class="history-item">操作履歴はありません</div>';
       return;
@@ -1217,16 +936,16 @@ export class BulkImportanceOperations {
       const jsonContent = JSON.stringify(exportData, null, 2);
       const blob = new Blob([jsonContent], { type: 'application/json' });
       const link = document.createElement('a');
-      
+
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
       link.setAttribute('download', `operation_history_${new Date().toISOString().slice(0, 10)}.json`);
       link.style.visibility = 'hidden';
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
     } catch (error) {
       console.error('Failed to export history:', error);
       alert('履歴の出力に失敗しました。');
@@ -1257,16 +976,16 @@ export class BulkImportanceOperations {
       const jsonContent = JSON.stringify(exportData, null, 2);
       const blob = new Blob([jsonContent], { type: 'application/json' });
       const link = document.createElement('a');
-      
+
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
       link.setAttribute('download', `bulk_operations_export_${new Date().toISOString().slice(0, 10)}.json`);
       link.style.visibility = 'hidden';
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
     } catch (error) {
       console.error('Failed to export settings:', error);
       alert('設定の出力に失敗しました。');
@@ -1410,7 +1129,7 @@ export function getBulkImportanceOperations() {
 
 /**
  * 一括操作パネルを初期化する
- * @param {HTMLElement} containerElement - パネルを配置するコンテナ
+ * @param {HTMLElement} containerElement - パネルを配置するコンテナー
  * @returns {BulkImportanceOperations} 初期化済みのインスタンス
  */
 export function initializeBulkImportanceOperations(containerElement = document.body) {

@@ -12,34 +12,34 @@ const LEVELS = { silent: 0, error: 1, warn: 2, info: 3, debug: 4, trace: 5 };
 function readConfig() {
   try {
     const params = new URLSearchParams(window.location.search);
-    const urlLevel = params.get("log") || params.get("logLevel");
-    const urlNs = params.get("ns") || params.get("namespaces");
+    const urlLevel = params.get('log') || params.get('logLevel');
+    const urlNs = params.get('ns') || params.get('namespaces');
 
-    const lsLevel = localStorage.getItem("stbviewer.log.level");
-    const lsNs = localStorage.getItem("stbviewer.log.namespaces");
+    const lsLevel = localStorage.getItem('stbviewer.log.level');
+    const lsNs = localStorage.getItem('stbviewer.log.namespaces');
 
-    const level = (urlLevel || lsLevel || "warn").toLowerCase();
-    const namespaces = (urlNs || lsNs || "*")
-      .split(",")
+    const level = (urlLevel || lsLevel || 'warn').toLowerCase();
+    const namespaces = (urlNs || lsNs || '*')
+      .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
 
     return { level, namespaces };
   } catch (e) {
-    return { level: "warn", namespaces: ["*"] };
+    return { level: 'warn', namespaces: ['*'] };
   }
 }
 
-let CONFIG = readConfig();
+const CONFIG = readConfig();
 const HISTORY_LIMIT = 500;
 const HISTORY = [];
 
 function patternToRegex(pat) {
   // 'viewer:*' → /^viewer:.*$/ ; '*' → /^.*$/
-  const negated = pat.startsWith("-");
+  const negated = pat.startsWith('-');
   const raw = negated ? pat.slice(1) : pat;
-  const esc = raw.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
-  return { negated, regex: new RegExp("^" + esc + "$") };
+  const esc = raw.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
+  return { negated, regex: new RegExp('^' + esc + '$') };
 }
 
 let nsRules = CONFIG.namespaces.map(patternToRegex);
@@ -84,34 +84,34 @@ export function createLogger(namespace) {
   }
 
   return {
-    error: (...args) => shouldLog("error") && baseLog("error", namespace, args),
-    warn: (...args) => shouldLog("warn") && baseLog("warn", namespace, args),
-    info: (...args) => shouldLog("info") && baseLog("info", namespace, args),
-    debug: (...args) => shouldLog("debug") && baseLog("debug", namespace, args),
-    trace: (...args) => shouldLog("trace") && baseLog("trace", namespace, args),
+    error: (...args) => shouldLog('error') && baseLog('error', namespace, args),
+    warn: (...args) => shouldLog('warn') && baseLog('warn', namespace, args),
+    info: (...args) => shouldLog('info') && baseLog('info', namespace, args),
+    debug: (...args) => shouldLog('debug') && baseLog('debug', namespace, args),
+    trace: (...args) => shouldLog('trace') && baseLog('trace', namespace, args),
     once: (key, ...args) => {
-      if (!onceKeys.has(namespace + ":" + key) && shouldLog("info")) {
-        onceKeys.add(namespace + ":" + key);
-        baseLog("info", namespace, args);
+      if (!onceKeys.has(namespace + ':' + key) && shouldLog('info')) {
+        onceKeys.add(namespace + ':' + key);
+        baseLog('info', namespace, args);
       }
-    },
+    }
   };
 }
 
 export const Logger = {
   setLevel(level) {
-    CONFIG.level = (level || "").toString().toLowerCase();
-    localStorage.setItem("stbviewer.log.level", CONFIG.level);
+    CONFIG.level = (level || '').toString().toLowerCase();
+    localStorage.setItem('stbviewer.log.level', CONFIG.level);
   },
   enable(patterns) {
     const arr = Array.isArray(patterns)
       ? patterns
-      : (patterns || "*").split(",");
+      : (patterns || '*').split(',');
     CONFIG.namespaces = arr.map((s) => s.trim()).filter(Boolean);
     nsRules = CONFIG.namespaces.map(patternToRegex);
     localStorage.setItem(
-      "stbviewer.log.namespaces",
-      CONFIG.namespaces.join(",")
+      'stbviewer.log.namespaces',
+      CONFIG.namespaces.join(',')
     );
   },
   getLevel() {
@@ -125,10 +125,10 @@ export const Logger = {
   },
   clearHistory() {
     HISTORY.length = 0;
-  },
+  }
 };
 
 // デバッグ用にグローバル公開
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   window.AppLogger = Logger;
 }

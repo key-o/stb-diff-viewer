@@ -5,18 +5,18 @@
  * ProfileBased生成器を活用した3D表示システムとの統合を担当します。
  */
 
-import * as THREE from "three";
-import { JsonDisplayIntegration } from "../viewer/integration/jsonDisplayIntegration.js";
+import * as THREE from 'three';
+import { JsonDisplayIntegration } from '../viewer/integration/jsonDisplayIntegration.js';
 import {
   clearSceneContent,
   elementGroups,
   adjustCameraToFitModel,
   createOrUpdateGridHelper,
   camera,
-  controls,
-} from "../viewer/index.js";
-import { setState } from "../core/globalState.js";
-import { getAllLabels, setAllLabels } from "../ui/state.js";
+  controls
+} from '../viewer/index.js';
+import { setState } from '../core/globalState.js';
+import { getAllLabels, setAllLabels } from '../ui/state.js';
 
 /**
  * JSON統合モデル処理関数
@@ -34,7 +34,7 @@ export async function processJsonIntegratedModels(
   isJsonFileB,
   jsonIntegration
 ) {
-  console.log("=== JSON統合モデル処理開始 ===");
+  console.log('=== JSON統合モデル処理開始 ===');
 
   try {
     let displayResultA = null;
@@ -42,7 +42,7 @@ export async function processJsonIntegratedModels(
 
     // ファイルAの処理
     if (isJsonFileA) {
-      console.log("ファイルA: JSON統合処理中...");
+      console.log('ファイルA: JSON統合処理中...');
       displayResultA = await jsonIntegration.generateFrom3DDataFromJson(fileA);
       console.log(
         `ファイルA: ${displayResultA.allMeshes.length}個のメッシュ生成完了 (ProfileBased)`
@@ -59,7 +59,7 @@ export async function processJsonIntegratedModels(
 
     // ファイルBの処理
     if (isJsonFileB) {
-      console.log("ファイルB: JSON統合処理中...");
+      console.log('ファイルB: JSON統合処理中...');
       const jsonIntegrationB = new JsonDisplayIntegration();
       displayResultB = await jsonIntegrationB.generateFrom3DDataFromJson(fileB);
       console.log(
@@ -81,16 +81,16 @@ export async function processJsonIntegratedModels(
     if (existingLabels.length > 0) {
       setAllLabels([]);
     }
-    console.log("既存シーンコンテンツクリア完了");
+    console.log('既存シーンコンテンツクリア完了');
 
     // モデルAのメッシュをシーンに追加
     if (displayResultA) {
       displayResultA.allMeshes.forEach((mesh) => {
         // JSON統合メタデータを追加
-        mesh.userData.modelSource = "A";
-        mesh.userData.comparison = "modelA";
+        mesh.userData.modelSource = 'A';
+        mesh.userData.comparison = 'modelA';
         mesh.userData.isJsonInput = true;
-        mesh.userData.generationMethod = "ProfileBased";
+        mesh.userData.generationMethod = 'ProfileBased';
 
         // 要素タイプ別グループ化
         const elementType = mesh.userData.elementType;
@@ -106,10 +106,10 @@ export async function processJsonIntegratedModels(
     // モデルBのメッシュをシーンに追加
     if (displayResultB) {
       displayResultB.allMeshes.forEach((mesh) => {
-        mesh.userData.modelSource = "B";
-        mesh.userData.comparison = "modelB";
+        mesh.userData.modelSource = 'B';
+        mesh.userData.comparison = 'modelB';
         mesh.userData.isJsonInput = true;
-        mesh.userData.generationMethod = "ProfileBased";
+        mesh.userData.generationMethod = 'ProfileBased';
 
         const elementType = mesh.userData.elementType;
         if (elementType && elementGroups[elementType]) {
@@ -124,11 +124,11 @@ export async function processJsonIntegratedModels(
     // カメラフィッティングとグリッド調整
     const allMeshes = [
       ...(displayResultA?.allMeshes || []),
-      ...(displayResultB?.allMeshes || []),
+      ...(displayResultB?.allMeshes || [])
     ];
 
     if (allMeshes.length > 0) {
-      console.log("カメラフィッティングとグリッド調整実行中...");
+      console.log('カメラフィッティングとグリッド調整実行中...');
 
       const box = new THREE.Box3();
       allMeshes.forEach((mesh) => box.expandByObject(mesh));
@@ -148,35 +148,35 @@ export async function processJsonIntegratedModels(
         adjustCameraToFitModel(box, camera, controls);
       } else {
         console.warn(
-          "カメラまたはコントロールが未初期化のためフィット処理をスキップしました"
+          'カメラまたはコントロールが未初期化のためフィット処理をスキップしました'
         );
       }
       createOrUpdateGridHelper(box);
 
       console.log(`JSON統合表示完了: 総メッシュ数 ${allMeshes.length}個`);
     } else {
-      console.warn("JSON統合処理: メッシュが生成されませんでした");
+      console.warn('JSON統合処理: メッシュが生成されませんでした');
     }
 
     // グローバル状態更新
-    setState("models.hasJsonFiles", true);
-    setState("models.jsonDisplayA", displayResultA);
-    setState("models.jsonDisplayB", displayResultB);
-    setState("models.jsonIntegrationComplete", true);
+    setState('models.hasJsonFiles', true);
+    setState('models.jsonDisplayA', displayResultA);
+    setState('models.jsonDisplayB', displayResultB);
+    setState('models.jsonIntegrationComplete', true);
 
     // 統計情報
     const totalMeshes = allMeshes.length;
     const columnMeshes = allMeshes.filter(
-      (m) => m.userData.elementType === "Column"
+      (m) => m.userData.elementType === 'Column'
     ).length;
     const beamMeshes = allMeshes.filter(
-      (m) => m.userData.elementType === "Beam"
+      (m) => m.userData.elementType === 'Beam'
     ).length;
     const braceMeshes = allMeshes.filter(
-      (m) => m.userData.elementType === "Brace"
+      (m) => m.userData.elementType === 'Brace'
     ).length;
 
-    console.log("JSON統合統計:");
+    console.log('JSON統合統計:');
     console.log(`  - 総メッシュ: ${totalMeshes}個`);
     console.log(`  - 柱: ${columnMeshes}個`);
     console.log(`  - 梁: ${beamMeshes}個`);
@@ -192,17 +192,17 @@ export async function processJsonIntegratedModels(
         totalMeshes,
         columnMeshes,
         beamMeshes,
-        braceMeshes,
-      },
+        braceMeshes
+      }
     };
   } catch (error) {
-    console.error("JSON統合モデル処理エラー:", error);
-    console.error("スタックトレース:", error.stack);
+    console.error('JSON統合モデル処理エラー:', error);
+    console.error('スタックトレース:', error.stack);
 
     return {
       success: false,
       error: error.message,
-      stack: error.stack,
+      stack: error.stack
     };
   }
 }
@@ -214,27 +214,27 @@ export async function processJsonIntegratedModels(
  * @returns {Object} JSON対応情報
  */
 export function detectJsonIntegrationSupport(fileA, fileB) {
-  const isJsonFileA = fileA?.name.toLowerCase().endsWith(".json");
-  const isJsonFileB = fileB?.name.toLowerCase().endsWith(".json");
+  const isJsonFileA = fileA?.name.toLowerCase().endsWith('.json');
+  const isJsonFileB = fileB?.name.toLowerCase().endsWith('.json');
   const hasJsonFiles = isJsonFileA || isJsonFileB;
 
   const supportInfo = {
     hasJsonFiles,
     isJsonFileA,
     isJsonFileB,
-    supportedModes: [],
+    supportedModes: []
   };
 
   if (isJsonFileA && isJsonFileB) {
-    supportInfo.supportedModes.push("JSON-JSON比較");
+    supportInfo.supportedModes.push('JSON-JSON比較');
   } else if (isJsonFileA && !isJsonFileB) {
-    supportInfo.supportedModes.push("JSON-STB混合比較");
+    supportInfo.supportedModes.push('JSON-STB混合比較');
   } else if (!isJsonFileA && isJsonFileB) {
-    supportInfo.supportedModes.push("STB-JSON混合比較");
+    supportInfo.supportedModes.push('STB-JSON混合比較');
   }
 
   if (hasJsonFiles) {
-    console.log("JSON統合サポート検出:", supportInfo);
+    console.log('JSON統合サポート検出:', supportInfo);
   }
 
   return supportInfo;
@@ -250,23 +250,23 @@ export function validateJsonIntegrationResult(displayResult) {
     isValid: false,
     errors: [],
     warnings: [],
-    statistics: {},
+    statistics: {}
   };
 
   try {
     if (!displayResult) {
-      validation.errors.push("表示結果が null または undefined");
+      validation.errors.push('表示結果が null または undefined');
       return validation;
     }
 
     if (!displayResult.allMeshes || !Array.isArray(displayResult.allMeshes)) {
-      validation.errors.push("allMeshes が配列ではない");
+      validation.errors.push('allMeshes が配列ではない');
       return validation;
     }
 
     const meshCount = displayResult.allMeshes.length;
     if (meshCount === 0) {
-      validation.warnings.push("メッシュが生成されていない");
+      validation.warnings.push('メッシュが生成されていない');
     }
 
     // メッシュの検証
@@ -291,15 +291,15 @@ export function validateJsonIntegrationResult(displayResult) {
       validMeshes,
       invalidMeshes,
       validityRate:
-        meshCount > 0 ? ((validMeshes / meshCount) * 100).toFixed(1) : 0,
+        meshCount > 0 ? ((validMeshes / meshCount) * 100).toFixed(1) : 0
     };
 
     validation.isValid = meshCount > 0 && invalidMeshes === 0;
 
     if (validation.isValid) {
-      console.log("JSON統合処理検証: 成功");
+      console.log('JSON統合処理検証: 成功');
     } else {
-      console.warn("JSON統合処理検証: 問題あり", validation);
+      console.warn('JSON統合処理検証: 問題あり', validation);
     }
 
     return validation;

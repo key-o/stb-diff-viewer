@@ -14,46 +14,46 @@
  * 他のモジュールがこの上に構築される形で機能します。
  */
 
-import * as THREE from "three";
+import * as THREE from 'three';
 // CameraControls を使用（OrbitControls から移行）
 // CameraControls is only needed in the browser. Dynamically import it there to avoid
 // attempting to load remote ESM modules in Node (which would fail the tests).
 let CameraControls = null;
 let CameraControlsPromise = null;
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   // Start loading CameraControls asynchronously and keep the promise so
   // initRenderer can wait for it before instantiating controls.
   CameraControlsPromise = import(
-    "https://unpkg.com/camera-controls@3.1.0/dist/camera-controls.module.js"
+    'https://unpkg.com/camera-controls@3.1.0/dist/camera-controls.module.js'
   )
     .then((mod) => {
       CameraControls = mod.default || mod;
       // install THREE reference into CameraControls (some distributions require this)
-      if (CameraControls && typeof CameraControls.install === "function") {
+      if (CameraControls && typeof CameraControls.install === 'function') {
         CameraControls.install({ THREE });
       }
     })
     .catch((err) => {
-      console.warn("CameraControls の読み込みに失敗しました:", err);
+      console.warn('CameraControls の読み込みに失敗しました:', err);
       CameraControls = null;
     });
 }
 
 // --- 定数 ---
 export const SUPPORTED_ELEMENTS = [
-  "Node",
-  "Column",
-  "Post",
-  "Girder",
-  "Beam",
-  "Brace",
-  "Slab",
-  "Wall",
-  "Axis",
-  "Story",
-  "Pile",
-  "Footing",
-  "FoundationColumn",
+  'Node',
+  'Column',
+  'Post',
+  'Girder',
+  'Beam',
+  'Brace',
+  'Slab',
+  'Wall',
+  'Axis',
+  'Story',
+  'Pile',
+  'Footing',
+  'FoundationColumn'
 ];
 
 // --- Three.js シーン / カメラ / レンダラー ---
@@ -69,7 +69,7 @@ export let controls = null;
 // デフォルトはPerspectiveCamera（3Dモード）
 export let activeCamera = null; // 初期化後にcameraを代入
 
-if (typeof window !== "undefined") {
+if (typeof window !== 'undefined') {
   // ブラウザ環境での初期化
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0xf0f0f0);
@@ -185,7 +185,7 @@ class OrbitLikeControlsShim {
     this._mouseButtonsOrbit = {
       LEFT: THREE.MOUSE.ROTATE,
       MIDDLE: THREE.MOUSE.DOLLY,
-      RIGHT: THREE.MOUSE.PAN,
+      RIGHT: THREE.MOUSE.PAN
     };
     this._applyMouseButtons();
 
@@ -211,6 +211,13 @@ class OrbitLikeControlsShim {
   }
 
   // --- 互換プロパティ ---
+  get enabled() {
+    return this._cc.enabled;
+  }
+  set enabled(v) {
+    this._cc.enabled = !!v;
+  }
+
   get enableRotate() {
     return this._enableRotate;
   }
@@ -245,7 +252,7 @@ class OrbitLikeControlsShim {
     return { ...this._mouseButtonsOrbit };
   }
   set mouseButtons(mapping) {
-    if (mapping && typeof mapping === "object") {
+    if (mapping && typeof mapping === 'object') {
       this._mouseButtonsOrbit = { ...this._mouseButtonsOrbit, ...mapping };
       this._applyMouseButtons();
     }
@@ -261,9 +268,9 @@ class OrbitLikeControlsShim {
       if (v === THREE.MOUSE.PAN) return this._enablePan ? A.TRUCK : A.NONE;
       return A.NONE;
     };
-    this._cc.mouseButtons.left = mapOne("LEFT");
-    this._cc.mouseButtons.middle = mapOne("MIDDLE");
-    this._cc.mouseButtons.right = mapOne("RIGHT");
+    this._cc.mouseButtons.left = mapOne('LEFT');
+    this._cc.mouseButtons.middle = mapOne('MIDDLE');
+    this._cc.mouseButtons.right = mapOne('RIGHT');
   }
 
   _applyDamping() {
@@ -323,7 +330,7 @@ class OrbitLikeControlsShim {
 
   // --- 互換メソッド ---
   update(dt) {
-    const delta = typeof dt === "number" ? dt : 0;
+    const delta = typeof dt === 'number' ? dt : 0;
     return this._cc.update(delta);
   }
 
@@ -359,9 +366,9 @@ class OrbitLikeControlsShim {
   addEventListener(type, listener) {
     const wrap = (e) => listener(e);
     let ccType = type;
-    if (type === "start") ccType = "controlstart";
-    else if (type === "end") ccType = "controlend";
-    else if (type === "change") ccType = "update";
+    if (type === 'start') ccType = 'controlstart';
+    else if (type === 'end') ccType = 'controlend';
+    else if (type === 'change') ccType = 'update';
     this._cc.addEventListener(ccType, wrap);
     if (!this._listeners.has(type)) this._listeners.set(type, new Map());
     this._listeners.get(type).set(listener, wrap);
@@ -372,9 +379,9 @@ class OrbitLikeControlsShim {
     const wrap = map.get(listener);
     if (!wrap) return;
     let ccType = type;
-    if (type === "start") ccType = "controlstart";
-    else if (type === "end") ccType = "controlend";
-    else if (type === "change") ccType = "update";
+    if (type === 'start') ccType = 'controlstart';
+    else if (type === 'end') ccType = 'controlend';
+    else if (type === 'change') ccType = 'update';
     this._cc.removeEventListener(ccType, wrap);
     map.delete(listener);
   }
@@ -412,15 +419,24 @@ SUPPORTED_ELEMENTS.forEach((type) => {
  */
 export async function initRenderer() {
   try {
-    const canvas = document.getElementById("three-canvas");
+    const canvas = document.getElementById('three-canvas');
     if (!canvas) {
       console.error("ID 'three-canvas'のキャンバス要素が見つかりません。");
       return false;
     }
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    console.log('Renderer created. Canvas element found:', canvas);
+    // 出力してWebGLコンテキストが取得できているか確認
+    try {
+      const gl = renderer.getContext && renderer.getContext();
+      console.log('WebGL context available:', !!gl, gl && (gl.getParameter ? gl.getParameter(gl.VERSION) : null));
+    } catch (e) {
+      console.warn('WebGL context check failed:', e);
+    }
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.localClippingEnabled = true;
+    console.log('Renderer size set:', renderer.domElement.clientWidth, renderer.domElement.clientHeight);
 
     // CameraControls の読み込みが進行中であれば待機する
     if (CameraControlsPromise) {
@@ -428,16 +444,46 @@ export async function initRenderer() {
         await CameraControlsPromise;
       } catch (e) {
         // 既に警告は出しているが、ここではフォールバックとして続行
-        console.warn("CameraControls の初期化待機中にエラーが発生しました:", e);
+        console.warn('CameraControls の初期化待機中にエラーが発生しました:', e);
       }
     }
 
     // ★★★ CameraControls ベースの互換ラッパーをインスタンス化 ★★★
-    if (!CameraControls) {
-      throw new Error("CameraControls が利用できません（ロード失敗）。");
-    }
+    // CameraControls が利用できない場合は、致命的エラーにせず
+    // 最小限のフォールバックコントロールを用意してレンダリングを継続する
+    if (CameraControls) {
+      controls = new OrbitLikeControlsShim(camera, renderer.domElement);
+    } else {
+      console.warn(
+        'CameraControls が利用できません。フォールバックの最小コントロールを使用します。'
+      );
 
-    controls = new OrbitLikeControlsShim(camera, renderer.domElement);
+      class MinimalControls {
+        constructor(cameraArg, domElement) {
+          this.camera = cameraArg;
+          this.domElement = domElement || document;
+          this.target = new THREE.Vector3();
+          this.enableDamping = false;
+          this.dampingFactor = 0.0;
+          this.screenSpacePanning = false;
+          this.minDistance = 0;
+          this.maxDistance = Infinity;
+          this.maxPolarAngle = Math.PI;
+          this.mouseButtons = {
+            LEFT: THREE.MOUSE.ROTATE,
+            MIDDLE: THREE.MOUSE.DOLLY,
+            RIGHT: THREE.MOUSE.PAN
+          };
+        }
+        // 既存コードは controls.update(dt) を呼ぶだけなので noop 実装で良い
+        update(_dt) {}
+        stop() {}
+        addEventListener() {}
+        removeEventListener() {}
+      }
+
+      controls = new MinimalControls(camera, renderer.domElement);
+    }
 
     // グローバルアクセス用にwindowオブジェクトに設定
     window.controls = controls;
@@ -452,13 +498,13 @@ export async function initRenderer() {
     controls.mouseButtons = {
       LEFT: THREE.MOUSE.ROTATE,
       MIDDLE: THREE.MOUSE.DOLLY,
-      RIGHT: THREE.MOUSE.PAN,
+      RIGHT: THREE.MOUSE.PAN
     };
 
-    console.log("レンダラーが初期化されました。");
+    console.log('レンダラーが初期化されました。');
     return true;
   } catch (error) {
-    console.error("レンダラーの初期化に失敗しました:", error);
+    console.error('レンダラーの初期化に失敗しました:', error);
     controls = null; // エラー時は controls も null に戻す
     return false;
   }
@@ -511,7 +557,7 @@ let _clock = new THREE.Clock();
  */
 export function setupViewportResizeHandler(defaultCamera) {
   window.addEventListener(
-    "resize",
+    'resize',
     () => {
       if (!renderer) return;
 

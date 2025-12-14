@@ -12,19 +12,20 @@
  * これにより国際BIMワークフローとIFCエクスポート/インポートとの互換性が実現されます。
  */
 
-import * as THREE from "three";
+import * as THREE from 'three';
 import {
   IFC_PROFILE_TYPES as MAP_IFC_PROFILE_TYPES,
-  mapSTBToIFCProfileType,
-  mapSTBParametersToIFC,
-} from "./IFCProfileMapping.js";
-import { normalizeSectionType } from "../../common/sectionTypeUtil.js";
+  mapToIFCProfileType,
+  mapToIFCParams,
+  createIFCProfileFromSTB
+} from '../../common/profileExtractor.js';
+import { normalizeSectionType } from '../../common/sectionTypeUtil.js';
 import {
   calculate2LBackToBackProfile,
   calculate2LFaceToFaceProfile,
   calculate2CBackToBackProfile,
-  calculate2CFaceToFaceProfile,
-} from "./core/ProfileCalculator.js";
+  calculate2CFaceToFaceProfile
+} from './core/ProfileCalculator.js';
 
 /**
  * IFC標準に従ったIFCプロファイルタイプ列挙
@@ -46,26 +47,23 @@ export class IFCProfileFactory {
     const typeNorm = normalizeSectionType(stbShapeType) || stbShapeType;
 
     // 組み合わせ断面のtype属性をチェック（BACKTOBACK, FACETOFACE, SINGLE）
-    const combinationType = stbSteelShape.shapeTypeAttr?.toUpperCase();
+    const combinationType = stbSteelShape?.shapeTypeAttr?.toUpperCase();
 
     // 組み合わせ断面の場合は専用のプロファイルタイプを使用
-    if (combinationType === "BACKTOBACK" || combinationType === "FACETOFACE") {
+    if (combinationType === 'BACKTOBACK' || combinationType === 'FACETOFACE') {
       const profileType = `${typeNorm}_${combinationType}`;
+      // 統一プロファイルモジュールを使用
+      const ifcProfile = createIFCProfileFromSTB(stbSteelShape, typeNorm);
       return {
         ProfileType: profileType,
-        ProfileName: `STB_${profileType}_${stbSteelShape.name || "Custom"}`,
-        ProfileParameters: mapSTBParametersToIFC(stbSteelShape, typeNorm),
-        CombinationType: combinationType,
+        ProfileName: `STB_${profileType}_${stbSteelShape?.name || 'Custom'}`,
+        ProfileParameters: ifcProfile.ProfileParameters,
+        CombinationType: combinationType
       };
     }
 
-    const ifcProfile = {
-      ProfileType: mapSTBToIFCProfileType(typeNorm),
-      ProfileName: `STB_${typeNorm}_${stbSteelShape.name || "Custom"}`,
-      ProfileParameters: mapSTBParametersToIFC(stbSteelShape, typeNorm),
-    };
-
-    return ifcProfile;
+    // 統一プロファイルモジュールを使用
+    return createIFCProfileFromSTB(stbSteelShape, typeNorm);
   }
 
   /**
@@ -74,7 +72,8 @@ export class IFCProfileFactory {
    * @returns {string} IFC profile type
    */
   static mapSTBToIFCProfileType(stbShapeType) {
-    return mapSTBToIFCProfileType(stbShapeType);
+    const typeNorm = normalizeSectionType(stbShapeType) || stbShapeType;
+    return mapToIFCProfileType(typeNorm);
   }
 
   /**
@@ -84,7 +83,9 @@ export class IFCProfileFactory {
    * @returns {Object} IFC-compliant parameters
    */
   static mapSTBParametersToIFC(stbShape, stbShapeType) {
-    return mapSTBParametersToIFC(stbShape, stbShapeType);
+    const typeNorm = normalizeSectionType(stbShapeType) || stbShapeType;
+    const ifcProfile = createIFCProfileFromSTB(stbShape, typeNorm);
+    return ifcProfile.ProfileParameters;
   }
 
   /**
@@ -93,10 +94,10 @@ export class IFCProfileFactory {
    * @param {string} originType - Origin type ('center', 'bottom-center', 'top-center')
    * @returns {THREE.Shape|null} Generated THREE.Shape or null
    */
-  static createGeometryFromProfile(ifcProfile, originType = "center") {
+  static createGeometryFromProfile(ifcProfile, originType = 'center') {
     // 組み合わせ断面の処理
-    if (ifcProfile.ProfileType?.includes("_BACKTOBACK") ||
-        ifcProfile.ProfileType?.includes("_FACETOFACE")) {
+    if (ifcProfile.ProfileType?.includes('_BACKTOBACK') ||
+        ifcProfile.ProfileType?.includes('_FACETOFACE')) {
       return this.createCombinedSectionGeometry(
         ifcProfile,
         originType
@@ -163,45 +164,45 @@ export class IFCProfileFactory {
     const params = ifcProfile.ProfileParameters;
 
     // L形鋼の組み合わせ断面
-    if (profileType === "L_BACKTOBACK") {
+    if (profileType === 'L_BACKTOBACK') {
       const profileData = calculate2LBackToBackProfile({
         depth: params.Depth,
         width: params.Width,
         thickness: params.Thickness,
-        gap: 0,
+        gap: 0
       });
       return this.createShapeFromVertices(profileData, originType);
     }
 
-    if (profileType === "L_FACETOFACE") {
+    if (profileType === 'L_FACETOFACE') {
       const profileData = calculate2LFaceToFaceProfile({
         depth: params.Depth,
         width: params.Width,
         thickness: params.Thickness,
-        gap: 0,
+        gap: 0
       });
       return this.createShapeFromVertices(profileData, originType);
     }
 
     // C形鋼の組み合わせ断面
-    if (profileType === "C_BACKTOBACK") {
+    if (profileType === 'C_BACKTOBACK') {
       const profileData = calculate2CBackToBackProfile({
         overallDepth: params.Depth,
         flangeWidth: params.FlangeWidth,
         webThickness: params.WebThickness,
         flangeThickness: params.FlangeThickness,
-        gap: 0,
+        gap: 0
       });
       return this.createShapeFromVertices(profileData, originType);
     }
 
-    if (profileType === "C_FACETOFACE") {
+    if (profileType === 'C_FACETOFACE') {
       const profileData = calculate2CFaceToFaceProfile({
         overallDepth: params.Depth,
         flangeWidth: params.FlangeWidth,
         webThickness: params.WebThickness,
         flangeThickness: params.FlangeThickness,
-        gap: 0,
+        gap: 0
       });
       return this.createShapeFromVertices(profileData, originType);
     }
@@ -221,7 +222,7 @@ export class IFCProfileFactory {
     const { vertices, holes = [] } = profileData;
 
     if (!vertices || vertices.length === 0) {
-      console.warn("No vertices provided for shape creation");
+      console.warn('No vertices provided for shape creation');
       return null;
     }
 
@@ -258,7 +259,7 @@ export class IFCProfileFactory {
       OverallDepth,
       WebThickness,
       FlangeThickness,
-      FilletRadius = 0,
+      FilletRadius = 0
     } = params;
 
     if (
@@ -266,7 +267,7 @@ export class IFCProfileFactory {
         OverallWidth,
         OverallDepth,
         WebThickness,
-        FlangeThickness,
+        FlangeThickness
       ])
     ) {
       return null;
@@ -419,7 +420,7 @@ export class IFCProfileFactory {
         Depth,
         FlangeWidth,
         WebThickness,
-        FlangeThickness,
+        FlangeThickness
       ])
     ) {
       return null;
@@ -507,11 +508,11 @@ export class IFCProfileFactory {
    */
   static calculateOriginOffset(originType, totalHeight) {
     switch (originType) {
-      case "bottom-center":
+      case 'bottom-center':
         return totalHeight / 2;
-      case "top-center":
+      case 'top-center':
         return -totalHeight / 2;
-      case "center":
+      case 'center':
       default:
         return 0;
     }
@@ -523,7 +524,7 @@ export class IFCProfileFactory {
    * @returns {boolean} True if all valid
    */
   static validatePositiveNumbers(params) {
-    return params.every((p) => typeof p === "number" && p > 0 && !isNaN(p));
+    return params.every((p) => typeof p === 'number' && p > 0 && !isNaN(p));
   }
 
   /**
@@ -537,7 +538,7 @@ export class IFCProfileFactory {
       // Create STB steel shape format from dimensions
       const stbSteelShape = {
         name: `${sectionType}_profile`,
-        ...dimensions,
+        ...dimensions
       };
 
       // Use existing method to create IFC profile
@@ -582,8 +583,8 @@ export class IFCProfileFactory {
         points: points,
         metadata: {
           profileType: ifcProfile.ProfileType,
-          profileName: ifcProfile.ProfileName,
-        },
+          profileName: ifcProfile.ProfileName
+        }
       };
     } catch (error) {
       console.warn(
@@ -626,7 +627,7 @@ export class IFCProfileFactory {
       new THREE.Vector2(-halfWidth, -halfHeight),
       new THREE.Vector2(halfWidth, -halfHeight),
       new THREE.Vector2(halfWidth, halfHeight),
-      new THREE.Vector2(-halfWidth, halfHeight),
+      new THREE.Vector2(-halfWidth, halfHeight)
     ];
   }
 }
@@ -651,7 +652,7 @@ export class IFCExtrusionEngine {
       depth: extrusionLength,
       bevelEnabled: false,
       steps: 1,
-      extrudePath: null, // Linear extrusion doesn't need path
+      extrudePath: null // Linear extrusion doesn't need path
     };
 
     const geometry = new THREE.ExtrudeGeometry(profileShape, extrudeSettings);
@@ -683,7 +684,7 @@ export class IFCExtrusionEngine {
     const extrudeSettings = {
       steps: steps,
       bevelEnabled: false,
-      extrudePath: extrusionPath,
+      extrudePath: extrusionPath
     };
 
     return new THREE.ExtrudeGeometry(profileShape, extrudeSettings);
@@ -729,7 +730,7 @@ export class STBToIFCConverter {
     stbSectionData,
     startNode,
     endNode,
-    originType = "center"
+    originType = 'center'
   ) {
     // Step 1: Determine shape type from STB section
     const shapeType = this.determineSTBShapeType(stbSectionData);
@@ -771,26 +772,26 @@ export class STBToIFCConverter {
    */
   static determineSTBShapeType(sectionData) {
     if (sectionData.type) {
-      if (sectionData.type.includes("H")) return "H";
-      if (sectionData.type.includes("BOX")) return "BOX";
-      if (sectionData.type.includes("Pipe")) return "Pipe";
-      if (sectionData.type.includes("L")) return "L";
-      if (sectionData.type.includes("T")) return "T";
-      if (sectionData.type.includes("C")) return "C";
-      if (sectionData.type.includes("Rect")) return "Rect";
-      if (sectionData.type.includes("Circle")) return "Circle";
+      if (sectionData.type.includes('H')) return 'H';
+      if (sectionData.type.includes('BOX')) return 'BOX';
+      if (sectionData.type.includes('Pipe')) return 'Pipe';
+      if (sectionData.type.includes('L')) return 'L';
+      if (sectionData.type.includes('T')) return 'T';
+      if (sectionData.type.includes('C')) return 'C';
+      if (sectionData.type.includes('Rect')) return 'Rect';
+      if (sectionData.type.includes('Circle')) return 'Circle';
     }
 
     // Fallback: analyze available parameters
     if (sectionData.shape) {
       const shape = sectionData.shape;
-      if (shape.A && shape.B && shape.t1 && shape.t2) return "H";
-      if (shape.B && shape.A && shape.t) return "BOX";
-      if (shape.D && shape.t) return "Pipe";
-      if (shape.width && shape.height) return "Rect";
-      if (shape.D && !shape.t) return "Circle";
+      if (shape.A && shape.B && shape.t1 && shape.t2) return 'H';
+      if (shape.B && shape.A && shape.t) return 'BOX';
+      if (shape.D && shape.t) return 'Pipe';
+      if (shape.width && shape.height) return 'Rect';
+      if (shape.D && !shape.t) return 'Circle';
     }
 
-    return "Rect"; // Default fallback
+    return 'Rect'; // Default fallback
   }
 }

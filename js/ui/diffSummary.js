@@ -12,8 +12,8 @@
  * @param {Object} comparisonResults - 比較結果オブジェクト
  */
 export function updateDiffSummary(comparisonResults) {
-  const summaryElement = document.getElementById("diff-summary");
-  const contentElement = document.getElementById("diff-summary-content");
+  const summaryElement = document.getElementById('diff-summary');
+  const contentElement = document.getElementById('diff-summary-content');
 
   if (!summaryElement || !contentElement || !comparisonResults) {
     return;
@@ -27,7 +27,17 @@ export function updateDiffSummary(comparisonResults) {
 
   // 表示を更新
   contentElement.innerHTML = summaryHTML;
-  summaryElement.style.display = stats.totalElements > 0 ? "block" : "none";
+  summaryElement.classList.toggle('hidden', stats.totalElements === 0);
+
+  // 差分一覧ボタンのイベントリスナーを設定
+  const diffListBtn = document.getElementById('open-diff-list-from-summary');
+  if (diffListBtn) {
+    diffListBtn.addEventListener('click', () => {
+      if (typeof window.toggleDiffList === 'function') {
+        window.toggleDiffList();
+      }
+    });
+  }
 }
 
 /**
@@ -41,12 +51,12 @@ function calculateDiffStatistics(comparisonResults) {
     totalMatched: 0,
     totalOnlyA: 0,
     totalOnlyB: 0,
-    elementTypes: {},
+    elementTypes: {}
   };
 
   // 要素タイプ別に統計を計算
   Object.entries(comparisonResults).forEach(([elementType, result]) => {
-    if (!result || typeof result !== "object") return;
+    if (!result || typeof result !== 'object') return;
 
     const matched = result.matched ? result.matched.length : 0;
     const onlyA = result.onlyA ? result.onlyA.length : 0;
@@ -58,7 +68,7 @@ function calculateDiffStatistics(comparisonResults) {
         matched,
         onlyA,
         onlyB,
-        total,
+        total
       };
 
       stats.totalElements += total;
@@ -81,7 +91,7 @@ function generateSummaryHTML(stats) {
     return '<div class="diff-stat-item">比較対象の要素がありません</div>';
   }
 
-  let html = "";
+  let html = '';
 
   // 全体統計
   html +=
@@ -112,7 +122,7 @@ function generateSummaryHTML(stats) {
     html += `</div>`;
   }
 
-  html += "</div>";
+  html += '</div>';
 
   // 要素タイプ別詳細
   const elementTypeEntries = Object.entries(stats.elementTypes);
@@ -132,12 +142,23 @@ function generateSummaryHTML(stats) {
       if (typeStats.onlyA > 0) parts.push(`A:${typeStats.onlyA}`);
       if (typeStats.onlyB > 0) parts.push(`B:${typeStats.onlyB}`);
 
-      html += parts.join(" / ");
+      html += parts.join(' / ');
       html += `  </span>`;
       html += `</div>`;
     });
 
-    html += "</div>";
+    html += '</div>';
+  }
+
+  // 差分がある場合は「差分一覧を表示」ボタンを追加
+  if (stats.totalOnlyA > 0 || stats.totalOnlyB > 0) {
+    html += `
+      <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #dee2e6;">
+        <button type="button" id="open-diff-list-from-summary" class="btn btn-sm btn-secondary" style="width: 100%; padding: 8px; font-size: 13px;">
+          📋 差分一覧を表示
+        </button>
+      </div>
+    `;
   }
 
   return html;
@@ -150,15 +171,15 @@ function generateSummaryHTML(stats) {
  */
 function getElementTypeDisplayName(elementType) {
   const displayNames = {
-    Node: "節点",
-    Column: "柱",
-    Girder: "大梁",
-    Beam: "小梁",
-    Brace: "ブレース",
-    Slab: "スラブ",
-    Wall: "壁",
-    Axis: "通り芯",
-    Story: "階",
+    Node: '節点',
+    Column: '柱',
+    Girder: '大梁',
+    Beam: '小梁',
+    Brace: 'ブレース',
+    Slab: 'スラブ',
+    Wall: '壁',
+    Axis: '通り芯',
+    Story: '階'
   };
 
   return displayNames[elementType] || elementType;
@@ -169,27 +190,27 @@ function getElementTypeDisplayName(elementType) {
  */
 export function setupDiffSummaryEventListeners() {
   // 比較結果更新イベントを監視
-  window.addEventListener("updateComparisonStatistics", (event) => {
+  window.addEventListener('updateComparisonStatistics', (event) => {
     if (event.detail && event.detail.comparisonResults) {
       updateDiffSummary(event.detail.comparisonResults);
     }
   });
 
-  console.log("Diff summary event listeners set up");
+  console.log('Diff summary event listeners set up');
 }
 
 /**
  * 差分サマリーをクリアする
  */
 export function clearDiffSummary() {
-  const summaryElement = document.getElementById("diff-summary");
-  const contentElement = document.getElementById("diff-summary-content");
+  const summaryElement = document.getElementById('diff-summary');
+  const contentElement = document.getElementById('diff-summary-content');
 
   if (summaryElement) {
-    summaryElement.style.display = "none";
+    summaryElement.classList.add('hidden');
   }
 
   if (contentElement) {
-    contentElement.innerHTML = "";
+    contentElement.innerHTML = '';
   }
 }

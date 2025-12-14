@@ -1,0 +1,139 @@
+/**
+ * 色付けモードコンポーネント
+ *
+ * 色分けUI、凡例色設定などの色付けモード関連スタイル
+ */
+
+/* ========================================
+   色モードコントロール
+   ======================================== */
+
+#color-mode-controls {
+  background-color: #f8f9fa;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #dee2e6;
+}
+
+/* ========================================
+  凡例コンテナー
+  ======================================== */
+
+.color-legend-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  font-size: 0.85em;
+  margin-bottom: 8px;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.legend-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.legend-color-box {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #555;
+  margin-right: 8px;
+  display: inline-block;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.legend-color-box:hover {
+  border-color: #333;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.legend-label {
+  white-space: nowrap;
+  font-weight: 500;
+  color: #333;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border: 1px solid #ccc;
+  margin-right: 4px;
+  display: inline-block;
+}
+
+/* ========================================
+   色設定パネル
+   ======================================== */
+
+.element-color-settings,
+.schema-color-settings,
+.importance-color-settings {
+  display: none;
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
+}
+
+.color-setting-label {
+  font-size: 1em;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.color-setting-help {
+  font-size: 0.8em;
+  color: #666;
+  margin-bottom: 8px;
+  font-style: italic;
+}
+
+/* ========================================
+   色プレビュー
+   ======================================== */
+
+.color-preview {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
+  margin-left: 8px;
+  display: inline-block;
+}
+
+/* ========================================
+   差分比較用凡例色
+   ======================================== */
+
+.legend-color-matched {
+  background-color: #00aaff;
+}
+
+.legend-color-onlya {
+  background-color: #00ff00;
+}
+
+.legend-color-onlyb {
+  background-color: #ff0000;
+}
+
+/* ========================================
+   ユーティリティ
+   ======================================== */
+
+.margin-left-8 {
+  margin-left: 8px;
+}

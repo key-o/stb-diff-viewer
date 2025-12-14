@@ -13,8 +13,8 @@
  * 制御し、他のモジュールと連携してモデルデータを適切に扱います。
  */
 
-import * as THREE from "three";
-import { createLogger } from "./utils/logger.js";
+import * as THREE from 'three';
+import { createLogger } from './utils/logger.js';
 import {
   clearSceneContent,
   createOrUpdateGridHelper,
@@ -27,64 +27,72 @@ import {
   drawAxes,
   drawStories,
   clearClippingPlanes,
-  adjustCameraToFitModel,
-} from "./viewer/index.js";
-import { loadStbXmlAutoEncoding } from "./viewer/utils/utils.js";
+  adjustCameraToFitModel
+} from './viewer/index.js';
+import { loadStbXmlAutoEncoding } from './viewer/utils/utils.js';
+import { UI_TIMING } from './config/uiTimingConfig.js';
 
-const log = createLogger("ModelLoader");
+const log = createLogger('ModelLoader');
 import {
   buildNodeMap,
   parseStories,
   parseElements,
-  parseAxes,
-} from "./parser/stbXmlParser.js";
+  parseAxes
+} from './parser/stbXmlParser.js';
 import {
   compareElements,
   lineElementKeyExtractor,
   polyElementKeyExtractor,
-  nodeElementKeyExtractor,
-} from "./comparator.js";
+  nodeElementKeyExtractor
+} from './comparator.js';
 import {
   setGlobalStateForUI,
   updateStorySelector,
   updateAxisSelectors,
-  updateLabelVisibility,
-} from "./ui.js";
-import { initViewModes, updateModelVisibility } from "./viewModes.js";
-import { setState, getState } from "./core/globalState.js";
-import { JsonDisplayIntegration } from "./viewer/integration/jsonDisplayIntegration.js";
-import comparisonKeyManager from "./core/comparisonKeyManager.js";
+  updateLabelVisibility
+} from './ui.js';
+import { initViewModes, updateModelVisibility } from './viewModes.js';
+import { setState, getState } from './core/globalState.js';
+import { JsonDisplayIntegration } from './viewer/integration/jsonDisplayIntegration.js';
+import comparisonKeyManager from './core/comparisonKeyManager.js';
 import {
   processJsonIntegratedModels,
-  detectJsonIntegrationSupport,
-} from "./modelLoader/jsonIntegration.js";
+  detectJsonIntegrationSupport
+} from './modelLoader/jsonIntegration.js';
 
 // Refactored modules
 import {
   validateAndGetFiles,
   getSelectedElementTypes,
   setLoadingState,
-  validateComparisonParameters,
-} from "./modelLoader/fileValidation.js";
+  validateComparisonParameters
+} from './modelLoader/fileValidation.js';
 import {
   processModelDocuments,
-  clearModelProcessingState,
-} from "./modelLoader/modelProcessing.js";
+  clearModelProcessingState
+} from './modelLoader/modelProcessing.js';
 import {
   processElementComparison,
   calculateElementBounds,
-  getComparisonStatistics,
-} from "./modelLoader/elementComparison.js";
+  getComparisonStatistics
+} from './modelLoader/elementComparison.js';
 import {
   orchestrateElementRendering,
   calculateRenderingBounds,
-  getRenderingStatistics,
-} from "./modelLoader/renderingOrchestrator.js";
+  getRenderingStatistics
+} from './modelLoader/renderingOrchestrator.js';
+import {
+  orchestrateProgressiveRendering,
+  isProgressiveRenderingEnabled,
+  onLoadingStart,
+  onLoadingComplete,
+  onLoadingError
+} from './modelLoader/progressiveRendering.js';
 import {
   finalizeVisualization,
   handleFinalizationError,
-  createFinalizationSummary,
-} from "./modelLoader/visualizationFinalizer.js";
+  createFinalizationSummary
+} from './modelLoader/visualizationFinalizer.js';
 
 // モデル状態管理
 let stories = [];
@@ -113,7 +121,7 @@ export function getModelData() {
     modelADocument,
     modelBDocument,
     modelsLoaded,
-    sectionMaps,
+    sectionMaps
   };
 }
 
@@ -132,8 +140,6 @@ export function isModelLoaded() {
  * @returns {Promise<boolean>} 処理結果
  */
 export async function compareModels(scheduleRender, { camera, controls } = {}) {
-  console.log("=== STBモデル比較開始 ===");
-
   // Phase 1: Validation and Input Processing
   const fileValidation = validateAndGetFiles();
   if (!fileValidation.isValid) {
@@ -153,17 +159,18 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     fileB,
     selectedElementTypes,
     scheduleRender,
-    cameraControls: { camera, controls },
+    cameraControls: { camera, controls }
   });
 
   if (!paramValidation.isValid) {
-    log.error("パラメータ検証に失敗:", paramValidation.errors);
-    alert("パラメータ検証に失敗しました: " + paramValidation.errors.join(", "));
+    log.error('パラメータ検証に失敗:', paramValidation.errors);
+    alert('パラメータ検証に失敗しました: ' + paramValidation.errors.join(', '));
     return false;
   }
 
   // Set loading state
   setLoadingState(true);
+  onLoadingStart();
 
   // Clear existing scene content
   modelBounds = clearSceneContent(elementGroups, nodeLabels);
@@ -179,12 +186,9 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
 
   try {
     // Phase 2: Model Document Processing
-    console.log("=== フェーズ2: モデル処理 ===");
-
     // JSON統合処理
     if (hasJsonFiles) {
       const jsonIntegration = new JsonDisplayIntegration();
-      console.log("JsonDisplayIntegration初期化完了 - ProfileBased生成器使用");
 
       // JSON統合表示システムを活用した処理
       const jsonDisplayResult = await processJsonIntegratedModels(
@@ -196,11 +200,6 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
       );
 
       if (jsonDisplayResult.success) {
-        console.log("JSON統合処理完了 - ProfileBased表示システム使用");
-        console.log(
-          `生成統計: ${JSON.stringify(jsonDisplayResult.statistics)}`
-        );
-
         // UI更新（必要に応じて）
         if (scheduleRender) {
           scheduleRender();
@@ -208,7 +207,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
 
         return jsonDisplayResult.result;
       } else {
-        log.error("JSON統合処理失敗:", jsonDisplayResult.error);
+        log.error('JSON統合処理失敗:', jsonDisplayResult.error);
         alert(`JSON統合処理エラー: ${jsonDisplayResult.error}`);
         return false;
       }
@@ -225,25 +224,21 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
       processingResult);
 
     // Save model documents to global state for IFC conversion
-    setState("models.documentA", modelADocument);
-    setState("models.documentB", modelBDocument);
-    setState("models.nodeMapA", nodeMapA);
-    setState("models.nodeMapB", nodeMapB);
-    setState("models.stories", stories);
-    setState("models.axesData", axesData);
-    setState("sectionsData", sectionMaps);  // 断面データを保存
-
-    console.log("IFC変換用にモデルドキュメントをグローバル状態に保存しました");
+    setState('models.documentA', modelADocument);
+    setState('models.documentB', modelBDocument);
+    setState('models.nodeMapA', nodeMapA);
+    setState('models.nodeMapB', nodeMapB);
+    setState('models.stories', stories);
+    setState('models.axesData', axesData);
+    setState('sectionsData', sectionMaps);  // 断面データを保存
 
     // Phase 3: Element Comparison
-    console.log("=== フェーズ3: 要素比較 ===");
     const comparisonKeyType = comparisonKeyManager.getKeyType();
-    console.log(`使用する比較キータイプ: ${comparisonKeyType}`);
 
     const comparisonOptions = {
       useImportanceFiltering: true,
       targetImportanceLevels: null, // null = all levels
-      comparisonKeyType: comparisonKeyType, // 比較キータイプを追加
+      comparisonKeyType: comparisonKeyType // 比較キータイプを追加
     };
     const comparisonResult = processElementComparison(
       processingResult,
@@ -253,29 +248,38 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     const { comparisonResults } = comparisonResult;
 
     // 比較結果をグローバル状態に保存
-    setState("comparisonResults", comparisonResults);
+    setState('comparisonResults', comparisonResults);
 
     // 統計更新イベントを発行
     window.dispatchEvent(
-      new CustomEvent("updateComparisonStatistics", {
+      new CustomEvent('updateComparisonStatistics', {
         detail: {
           comparisonResults: comparisonResults,
-          reason: "modelComparison",
-          timestamp: new Date().toISOString(),
-        },
+          reason: 'modelComparison',
+          timestamp: new Date().toISOString()
+        }
       })
     );
 
     // Calculate model bounds
     modelBounds = calculateElementBounds(comparisonResults, nodeMapA, nodeMapB);
 
-    // Phase 4: 3D Rendering
-    console.log("=== フェーズ4: 3Dレンダリング ===");
-    const renderingResult = orchestrateElementRendering(
-      comparisonResults,
-      modelBounds,
-      { stories, axesData }
-    );
+    // Phase 4: 3D Rendering（段階的レンダリング対応）
+    let renderingResult;
+    if (isProgressiveRenderingEnabled()) {
+      renderingResult = await orchestrateProgressiveRendering(
+        comparisonResults,
+        modelBounds,
+        { stories, axesData },
+        scheduleRender
+      );
+    } else {
+      renderingResult = orchestrateElementRendering(
+        comparisonResults,
+        modelBounds,
+        { stories, axesData }
+      );
+    }
 
     // Update node labels
     nodeLabels = renderingResult.nodeLabels;
@@ -288,7 +292,6 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     );
 
     // Phase 5: Visualization Finalization
-    console.log("=== Phase 5: Finalization ===");
     const finalizationData = {
       nodeLabels,
       stories,
@@ -298,7 +301,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
       modelADocument,
       modelBDocument,
       nodeMapA,
-      nodeMapB,
+      nodeMapB
     };
 
     const finalizationResult = finalizeVisualization(
@@ -309,52 +312,25 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
 
     if (!finalizationResult.success) {
       throw new Error(
-        "Visualization finalization failed: " + finalizationResult.error
+        'Visualization finalization failed: ' + finalizationResult.error
       );
     }
 
     // Clear clipping planes
-    console.log("Clearing clipping planes...");
     clearClippingPlanes();
 
     // Mark models as loaded
     modelsLoaded = true;
+    onLoadingComplete();
 
-    // Apply current color mode to newly loaded models
+    // Apply appropriate color mode based on loaded models
     setTimeout(() => {
-      import("./colorModes.js").then(({ getCurrentColorMode, COLOR_MODES }) => {
-        const currentMode = getCurrentColorMode();
-        if (currentMode !== COLOR_MODES.DIFF) {
-          console.log(
-            `[ModelLoader] Applying current color mode: ${currentMode}`
-          );
-          reapplyColorMode();
-
-          // 色付けモードが適用されたことをユーザーに通知
-          const modeDisplayNames = {
-            [COLOR_MODES.ELEMENT]: "部材別色付け",
-            [COLOR_MODES.SCHEMA]: "スキーマエラー表示",
-            [COLOR_MODES.IMPORTANCE]: "重要度別色付け",
-          };
-          const displayName = modeDisplayNames[currentMode] || currentMode;
-
-          // 状況メッセージを表示
-          setTimeout(() => {
-            const statusElement = document.getElementById("color-mode-status");
-            const textElement = document.getElementById(
-              "color-mode-status-text"
-            );
-            if (statusElement && textElement) {
-              textElement.textContent = `「${displayName}」モードを適用しました。`;
-              statusElement.classList.remove("hidden");
-              setTimeout(() => {
-                statusElement.classList.add("hidden");
-              }, 3000);
-            }
-          }, 500);
-        }
+      import('./colorModes.js').then(({ applyDefaultColorModeAfterLoad }) => {
+        const hasBothModels = !!modelADocument && !!modelBDocument;
+        const hasSingleModel = (!!modelADocument || !!modelBDocument) && !hasBothModels;
+        applyDefaultColorModeAfterLoad(hasBothModels, hasSingleModel, reapplyColorMode);
       });
-    }, 100);
+    }, UI_TIMING.COLOR_MODE_APPLY_DELAY_MS);
 
     // Log completion statistics
     const comparisonStats = getComparisonStatistics(comparisonResults);
@@ -363,14 +339,11 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
       finalizationResult.stats || {}
     );
 
-    console.log("=== Comparison Complete ===");
-    console.log("Comparison Statistics:", comparisonStats);
-    console.log("Finalization Summary:", finalizationSummary);
-
     return true;
   } catch (error) {
-    log.error("モデル比較に失敗:", error);
-    alert(`エラーが発生しました: ${error.message || "不明なエラー"}`);
+    log.error('モデル比較に失敗:', error);
+    onLoadingError(error.message || '不明なエラー');
+    alert(`エラーが発生しました: ${error.message || '不明なエラー'}`);
 
     // Error cleanup
     handleFinalizationError(error, {});
@@ -387,7 +360,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
       clearModelProcessingState();
       modelsLoaded = false;
     } catch (cleanupError) {
-      log.error("状態クリーンアップ中のエラー:", cleanupError);
+      log.error('状態クリーンアップ中のエラー:', cleanupError);
     }
 
     return false;
@@ -401,25 +374,22 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
  * 色付けモード変更時に全要素に新しい色付けを適用する
  */
 export function reapplyColorMode() {
-  console.log("[ModelLoader] Reapplying color mode to all elements");
-
   if (!modelsLoaded) {
-    console.warn(
-      "[ModelLoader] No models loaded, color mode will be applied when models are loaded"
+    log.warn(
+      '[ModelLoader] No models loaded, color mode will be applied when models are loaded'
     );
     return;
   }
 
   try {
     // 色付けモードを取得
-    import("./colorModes.js").then(({ getCurrentColorMode, COLOR_MODES }) => {
+    import('./colorModes.js').then(({ getCurrentColorMode, COLOR_MODES }) => {
       const currentMode = getCurrentColorMode();
-      console.log(`[ModelLoader] Applying color mode: ${currentMode}`);
 
       // 現在のシーンの全オブジェクトに新しいマテリアルを適用
-      const scene = getState("rendering.scene");
+      const scene = getState('rendering.scene');
       if (!scene) {
-        log.warn("シーンが利用できません");
+        log.warn('シーンが利用できません');
         return;
       }
 
@@ -431,10 +401,6 @@ export function reapplyColorMode() {
         }
       });
 
-      console.log(
-        `[ModelLoader] Found ${objectsToUpdate.length} objects to update`
-      );
-
       // マテリアルを非同期で更新
       Promise.all(
         objectsToUpdate.map((object) =>
@@ -442,17 +408,14 @@ export function reapplyColorMode() {
         )
       ).then(() => {
         // 全ての更新が完了したら再描画をリクエスト
-        const scheduleRender = getState("rendering.scheduleRender");
+        const scheduleRender = getState('rendering.scheduleRender');
         if (scheduleRender) {
           scheduleRender();
-          console.log("[ModelLoader] All materials updated, redraw requested");
-        } else {
-          log.warn("scheduleRenderが利用できません");
         }
       });
     });
   } catch (error) {
-    log.error("カラーモード再適用中のエラー:", error);
+    log.error('カラーモード再適用中のエラー:', error);
   }
 }
 
@@ -463,11 +426,11 @@ export function reapplyColorMode() {
  * @returns {Promise} 更新完了のPromise
  */
 function updateObjectMaterialAsync(object, colorMode) {
-  return import("./viewer/rendering/materials.js").then(
+  return import('./viewer/rendering/materials.js').then(
     ({ getMaterialForElementWithMode }) => {
       if (getMaterialForElementWithMode && object.userData) {
         const elementType = object.userData.elementType;
-        const comparisonState = object.userData.modelSource || "matched";
+        const comparisonState = object.userData.modelSource || 'matched';
         const isLine = object.userData.isLine || false;
         const isPoly = object.userData.isPoly || false;
         const elementId = object.userData.elementId || null;
@@ -482,9 +445,6 @@ function updateObjectMaterialAsync(object, colorMode) {
 
         if (newMaterial && object.material !== newMaterial) {
           object.material = newMaterial;
-          console.log(
-            `[ModelLoader] Updated material for ${elementType} (${elementId})`
-          );
         }
       }
     }

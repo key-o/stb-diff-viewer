@@ -24,6 +24,40 @@ export class FloatingWindowManager {
   }
 
   /**
+   * ウィンドウをHTMLから動的に生成する
+   * @param {Object} config - ウィンドウ設定
+   * @param {string} config.windowId - ウィンドウID
+   * @param {string} config.title - タイトル
+   * @param {string} config.icon - アイコン
+   * @param {string} config.content - 内部HTML
+   * @param {string} [config.headerExtra] - ヘッダー追加要素
+   * @returns {HTMLElement} 生成されたウィンドウ要素
+   */
+  createWindow(config) {
+    const { windowId, title, icon, content, headerExtra = '' } = config;
+
+    const windowEl = document.createElement('div');
+    windowEl.id = windowId;
+    windowEl.className = 'floating-window';
+
+    windowEl.innerHTML = `
+      <div class="float-window-header" id="${windowId}-header">
+        <span class="float-window-title">${icon} ${title}</span>
+        <div class="float-window-controls">
+          ${headerExtra}
+          <button class="float-window-btn" id="close-${windowId}-btn">✕</button>
+        </div>
+      </div>
+      <div class="float-window-content">
+        ${content}
+      </div>
+    `;
+
+    document.body.appendChild(windowEl);
+    return windowEl;
+  }
+
+  /**
    * ウィンドウを登録する
    * @param {Object} config - ウィンドウの設定
    * @param {string} config.windowId - ウィンドウ要素のID
@@ -44,7 +78,7 @@ export class FloatingWindowManager {
       draggable = true,
       autoShow = false,
       onShow = null,
-      onHide = null,
+      onHide = null
     } = config;
 
     // 要素を取得
@@ -67,7 +101,7 @@ export class FloatingWindowManager {
       draggable,
       onShow,
       onHide,
-      isVisible: windowElement.classList.contains('visible'),
+      isVisible: windowElement.classList.contains('visible')
     });
 
     // トグルボタンのイベントリスナー
