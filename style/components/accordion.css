@@ -69,7 +69,7 @@
 
 .accordion-content {
   padding: var(--spacing-md);
-  background: #fff;
+  background: var(--bg-body);
   transition: all var(--transition-base);
   max-height: 1000px;
   overflow: hidden;
@@ -110,7 +110,7 @@
 /* カスタムファイル選択ボタンとファイル名表示 */
 /* input を display:none にすると一部ブラウザで programmatic click が無効になるため
    画面外へ配置して隠す（クリックは可能） */
-.file-input-wrapper input[type="file"] {
+.file-input-wrapper input[type='file'] {
   position: absolute;
   left: -9999px;
   width: 1px;
@@ -120,25 +120,76 @@
 
 .custom-file-btn {
   display: inline-block;
-  padding: 6px 10px;
+  padding: 2px 8px;
   border: var(--border-width) solid var(--border-color);
-  background: #fff;
+  background: var(--bg-body);
   border-radius: var(--border-radius);
   cursor: pointer;
-  font-size: var(--font-size-sm);
-  color: #212529; /* 明示的に文字色を指定して白文字にならないようにする */
+  font-size: 11px;
+  color: var(--text-heading);
   text-align: center;
-  align-self: flex-start; /* 親のflexで幅全体に伸びないようにする */
   transition: all var(--transition-fast);
 }
 
 .custom-file-btn:hover {
-  background-color: #f8f9fa;
+  background-color: var(--bg-panel);
   border-color: var(--color-primary);
 }
 
+.custom-file-btn.has-file {
+  background-color: var(--bg-secondary);
+  border-color: var(--color-success);
+  color: var(--text-primary);
+}
+
+/* ファイル名表示エリア（ボタンの下に表示） */
 .file-name-display {
+  display: block;
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
-  word-break: break-all;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+/* ファイル選択済み時のファイル名スタイル */
+.file-input-wrapper.has-file .file-name-display {
+  color: var(--text-primary);
+}
+
+/* ========================================
+   モデルヘッダー（ラベル+バージョン）
+   ======================================== */
+
+.model-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.version-badge-inline {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: var(--border-radius);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color-light);
+  white-space: nowrap;
+}
+
+.version-badge-inline:empty {
+  display: none;
+}
+
+.version-badge-inline.version-202 {
+  border-left: 2px solid var(--color-secondary);
+}
+
+.version-badge-inline.version-210 {
+  border-left: 2px solid var(--color-primary);
+}
+
+.version-badge-inline.version-unknown {
+  color: var(--text-muted);
 }

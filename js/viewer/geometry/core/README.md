@@ -1,10 +1,10 @@
 # 3D表示ジオメトリ計算コアレイヤー
 
-このディレクトリには、3D表示機能の計算ロジックを担当する **Three.js非依存** のコアレイヤーが含まれています。
+このディレクトリには、stb-diff-viewerのジオメトリ生成に必要なコアモジュールが含まれています。
 
 ## アーキテクチャ概要
 
-3D表示機能を以下の3層に分離することで、テスタビリティと保守性を向上させています：
+3D表示機能を以下の2層に分離することで、テスタビリティと保守性を向上させています：
 
 ```
 ┌─────────────────────────────────────┐
@@ -17,31 +17,17 @@
              │ 使用
              ↓
 ┌─────────────────────────────────────┐
-│  Three.js変換ユーティリティ         │
-│  (ThreeJSConverter.js)              │
-│  - ProfileData → THREE.Shape        │
-│  - PlacementData → Mesh配置         │
-└────────────┬────────────────────────┘
-             │ 使用
-             ↓
-┌─────────────────────────────────────┐
-│  Pure JavaScript計算レイヤー        │
-│  ✅ Three.js非依存                  │
-│  ✅ 単体テスト可能                  │
-│  ✅ 高速実行                        │
-│                                     │
-│  ┌─────────────────────────────┐   │
-│  │ ProfileCalculator.js        │   │
-│  │ - プロファイル頂点座標計算  │   │
-│  │ - H形、BOX、PIPE等          │   │
-│  └─────────────────────────────┘   │
-│                                     │
-│  ┌─────────────────────────────┐   │
-│  │ GeometryCalculator.js       │   │
-│  │ - 要素の長さ・配置計算      │   │
-│  │ - ベクトル・四元数演算      │   │
-│  │ - オフセット適用            │   │
-│  └─────────────────────────────┘   │
+│  ジオメトリ計算コア                  │
+│  (このディレクトリ)                  │
+│  - ProfileCalculator.js             │
+│  - GeometryCalculator.js            │
+│  - ThreeJSConverter.js              │
+│  - TaperedGeometryBuilder.js        │
+│  - BaseElementGenerator.js          │
+│  - MeshCreationValidator.js         │
+│  - MeshMetadataBuilder.js           │
+│  - ProfileParameterMapper.js        │
+│  - SectionTypeNormalizer.js         │
 └─────────────────────────────────────┘
 ```
 
@@ -170,6 +156,7 @@ THREE.Shape → THREE.ExtrudeGeometry
 ### 基本的な使用フロー
 
 ```javascript
+// コアモジュールからインポート
 import { calculateHShapeProfile, calculateProfile } from './core/ProfileCalculator.js';
 import { calculatePlacement } from './core/GeometryCalculator.js';
 import { createMeshFromProfile } from './core/ThreeJSConverter.js';
@@ -202,7 +189,7 @@ const mesh = createMeshFromProfile(
 ```javascript
 // Pure JavaScript関数なので、Three.js不要でテスト可能
 import assert from 'node:assert/strict';
-import { calculateHShapeProfile } from './core/ProfileCalculator.js';
+import { calculateHShapeProfile } from '../../js/viewer/geometry/core/ProfileCalculator.js';
 
 const profile = calculateHShapeProfile({
   overallDepth: 400,

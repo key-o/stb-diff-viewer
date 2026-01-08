@@ -26,7 +26,7 @@ export class WallGenerator extends BaseElementGenerator {
     return {
       elementName: 'Wall',
       loggerName: 'viewer:geometry:wall',
-      defaultElementType: 'Wall'
+      defaultElementType: 'Wall',
     };
   }
 
@@ -48,14 +48,15 @@ export class WallGenerator extends BaseElementGenerator {
     steelSections,
     elementType = 'Wall',
     isJsonInput = false,
-    openingElements = null
+    openingElements = null,
   ) {
     // 開口情報をコンテキストに追加するためにcreateMeshesをオーバーライド
     const config = this.getConfig();
     const log = this._getLogger();
 
     if (!wallElements || wallElements.length === 0) {
-      log.warn(`No ${config.elementName} elements provided.`);
+      // 要素がない場合はdebugレベルで出力（頻繁に呼ばれるため）
+      log.debug(`No ${config.elementName} elements provided.`);
       return [];
     }
 
@@ -71,7 +72,7 @@ export class WallGenerator extends BaseElementGenerator {
         elementType,
         isJsonInput,
         log,
-        openingElements // 開口情報を追加
+        openingElements, // 開口情報を追加
       };
 
       try {
@@ -104,7 +105,9 @@ export class WallGenerator extends BaseElementGenerator {
     // 1. ノードIDリストの取得（壁は通常4点）
     const nodeIds = wall.node_ids;
     if (!nodeIds || nodeIds.length < 3) {
-      log.warn(`Skipping wall ${wall.id}: Insufficient nodes (need at least 3, got ${nodeIds?.length || 0})`);
+      log.warn(
+        `Skipping wall ${wall.id}: Insufficient nodes (need at least 3, got ${nodeIds?.length || 0})`,
+      );
       return null;
     }
 
@@ -125,116 +128,163 @@ export class WallGenerator extends BaseElementGenerator {
       const offsetY = offset?.offset_Y || 0;
       const offsetZ = offset?.offset_Z || 0;
 
-      vertices.push(new THREE.Vector3(
-        node.x + offsetX,
-        node.y + offsetY,
-        node.z + offsetZ
-      ));
+      vertices.push(new THREE.Vector3(node.x + offsetX, node.y + offsetY, node.z + offsetZ));
     }
 
     // 3. 断面データの取得（厚さ）
     let thickness = 200; // デフォルト厚さ (mm)
 
     if (sections) {
-      const sectionId = isJsonInput ? wall.id_section : wall.id_section;
+      // 型統一: sectionExtractorは数値IDを整数として保存するため変換
+      const rawId = wall.id_section;
+      const parsedId = parseInt(rawId, 10);
+      const sectionId = isNaN(parsedId) ? rawId : parsedId;
       const sectionData = sections.get(sectionId);
       if (sectionData) {
         // t属性を取得（様々なパターンに対応）
-        thickness = sectionData.t ||
-                    sectionData.thickness ||
-                    sectionData.dimensions?.t ||
-                    sectionData.dimensions?.thickness ||
-                    200;
+        thickness =
+          sectionData.t ||
+          sectionData.thickness ||
+          sectionData.dimensions?.t ||
+          sectionData.dimensions?.thickness ||
+          200;
       }
     }
 
     log.debug(`Creating wall ${wall.id}: ${vertices.length} vertices, thickness=${thickness}mm`);
 
-    // 4. 壁の形状を分析
-    // STBの壁は通常、4つの頂点で矩形を定義
-    // 頂点順序: 下面2点 → 上面2点 または 時計回り/反時計回りの矩形
+    // 4. 壁の形状を分析（オフセット適用後の座標を使用）
+    // バウンディングボックス方式で計算するため、
+    // ここでの単純な重心計算は削除し、後述のステップ5で正確な中心を計算する
 
+    /* 削除: 重心計算
     // 頂点の中心を計算
     const center = new THREE.Vector3();
     for (const v of vertices) {
       center.add(v);
     }
     center.divideScalar(vertices.length);
+    */
 
-    // 5. 壁の方向を分析（下面の2点から水平方向を決定）
-    // 4点の場合: 0-1が下辺、2-3が上辺と仮定
-    let wallWidth, wallHeight;
-    const wallDirection = new THREE.Vector3();
-    const wallUp = new THREE.Vector3(0, 0, 1);
-    const wallNormal = new THREE.Vector3();
+    // 5. 壁の方向と寸法を再計算（バウンディングボックス方式）
+    // 全ノードを使用して、壁の基準方向（長さ方向）と法線方向、高さを正確に計算する
 
-    if (vertices.length === 4) {
-      // STBの壁は4点で定義: ノード順序は 下1 下2 上2 上1 または 下1 下2 上1 上2
-      // Z座標でソートして下辺と上辺を判定
-      const sortedByZ = [...vertices].sort((a, b) => a.z - b.z);
+    // Z座標でソートして下端・上端を特定
+    const sortedByZ = [...vertices].sort((a, b) => a.z - b.z);
 
-      // 下辺の2点（Z座標が小さい方）
-      const bottomPoints = [sortedByZ[0], sortedByZ[1]];
-      // 上辺の2点（Z座標が大きい方）
-      const topPoints = [sortedByZ[2], sortedByZ[3]];
+    // Z方向の範囲（高さ）
+    const minZ = sortedByZ[0].z;
+    const maxZ = sortedByZ[sortedByZ.length - 1].z;
+    let wallHeight = maxZ - minZ;
+    if (wallHeight < 1) wallHeight = 1000; // デフォルト高さ(異常値対応)
 
-      // 壁の高さ
-      const bottomZ = (bottomPoints[0].z + bottomPoints[1].z) / 2;
-      const topZ = (topPoints[0].z + topPoints[1].z) / 2;
-      wallHeight = topZ - bottomZ;
+    // 壁の基準方向（Wall Direction）を決定
+    // 下端付近の点（minZから許容誤差内）を抽出
+    const tolerance = 10; // 10mm
+    const bottomPoints = sortedByZ.filter((v) => Math.abs(v.z - minZ) < tolerance);
 
-      // 下辺の水平方向ベクトル
-      // 元のノード順序（0→1）を尊重して方向を決定
-      const p0 = vertices[0];
-      const p1 = vertices[1];
-      wallDirection.subVectors(p1, p0);
-      wallDirection.z = 0; // 水平成分のみ
-      wallDirection.normalize();
+    // 下端の点群から、最も離れた2点を見つけて基準方向とする
+    let pStart = bottomPoints[0];
+    let pEnd = bottomPoints[0];
+    let maxDistSq = 0;
 
-      // 壁の幅（下辺の水平距離）
-      const dx = p1.x - p0.x;
-      const dy = p1.y - p0.y;
-      wallWidth = Math.sqrt(dx * dx + dy * dy);
-
-      // 壁の法線（水平方向と上方向の外積）
-      wallNormal.crossVectors(wallDirection, wallUp).normalize();
-
-      // 壁の中心を再計算（下辺中点から高さの半分上）
-      const bottomCenter = new THREE.Vector3(
-        (p0.x + p1.x) / 2,
-        (p0.y + p1.y) / 2,
-        bottomZ
-      );
-      center.set(
-        bottomCenter.x,
-        bottomCenter.y,
-        bottomZ + wallHeight / 2
-      );
-    } else {
-      // 3点以上の多角形の場合
-      // 簡易的に最初の2点を下辺として使用
-      const p0 = vertices[0];
-      const p1 = vertices[1];
-
-      wallDirection.subVectors(p1, p0).normalize();
-      wallWidth = p0.distanceTo(p1);
-
-      // 高さはZ座標の範囲から計算
-      const zCoords = vertices.map(v => v.z);
-      const minZ = Math.min(...zCoords);
-      const maxZ = Math.max(...zCoords);
-      wallHeight = maxZ - minZ || 1000; // デフォルト1000mm
-
-      wallNormal.crossVectors(wallDirection, wallUp).normalize();
+    if (bottomPoints.length >= 2) {
+      for (let i = 0; i < bottomPoints.length; i++) {
+        for (let j = i + 1; j < bottomPoints.length; j++) {
+          const dSq = bottomPoints[i].distanceToSquared(bottomPoints[j]);
+          if (dSq > maxDistSq) {
+            maxDistSq = dSq;
+            pStart = bottomPoints[i];
+            pEnd = bottomPoints[j];
+          }
+        }
+      }
+    } else if (vertices.length >= 2) {
+      // 下端点が1つしかない場合（特異なケース）、全点から最遠点を探す（水平成分のみで）
+      for (let i = 0; i < vertices.length; i++) {
+        for (let j = i + 1; j < vertices.length; j++) {
+          const v1 = vertices[i];
+          const v2 = vertices[j];
+          const dx = v1.x - v2.x;
+          const dy = v1.y - v2.y;
+          const dSq = dx * dx + dy * dy;
+          if (dSq > maxDistSq) {
+            maxDistSq = dSq;
+            pStart = v1;
+            pEnd = v2;
+          }
+        }
+      }
     }
+
+    // 壁の基準ベクトル（水平）
+    const wallDirection = new THREE.Vector3().subVectors(pEnd, pStart);
+    wallDirection.z = 0;
+    if (wallDirection.lengthSq() > 0.0001) {
+      wallDirection.normalize();
+    } else {
+      wallDirection.set(1, 0, 0); // デフォルトX軸
+    }
+
+    const wallUp = new THREE.Vector3(0, 0, 1);
+    const wallNormal = new THREE.Vector3().crossVectors(wallDirection, wallUp).normalize();
+
+    // 全頂点をローカル座標軸（Direction, Normal, Up）に投影してバウンディングボックスを計算
+    // 基準点として重力中心ではなく、pStartを使用しても良いが、
+    // ここでは正確な幅を出すために投影距離のmin/maxをとる
+    let minL = Infinity,
+      maxL = -Infinity; // Length方向 (WallDirection)
+    let minT = Infinity,
+      maxT = -Infinity; // Thickness方向 (WallNormal)
+    // Height方向はすでに minZ, maxZ で計算済み
+
+    for (const v of vertices) {
+      // pStartからの相対ベクトル
+      const vec = new THREE.Vector3().subVectors(v, pStart);
+
+      const distL = vec.dot(wallDirection); // 長さ方向の距離
+      const distT = vec.dot(wallNormal); // 厚さ方向の距離（通常はほぼ0だが、わずかな偏心や誤差を吸収）
+
+      if (distL < minL) minL = distL;
+      if (distL > maxL) maxL = distL;
+      if (distT < minT) minT = distT;
+      if (distT > maxT) maxT = distT;
+    }
+
+    // 壁の幅を決定
+    let wallWidth = maxL - minL;
+
+    // 中心位置を決定（グローバル座標）
+    // ローカルでの中心 = (minL + maxL)/2, (minT + maxT)/2, (minZ + maxZ relative)/2
+    // これをグローバルに戻す
+
+    // Length方向の中心オフセット（pStart基準）
+    const centerL = (minL + maxL) / 2;
+    // Thickness方向の中心オフセット（pStart基準）
+    const centerT = (minT + maxT) / 2;
+    // PStartのZ + 高さの半分
+    const centerZ = minZ + wallHeight / 2;
+
+    const center = new THREE.Vector3()
+      .copy(pStart)
+      .addScaledVector(wallDirection, centerL)
+      .addScaledVector(wallNormal, centerT);
+    center.z = centerZ;
+
+    // もし幅が極端に小さい場合はデフォルト処理（柱のようなケース？）
+    if (wallWidth < 1) wallWidth = 100;
 
     // 壁の寸法が不正な場合はスキップ
     if (wallWidth < 1 || wallHeight < 1) {
-      log.warn(`Skipping wall ${wall.id}: Invalid dimensions (width=${wallWidth}, height=${wallHeight})`);
+      log.warn(
+        `Skipping wall ${wall.id}: Invalid dimensions (width=${wallWidth}, height=${wallHeight})`,
+      );
       return null;
     }
 
-    log.debug(`Wall ${wall.id}: width=${wallWidth.toFixed(0)}, height=${wallHeight.toFixed(0)}, thickness=${thickness}`);
+    log.debug(
+      `Wall ${wall.id}: width=${wallWidth.toFixed(0)}, height=${wallHeight.toFixed(0)}, thickness=${thickness}`,
+    );
 
     // 6. 開口情報を取得
     const openings = this._getOpeningsForWall(wall, openingElements, log);
@@ -284,13 +334,13 @@ export class WallGenerator extends BaseElementGenerator {
         kind_layout: wall.kind_layout,
         kind_wall: wall.kind_wall,
         openIds: wall.open_ids,
-        openings: openings // 解決された開口データ
-      }
+        openings: openings, // 解決された開口データ
+      },
     };
 
     log.debug(
       `Wall ${wall.id}: center=(${center.x.toFixed(0)}, ${center.y.toFixed(0)}, ${center.z.toFixed(0)}), ` +
-      `angle=${(angle * 180 / Math.PI).toFixed(1)}deg`
+        `angle=${((angle * 180) / Math.PI).toFixed(1)}deg`,
     );
 
     return mesh;
@@ -306,27 +356,65 @@ export class WallGenerator extends BaseElementGenerator {
   static _getOpeningsForWall(wall, openingElements, log) {
     const openings = [];
 
-    if (!openingElements || !wall.open_ids || wall.open_ids.length === 0) {
+    if (!openingElements) {
       return openings;
     }
 
-    for (const openId of wall.open_ids) {
-      const opening = openingElements.get(openId);
-      if (opening) {
-        openings.push({
-          id: opening.id,
-          name: opening.name,
-          // 壁ローカル座標系での位置（壁左下から）
-          positionX: opening.position_X,
-          positionY: opening.position_Y,
-          // 開口の寸法
-          width: opening.length_X,
-          height: opening.length_Y,
-          rotate: opening.rotate
-        });
-        log.debug(`Wall ${wall.id}: Found opening ${openId} (${opening.length_X}x${opening.length_Y} at ${opening.position_X},${opening.position_Y})`);
-      } else {
-        log.warn(`Wall ${wall.id}: Opening ${openId} not found in opening elements`);
+    /**
+     * 開口データからpositionX/Yを取得（STB 2.0.2/2.1.0両対応）
+     * STB 2.0.2では position_X/Y または offset_X/Y
+     * STB 2.1.0では position_X/Y
+     */
+    const getOpeningPosition = (opening) => ({
+      positionX: opening.position_X ?? opening.offset_X ?? 0,
+      positionY: opening.position_Y ?? opening.offset_Y ?? 0,
+    });
+
+    // STB 2.0.2形式: wall.open_ids から開口を取得
+    if (wall.open_ids && wall.open_ids.length > 0) {
+      for (const openId of wall.open_ids) {
+        const opening = openingElements.get(openId);
+        if (opening) {
+          const pos = getOpeningPosition(opening);
+          openings.push({
+            id: opening.id,
+            name: opening.name,
+            // 壁ローカル座標系での位置（壁左下から）
+            positionX: pos.positionX,
+            positionY: pos.positionY,
+            // 開口の寸法
+            width: opening.length_X,
+            height: opening.length_Y,
+            rotate: opening.rotate,
+          });
+          log.debug(
+            `Wall ${wall.id}: Found opening ${openId} (${opening.length_X}x${opening.length_Y} at ${pos.positionX},${pos.positionY})`,
+          );
+        } else {
+          log.warn(`Wall ${wall.id}: Opening ${openId} not found in opening elements`);
+        }
+      }
+    } else {
+      // STB 2.1.0形式: 開口の id_member から壁を逆引き
+      for (const [openId, opening] of openingElements) {
+        // String()で型を揃えて比較（events.js, IFCWallExporter.jsと同様）
+        if (opening.kind_member === 'WALL' && String(opening.id_member) === String(wall.id)) {
+          const pos = getOpeningPosition(opening);
+          openings.push({
+            id: opening.id,
+            name: opening.name,
+            // 壁ローカル座標系での位置（壁左下から）
+            positionX: pos.positionX,
+            positionY: pos.positionY,
+            // 開口の寸法
+            width: opening.length_X,
+            height: opening.length_Y,
+            rotate: opening.rotate,
+          });
+          log.debug(
+            `Wall ${wall.id}: Found opening ${openId} via id_member (${opening.length_X}x${opening.length_Y} at ${pos.positionX},${pos.positionY})`,
+          );
+        }
       }
     }
 
@@ -367,8 +455,12 @@ export class WallGenerator extends BaseElementGenerator {
       const openingTop = openingBottom + opening.height;
 
       // 開口が壁の範囲内にあることを確認
-      if (openingRight > halfWidth || openingTop > halfHeight ||
-          openingLeft < -halfWidth || openingBottom < -halfHeight) {
+      if (
+        openingRight > halfWidth ||
+        openingTop > halfHeight ||
+        openingLeft < -halfWidth ||
+        openingBottom < -halfHeight
+      ) {
         log.warn(`Opening ${opening.id} extends beyond wall bounds, clamping`);
       }
 
@@ -397,7 +489,7 @@ export class WallGenerator extends BaseElementGenerator {
     // 押し出し設定（Y方向に押し出し）
     const extrudeSettings = {
       depth: thickness,
-      bevelEnabled: false
+      bevelEnabled: false,
     };
 
     const geometry = new THREE.ExtrudeGeometry(wallShape, extrudeSettings);

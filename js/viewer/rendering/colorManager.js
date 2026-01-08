@@ -18,6 +18,7 @@ import elementColorManager from './elementColorManager.js';
 import diffColorManager from './diffColorManager.js';
 import schemaColorManager from './schemaColorManager.js';
 import importanceColorManager from './importanceColorManager.js';
+import loadColorManager from './loadColorManager.js';
 
 /**
  * 色管理クラス
@@ -30,6 +31,7 @@ class ColorManager {
     this.diffColorManager = diffColorManager;
     this.schemaColorManager = schemaColorManager;
     this.importanceColorManager = importanceColorManager;
+    this.loadColorManager = loadColorManager;
 
     // マテリアルキャッシュ
     this.materialCache = new Map();
@@ -39,8 +41,7 @@ class ColorManager {
     diffColorManager.onColorChange(() => this.clearMaterialCache());
     schemaColorManager.onColorChange(() => this.clearMaterialCache());
     importanceColorManager.onColorChange(() => this.clearMaterialCache());
-
-    console.log('[ColorManager] Initialized with unified color managers');
+    loadColorManager.onColorChange(() => this.clearMaterialCache());
   }
 
   /**
@@ -59,7 +60,6 @@ class ColorManager {
    */
   setDiffColor(state, color) {
     this.diffColorManager.setDiffColor(state, color);
-    console.log(`[ColorManager] Diff color updated: ${state} = ${color}`);
   }
 
   /**
@@ -78,7 +78,6 @@ class ColorManager {
    */
   setToleranceDiffColor(state, color) {
     this.diffColorManager.setToleranceDiffColor(state, color);
-    console.log(`[ColorManager] Tolerance diff color updated: ${state} = ${color}`);
   }
 
   /**
@@ -105,9 +104,6 @@ class ColorManager {
    */
   setElementColor(elementType, color) {
     this.elementColorManager.setElementColor(elementType, color);
-    console.log(
-      `[ColorManager] Element color updated: ${elementType} = ${color}`
-    );
   }
 
   /**
@@ -126,7 +122,6 @@ class ColorManager {
    */
   setSchemaColor(type, color) {
     this.schemaColorManager.setSchemaColor(type, color);
-    console.log(`[ColorManager] Schema color updated: ${type} = ${color}`);
   }
 
   /**
@@ -145,9 +140,6 @@ class ColorManager {
    */
   setImportanceColor(importanceLevel, color) {
     this.importanceColorManager.setImportanceColor(importanceLevel, color);
-    console.log(
-      `[ColorManager] Importance color updated: ${importanceLevel} = ${color}`
-    );
   }
 
   /**
@@ -157,6 +149,24 @@ class ColorManager {
    */
   getImportanceVisualStyle(importanceLevel) {
     return this.importanceColorManager.getVisualStyle(importanceLevel);
+  }
+
+  /**
+   * 荷重色を取得
+   * @param {string} loadType - 荷重タイプ
+   * @returns {string} 色コード
+   */
+  getLoadColor(loadType) {
+    return this.loadColorManager.getLoadColor(loadType);
+  }
+
+  /**
+   * 荷重色を設定
+   * @param {string} loadType - 荷重タイプ
+   * @param {string} color - 色コード
+   */
+  setLoadColor(loadType, color) {
+    this.loadColorManager.setLoadColor(loadType, color);
   }
 
   /**
@@ -188,12 +198,15 @@ class ColorManager {
       elementType: params.elementType,
       state: params.comparisonState,
       toleranceState: params.toleranceState,
+      positionState: params.positionState,
+      attributeState: params.attributeState,
+      diffStatus: params.diffStatus,
       isLine: params.isLine,
       isPoly: params.isPoly,
       importanceLevel: params.importanceLevel,
       wireframe: params.wireframe,
       hasError: params.hasError,
-      status: params.status
+      status: params.status,
     });
   }
 
@@ -205,16 +218,30 @@ class ColorManager {
     let color;
     const materialOptions = {
       side: THREE.DoubleSide,
-      clippingPlanes: renderer?.clippingPlanes || []
+      clippingPlanes: renderer?.clippingPlanes || [],
     };
 
     // 色付けモードに応じて色を決定
     switch (colorMode) {
       case 'diff':
-        // 許容差状態が指定されている場合は5段階分類の色を使用
-        if (params.toleranceState) {
+        // 6カテゴリ分類: diffStatusが直接指定されている場合
+        if (params.diffStatus) {
+          color = this.getDiffColor(params.diffStatus);
+        }
+        // positionState + attributeState から6カテゴリを決定
+        else if (params.positionState && params.attributeState) {
+          const diffStatus = this._determineDiffStatusFromStates(
+            params.positionState,
+            params.attributeState,
+          );
+          color = this.getDiffColor(diffStatus);
+        }
+        // レガシー: toleranceState が指定されている場合
+        else if (params.toleranceState) {
           color = this.getToleranceDiffColor(params.toleranceState);
-        } else {
+        }
+        // デフォルト: comparisonState から取得
+        else {
           color = this.getDiffColor(params.comparisonState || 'matched');
         }
         break;
@@ -229,9 +256,7 @@ class ColorManager {
 
       case 'importance':
         color = this.getImportanceColor(params.importanceLevel || 'REQUIRED');
-        const visualStyle = this.getImportanceVisualStyle(
-          params.importanceLevel
-        );
+        const visualStyle = this.getImportanceVisualStyle(params.importanceLevel);
         materialOptions.opacity = visualStyle.opacity;
         materialOptions.transparent = visualStyle.opacity < 1.0;
         break;
@@ -241,10 +266,9 @@ class ColorManager {
     }
 
     // ワイヤーフレーム設定
-    const shouldUseWireframe =
-      params.wireframe ||
-      params.elementType === 'Axis' ||
-      params.elementType === 'Story';
+    // 注意: Storyは半透明の面として表示すべきなので、ワイヤーフレームにしない
+    // Axisは別途LineBasicMaterialを使用するのでここでは不要
+    const shouldUseWireframe = params.wireframe;
 
     if (shouldUseWireframe) {
       materialOptions.wireframe = true;
@@ -257,7 +281,7 @@ class ColorManager {
       // 線要素用マテリアル (一点鎖線はジオメトリで実現済み)
       material = new THREE.LineBasicMaterial({
         color: new THREE.Color(color),
-        clippingPlanes: materialOptions.clippingPlanes
+        clippingPlanes: materialOptions.clippingPlanes,
       });
     } else if (params.isPoly) {
       // ポリゴン要素用マテリアル（半透明）
@@ -266,21 +290,19 @@ class ColorManager {
         roughness: 0.8,
         metalness: 0.1,
         transparent: true,
-        opacity:
-          materialOptions.opacity !== undefined ? materialOptions.opacity : 0.7,
-        ...materialOptions
+        opacity: materialOptions.opacity !== undefined ? materialOptions.opacity : 0.7,
+        ...materialOptions,
       });
     } else {
       // 通常のメッシュ要素用マテリアル
-      const baseOpacity =
-        materialOptions.opacity !== undefined ? materialOptions.opacity : 1.0;
+      const baseOpacity = materialOptions.opacity !== undefined ? materialOptions.opacity : 1.0;
       material = new THREE.MeshStandardMaterial({
         color: new THREE.Color(color),
         roughness: 0.6,
         metalness: 0.1,
         transparent: baseOpacity < 1.0,
         opacity: baseOpacity,
-        ...materialOptions
+        ...materialOptions,
       });
     }
 
@@ -293,6 +315,34 @@ class ColorManager {
     }
 
     return material;
+  }
+
+  /**
+   * positionState と attributeState から6カテゴリのdiffStatusを決定
+   * @private
+   * @param {string} positionState - 位置状態 ('exact' | 'withinTolerance' | 'mismatch')
+   * @param {string} attributeState - 属性状態 ('matched' | 'mismatch')
+   * @returns {string} 6カテゴリのdiffStatus
+   */
+  _determineDiffStatusFromStates(positionState, attributeState) {
+    // 位置完全一致
+    if (positionState === 'exact') {
+      if (attributeState === 'matched') {
+        return 'matched';
+      }
+      return 'attributeMismatch';
+    }
+
+    // 位置許容差内
+    if (positionState === 'withinTolerance') {
+      if (attributeState === 'matched') {
+        return 'positionTolerance';
+      }
+      return 'combined';
+    }
+
+    // 位置許容差超過（通常はマッチング失敗でonlyA/onlyBになる）
+    return 'attributeMismatch';
   }
 
   /**
@@ -326,7 +376,6 @@ class ColorManager {
       }
     }
     this.materialCache.clear();
-    console.log('[ColorManager] Material cache cleared');
   }
 
   /**
@@ -337,9 +386,9 @@ class ColorManager {
     this.elementColorManager.resetToDefault();
     this.schemaColorManager.resetToDefault();
     this.importanceColorManager.resetToDefault();
+    this.loadColorManager.resetToDefault();
 
     this.clearMaterialCache();
-    console.log('[ColorManager] All colors reset to default');
   }
 
   /**
@@ -351,77 +400,18 @@ class ColorManager {
       elementColors: this.elementColorManager.getAllElementColors(),
       schemaColors: this.schemaColorManager.getAllSchemaColors(),
       importanceColors: this.importanceColorManager.getAllImportanceColors(),
+      loadColors: this.loadColorManager.getAllLoadColors(),
       materialCacheSize: this.materialCache.size,
       managerDebugInfo: {
         diffColorManager: this.diffColorManager.getDebugInfo(),
         elementColorManager: this.elementColorManager.getDebugInfo(),
         schemaColorManager: this.schemaColorManager.getDebugInfo(),
-        importanceColorManager: this.importanceColorManager.getDebugInfo()
-      }
+        importanceColorManager: this.importanceColorManager.getDebugInfo(),
+        loadColorManager: this.loadColorManager.getDebugInfo(),
+      },
     };
   }
 }
 
 // シングルトンインスタンスを作成してエクスポート
 export const colorManager = new ColorManager();
-
-// ヘルパー関数をエクスポート
-export function getDiffColor(state) {
-  return colorManager.getDiffColor(state);
-}
-
-export function setDiffColor(state, color) {
-  colorManager.setDiffColor(state, color);
-}
-
-export function getToleranceDiffColor(state) {
-  return colorManager.getToleranceDiffColor(state);
-}
-
-export function setToleranceDiffColor(state, color) {
-  colorManager.setToleranceDiffColor(state, color);
-}
-
-export function getAllToleranceDiffColors() {
-  return colorManager.getAllToleranceDiffColors();
-}
-
-export function getElementColor(elementType) {
-  return colorManager.getElementColor(elementType);
-}
-
-export function setElementColor(elementType, color) {
-  colorManager.setElementColor(elementType, color);
-}
-
-export function getSchemaColor(hasError) {
-  return colorManager.getSchemaColor(hasError);
-}
-
-export function setSchemaColor(type, color) {
-  colorManager.setSchemaColor(type, color);
-}
-
-export function getImportanceColor(importanceLevel) {
-  return colorManager.getImportanceColor(importanceLevel);
-}
-
-export function setImportanceColor(importanceLevel, color) {
-  colorManager.setImportanceColor(importanceLevel, color);
-}
-
-export function getMaterial(colorMode, params) {
-  return colorManager.getMaterial(colorMode, params);
-}
-
-export function clearMaterialCache() {
-  colorManager.clearMaterialCache();
-}
-
-export function resetAllColors() {
-  colorManager.resetAllColors();
-}
-
-export function getColorManagerDebugInfo() {
-  return colorManager.getDebugInfo();
-}

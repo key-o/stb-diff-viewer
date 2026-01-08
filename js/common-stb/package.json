@@ -1,0 +1,12 @@
+{
+  "name": "@stb-suite/stb-common",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "ST-Bridge common parser modules",
+  "main": "parser/index.js",
+  "exports": {
+    ".": "./parser/index.js",
+    "./parser": "./parser/index.js",
+    "./parser/*": "./parser/*"
+  }
+}

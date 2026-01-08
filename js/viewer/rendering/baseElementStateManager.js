@@ -12,6 +12,10 @@
  * - 一括操作（全要素への状態設定、リセット）
  */
 
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('viewer/rendering/baseElementStateManager');
+
 /**
  * BaseElementStateManagerクラス
  * サブクラスで継承して使用します
@@ -35,14 +39,14 @@ class BaseElementStateManager {
 
     // 各要素タイプの状態を保持するMap
     this.states = new Map();
-    elementTypes.forEach(type => {
+    elementTypes.forEach((type) => {
       this.states.set(type, defaultState);
     });
 
     // 状態変更時のコールバック
     // key: 要素タイプ, value: コールバック関数の配列
     this.callbacks = new Map();
-    elementTypes.forEach(type => {
+    elementTypes.forEach((type) => {
       this.callbacks.set(type, []);
     });
 
@@ -60,7 +64,7 @@ class BaseElementStateManager {
    */
   getState(elementType) {
     if (!this.states.has(elementType)) {
-      console.warn(`[${this.managerName}] Unknown element type: ${elementType}`);
+      log.warn(`[${this.managerName}] Unknown element type: ${elementType}`);
       return this.defaultState;
     }
     return this.states.get(elementType);
@@ -74,13 +78,13 @@ class BaseElementStateManager {
    */
   setState(elementType, newState) {
     if (!this.states.has(elementType)) {
-      console.warn(`[${this.managerName}] Unknown element type: ${elementType}`);
+      log.warn(`[${this.managerName}] Unknown element type: ${elementType}`);
       return false;
     }
 
     // サブクラスでの追加バリデーション
     if (!this._validateState(newState)) {
-      console.warn(`[${this.managerName}] Invalid state: ${newState}`);
+      log.warn(`[${this.managerName}] Invalid state: ${newState}`);
       return false;
     }
 
@@ -93,7 +97,6 @@ class BaseElementStateManager {
     this.states.set(elementType, newState);
 
     if (this.debugMode) {
-      console.log(`[${this.managerName}] ${elementType} state changed: ${oldState} → ${newState}`);
     }
 
     // コールバックを実行
@@ -118,7 +121,7 @@ class BaseElementStateManager {
    * @param {*} state - 設定する状態値
    */
   setAllStates(state) {
-    this.elementTypes.forEach(type => {
+    this.elementTypes.forEach((type) => {
       this.setState(type, state);
     });
   }
@@ -145,7 +148,7 @@ class BaseElementStateManager {
     }
 
     if (!this.callbacks.has(elementType)) {
-      console.warn(`[${this.managerName}] Unknown element type: ${elementType}`);
+      log.warn(`[${this.managerName}] Unknown element type: ${elementType}`);
       return () => {};
     }
 
@@ -171,20 +174,20 @@ class BaseElementStateManager {
   _executeCallbacks(elementType, newState, oldState) {
     // 要素タイプ固有のコールバック
     const typeCallbacks = this.callbacks.get(elementType) || [];
-    typeCallbacks.forEach(callback => {
+    typeCallbacks.forEach((callback) => {
       try {
         callback(newState, oldState, elementType);
       } catch (error) {
-        console.error(`[${this.managerName}] Callback error for ${elementType}:`, error);
+        log.error(`[${this.managerName}] Callback error for ${elementType}:`, error);
       }
     });
 
     // グローバルコールバック
-    this.globalCallbacks.forEach(callback => {
+    this.globalCallbacks.forEach((callback) => {
       try {
         callback(newState, oldState, elementType);
       } catch (error) {
-        console.error(`[${this.managerName}] Global callback error:`, error);
+        log.error(`[${this.managerName}] Global callback error:`, error);
       }
     });
   }
@@ -208,7 +211,6 @@ class BaseElementStateManager {
   setDebugMode(enabled) {
     this.debugMode = enabled;
     if (enabled) {
-      console.log(`[${this.managerName}] Debug mode enabled`);
     }
   }
 
@@ -222,13 +224,10 @@ class BaseElementStateManager {
       elementTypes: [...this.elementTypes],
       states: this.getAllStates(),
       callbackCounts: Object.fromEntries(
-        Array.from(this.callbacks.entries()).map(([type, callbacks]) => [
-          type,
-          callbacks.length
-        ])
+        Array.from(this.callbacks.entries()).map(([type, callbacks]) => [type, callbacks.length]),
       ),
       globalCallbackCount: this.globalCallbacks.length,
-      debugMode: this.debugMode
+      debugMode: this.debugMode,
     };
   }
 
@@ -237,12 +236,11 @@ class BaseElementStateManager {
    */
   reset() {
     // すべてデフォルト状態に戻す
-    this.elementTypes.forEach(type => {
+    this.elementTypes.forEach((type) => {
       this.states.set(type, this.defaultState);
     });
 
     if (this.debugMode) {
-      console.log(`[${this.managerName}] Reset to default state`);
     }
   }
 }

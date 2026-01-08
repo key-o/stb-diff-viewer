@@ -8,15 +8,26 @@
  */
 
 import * as THREE from 'three';
-import { createLogger } from '../../../utils/logger.js';
-
-const log = createLogger('viewer:geometry:tapered');
 
 /**
  * プロファイルデータ型定義
  * @typedef {Object} ProfileData
  * @property {Array<{x: number, y: number}>} vertices - 外形頂点座標配列
- * @property {Array<Array<{x: number, y: number}>>} holes - 穴の頂点座標配列（オプション）
+ * @property {Array<Array<{x: number, y: number}>>} [holes] - 穴の頂点座標配列（オプション）
+ */
+
+/**
+ * セグメント境界データ型定義
+ * @typedef {Object} SegmentBoundary
+ * @property {number} position - 境界位置（mm）
+ * @property {ProfileData} profile - その位置でのプロファイル
+ */
+
+/**
+ * 断面セクションデータ型定義
+ * @typedef {Object} SectionData
+ * @property {string} pos - 断面位置（'START', 'CENTER', 'END'など）
+ * @property {ProfileData} profile - 断面プロファイル
  */
 
 /**
@@ -25,8 +36,8 @@ const log = createLogger('viewer:geometry:tapered');
  * @param {ProfileData} startProfile - 始点断面データ
  * @param {ProfileData} endProfile - 終点断面データ
  * @param {number} length - 要素長さ（mm）
- * @param {Object} options - オプション設定
- * @param {number} options.segments - 長さ方向の分割数（デフォルト: 1）
+ * @param {Object} [options={}] - オプション設定
+ * @param {number} [options.segments=1] - 長さ方向の分割数
  * @returns {THREE.BufferGeometry} テーパージオメトリ
  */
 export function createTaperedGeometry(startProfile, endProfile, length, options = {}) {
@@ -38,11 +49,6 @@ export function createTaperedGeometry(startProfile, endProfile, length, options 
   if (length <= 0) {
     throw new Error(`TaperedGeometryBuilder: Invalid length: ${length}`);
   }
-
-  log.debug(
-    `Creating tapered geometry: ${startProfile.vertices.length} vertices, ` +
-    `length=${length.toFixed(1)}mm, segments=${segments}`
-  );
 
   const vertexCount = startProfile.vertices.length;
   const positions = [];
@@ -101,19 +107,17 @@ export function createTaperedGeometry(startProfile, endProfile, length, options 
   // 法線を自動計算
   geometry.computeVertexNormals();
 
-  log.debug(
-    `Tapered geometry created: ${positions.length / 3} vertices, ${indices.length / 3} triangles`
-  );
-
   return geometry;
 }
 
 /**
  * 3断面以上のテーパージオメトリを生成（ハンチ対応）
  *
- * @param {Array<{pos: string, profile: ProfileData}>} sections - 断面配列
+ * @param {Array<SectionData>} sections - 断面配列
  * @param {number} length - 要素長さ（mm）
- * @param {Object} haunchLengths - ハンチ長さ {start: number, end: number}
+ * @param {Object} [haunchLengths={}] - ハンチ長さ
+ * @param {number} [haunchLengths.start=0] - 始端ハンチ長さ（mm）
+ * @param {number} [haunchLengths.end=0] - 終端ハンチ長さ（mm）
  * @returns {THREE.BufferGeometry} テーパージオメトリ
  */
 export function createMultiSectionGeometry(sections, length, haunchLengths = {}) {
@@ -121,11 +125,6 @@ export function createMultiSectionGeometry(sections, length, haunchLengths = {})
 
   // セグメントの境界位置を計算
   const boundaries = calculateSegmentBoundaries(sections, length, haunchStart, haunchEnd);
-
-  log.debug(
-    `Creating multi-section geometry: ${sections.length} sections, ` +
-    `length=${length.toFixed(1)}mm, haunch(start=${haunchStart}, end=${haunchEnd})`
-  );
 
   const positions = [];
   const indices = [];
@@ -194,7 +193,7 @@ export function createMultiSectionGeometry(sections, length, haunchLengths = {})
   const endCap = triangulateProfile(
     lastProfile.vertices,
     positions.length / 3 - lastProfile.vertices.length,
-    true
+    true,
   );
   indices.push(...endCap);
 
@@ -204,75 +203,116 @@ export function createMultiSectionGeometry(sections, length, haunchLengths = {})
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.computeVertexNormals();
 
-  log.debug(
-    `Multi-section geometry created: ${positions.length / 3} vertices, ${indices.length / 3} triangles`
-  );
-
   return geometry;
 }
 
 /**
  * セグメント境界位置を計算
  *
- * @param {Array<{pos: string, profile: ProfileData}>} sections - 断面配列
+ * Joint/Haunch梁の場合、各断面は「領域」を表すため、
+ * 均一区間と急激な断面変化を正しく表現するように境界を生成します。
+ *
+ * @param {Array<SectionData>} sections - 断面配列
  * @param {number} length - 全体長さ（mm）
- * @param {number} haunchStart - 始端ハンチ長さ（mm）
- * @param {number} haunchEnd - 終端ハンチ長さ（mm）
- * @returns {Array<{position: number, profile: ProfileData}>} 境界位置配列
+ * @param {number} haunchStart - 始端ハンチ/ジョイント長さ（mm）
+ * @param {number} haunchEnd - 終端ハンチ/ジョイント長さ（mm）
+ * @returns {Array<SegmentBoundary>} 境界位置配列
  */
 function calculateSegmentBoundaries(sections, length, haunchStart, haunchEnd) {
   const boundaries = [];
 
-  // 位置指定から境界位置を決定
-  for (let i = 0; i < sections.length; i++) {
-    const section = sections[i];
-    const pos = section.pos.toUpperCase();
+  // 断面位置の分析
+  const posMap = {};
+  for (const section of sections) {
+    posMap[section.pos.toUpperCase()] = section.profile;
+  }
 
-    let position = 0;
+  const hasStart = 'START' in posMap;
+  const hasCenter = 'CENTER' in posMap;
+  const hasEnd = 'END' in posMap;
 
-    // 位置ごとの配置ロジック
-    if (pos === 'START') {
-      position = 0;
-    } else if (pos === 'HAUNCH_S') {
-      position = haunchStart;
-    } else if (pos === 'CENTER') {
-      // 2断面: START/CENTERの場合、CENTERはhaunchStart位置
-      // 3断面: START/CENTER/ENDの場合、CENTERは中央
-      const hasStart = sections.some(s => s.pos.toUpperCase() === 'START');
-      const hasEnd = sections.some(s => s.pos.toUpperCase() === 'END');
+  // 急激な断面変化を表現するための最小オフセット（mm）
+  const EPSILON = 0.1;
 
-      if (hasStart && hasEnd) {
-        // 3断面以上: 真ん中
-        position = length / 2;
-      } else if (hasStart) {
-        // START/CENTER: CENTERはハンチ終了位置
-        position = haunchStart;
-      } else if (hasEnd) {
-        // CENTER/END: CENTERはハンチ開始位置
-        position = length - haunchEnd;
-      } else {
-        // CENTERのみ: 中央
-        position = length / 2;
-      }
-    } else if (pos === 'HAUNCH_E') {
-      position = length - haunchEnd;
-    } else if (pos === 'END') {
-      position = length;
-    } else if (pos === 'TOP') {
-      // 柱のTOP（上端）
-      position = length;
-    } else if (pos === 'BOTTOM') {
-      // 柱のBOTTOM（下端）
-      position = 0;
-    } else {
-      // デフォルト: 均等分割
-      position = (length * i) / (sections.length - 1);
+  // === 3断面パターン (START/CENTER/END) - Joint梁 ===
+  if (hasStart && hasCenter && hasEnd && haunchStart > 0 && haunchEnd > 0) {
+    // START領域: 0 ～ haunchStart (均一)
+    // CENTER領域: haunchStart ～ (length - haunchEnd) (均一)
+    // END領域: (length - haunchEnd) ～ length (均一)
+    boundaries.push({ position: 0, profile: posMap['START'] });
+    boundaries.push({ position: haunchStart - EPSILON, profile: posMap['START'] });
+    boundaries.push({ position: haunchStart, profile: posMap['CENTER'] });
+    boundaries.push({ position: length - haunchEnd, profile: posMap['CENTER'] });
+    boundaries.push({ position: length - haunchEnd + EPSILON, profile: posMap['END'] });
+    boundaries.push({ position: length, profile: posMap['END'] });
+  }
+  // === 3断面パターン (START/CENTER/END) - ジョイント長さが片方のみ ===
+  else if (hasStart && hasCenter && hasEnd && (haunchStart > 0 || haunchEnd > 0)) {
+    boundaries.push({ position: 0, profile: posMap['START'] });
+    if (haunchStart > 0) {
+      boundaries.push({ position: haunchStart - EPSILON, profile: posMap['START'] });
+      boundaries.push({ position: haunchStart, profile: posMap['CENTER'] });
     }
+    // CENTERの中間点
+    const centerMid = (haunchStart || 0) + (length - (haunchEnd || 0) - (haunchStart || 0)) / 2;
+    if (haunchStart === 0 && haunchEnd > 0) {
+      boundaries.push({ position: centerMid, profile: posMap['CENTER'] });
+    }
+    if (haunchEnd > 0) {
+      boundaries.push({ position: length - haunchEnd, profile: posMap['CENTER'] });
+      boundaries.push({ position: length - haunchEnd + EPSILON, profile: posMap['END'] });
+    }
+    boundaries.push({ position: length, profile: posMap['END'] });
+  }
+  // === 2断面パターン (START/CENTER) - 始端ジョイント ===
+  else if (hasStart && hasCenter && !hasEnd) {
+    // START領域: 0 ～ haunchStart
+    // CENTER領域: haunchStart ～ length (均一)
+    const transitionPos = haunchStart > 0 ? haunchStart : length * 0.2;
+    boundaries.push({ position: 0, profile: posMap['START'] });
+    boundaries.push({ position: transitionPos - EPSILON, profile: posMap['START'] });
+    boundaries.push({ position: transitionPos, profile: posMap['CENTER'] });
+    boundaries.push({ position: length, profile: posMap['CENTER'] });
+  }
+  // === 2断面パターン (CENTER/END) - 終端ジョイント ===
+  else if (!hasStart && hasCenter && hasEnd) {
+    // CENTER領域: 0 ～ (length - haunchEnd) (均一)
+    // END領域: (length - haunchEnd) ～ length
+    const transitionPos = haunchEnd > 0 ? length - haunchEnd : length * 0.8;
+    boundaries.push({ position: 0, profile: posMap['CENTER'] });
+    boundaries.push({ position: transitionPos, profile: posMap['CENTER'] });
+    boundaries.push({ position: transitionPos + EPSILON, profile: posMap['END'] });
+    boundaries.push({ position: length, profile: posMap['END'] });
+  }
+  // === 2断面パターン (START/END) - 両端テーパー ===
+  else if (hasStart && !hasCenter && hasEnd) {
+    // 始点から終点まで線形にテーパー
+    boundaries.push({ position: 0, profile: posMap['START'] });
+    boundaries.push({ position: length, profile: posMap['END'] });
+  }
+  // === その他のパターン（従来ロジック） ===
+  else {
+    for (let i = 0; i < sections.length; i++) {
+      const section = sections[i];
+      const pos = section.pos.toUpperCase();
+      let position = 0;
 
-    boundaries.push({
-      position,
-      profile: section.profile
-    });
+      if (pos === 'START' || pos === 'BOTTOM') {
+        position = 0;
+      } else if (pos === 'HAUNCH_S') {
+        position = haunchStart;
+      } else if (pos === 'CENTER') {
+        position = length / 2;
+      } else if (pos === 'HAUNCH_E') {
+        position = length - haunchEnd;
+      } else if (pos === 'END' || pos === 'TOP') {
+        position = length;
+      } else {
+        position = (length * i) / Math.max(1, sections.length - 1);
+      }
+
+      boundaries.push({ position, profile: section.profile });
+    }
   }
 
   // 位置でソート
@@ -294,7 +334,7 @@ function triangulateProfile(vertices, baseIndex, reverse) {
   const n = vertices.length;
 
   if (n < 3) {
-    log.warn('triangulateProfile: Not enough vertices for triangulation');
+    console.warn('triangulateProfile: Not enough vertices for triangulation');
     return indices;
   }
 
@@ -315,6 +355,7 @@ function triangulateProfile(vertices, baseIndex, reverse) {
  *
  * @param {ProfileData} startProfile - 始点プロファイル
  * @param {ProfileData} endProfile - 終点プロファイル
+ * @throws {Error} プロファイルが無効な場合
  */
 function validateProfiles(startProfile, endProfile) {
   if (!startProfile || !endProfile) {
@@ -328,14 +369,58 @@ function validateProfiles(startProfile, endProfile) {
   if (startProfile.vertices.length !== endProfile.vertices.length) {
     throw new Error(
       `TaperedGeometryBuilder: Vertex count mismatch ` +
-      `(start: ${startProfile.vertices.length}, end: ${endProfile.vertices.length})`
+        `(start: ${startProfile.vertices.length}, end: ${endProfile.vertices.length})`,
     );
   }
 
   if (startProfile.vertices.length < 3) {
     throw new Error(
       `TaperedGeometryBuilder: Profile must have at least 3 vertices ` +
-      `(got ${startProfile.vertices.length})`
+        `(got ${startProfile.vertices.length})`,
     );
   }
+}
+
+/**
+ * 線形補間されたプロファイルを取得
+ *
+ * @param {ProfileData} startProfile - 始点プロファイル
+ * @param {ProfileData} endProfile - 終点プロファイル
+ * @param {number} t - 補間パラメータ（0.0 ～ 1.0）
+ * @returns {ProfileData} 補間されたプロファイル
+ */
+export function interpolateProfiles(startProfile, endProfile, t) {
+  validateProfiles(startProfile, endProfile);
+
+  const vertices = startProfile.vertices.map((sv, i) => {
+    const ev = endProfile.vertices[i];
+    return {
+      x: sv.x + t * (ev.x - sv.x),
+      y: sv.y + t * (ev.y - sv.y),
+    };
+  });
+
+  return {
+    vertices,
+    holes: [], // 穴の補間は現在未対応
+  };
+}
+
+/**
+ * 2点間の中間プロファイルを生成
+ *
+ * @param {ProfileData} startProfile - 始点プロファイル
+ * @param {ProfileData} endProfile - 終点プロファイル
+ * @param {number} divisions - 分割数
+ * @returns {Array<ProfileData>} 中間プロファイル配列（始点・終点含む）
+ */
+export function generateIntermediateProfiles(startProfile, endProfile, divisions) {
+  const profiles = [];
+
+  for (let i = 0; i <= divisions; i++) {
+    const t = i / divisions;
+    profiles.push(interpolateProfiles(startProfile, endProfile, t));
+  }
+
+  return profiles;
 }

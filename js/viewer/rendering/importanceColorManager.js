@@ -5,7 +5,7 @@
  */
 
 import { BaseColorStateManager } from './baseColorStateManager.js';
-import { IMPORTANCE_LEVELS } from '../../core/importanceManager.js';
+import { IMPORTANCE_LEVELS } from '../../constants/importanceLevels.js';
 import { IMPORTANCE_COLORS } from '../../config/importanceConfig.js';
 
 // 重要度レベルタイプ
@@ -23,23 +23,23 @@ class ImportanceColorManager extends BaseColorStateManager {
       [IMPORTANCE_LEVELS.REQUIRED]: {
         opacity: 1.0,
         outlineWidth: 2.0,
-        saturation: 1.0
+        saturation: 1.0,
       },
       [IMPORTANCE_LEVELS.OPTIONAL]: {
         opacity: 0.8,
         outlineWidth: 1.0,
-        saturation: 0.7
+        saturation: 0.7,
       },
       [IMPORTANCE_LEVELS.UNNECESSARY]: {
         opacity: 0.4,
         outlineWidth: 0.5,
-        saturation: 0.3
+        saturation: 0.3,
       },
       [IMPORTANCE_LEVELS.NOT_APPLICABLE]: {
         opacity: 0.1,
         outlineWidth: 0.0,
-        saturation: 0.1
-      }
+        saturation: 0.1,
+      },
     };
   }
 
@@ -49,10 +49,7 @@ class ImportanceColorManager extends BaseColorStateManager {
    * @returns {string} 色コード
    */
   getImportanceColor(importanceLevel) {
-    // ランタイム色設定を優先
-    if (window.runtimeImportanceColors && window.runtimeImportanceColors[importanceLevel]) {
-      return window.runtimeImportanceColors[importanceLevel];
-    }
+    // ColorManager内部のMapから色を取得（単一データソース）
     return this.getColor(importanceLevel);
   }
 
@@ -63,17 +60,8 @@ class ImportanceColorManager extends BaseColorStateManager {
    * @returns {boolean} 設定成功フラグ
    */
   setImportanceColor(importanceLevel, color) {
-    const success = this.setColor(importanceLevel, color);
-
-    if (success) {
-      // ランタイム色設定も更新
-      if (!window.runtimeImportanceColors) {
-        window.runtimeImportanceColors = {};
-      }
-      window.runtimeImportanceColors[importanceLevel] = color;
-    }
-
-    return success;
+    // ColorManager内部のMapのみを更新（単一データソース）
+    return this.setColor(importanceLevel, color);
   }
 
   /**
@@ -102,7 +90,6 @@ class ImportanceColorManager extends BaseColorStateManager {
     return {
       ...baseInfo,
       visualStyles: { ...this.visualStyles },
-      runtimeColors: window.runtimeImportanceColors || {}
     };
   }
 }

@@ -12,17 +12,26 @@ import {
   getDxfGroup,
   fitCameraToDxfBounds,
   setLayerVisibility,
-  toggleDxfEditMode
+  toggleDxfEditMode,
 } from './viewer/dxfViewer.js';
-import { getState, setState } from './core/globalState.js';
+import { setState } from './app/globalState.js';
 import { scene, camera, controls } from './viewer/core/core.js';
-import { exportDxf, getExportStats } from './exporter/dxfExporter.js';
+import { scheduleRender } from './utils/renderScheduler.js';
+import { exportDxf, getExportStats } from './export/dxf/dxfExporter.js';
 import {
   canExportStbToDxf,
   exportStbToDxf,
-  getStbExportStats
-} from './exporter/stbToDxfExporter.js';
+  getStbExportStats,
+  exportAllStoriesToDxf,
+  exportAlongAllAxesToDxf,
+  exportAlongAllAxesBothDirections,
+  getAvailableStories,
+  getAvailableAxes,
+} from './export/dxf/stb-to-dxf/index.js';
 import { getCurrentStories, getCurrentAxesData, addStateChangeListener } from './ui/state.js';
+import { DEFAULT_ELEMENT_COLORS } from './config/colorConfig.js';
+import { ELEMENT_LABELS } from './config/elementLabels.js';
+import { showError, showWarning } from './ui/toast.js';
 
 const log = createLogger('DXFLoader');
 
@@ -72,7 +81,7 @@ export function getDxfPlacementOptions() {
     offsetX,
     offsetY,
     offsetZ,
-    useManualOffset
+    useManualOffset,
   };
 }
 
@@ -101,7 +110,7 @@ function getPositionFromSelection(plane, position) {
     if (axesData?.yAxes) {
       const axis = axesData.yAxes.find((a) => a.id === position);
       if (axis) {
-        offsetY = axis.distance; // Y通りの距離をYオフセットに
+        offsetY = axis.distance;
         log.info(`Y通り "${axis.name}" (距離: ${axis.distance}mm) に配置`);
       }
     }
@@ -111,7 +120,7 @@ function getPositionFromSelection(plane, position) {
     if (axesData?.xAxes) {
       const axis = axesData.xAxes.find((a) => a.id === position);
       if (axis) {
-        offsetX = axis.distance; // X通りの距離をXオフセットに
+        offsetX = axis.distance;
         log.info(`X通り "${axis.name}" (距離: ${axis.distance}mm) に配置`);
       }
     }
@@ -172,10 +181,7 @@ export async function loadDxfFile(file, options = null) {
     }
 
     // 再描画をリクエスト
-    const scheduleRender = getState('rendering.scheduleRender');
-    if (scheduleRender) {
-      scheduleRender();
-    }
+    scheduleRender();
 
     // 状態を更新
     dxfLoaded = true;
@@ -196,16 +202,16 @@ export async function loadDxfFile(file, options = null) {
         circles: currentEntities.circles.length,
         arcs: currentEntities.arcs.length,
         dimensions: currentEntities.dimensions.length,
-        texts: currentEntities.texts.length
+        texts: currentEntities.texts.length,
       },
       layers: currentLayers.length,
-      placement: placementOptions
+      placement: placementOptions,
     });
 
     return true;
   } catch (error) {
     log.error('DXFファイル読み込みエラー:', error);
-    alert(`DXFファイルの読み込みに失敗しました: ${error.message}`);
+    showError(`DXFファイルの読み込みに失敗しました: ${error.message}`);
     return false;
   }
 }
@@ -224,7 +230,7 @@ function calculateRenderOptions(placementOptions) {
     offsetX: 0,
     offsetY: 0,
     offsetZ: 0,
-    plane: plane // 配置面情報を渡す
+    plane: plane, // 配置面情報を渡す
   };
 
   // 配置面に応じてオフセットを設定
@@ -280,21 +286,21 @@ function detectDxfEncoding(buffer) {
 
     // コードページからエンコーディングへのマッピング
     const codepageMap = {
-      'ANSI_932': 'shift_jis',      // Japanese
-      'ANSI_936': 'gb2312',          // Simplified Chinese
-      'ANSI_949': 'euc-kr',          // Korean
-      'ANSI_950': 'big5',            // Traditional Chinese
-      'ANSI_1250': 'windows-1250',   // Central European
-      'ANSI_1251': 'windows-1251',   // Cyrillic
-      'ANSI_1252': 'windows-1252',   // Western European
-      'ANSI_1253': 'windows-1253',   // Greek
-      'ANSI_1254': 'windows-1254',   // Turkish
-      'ANSI_1255': 'windows-1255',   // Hebrew
-      'ANSI_1256': 'windows-1256',   // Arabic
-      'ANSI_1257': 'windows-1257',   // Baltic
-      'ANSI_1258': 'windows-1258',   // Vietnamese
+      ANSI_932: 'shift_jis', // Japanese
+      ANSI_936: 'gb2312', // Simplified Chinese
+      ANSI_949: 'euc-kr', // Korean
+      ANSI_950: 'big5', // Traditional Chinese
+      ANSI_1250: 'windows-1250', // Central European
+      ANSI_1251: 'windows-1251', // Cyrillic
+      ANSI_1252: 'windows-1252', // Western European
+      ANSI_1253: 'windows-1253', // Greek
+      ANSI_1254: 'windows-1254', // Turkish
+      ANSI_1255: 'windows-1255', // Hebrew
+      ANSI_1256: 'windows-1256', // Arabic
+      ANSI_1257: 'windows-1257', // Baltic
+      ANSI_1258: 'windows-1258', // Vietnamese
       'UTF-8': 'utf-8',
-      'UTF8': 'utf-8'
+      UTF8: 'utf-8',
     };
 
     if (codepageMap[codepage]) {
@@ -313,15 +319,15 @@ function detectDxfEncoding(buffer) {
   }
 
   // BOM（Byte Order Mark）を確認
-  if (uint8[0] === 0xEF && uint8[1] === 0xBB && uint8[2] === 0xBF) {
+  if (uint8[0] === 0xef && uint8[1] === 0xbb && uint8[2] === 0xbf) {
     log.info('UTF-8 BOM検出');
     return 'utf-8';
   }
-  if (uint8[0] === 0xFF && uint8[1] === 0xFE) {
+  if (uint8[0] === 0xff && uint8[1] === 0xfe) {
     log.info('UTF-16LE BOM検出');
     return 'utf-16le';
   }
-  if (uint8[0] === 0xFE && uint8[1] === 0xFF) {
+  if (uint8[0] === 0xfe && uint8[1] === 0xff) {
     log.info('UTF-16BE BOM検出');
     return 'utf-16be';
   }
@@ -334,25 +340,27 @@ function detectDxfEncoding(buffer) {
     const b = uint8[i];
 
     // Shift_JIS特徴的パターン（全角文字の先頭バイト）
-    if ((b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC)) {
+    if ((b >= 0x81 && b <= 0x9f) || (b >= 0xe0 && b <= 0xfc)) {
       const next = uint8[i + 1];
-      if (next && ((next >= 0x40 && next <= 0x7E) || (next >= 0x80 && next <= 0xFC))) {
+      if (next && ((next >= 0x40 && next <= 0x7e) || (next >= 0x80 && next <= 0xfc))) {
         shiftJisScore += 2;
         i++; // 2バイト文字なのでスキップ
       }
     }
 
     // UTF-8特徴的パターン（マルチバイトシーケンス）
-    if ((b & 0xE0) === 0xC0) { // 2バイトシーケンス開始
+    if ((b & 0xe0) === 0xc0) {
+      // 2バイトシーケンス開始
       const next = uint8[i + 1];
-      if (next && (next & 0xC0) === 0x80) {
+      if (next && (next & 0xc0) === 0x80) {
         utf8Score += 2;
         i++;
       }
-    } else if ((b & 0xF0) === 0xE0) { // 3バイトシーケンス開始
+    } else if ((b & 0xf0) === 0xe0) {
+      // 3バイトシーケンス開始
       const next1 = uint8[i + 1];
       const next2 = uint8[i + 2];
-      if (next1 && next2 && (next1 & 0xC0) === 0x80 && (next2 & 0xC0) === 0x80) {
+      if (next1 && next2 && (next1 & 0xc0) === 0x80 && (next2 & 0xc0) === 0x80) {
         utf8Score += 3;
         i += 2;
       }
@@ -436,10 +444,7 @@ export function clearDxfData() {
   setState('dxf.layers', null);
 
   // 再描画をリクエスト
-  const scheduleRender = getState('rendering.scheduleRender');
-  if (scheduleRender) {
-    scheduleRender();
-  }
+  scheduleRender();
 
   log.info('DXFデータをクリアしました');
 }
@@ -469,10 +474,7 @@ export function toggleDxfLayer(layerName, visible) {
   setLayerVisibility(layerName, visible);
 
   // 再描画をリクエスト
-  const scheduleRender = getState('rendering.scheduleRender');
-  if (scheduleRender) {
-    scheduleRender();
-  }
+  scheduleRender();
 }
 
 /**
@@ -584,7 +586,7 @@ export function initDxfLoaderUI() {
       if (dxfFileInput && dxfFileInput.files[0]) {
         loadDxfFile(dxfFileInput.files[0]);
       } else {
-        alert('DXFファイルを選択してください');
+        showWarning('DXFファイルを選択してください');
       }
     });
   }
@@ -728,9 +730,7 @@ export function updatePlacementPositionOptions() {
       optgroup.label = 'Y通り';
 
       // 距離順にソート
-      const sortedAxes = [...axesData.yAxes].sort(
-        (a, b) => a.distance - b.distance
-      );
+      const sortedAxes = [...axesData.yAxes].sort((a, b) => a.distance - b.distance);
       for (const axis of sortedAxes) {
         const option = document.createElement('option');
         option.value = axis.id;
@@ -746,9 +746,7 @@ export function updatePlacementPositionOptions() {
       optgroup.label = 'X通り';
 
       // 距離順にソート
-      const sortedAxes = [...axesData.xAxes].sort(
-        (a, b) => a.distance - b.distance
-      );
+      const sortedAxes = [...axesData.xAxes].sort((a, b) => a.distance - b.distance);
       for (const axis of sortedAxes) {
         const option = document.createElement('option');
         option.value = axis.id;
@@ -769,7 +767,7 @@ function getPlacementInfoText(options) {
   const planeNames = {
     xy: 'XY平面',
     xz: 'XZ平面',
-    yz: 'YZ平面'
+    yz: 'YZ平面',
   };
 
   let text = planeNames[options.plane] || options.plane;
@@ -822,7 +820,7 @@ function updateExportLayerUI() {
 
   // エンティティをカウント
   const countEntities = (entities, layerName) => {
-    return entities.filter(e => e.layer === layerName).length;
+    return entities.filter((e) => e.layer === layerName).length;
   };
 
   for (const layer of currentLayers) {
@@ -901,7 +899,7 @@ function updateExportStats() {
  */
 function selectAllExportLayers() {
   const checkboxes = document.querySelectorAll('#dxf-export-layer-list input[type="checkbox"]');
-  checkboxes.forEach(cb => {
+  checkboxes.forEach((cb) => {
     cb.checked = true;
     selectedExportLayers.add(cb.dataset.layerName);
   });
@@ -913,7 +911,7 @@ function selectAllExportLayers() {
  */
 function deselectAllExportLayers() {
   const checkboxes = document.querySelectorAll('#dxf-export-layer-list input[type="checkbox"]');
-  checkboxes.forEach(cb => {
+  checkboxes.forEach((cb) => {
     cb.checked = false;
     selectedExportLayers.delete(cb.dataset.layerName);
   });
@@ -925,13 +923,13 @@ function deselectAllExportLayers() {
  */
 function handleExportDxf() {
   if (!currentEntities || !currentLayers.length) {
-    alert('エクスポートするDXFデータがありません');
+    showWarning('エクスポートするDXFデータがありません');
     return;
   }
 
   const selectedLayerArray = Array.from(selectedExportLayers);
   if (selectedLayerArray.length === 0) {
-    alert('エクスポートするレイヤーを選択してください');
+    showWarning('エクスポートするレイヤーを選択してください');
     return;
   }
 
@@ -977,17 +975,13 @@ function initExportUI() {
 // STBエクスポート用に選択された要素タイプ
 const selectedStbExportTypes = new Set();
 
-// 要素タイプの日本語名と色
-const ELEMENT_TYPE_INFO = {
-  Column: { name: '柱', color: '#ff0000' },
-  Post: { name: '間柱', color: '#ff00ff' },
-  Girder: { name: '大梁', color: '#ffff00' },
-  Beam: { name: '小梁', color: '#00ff00' },
-  Brace: { name: 'ブレース', color: '#00ffff' },
-  Pile: { name: '杭', color: '#0000ff' },
-  Footing: { name: '基礎', color: '#808080' },
-  FoundationColumn: { name: '基礎柱', color: '#c0c0c0' }
-};
+// 要素タイプの日本語名と色（SSOT: elementLabels.js, colorConfig.js）
+const ELEMENT_TYPE_INFO = Object.fromEntries(
+  Object.keys(DEFAULT_ELEMENT_COLORS).map((type) => [
+    type,
+    { name: ELEMENT_LABELS[type] || type, color: DEFAULT_ELEMENT_COLORS[type] },
+  ]),
+);
 
 /**
  * STBエクスポートの状態を更新
@@ -1030,6 +1024,9 @@ export function updateStbExportStatus() {
     // エクスポートボタンを無効化
     if (exportBtn) exportBtn.disabled = true;
   }
+
+  // 連続出力ボタンの状態を更新
+  updateBatchExportButtons();
 }
 
 /**
@@ -1115,7 +1112,7 @@ function updateStbExportStats() {
 function handleExportStbDxf() {
   const selectedTypes = Array.from(selectedStbExportTypes);
   if (selectedTypes.length === 0) {
-    alert('エクスポートする部材を選択してください');
+    showWarning('エクスポートする部材を選択してください');
     return;
   }
 
@@ -1137,7 +1134,7 @@ function initStbExportUI() {
   if (selectAllBtn) {
     selectAllBtn.addEventListener('click', () => {
       const checkboxes = document.querySelectorAll('#stb-export-type-list input[type="checkbox"]');
-      checkboxes.forEach(cb => {
+      checkboxes.forEach((cb) => {
         cb.checked = true;
         selectedStbExportTypes.add(cb.dataset.elementType);
       });
@@ -1150,7 +1147,7 @@ function initStbExportUI() {
   if (deselectAllBtn) {
     deselectAllBtn.addEventListener('click', () => {
       const checkboxes = document.querySelectorAll('#stb-export-type-list input[type="checkbox"]');
-      checkboxes.forEach(cb => {
+      checkboxes.forEach((cb) => {
         cb.checked = false;
         selectedStbExportTypes.delete(cb.dataset.elementType);
       });
@@ -1164,10 +1161,245 @@ function initStbExportUI() {
     exportBtn.addEventListener('click', handleExportStbDxf);
   }
 
+  // 連続出力ボタンを初期化
+  initBatchExportButtons();
+
   // 初期状態を更新
   updateStbExportStatus();
 
   log.info('STBエクスポートUI初期化完了');
+}
+
+/**
+ * 連続出力ボタンを初期化
+ */
+function initBatchExportButtons() {
+  // 全階出力ボタン
+  const exportAllStoriesBtn = document.getElementById('exportAllStoriesDxfBtn');
+  if (exportAllStoriesBtn) {
+    exportAllStoriesBtn.addEventListener('click', handleExportAllStories);
+  }
+
+  // X通り芯出力ボタン
+  const exportAllXAxesBtn = document.getElementById('exportAllXAxesDxfBtn');
+  if (exportAllXAxesBtn) {
+    exportAllXAxesBtn.addEventListener('click', () => handleExportAllAxes('X'));
+  }
+
+  // Y通り芯出力ボタン
+  const exportAllYAxesBtn = document.getElementById('exportAllYAxesDxfBtn');
+  if (exportAllYAxesBtn) {
+    exportAllYAxesBtn.addEventListener('click', () => handleExportAllAxes('Y'));
+  }
+
+  // 全通り芯出力ボタン
+  const exportAllAxesBtn = document.getElementById('exportAllAxesDxfBtn');
+  if (exportAllAxesBtn) {
+    exportAllAxesBtn.addEventListener('click', handleExportAllAxesBoth);
+  }
+}
+
+/**
+ * 連続出力ボタンの有効/無効を更新
+ */
+function updateBatchExportButtons() {
+  const { canExport } = canExportStbToDxf();
+  const stories = getAvailableStories();
+  const axes = getAvailableAxes();
+
+  const exportAllStoriesBtn = document.getElementById('exportAllStoriesDxfBtn');
+  const exportAllXAxesBtn = document.getElementById('exportAllXAxesDxfBtn');
+  const exportAllYAxesBtn = document.getElementById('exportAllYAxesDxfBtn');
+  const exportAllAxesBtn = document.getElementById('exportAllAxesDxfBtn');
+
+  // 全階出力ボタン
+  if (exportAllStoriesBtn) {
+    const hasStories = stories && stories.length > 0;
+    exportAllStoriesBtn.disabled = !canExport || !hasStories;
+    exportAllStoriesBtn.title = hasStories
+      ? `${stories.length}階分のDXFを出力`
+      : '階データがありません';
+  }
+
+  // X通り芯出力ボタン
+  if (exportAllXAxesBtn) {
+    const hasXAxes = axes && axes.xAxes && axes.xAxes.length > 0;
+    exportAllXAxesBtn.disabled = !canExport || !hasXAxes;
+    exportAllXAxesBtn.title = hasXAxes
+      ? `${axes.xAxes.length}通り分のDXFを出力`
+      : 'X通り芯データがありません';
+  }
+
+  // Y通り芯出力ボタン
+  if (exportAllYAxesBtn) {
+    const hasYAxes = axes && axes.yAxes && axes.yAxes.length > 0;
+    exportAllYAxesBtn.disabled = !canExport || !hasYAxes;
+    exportAllYAxesBtn.title = hasYAxes
+      ? `${axes.yAxes.length}通り分のDXFを出力`
+      : 'Y通り芯データがありません';
+  }
+
+  // 全通り芯出力ボタン
+  if (exportAllAxesBtn) {
+    const hasAnyAxes =
+      axes && ((axes.xAxes && axes.xAxes.length > 0) || (axes.yAxes && axes.yAxes.length > 0));
+    exportAllAxesBtn.disabled = !canExport || !hasAnyAxes;
+    exportAllAxesBtn.title = hasAnyAxes ? `全通り芯のDXFを出力` : '通り芯データがありません';
+  }
+}
+
+/**
+ * 進捗表示を更新
+ * @param {string|null} text - 表示テキスト（nullで非表示）
+ */
+function updateBatchExportProgress(text) {
+  const progressEl = document.getElementById('batch-export-progress');
+  const progressTextEl = document.getElementById('batch-export-progress-text');
+
+  if (progressEl && progressTextEl) {
+    if (text) {
+      progressEl.classList.remove('hidden');
+      progressTextEl.textContent = text;
+    } else {
+      progressEl.classList.add('hidden');
+    }
+  }
+}
+
+/**
+ * 全階DXFエクスポートを実行
+ * ファイル名は読み込みファイル名をベースに自動生成されます。
+ */
+async function handleExportAllStories() {
+  const selectedTypes = Array.from(selectedStbExportTypes);
+  if (selectedTypes.length === 0) {
+    showWarning('エクスポートする部材を選択してください');
+    return;
+  }
+
+  // ボタンを無効化
+  setBatchExportButtonsDisabled(true);
+  updateBatchExportProgress('全階DXFを出力中...');
+
+  try {
+    // ファイル名は読み込みファイル名から自動生成
+    const success = await exportAllStoriesToDxf(selectedTypes, {
+      includeLabels: true,
+      includeAxes: true,
+    });
+
+    // エクスポート完了を表示
+    if (success) {
+      updateBatchExportProgress('エクスポート完了');
+      // 2秒後に進捗表示をクリア
+      setTimeout(() => updateBatchExportProgress(null), 2000);
+    } else {
+      updateBatchExportProgress(null);
+    }
+  } catch (error) {
+    log.error('全階DXFエクスポートエラー:', error);
+    showError(`エクスポートに失敗しました: ${error.message}`);
+    updateBatchExportProgress(null);
+  } finally {
+    setBatchExportButtonsDisabled(false);
+  }
+}
+
+/**
+ * 指定方向の全通り芯DXFエクスポートを実行
+ * ファイル名は読み込みファイル名をベースに自動生成されます。
+ * @param {string} direction - 'X' または 'Y'
+ */
+async function handleExportAllAxes(direction) {
+  const selectedTypes = Array.from(selectedStbExportTypes);
+  if (selectedTypes.length === 0) {
+    showWarning('エクスポートする部材を選択してください');
+    return;
+  }
+
+  // ボタンを無効化
+  setBatchExportButtonsDisabled(true);
+  updateBatchExportProgress(`${direction}通り芯DXFを出力中...`);
+
+  try {
+    // ファイル名は読み込みファイル名から自動生成
+    const success = await exportAlongAllAxesToDxf(selectedTypes, direction, {
+      includeLabels: true,
+      includeAxes: true,
+    });
+
+    // エクスポート完了を表示
+    if (success) {
+      updateBatchExportProgress('エクスポート完了');
+      setTimeout(() => updateBatchExportProgress(null), 2000);
+    } else {
+      updateBatchExportProgress(null);
+    }
+  } catch (error) {
+    log.error(`${direction}通り芯DXFエクスポートエラー:`, error);
+    showError(`エクスポートに失敗しました: ${error.message}`);
+    updateBatchExportProgress(null);
+  } finally {
+    setBatchExportButtonsDisabled(false);
+  }
+}
+
+/**
+ * 全通り芯（X+Y）DXFエクスポートを実行
+ * ファイル名は読み込みファイル名をベースに自動生成されます。
+ */
+async function handleExportAllAxesBoth() {
+  const selectedTypes = Array.from(selectedStbExportTypes);
+  if (selectedTypes.length === 0) {
+    showWarning('エクスポートする部材を選択してください');
+    return;
+  }
+
+  // ボタンを無効化
+  setBatchExportButtonsDisabled(true);
+  updateBatchExportProgress('全通り芯DXFを出力中...');
+
+  try {
+    // ファイル名は読み込みファイル名から自動生成
+    const success = await exportAlongAllAxesBothDirections(selectedTypes, {
+      includeLabels: true,
+      includeAxes: true,
+    });
+
+    // エクスポート完了を表示
+    if (success) {
+      updateBatchExportProgress('エクスポート完了');
+      setTimeout(() => updateBatchExportProgress(null), 2000);
+    } else {
+      updateBatchExportProgress(null);
+    }
+  } catch (error) {
+    log.error('全通り芯DXFエクスポートエラー:', error);
+    showError(`エクスポートに失敗しました: ${error.message}`);
+    updateBatchExportProgress(null);
+  } finally {
+    setBatchExportButtonsDisabled(false);
+  }
+}
+
+/**
+ * 連続出力ボタンの有効/無効を一括設定
+ * @param {boolean} disabled - 無効にするかどうか
+ */
+function setBatchExportButtonsDisabled(disabled) {
+  const buttons = [
+    'exportAllStoriesDxfBtn',
+    'exportAllXAxesDxfBtn',
+    'exportAllYAxesDxfBtn',
+    'exportAllAxesDxfBtn',
+  ];
+
+  buttons.forEach((id) => {
+    const btn = document.getElementById(id);
+    if (btn) {
+      btn.disabled = disabled;
+    }
+  });
 }
 
 /**

@@ -6,25 +6,12 @@
  */
 
 import { BaseElementStateManager } from './baseElementStateManager.js';
+import { LABEL_ELEMENTS } from '../../config/elementTypes.js';
 
 /**
- * ラベル表示可能な要素タイプ
+ * ラベル表示可能な要素タイプ（elementTypes.jsから取得）
  */
-const LABEL_TYPES = [
-  'Node',
-  'Column',
-  'Girder',
-  'Beam',
-  'Brace',
-  'Post',
-  'Slab',
-  'Wall',
-  'Axis',
-  'Story',
-  'FoundationColumn',
-  'Footing',
-  'Pile'
-];
+const LABEL_TYPES = [...LABEL_ELEMENTS];
 
 /**
  * LabelDisplayManagerクラス
@@ -168,9 +155,6 @@ class LabelDisplayManager extends BaseElementStateManager {
     }
 
     if (this.debugMode) {
-      console.log(
-        `[LabelDisplayManager] syncWithCheckbox: ${elementType} = ${checkbox.checked}`
-      );
     }
     this.setLabelVisibility(elementType, checkbox.checked);
   }
@@ -194,13 +178,10 @@ class LabelDisplayManager extends BaseElementStateManager {
       visibleTypes: this.getVisibleLabelTypes(),
       hiddenTypes: this.getHiddenLabelTypes(),
       callbackCounts: Object.fromEntries(
-        Array.from(this.callbacks.entries()).map(([type, callbacks]) => [
-          type,
-          callbacks.length
-        ])
+        Array.from(this.callbacks.entries()).map(([type, callbacks]) => [type, callbacks.length]),
       ),
       globalCallbackCount: this.globalCallbacks.length,
-      debugMode: this.debugMode
+      debugMode: this.debugMode,
     };
   }
 }

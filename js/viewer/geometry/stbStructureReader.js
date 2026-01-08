@@ -25,7 +25,6 @@ import {
   buildNodeMap,
   parseElements,
   extractSteelSections,
-  extractAllSections, // 統一断面抽出エンジン
   extractColumnElements,
   extractPostElements,
   extractBeamElements,
@@ -36,10 +35,74 @@ import {
   extractFoundationColumnElements, // 基礎柱要素の抽出
   extractSlabElements, // 床要素の抽出
   extractWallElements, // 壁要素の抽出
-  extractOpeningElements // 開口要素の抽出
-} from '../../parser/stbXmlParser.js';
-import { ensureUnifiedSectionType } from '../../common/sectionTypeUtil.js';
-import { setState } from '../../core/globalState.js';
+  extractParapetElements, // パラペット要素の抽出
+  extractOpeningElements, // 開口要素の抽出
+  extractJointElements, // 継手要素の抽出
+  extractJointArrangements, // 継手配置情報の抽出
+  applyJointArrangementsToElements, // 継手IDを部材に適用
+  extractStripFootingElements, // 布基礎要素の抽出
+} from '../../common-stb/parser/stbXmlParser.js';
+import { extractAllSections } from '../../parser/sectionExtractor.js';
+import { ensureUnifiedSectionType } from '../../common-stb/section/sectionTypeUtil.js';
+
+// ============================================
+// 状態保存コールバック（依存性注入）
+// ============================================
+
+/**
+ * @typedef {Object} StateProvider
+ * @property {function(string, *): void} setState - 状態を設定する関数
+ * @property {function(string): *} [getState] - 状態を取得する関数
+ */
+
+/** @type {StateProvider|null} */
+let stateProvider = null;
+
+/** @type {Map<string, Object>} パース結果のキャッシュ（モデルキー → パース結果） */
+const parseCache = new Map();
+
+/**
+ * 状態プロバイダーを設定（依存性注入）
+ * @param {StateProvider} provider - 状態プロバイダー
+ */
+export function setStateProvider(provider) {
+  stateProvider = provider;
+}
+
+/**
+ * 状態を設定（プロバイダー経由）
+ * @param {string} key - 状態キー
+ * @param {*} value - 値
+ */
+function setStateInternal(key, value) {
+  if (stateProvider && stateProvider.setState) {
+    stateProvider.setState(key, value);
+  }
+}
+
+/**
+ * 状態を取得（プロバイダー経由）
+ * @param {string} key - 状態キー
+ * @returns {*} 値
+ */
+function getStateInternal(key) {
+  if (stateProvider && stateProvider.getState) {
+    return stateProvider.getState(key);
+  }
+  return undefined;
+}
+
+/**
+ * パースキャッシュをクリア
+ * @param {string} [modelKey] - 特定のモデルキーのみクリアする場合に指定
+ */
+export function clearParseCache(modelKey) {
+  if (modelKey) {
+    parseCache.delete(modelKey);
+  } else {
+    parseCache.clear();
+  }
+}
 
 /**
  * ST-Bridge XMLデータを解析し、Three.jsで利用可能なデータ構造を作成
@@ -50,12 +113,17 @@ import { setState } from '../../core/globalState.js';
  * @return {Object} 解析結果を含むオブジェクト (Three.js形式のデータを含む)
  */
 export function parseStbFile(xmlDoc, options = {}) {
-  const { modelKey, saveToGlobalState = false } = options;
+  const { modelKey, saveToGlobalState = false, forceReparse = false } = options;
+
+  // キャッシュチェック: modelKeyが指定されていてキャッシュがあれば再利用
+  if (modelKey && !forceReparse && parseCache.has(modelKey)) {
+    // キャッシュヒット - 再パースをスキップ
+    return parseCache.get(modelKey);
+  }
+
   // 入力バリデーション
   if (!xmlDoc || !xmlDoc.documentElement) {
-    console.warn(
-      'parseStbFile: xmlDoc is null, undefined, or has no documentElement'
-    );
+    console.warn('parseStbFile: xmlDoc is null, undefined, or has no documentElement');
     // 空の結果を返して後続を安全にスキップ
     const emptyMap = new Map();
     return {
@@ -70,7 +138,7 @@ export function parseStbFile(xmlDoc, options = {}) {
       postElements: [],
       beamElements: [],
       girderElements: [],
-      braceElements: []
+      braceElements: [],
     };
   }
   // 1. 節点データの抽出と変換 (IDをキーとするMap<string, THREE.Vector3>)
@@ -80,11 +148,9 @@ export function parseStbFile(xmlDoc, options = {}) {
     // ここで THREE.Vector3 に変換
     nodes.set(id, new THREE.Vector3(coords.x, coords.y, coords.z));
   }
-  console.log('Nodes loaded and converted to THREE.Vector3:', nodes.size);
 
   // 2. 鋼材形状データの抽出 (stbXmlParserから呼び出し)
   const steelSections = extractSteelSections(xmlDoc);
-  console.log('Steel Sections loaded:', steelSections.size);
 
   // 3. 統一断面抽出エンジンによる断面データ抽出
   const sectionMaps = extractAllSections(xmlDoc);
@@ -98,28 +164,8 @@ export function parseStbFile(xmlDoc, options = {}) {
   const foundationColumnSections = sectionMaps.foundationcolumnSections;
   const slabSections = sectionMaps.slabSections;
   const wallSections = sectionMaps.wallSections;
-  console.log(
-    'Section Maps loaded - Column:',
-    columnSections.size,
-    'Post:',
-    postSections.size,
-    'Girder:',
-    girderSections.size,
-    'Beam:',
-    beamSections.size,
-    'Brace:',
-    braceSections.size,
-    'Pile:',
-    pileSections?.size || 0,
-    'Footing:',
-    footingSections?.size || 0,
-    'FoundationColumn:',
-    foundationColumnSections?.size || 0,
-    'Slab:',
-    slabSections?.size || 0,
-    'Wall:',
-    wallSections?.size || 0
-  );
+  const parapetSections = sectionMaps.parapetSections;
+  const undefinedSections = sectionMaps.undefinedSections || new Map();
 
   // 追加: steelSections 情報を用いて抽出断面に寸法/種別を付加
   enrichSectionMapsWithSteelDimensions(
@@ -133,45 +179,119 @@ export function parseStbFile(xmlDoc, options = {}) {
       footingSections,
       foundationColumnSections,
       slabSections,
-      wallSections
+      wallSections,
     },
-    steelSections
+    steelSections,
   );
 
   // 4. 要素データの抽出 (stbXmlParserから呼び出し)
   const columnElements = extractColumnElements(xmlDoc);
-  console.log('Column Elements loaded:', columnElements.length);
 
   const postElements = extractPostElements(xmlDoc);
-  console.log('Post Elements loaded:', postElements.length);
 
   const beamElements = extractBeamElements(xmlDoc);
-  console.log('Beam Elements loaded:', beamElements.length);
 
   const girderElements = extractGirderElements(xmlDoc);
-  console.log('Girder Elements loaded:', girderElements.length);
 
   const braceElements = extractBraceElements(xmlDoc);
-  console.log('Brace Elements loaded:', braceElements.length);
 
   const pileElements = extractPileElements(xmlDoc);
-  console.log('Pile Elements loaded:', pileElements.length);
 
   const footingElements = extractFootingElements(xmlDoc);
-  console.log('Footing Elements loaded:', footingElements.length);
 
   const foundationColumnElements = extractFoundationColumnElements(xmlDoc);
-  console.log('Foundation Column Elements loaded:', foundationColumnElements.length);
 
   const slabElements = extractSlabElements(xmlDoc);
-  console.log('Slab Elements loaded:', slabElements.length);
 
   const wallElements = extractWallElements(xmlDoc);
-  console.log('Wall Elements loaded:', wallElements.length);
+
+  const parapetElements = extractParapetElements(xmlDoc);
 
   // 開口情報の抽出
   const openingElements = extractOpeningElements(xmlDoc);
-  console.log('Opening Elements loaded:', openingElements.size);
+
+  // 継手情報の抽出
+  const jointElements = extractJointElements(xmlDoc);
+
+  // 継手配置情報の抽出と部材への適用
+  const jointArrangements = extractJointArrangements(xmlDoc);
+  console.log('[DEBUG] stbStructureReader: jointArrangements.length =', jointArrangements.length);
+  if (jointArrangements.length > 0) {
+    // 各部材に継手IDを付与
+    applyJointArrangementsToElements(columnElements, jointArrangements, 'COLUMN');
+    applyJointArrangementsToElements(postElements, jointArrangements, 'POST');
+    applyJointArrangementsToElements(girderElements, jointArrangements, 'GIRDER');
+    applyJointArrangementsToElements(beamElements, jointArrangements, 'BEAM');
+    applyJointArrangementsToElements(braceElements, jointArrangements, 'BRACE');
+    console.log('[DEBUG] stbStructureReader: Applied joint arrangements to elements');
+    // 大梁の継手ID確認
+    const jointedGirders = girderElements.filter(g => g.joint_id_start || g.joint_id_end);
+    console.log('[DEBUG] stbStructureReader: Girders with joint IDs:', jointedGirders.length);
+  }
+
+  // 布基礎情報の抽出
+  const stripFootingElements = extractStripFootingElements(xmlDoc);
+
+  // Undefined断面を参照する要素を別カテゴリに分類
+  // StbSecUndefined断面IDを持つ要素を各配列から抽出してundefinedElementsに移動
+  const undefinedSectionIds = new Set(undefinedSections.keys());
+  const undefinedElements = [];
+
+  // 各要素配列からUndefined断面を参照する要素を分離するヘルパー関数
+  // originalType: 元の要素タイプ（'Column', 'Girder'など）
+  // nodeStartAttr, nodeEndAttr: ライン描画用のノード属性名
+  const separateUndefinedElements = (elements, originalType, nodeStartAttr, nodeEndAttr) => {
+    const normalElements = [];
+    for (const element of elements) {
+      const sectionId = parseInt(element.id_section, 10);
+      if (undefinedSectionIds.has(sectionId)) {
+        // Undefined要素として分類し、元の要素タイプとノード属性情報を保持
+        undefinedElements.push({
+          ...element,
+          originalType,
+          nodeStartAttr,
+          nodeEndAttr,
+        });
+      } else {
+        normalElements.push(element);
+      }
+    }
+    return normalElements;
+  };
+
+  // 各要素配列からUndefined断面参照要素を分離
+  // 垂直要素（bottom-top形式）
+  const filteredColumnElements = separateUndefinedElements(
+    columnElements,
+    'Column',
+    'id_node_bottom',
+    'id_node_top',
+  );
+  const filteredPostElements = separateUndefinedElements(
+    postElements,
+    'Post',
+    'id_node_bottom',
+    'id_node_top',
+  );
+  // 水平要素（start-end形式）
+  const filteredGirderElements = separateUndefinedElements(
+    girderElements,
+    'Girder',
+    'id_node_start',
+    'id_node_end',
+  );
+  const filteredBeamElements = separateUndefinedElements(
+    beamElements,
+    'Beam',
+    'id_node_start',
+    'id_node_end',
+  );
+  const filteredBraceElements = separateUndefinedElements(
+    braceElements,
+    'Brace',
+    'id_node_start',
+    'id_node_end',
+  );
 
   // 5. グローバル公開（診断/デバッグ用）
   if (typeof window !== 'undefined') {
@@ -185,17 +305,23 @@ export function parseStbFile(xmlDoc, options = {}) {
       braceSections,
       slabSections,
       wallSections,
-      columnElements,
-      postElements,
-      beamElements,
-      girderElements,
-      braceElements,
+      parapetSections,
+      undefinedSections,
+      columnElements: filteredColumnElements,
+      postElements: filteredPostElements,
+      beamElements: filteredBeamElements,
+      girderElements: filteredGirderElements,
+      braceElements: filteredBraceElements,
       pileElements,
       footingElements,
       foundationColumnElements,
       slabElements,
       wallElements,
-      openingElements
+      parapetElements,
+      openingElements,
+      jointElements,
+      stripFootingElements,
+      undefinedElements,
     };
     window.steelSections = steelSections; // 既存診断ロジック参照用
   }
@@ -204,28 +330,41 @@ export function parseStbFile(xmlDoc, options = {}) {
   if (saveToGlobalState && modelKey) {
     const suffix = modelKey.toUpperCase();
     // 生の座標データ（IFC変換用）
-    setState(`models.nodeMapRaw${suffix}`, nodeMapRaw);
+    setStateInternal(`models.nodeMapRaw${suffix}`, nodeMapRaw);
     // 鋼材断面データ
-    setState('models.steelSections', steelSections);
+    setStateInternal('models.steelSections', steelSections);
     // 要素データ
-    setState('models.elementData.columnElements', columnElements);
-    setState('models.elementData.girderElements', girderElements);
-    setState('models.elementData.beamElements', beamElements);
-    setState('models.elementData.braceElements', braceElements);
-    setState('models.elementData.slabElements', slabElements);
-    setState('models.elementData.wallElements', wallElements);
-    setState('models.elementData.openingElements', openingElements);
+    setStateInternal('models.elementData.columnElements', filteredColumnElements);
+    setStateInternal('models.elementData.postElements', filteredPostElements);
+    setStateInternal('models.elementData.girderElements', filteredGirderElements);
+    setStateInternal('models.elementData.beamElements', filteredBeamElements);
+    setStateInternal('models.elementData.braceElements', filteredBraceElements);
+    setStateInternal('models.elementData.pileElements', pileElements);
+    setStateInternal('models.elementData.footingElements', footingElements);
+    setStateInternal('models.elementData.foundationColumnElements', foundationColumnElements);
+    setStateInternal('models.elementData.slabElements', slabElements);
+    setStateInternal('models.elementData.wallElements', wallElements);
+    setStateInternal('models.elementData.parapetElements', parapetElements);
+    setStateInternal('models.elementData.openingElements', openingElements);
+    setStateInternal('models.elementData.jointElements', jointElements);
+    setStateInternal('models.elementData.stripFootingElements', stripFootingElements);
+    setStateInternal('models.elementData.undefinedElements', undefinedElements);
     // 断面データ
-    setState('models.sectionMaps.columnSections', columnSections);
-    setState('models.sectionMaps.girderSections', girderSections);
-    setState('models.sectionMaps.beamSections', beamSections);
-    setState('models.sectionMaps.braceSections', braceSections);
-    setState('models.sectionMaps.slabSections', slabSections);
-    setState('models.sectionMaps.wallSections', wallSections);
-    console.log(`[parseStbFile] Saved parsed data to globalState for model ${suffix}`);
+    setStateInternal('models.sectionMaps.columnSections', columnSections);
+    setStateInternal('models.sectionMaps.postSections', postSections);
+    setStateInternal('models.sectionMaps.girderSections', girderSections);
+    setStateInternal('models.sectionMaps.beamSections', beamSections);
+    setStateInternal('models.sectionMaps.braceSections', braceSections);
+    setStateInternal('models.sectionMaps.pileSections', pileSections);
+    setStateInternal('models.sectionMaps.footingSections', footingSections);
+    setStateInternal('models.sectionMaps.foundationcolumnSections', foundationColumnSections);
+    setStateInternal('models.sectionMaps.slabSections', slabSections);
+    setStateInternal('models.sectionMaps.wallSections', wallSections);
+    setStateInternal('models.sectionMaps.parapetSections', parapetSections);
+    setStateInternal('models.sectionMaps.undefinedSections', undefinedSections);
   }
 
-  return {
+  const result = {
     nodes, // THREE.Vector3 の Map
     nodeMapRaw, // 生の座標データ（IFC変換用）
     steelSections, // 汎用データ
@@ -239,18 +378,31 @@ export function parseStbFile(xmlDoc, options = {}) {
     foundationColumnSections, // 統一エンジンから抽出（基礎柱断面）
     slabSections, // 統一エンジンから抽出（床断面）
     wallSections, // 統一エンジンから抽出（壁断面）
-    columnElements, // 汎用データ
-    postElements, // 間柱要素のデータ（新規追加）
-    beamElements,
-    girderElements, // 大梁要素のデータ
-    braceElements, // ブレース要素のデータ（新規追加）
+    parapetSections, // 統一エンジンから抽出（パラペット断面）
+    undefinedSections, // Undefined断面（StbSecUndefined）
+    columnElements: filteredColumnElements, // Undefined断面参照要素を除外
+    postElements: filteredPostElements, // Undefined断面参照要素を除外
+    beamElements: filteredBeamElements, // Undefined断面参照要素を除外
+    girderElements: filteredGirderElements, // Undefined断面参照要素を除外
+    braceElements: filteredBraceElements, // Undefined断面参照要素を除外
     pileElements, // 杭要素のデータ（新規追加）
     footingElements, // 基礎要素のデータ（新規追加）
     foundationColumnElements, // 基礎柱要素のデータ（新規追加）
     slabElements, // 床要素のデータ（新規追加）
     wallElements, // 壁要素のデータ（新規追加）
-    openingElements // 開口要素のデータ（新規追加）
+    parapetElements, // パラペット要素のデータ（新規追加）
+    openingElements, // 開口要素のデータ（新規追加）
+    jointElements, // 継手要素のデータ（新規追加）
+    stripFootingElements, // 布基礎要素のデータ（新規追加）
+    undefinedElements, // Undefined断面を参照する要素（ラインのみ表示）
   };
+
+  // キャッシュに保存（modelKeyが指定されている場合）
+  if (modelKey) {
+    parseCache.set(modelKey, result);
+  }
+
+  return result;
 }
 
 // ------------------ 付加処理ヘルパー ------------------
@@ -266,7 +418,7 @@ function enrichSectionMapsWithSteelDimensions(sectionMaps, steelSections) {
     sectionMaps.footingSections,
     sectionMaps.foundationColumnSections,
     sectionMaps.slabSections,
-    sectionMaps.wallSections
+    sectionMaps.wallSections,
   ];
   for (const m of maps) {
     if (!m) continue;
@@ -282,37 +434,14 @@ function enrichSectionMapsWithSteelDimensions(sectionMaps, steelSections) {
       // 1) elementTagから決定
       let typeBySteel = classifySteelElementTag(steel.elementTag);
 
-      // デバッグ出力: チャンネル材の場合
-      if (steel.name && steel.name.includes('[-')) {
-        console.log(
-          `Channel steel processing: name=${steel.name}, elementTag=${steel.elementTag}, typeBySteel=${typeBySteel}`
-        );
-        console.log(`Steel parameters:`, {
-          A: steel.A,
-          B: steel.B,
-          t1: steel.t1,
-          t2: steel.t2,
-          r1: steel.r1,
-          r2: steel.r2
-        });
-      }
-
       // 2) elementTagで決まらなければパラメータから推定
       if (!typeBySteel) {
         typeBySteel = inferSectionTypeFromParameters(steel);
-        if (steel.name && steel.name.includes('[-')) {
-          console.log(`Channel steel parameter inference: ${typeBySteel}`);
-        }
       }
 
       // 3) steel由来の種別を適用（既存値に関わらず上書き：名前依存を排除）
       if (typeBySteel) {
         section.section_type = typeBySteel;
-        if (steel.name && steel.name.includes('[-')) {
-          console.log(
-            `Final section_type for ${steel.name}: ${section.section_type}`
-          );
-        }
       }
       ensureUnifiedSectionType(section);
       // 寸法抽出
@@ -351,18 +480,10 @@ function classifySteelElementTag(tag = '') {
   ) {
     return 'C';
   }
-  if (
-    t.includes('SECROLL-L') ||
-    t.includes('ROLL-L') ||
-    t.includes('SECSTEELL')
-  ) {
+  if (t.includes('SECROLL-L') || t.includes('ROLL-L') || t.includes('SECSTEELL')) {
     return 'L';
   }
-  if (
-    t.includes('SECROLL-T') ||
-    t.includes('ROLL-T') ||
-    t.includes('SECSTEELT')
-  ) {
+  if (t.includes('SECROLL-T') || t.includes('ROLL-T') || t.includes('SECSTEELT')) {
     return 'T';
   }
   if (t.includes('PIPE')) {
@@ -450,11 +571,7 @@ function deriveDimensionsFromSteelShape(steel) {
   if (!steel) return null;
   const tag = (steel.elementTag || '').toUpperCase();
   // H形鋼: A(高さ) B(幅) t1(web) t2(flange)
-  if (
-    tag.includes('ROLL-H') ||
-    tag.includes('BUILD-H') ||
-    tag.includes('SECSTEELH')
-  ) {
+  if (tag.includes('ROLL-H') || tag.includes('BUILD-H') || tag.includes('SECSTEELH')) {
     const A = num(steel.A); // overall depth
     const B = num(steel.B);
     const t1 = num(steel.t1);
@@ -466,16 +583,12 @@ function deriveDimensionsFromSteelShape(steel) {
         overall_depth: A,
         overall_width: B,
         web_thickness: t1,
-        flange_thickness: t2
+        flange_thickness: t2,
       };
     }
   }
   // BOX形鋼管: A(高さ) B(幅) t(厚)
-  if (
-    tag.includes('ROLL-BOX') ||
-    tag.includes('SECSTEELBOX') ||
-    tag.includes('BOX')
-  ) {
+  if (tag.includes('ROLL-BOX') || tag.includes('SECSTEELBOX') || tag.includes('BOX')) {
     const A = num(steel.A);
     const B = num(steel.B);
     const t = num(steel.t);
@@ -485,7 +598,7 @@ function deriveDimensionsFromSteelShape(steel) {
         width: B,
         outer_height: A,
         outer_width: B,
-        wall_thickness: t
+        wall_thickness: t,
       };
     }
   }
@@ -498,7 +611,7 @@ function deriveDimensionsFromSteelShape(steel) {
         outer_diameter: D,
         diameter: D,
         thickness: t,
-        wall_thickness: t
+        wall_thickness: t,
       };
     }
   }
@@ -513,11 +626,7 @@ function deriveDimensionsFromSteelShape(steel) {
     }
   }
   // チャンネル C: A(=H) B(=フランジ幅) t1(web) t2(flange)
-  if (
-    tag.includes('SECSTEELC') ||
-    tag.includes('ROLL-C') ||
-    tag.includes('CHANNEL')
-  ) {
+  if (tag.includes('SECSTEELC') || tag.includes('ROLL-C') || tag.includes('CHANNEL')) {
     const A = num(steel.A);
     const B = num(steel.B);
     const t1 = num(steel.t1);
@@ -529,7 +638,7 @@ function deriveDimensionsFromSteelShape(steel) {
         flange_width: B,
         width: B,
         web_thickness: t1,
-        flange_thickness: t2
+        flange_thickness: t2,
       };
     }
   }
@@ -542,7 +651,7 @@ function deriveDimensionsFromSteelShape(steel) {
         width: B,
         thickness: t,
         A: B,
-        t: t
+        t: t,
       };
     }
   }
@@ -554,7 +663,7 @@ function deriveDimensionsFromSteelShape(steel) {
     if (diameter) {
       return {
         diameter: diameter,
-        radius: diameter / 2
+        radius: diameter / 2,
       };
     }
   }

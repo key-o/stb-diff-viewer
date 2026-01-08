@@ -14,6 +14,20 @@
 import * as THREE from 'three';
 import { createLabelSprite } from './labels.js';
 import { materials } from '../rendering/materials.js';
+import { AXIS_LINE_PATTERN } from '../../config/renderingConstants.js';
+
+/**
+ * レイアウト要素（通り芯・レベル面）の共通延長量を計算
+ * @param {THREE.Box3} modelBounds - モデルのバウンディングボックス
+ * @returns {number} 延長量（mm）
+ */
+function getLayoutExtend(modelBounds) {
+  if (!modelBounds || modelBounds.isEmpty()) {
+    return 500; // デフォルト値
+  }
+  const size = modelBounds.getSize(new THREE.Vector3());
+  return Math.max(size.x, size.y) * 0.15 + 500;
+}
 
 /**
  * 通り芯（軸）を指定された階高さに沿った線（Line）として描画する。
@@ -35,29 +49,19 @@ export function drawAxes(
   modelBounds,
   labelToggle,
   camera,
-  options = {}
+  options = {},
 ) {
   group.clear();
+
   const createdLabels = [];
 
   if (!modelBounds || modelBounds.isEmpty()) return createdLabels;
   const min = modelBounds.min;
   const max = modelBounds.max;
-  const size = modelBounds.getSize(new THREE.Vector3());
   const center = modelBounds.getCenter(new THREE.Vector3());
-  // 3Dモード時は階の平面と同じ延長、2Dモード時は階の枠程度に制限
-  const fullExtend = Math.max(size.x, size.y, 1000) * 0.5 + 1000;
-  const extendXY = options.is2DMode ? 500 : fullExtend;
-  const labelMargin = 0; // ラベルを通り芯の端に配置
-
-  // バッチ処理: すべての通り芯セグメントを1つのジオメトリにまとめる
-  const allVertices = [];
-  const axisMetadata = []; // 各セグメントのメタデータを保存
-
-  // 一点鎖線パターンの定数
-  const dashLength = 800;   // 長い実線部分 (mm)
-  const dotLength = 100;    // 点部分 (mm)
-  const gapLength = 200;    // 隙間 (mm)
+  // 通り芯の延長量（共通関数を使用してレベル面と確実に一致させる）
+  const extendXY = getLayoutExtend(modelBounds);
+  const labelMargin = 0; // ラベルを通り芯の端（レベル線上）に配置
 
   // 通り芯を描画する階を決定
   // options.targetStoryId が指定されていればその階、なければ最下階
@@ -65,7 +69,7 @@ export function drawAxes(
   if (storiesData && storiesData.length > 0) {
     if (options.targetStoryId && options.targetStoryId !== 'all') {
       // 指定された階を検索
-      targetStory = storiesData.find(story => story.id === options.targetStoryId);
+      targetStory = storiesData.find((story) => story.id === options.targetStoryId);
     }
     // 見つからない場合は最下階を使用
     if (!targetStory) {
@@ -79,52 +83,98 @@ export function drawAxes(
   }
 
   /**
-   * 一点鎖線のセグメントを生成してバッチ配列に追加
+   * 点パターン（短い実線）を追加する
+   * @param {THREE.Vector3} start - 通り芯の始点
+   * @param {THREE.Vector3} direction - 正規化された方向ベクトル
+   * @param {number} totalLength - 通り芯の全長
+   * @param {number} cycleLength - 1サイクルの長さ (DASH + GAP + DOT + GAP)
+   * @param {number} dashLength - ダッシュ（長い実線）の長さ
+   * @param {number} gapLength - 隙間の長さ
+   * @param {number} dotLength - 点（短い実線）の長さ
+   * @param {Object} userData - セグメントのメタデータ
+   */
+  function addDotPattern(start, direction, totalLength, cycleLength, dashLength, gapLength, dotLength, userData) {
+    // 点の開始位置: 各サイクルの DASH_LENGTH + GAP_LENGTH の位置から開始
+    const dotStartOffset = dashLength + gapLength;
+
+    for (let dist = dotStartOffset; dist < totalLength; dist += cycleLength) {
+      const dotStart = new THREE.Vector3().copy(start).addScaledVector(direction, dist);
+      const dotEndDist = Math.min(dist + dotLength, totalLength);
+      const dotEnd = new THREE.Vector3().copy(start).addScaledVector(direction, dotEndDist);
+
+      const dotVertices = new Float32Array([
+        dotStart.x, dotStart.y, dotStart.z,
+        dotEnd.x, dotEnd.y, dotEnd.z
+      ]);
+      const dotGeometry = new THREE.BufferGeometry();
+      dotGeometry.setAttribute('position', new THREE.BufferAttribute(dotVertices, 3));
+
+      const dotMaterial = new THREE.LineBasicMaterial({
+        color: 0x888888,
+        linewidth: 1
+      });
+
+      const dotLine = new THREE.Line(dotGeometry, dotMaterial);
+      dotLine.frustumCulled = false;
+      dotLine.userData = { ...userData, isDot: true };
+      group.add(dotLine);
+    }
+  }
+
+  /**
+   * 直線セグメントを一点鎖線パターンで生成してグループに追加
    * @param {THREE.Vector3} p1 - 始点
    * @param {THREE.Vector3} p2 - 終点
    * @param {Object} userData - セグメントのメタデータ
    */
-  function addLineToBatch(p1, p2, userData) {
-    const direction = new THREE.Vector3().subVectors(p2, p1);
-    const totalLength = direction.length();
-    direction.normalize();
-
-    let currentPos = 0;
-    const segmentStartIndex = allVertices.length / 3 / 2; // セグメント開始インデックス
-
-    while (currentPos < totalLength) {
-      // 長い実線部分
-      const dashStart = currentPos;
-      const dashEnd = Math.min(currentPos + dashLength, totalLength);
-      if (dashEnd > dashStart) {
-        const startPoint = p1.clone().add(direction.clone().multiplyScalar(dashStart));
-        const endPoint = p1.clone().add(direction.clone().multiplyScalar(dashEnd));
-        allVertices.push(startPoint.x, startPoint.y, startPoint.z);
-        allVertices.push(endPoint.x, endPoint.y, endPoint.z);
-      }
-      currentPos += dashLength + gapLength;
-
-      if (currentPos >= totalLength) break;
-
-      // 点部分
-      const dotStart = currentPos;
-      const dotEnd = Math.min(currentPos + dotLength, totalLength);
-      if (dotEnd > dotStart) {
-        const startPoint = p1.clone().add(direction.clone().multiplyScalar(dotStart));
-        const endPoint = p1.clone().add(direction.clone().multiplyScalar(dotEnd));
-        allVertices.push(startPoint.x, startPoint.y, startPoint.z);
-        allVertices.push(endPoint.x, endPoint.y, endPoint.z);
-      }
-      currentPos += dotLength + gapLength;
+  function addLineToGroup(p1, p2, userData) {
+    // 座標の妥当性チェック
+    if (
+      !Number.isFinite(p1.x) ||
+      !Number.isFinite(p1.y) ||
+      !Number.isFinite(p1.z) ||
+      !Number.isFinite(p2.x) ||
+      !Number.isFinite(p2.y) ||
+      !Number.isFinite(p2.z)
+    ) {
+      console.warn('Invalid axis line points:', p1, p2);
+      return;
     }
 
-    const segmentEndIndex = allVertices.length / 3 / 2; // セグメント終了インデックス
-    // このラインに属するセグメント範囲を記録
-    axisMetadata.push({
-      startSegment: segmentStartIndex,
-      endSegment: segmentEndIndex,
-      userData
+    // 長さが極端に短い場合はスキップ
+    const direction = new THREE.Vector3().subVectors(p2, p1);
+    const totalLength = direction.length();
+    if (totalLength < 1e-6) return;
+    direction.normalize();
+
+    // 一点鎖線パターンの定数を取得
+    const { DASH_LENGTH, DOT_LENGTH, GAP_LENGTH } = AXIS_LINE_PATTERN;
+    const cycleLength = DASH_LENGTH + GAP_LENGTH + DOT_LENGTH + GAP_LENGTH;
+
+    // 1. ダッシュライン（長い実線部分）をLineDashedMaterialで描画
+    const vertices = new Float32Array([
+      p1.x, p1.y, p1.z,
+      p2.x, p2.y, p2.z
+    ]);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+
+    const dashMaterial = new THREE.LineDashedMaterial({
+      color: 0x888888,
+      dashSize: DASH_LENGTH,
+      gapSize: GAP_LENGTH + DOT_LENGTH + GAP_LENGTH, // 点を含む隙間
+      linewidth: 1
     });
+
+    const line = new THREE.Line(geometry, dashMaterial);
+    line.computeLineDistances(); // LineDashedMaterialに必須
+    line.frustumCulled = false;
+    line.userData = userData;
+
+    group.add(line);
+
+    // 2. 点パターン（短い実線として追加）
+    addDotPattern(p1, direction, totalLength, cycleLength, DASH_LENGTH, GAP_LENGTH, DOT_LENGTH, userData);
   }
 
   // X axes: lines parallel to Y at a given X（最下階のみ描画）
@@ -136,15 +186,16 @@ export function drawAxes(
     if (targetStory) {
       // 最下階の高さに描画
       const z = targetStory.height;
-      addLineToBatch(new THREE.Vector3(x, yStart, z), new THREE.Vector3(x, yEnd, z), {
+      const userData = {
         elementType: 'Axis',
         elementId: axis.name,
         axisType: 'X',
         distance: axis.distance,
         storyId: targetStory.id,
         storyName: targetStory.name,
-        storyHeight: z
-      });
+        storyHeight: z,
+      };
+      addLineToGroup(new THREE.Vector3(x, yStart, z), new THREE.Vector3(x, yEnd, z), userData);
       if (labelToggle) {
         const meta = {
           axisType: 'X',
@@ -155,8 +206,8 @@ export function drawAxes(
           modelBounds: {
             min: min.clone(),
             max: max.clone(),
-            center: center.clone()
-          }
+            center: center.clone(),
+          },
         };
         const labelPos = new THREE.Vector3(x, yStart - labelMargin, z);
         const sprite = createLabelSprite(axis.name, labelPos, group, 'Axis', meta);
@@ -164,12 +215,17 @@ export function drawAxes(
       }
     } else {
       // 階データがない場合はモデル中心に描画
-      addLineToBatch(new THREE.Vector3(x, yStart, center.z), new THREE.Vector3(x, yEnd, center.z), {
+      const userData = {
         elementType: 'Axis',
         elementId: axis.name,
         axisType: 'X',
-        distance: axis.distance
-      });
+        distance: axis.distance,
+      };
+      addLineToGroup(
+        new THREE.Vector3(x, yStart, center.z),
+        new THREE.Vector3(x, yEnd, center.z),
+        userData,
+      );
       if (labelToggle) {
         const meta = {
           axisType: 'X',
@@ -177,8 +233,8 @@ export function drawAxes(
           modelBounds: {
             min: min.clone(),
             max: max.clone(),
-            center: center.clone()
-          }
+            center: center.clone(),
+          },
         };
         const labelPos = new THREE.Vector3(x, yStart - labelMargin, center.z);
         const sprite = createLabelSprite(axis.name, labelPos, group, 'Axis', meta);
@@ -196,15 +252,16 @@ export function drawAxes(
     if (targetStory) {
       // 最下階の高さに描画
       const z = targetStory.height;
-      addLineToBatch(new THREE.Vector3(xStart, y, z), new THREE.Vector3(xEnd, y, z), {
+      const userData = {
         elementType: 'Axis',
         elementId: axis.name,
         axisType: 'Y',
         distance: axis.distance,
         storyId: targetStory.id,
         storyName: targetStory.name,
-        storyHeight: z
-      });
+        storyHeight: z,
+      };
+      addLineToGroup(new THREE.Vector3(xStart, y, z), new THREE.Vector3(xEnd, y, z), userData);
       if (labelToggle) {
         const meta = {
           axisType: 'Y',
@@ -215,8 +272,8 @@ export function drawAxes(
           modelBounds: {
             min: min.clone(),
             max: max.clone(),
-            center: center.clone()
-          }
+            center: center.clone(),
+          },
         };
         const labelPos = new THREE.Vector3(xStart - labelMargin, y, z);
         const sprite = createLabelSprite(axis.name, labelPos, group, 'Axis', meta);
@@ -224,12 +281,17 @@ export function drawAxes(
       }
     } else {
       // 階データがない場合はモデル中心に描画
-      addLineToBatch(new THREE.Vector3(xStart, y, center.z), new THREE.Vector3(xEnd, y, center.z), {
+      const userData = {
         elementType: 'Axis',
         elementId: axis.name,
         axisType: 'Y',
-        distance: axis.distance
-      });
+        distance: axis.distance,
+      };
+      addLineToGroup(
+        new THREE.Vector3(xStart, y, center.z),
+        new THREE.Vector3(xEnd, y, center.z),
+        userData,
+      );
       if (labelToggle) {
         const meta = {
           axisType: 'Y',
@@ -237,8 +299,8 @@ export function drawAxes(
           modelBounds: {
             min: min.clone(),
             max: max.clone(),
-            center: center.clone()
-          }
+            center: center.clone(),
+          },
         };
         const labelPos = new THREE.Vector3(xStart - labelMargin, y, center.z);
         const sprite = createLabelSprite(axis.name, labelPos, group, 'Axis', meta);
@@ -246,21 +308,6 @@ export function drawAxes(
       }
     }
   });
-
-  // すべての通り芯を1つのLineSegmentsにまとめて追加
-  if (allVertices.length > 0) {
-    const positions = new Float32Array(allVertices);
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    const batchedLines = new THREE.LineSegments(geometry, materials.axisLine);
-    batchedLines.renderOrder = -1;
-    batchedLines.userData = {
-      elementType: 'Axis',
-      isBatched: true,
-      axisMetadata // レイキャスト時に個別の通り芯を特定するためのメタデータ
-    };
-    group.add(batchedLines);
-  }
 
   return createdLabels;
 }
@@ -277,38 +324,6 @@ export function drawStories(storiesData, group, modelBounds, labelToggle) {
   group.clear();
   const createdLabels = [];
   const storyMaterial = materials.storyPlane;
-  const labelMargin = 0; // 通り芯ラベルと同じマージン
-
-  console.log(
-    'Drawing Stories (Planes). Bounds Min:',
-    modelBounds.min,
-    'Max:',
-    modelBounds.max,
-    'Is Empty:',
-    modelBounds.isEmpty()
-  );
-
-  // デバッグ用：モデルバウンドの詳細を出力
-  if (!modelBounds.isEmpty()) {
-    const min = modelBounds.min;
-    const max = modelBounds.max;
-    const size = modelBounds.getSize(new THREE.Vector3());
-    const center = modelBounds.getCenter(new THREE.Vector3());
-    console.log(
-      `Story model bounds detail - Min: (${min.x.toFixed(0)}, ${min.y.toFixed(
-        0
-      )}, ${min.z.toFixed(0)})mm, Max: (${max.x.toFixed(0)}, ${max.y.toFixed(
-        0
-      )}, ${max.z.toFixed(0)})mm`
-    );
-    console.log(
-      `Story model size: (${size.x.toFixed(0)}, ${size.y.toFixed(
-        0
-      )}, ${size.z.toFixed(0)})mm, Center: (${center.x.toFixed(
-        0
-      )}, ${center.y.toFixed(0)}, ${center.z.toFixed(0)})mm`
-    );
-  }
 
   if (modelBounds.isEmpty()) {
     console.warn('Cannot draw stories accurately without model bounds.');
@@ -318,8 +333,9 @@ export function drawStories(storiesData, group, modelBounds, labelToggle) {
   const min = modelBounds.min;
   const max = modelBounds.max;
   const size = modelBounds.getSize(new THREE.Vector3());
-  // 面のサイズをモデル範囲より少し広げる
-  const extend = Math.max(size.x, size.y, 1000) * 0.5 + 1000;
+  // 面のサイズをモデル範囲より少し広げる（共通関数を使用して通り芯と確実に一致させる）
+  const extend = getLayoutExtend(modelBounds);
+  const labelMargin = 0; // ラベルをレベル面の端（通り芯と同じ位置）に配置
   const center = modelBounds.getCenter(new THREE.Vector3());
 
   storiesData.forEach((story) => {
@@ -334,7 +350,7 @@ export function drawStories(storiesData, group, modelBounds, labelToggle) {
       elementType: 'Story',
       elementId: story.id,
       name: story.name,
-      height: story.height
+      height: story.height,
     };
     // 位置を設定 (向きはデフォルトでXY平面)
     plane.position.set(center.x, center.y, z);
@@ -342,22 +358,12 @@ export function drawStories(storiesData, group, modelBounds, labelToggle) {
     // ★★★ Render Order を負の値に変更 ★★★
     plane.renderOrder = -1;
 
-    console.log(
-      `  Story Plane '${story.name}': Position=(${plane.position.x.toFixed(
-        1
-      )}, ${plane.position.y.toFixed(1)}, ${plane.position.z.toFixed(
-        1
-      )}), Size=(${planeWidth.toFixed(1)}, ${planeHeight.toFixed(1)})`
-    );
-
     if (
       !Number.isFinite(plane.position.x) ||
       !Number.isFinite(plane.position.y) ||
       !Number.isFinite(plane.position.z)
     ) {
-      console.error(
-        `Invalid position calculated for Story Plane '${story.name}'. Skipping.`
-      );
+      console.error(`Invalid position calculated for Story Plane '${story.name}'. Skipping.`);
       return;
     }
 
@@ -370,7 +376,7 @@ export function drawStories(storiesData, group, modelBounds, labelToggle) {
       const labelPosMin = new THREE.Vector3(
         min.x - extend - labelMargin,
         min.y - extend - labelMargin,
-        z
+        z,
       );
       const spriteMin = createLabelSprite(labelText, labelPosMin, group, 'Story');
       if (spriteMin) createdLabels.push(spriteMin);
@@ -379,7 +385,7 @@ export function drawStories(storiesData, group, modelBounds, labelToggle) {
       const labelPosMax = new THREE.Vector3(
         max.x + extend + labelMargin,
         max.y + extend + labelMargin,
-        z
+        z,
       );
       const spriteMax = createLabelSprite(labelText, labelPosMax, group, 'Story');
       if (spriteMax) createdLabels.push(spriteMax);

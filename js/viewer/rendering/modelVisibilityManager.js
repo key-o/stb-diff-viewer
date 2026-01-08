@@ -108,13 +108,10 @@ class ModelVisibilityManager extends BaseElementStateManager {
       modelVisibility: this.getAllModelVisibility(),
       visibleModels: this.getVisibleModels(),
       callbackCounts: Object.fromEntries(
-        Array.from(this.callbacks.entries()).map(([type, callbacks]) => [
-          type,
-          callbacks.length
-        ])
+        Array.from(this.callbacks.entries()).map(([type, callbacks]) => [type, callbacks.length]),
       ),
       globalCallbackCount: this.globalCallbacks.length,
-      debugMode: this.debugMode
+      debugMode: this.debugMode,
     };
   }
 }

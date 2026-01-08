@@ -105,9 +105,7 @@ export class MeshCreationValidator {
 
     if (placement.length <= 0) {
       if (!silent) {
-        log.warn(
-          `${elementType} ${elementId}をスキップします: 無効な長さ ${placement.length}`
-        );
+        log.warn(`${elementType} ${elementId}をスキップします: 無効な長さ ${placement.length}`);
       }
       return false;
     }
@@ -137,9 +135,7 @@ export class MeshCreationValidator {
 
     if (!profileResult.shape) {
       if (!silent) {
-        log.warn(
-          `${elementType} ${elementId}をスキップします: プロファイルの作成に失敗しました`
-        );
+        log.warn(`${elementType} ${elementId}をスキップします: プロファイルの作成に失敗しました`);
       }
       return false;
     }
@@ -162,9 +158,7 @@ export class MeshCreationValidator {
 
     if (!geometry) {
       if (!silent) {
-        log.warn(
-          `${elementType} ${elementId}をスキップします: ジオメトリの作成に失敗しました`
-        );
+        log.warn(`${elementType} ${elementId}をスキップします: ジオメトリの作成に失敗しました`);
       }
       return false;
     }
@@ -259,7 +253,7 @@ export class MeshCreationValidator {
     if (sectionData.shapes.length < minShapes) {
       if (!silent) {
         log.warn(
-          `${elementType} ${elementId}: shapes配列には${minShapes}個以上の要素が必要です（現在: ${sectionData.shapes.length}個）`
+          `${elementType} ${elementId}: shapes配列には${minShapes}個以上の要素が必要です（現在: ${sectionData.shapes.length}個）`,
         );
       }
       return false;
@@ -285,14 +279,12 @@ export class MeshCreationValidator {
       elementType = 'Element',
       shapeName = 'unknown',
       minVertices = 3,
-      silent = false
+      silent = false,
     } = options;
 
     if (!vertices || !Array.isArray(vertices)) {
       if (!silent) {
-        log.warn(
-          `${elementType} ${elementId}: 断面 ${shapeName} の頂点配列がありません`
-        );
+        log.warn(`${elementType} ${elementId}: 断面 ${shapeName} の頂点配列がありません`);
       }
       return false;
     }
@@ -300,7 +292,7 @@ export class MeshCreationValidator {
     if (vertices.length < minVertices) {
       if (!silent) {
         log.warn(
-          `${elementType} ${elementId}: 断面 ${shapeName} の頂点が不十分です（${vertices.length} < ${minVertices}）`
+          `${elementType} ${elementId}: 断面 ${shapeName} の頂点が不十分です（${vertices.length} < ${minVertices}）`,
         );
       }
       return false;

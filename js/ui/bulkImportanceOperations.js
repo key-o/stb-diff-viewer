@@ -12,10 +12,13 @@
  * 迅速かつ一貫した重要度管理が可能になります。
  */
 
-import { getImportanceManager, IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES, STB_ELEMENT_TABS } from '../core/importanceManager.js';
-import { IMPORTANCE_COLORS } from '../config/importanceConfig.js';
-import { getState, setState } from '../core/globalState.js';
+import { getImportanceManager, STB_ELEMENT_TABS } from '../app/importanceManager.js';
+import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../constants/importanceLevels.js';
+import { setState } from '../app/globalState.js';
 import { floatingWindowManager } from './floatingWindowManager.js';
+import { eventBus, ImportanceEvents } from '../app/events/index.js';
+import { storageHelper } from '../utils/storageHelper.js';
+import { showSuccess, showError, showWarning, showInfo } from './toast.js';
 
 /**
  * 一括操作履歴エントリー
@@ -47,15 +50,15 @@ export class BulkImportanceOperations {
    * イベントリスナーを設定する
    */
   setupEventListeners() {
-    // 重要度設定変更イベント
-    window.addEventListener('importanceSettingsChanged', (event) => {
-      this.recordOperation('individual', event.detail);
+    // 重要度設定変更イベント（EventBus経由）
+    eventBus.on(ImportanceEvents.SETTINGS_CHANGED, (data) => {
+      this.recordOperation('individual', data);
     });
   }
 
   /**
    * 一括操作パネルを初期化する
-  * @param {HTMLElement} containerElement - パネルを配置するコンテナー要素
+   * @param {HTMLElement} containerElement - パネルを配置するコンテナー要素
    */
   initialize(containerElement) {
     this.containerElement = containerElement;
@@ -64,8 +67,6 @@ export class BulkImportanceOperations {
 
     // Windowマネージャに登録
     this.registerWithWindowManager();
-
-    console.log('BulkImportanceOperations initialized');
   }
 
   /**
@@ -86,7 +87,7 @@ export class BulkImportanceOperations {
       onHide: () => {
         this.isVisible = false;
         setState('ui.bulkOperationsPanelVisible', false);
-      }
+      },
     });
   }
 
@@ -114,9 +115,11 @@ export class BulkImportanceOperations {
               <div class="type-selector">
                 <label>対象要素タイプ:</label>
                 <select id="bulk-element-type" multiple size="4">
-                  ${STB_ELEMENT_TABS.map(tab => `
+                  ${STB_ELEMENT_TABS.map(
+                    (tab) => `
                     <option value="${tab.id}">${tab.name}</option>
-                  `).join('')}
+                  `,
+                  ).join('')}
                 </select>
                 <div class="type-controls">
                   <button id="select-all-types" class="btn btn-sm">全選択</button>
@@ -127,9 +130,13 @@ export class BulkImportanceOperations {
               <div class="importance-selector">
                 <label>設定する重要度:</label>
                 <select id="bulk-importance-level">
-                  ${Object.entries(IMPORTANCE_LEVELS).map(([key, value]) => `
+                  ${Object.entries(IMPORTANCE_LEVELS)
+                    .map(
+                      ([key, value]) => `
                     <option value="${value}">${IMPORTANCE_LEVEL_NAMES[value]}</option>
-                  `).join('')}
+                  `,
+                    )
+                    .join('')}
                 </select>
               </div>
               
@@ -319,7 +326,7 @@ export class BulkImportanceOperations {
   setupSectionToggle() {
     const sections = ['type-bulk', 'presets', 'rules', 'history', 'import-export'];
 
-    sections.forEach(sectionId => {
+    sections.forEach((sectionId) => {
       const expandButton = document.getElementById(`expand-${sectionId}`);
       const content = document.getElementById(`${sectionId}-content`);
 
@@ -462,14 +469,15 @@ export class BulkImportanceOperations {
    * 一括操作のプレビューを実行
    */
   previewBulkOperation() {
-    const selectedTypes = Array.from(document.getElementById('bulk-element-type').selectedOptions)
-      .map(option => option.value);
+    const selectedTypes = Array.from(
+      document.getElementById('bulk-element-type').selectedOptions,
+    ).map((option) => option.value);
     const importanceLevel = document.getElementById('bulk-importance-level').value;
     const usePattern = document.getElementById('bulk-filter-pattern').checked;
     const pattern = document.getElementById('bulk-pattern-text').value;
 
     if (selectedTypes.length === 0) {
-      alert('対象となる要素タイプを選択してください。');
+      showWarning('対象となる要素タイプを選択してください。');
       return;
     }
 
@@ -481,13 +489,15 @@ export class BulkImportanceOperations {
         <strong>プレビュー結果:</strong> ${affectedPaths.length} 個の要素が変更されます
       </div>
       <div class="preview-details">
-        ${selectedTypes.map(type => {
-    const typePaths = affectedPaths.filter(path => path.includes(type));
-    return `<div class="preview-item">
+        ${selectedTypes
+          .map((type) => {
+            const typePaths = affectedPaths.filter((path) => path.includes(type));
+            return `<div class="preview-item">
             <span>${type}</span>
             <span>${typePaths.length} 個</span>
           </div>`;
-  }).join('')}
+          })
+          .join('')}
       </div>
     `;
 
@@ -499,8 +509,9 @@ export class BulkImportanceOperations {
    * 一括操作を実行
    */
   executeBulkOperation() {
-    const selectedTypes = Array.from(document.getElementById('bulk-element-type').selectedOptions)
-      .map(option => option.value);
+    const selectedTypes = Array.from(
+      document.getElementById('bulk-element-type').selectedOptions,
+    ).map((option) => option.value);
     const importanceLevel = document.getElementById('bulk-importance-level').value;
     const usePattern = document.getElementById('bulk-filter-pattern').checked;
     const pattern = document.getElementById('bulk-pattern-text').value;
@@ -508,7 +519,7 @@ export class BulkImportanceOperations {
     const affectedPaths = this.getAffectedPaths(selectedTypes, usePattern ? pattern : null);
 
     if (affectedPaths.length === 0) {
-      alert('変更対象となる要素がありません。');
+      showWarning('変更対象となる要素がありません。');
       return;
     }
 
@@ -521,7 +532,7 @@ export class BulkImportanceOperations {
     const beforeState = this.captureCurrentState(affectedPaths);
 
     // 一括変更を実行
-    affectedPaths.forEach(path => {
+    affectedPaths.forEach((path) => {
       this.manager.setImportanceLevel(path, importanceLevel);
     });
 
@@ -532,26 +543,24 @@ export class BulkImportanceOperations {
       importanceLevel,
       affectedPaths,
       beforeState,
-      count: affectedPaths.length
+      count: affectedPaths.length,
     });
 
-    // 変更通知イベントを発行
-    window.dispatchEvent(new CustomEvent('importanceSettingsChanged', {
-      detail: {
-        type: 'bulk',
-        operation: 'element_type_bulk',
-        affectedPaths,
-        newImportance: importanceLevel,
-        count: affectedPaths.length,
-        timestamp: new Date().toISOString()
-      }
-    }));
+    // 変更通知イベントを発行（EventBus経由）
+    eventBus.emit(ImportanceEvents.SETTINGS_CHANGED, {
+      type: 'bulk',
+      operation: 'element_type_bulk',
+      affectedPaths,
+      newImportance: importanceLevel,
+      count: affectedPaths.length,
+      timestamp: new Date().toISOString(),
+    });
 
     // プレビューをクリア
     document.getElementById('bulk-preview-results').style.display = 'none';
     document.getElementById('execute-bulk-operation').disabled = true;
 
-    alert(`${affectedPaths.length} 個の要素の重要度を変更しました。`);
+    showSuccess(`${affectedPaths.length} 個の要素の重要度を変更しました。`);
   }
 
   /**
@@ -563,7 +572,7 @@ export class BulkImportanceOperations {
   getAffectedPaths(selectedTypes, pattern = null) {
     let affectedPaths = [];
 
-    selectedTypes.forEach(type => {
+    selectedTypes.forEach((type) => {
       const paths = this.manager.getElementPathsByTab(type);
       affectedPaths = affectedPaths.concat(paths);
     });
@@ -571,9 +580,7 @@ export class BulkImportanceOperations {
     // パターンフィルタリング
     if (pattern && pattern.trim()) {
       const filterPattern = pattern.trim().toLowerCase();
-      affectedPaths = affectedPaths.filter(path =>
-        path.toLowerCase().includes(filterPattern)
-      );
+      affectedPaths = affectedPaths.filter((path) => path.toLowerCase().includes(filterPattern));
     }
 
     return affectedPaths;
@@ -586,7 +593,7 @@ export class BulkImportanceOperations {
    */
   captureCurrentState(paths) {
     const state = {};
-    paths.forEach(path => {
+    paths.forEach((path) => {
       state[path] = this.manager.getImportanceLevel(path);
     });
     return state;
@@ -601,7 +608,7 @@ export class BulkImportanceOperations {
 
     const preset = this.presets.get(presetName);
     if (!preset) {
-      alert('選択されたプリセットが見つかりません。');
+      showWarning('選択されたプリセットが見つかりません。');
       return;
     }
 
@@ -624,10 +631,10 @@ export class BulkImportanceOperations {
       presetName,
       beforeState,
       settings: preset.settings,
-      count: allPaths.length
+      count: allPaths.length,
     });
 
-    alert(`プリセット「${preset.name}」を適用しました。`);
+    showSuccess(`プリセット「${preset.name}」を適用しました。`);
   }
 
   /**
@@ -645,7 +652,7 @@ export class BulkImportanceOperations {
     this.savePresets();
     this.updatePresetList();
 
-    alert(`プリセット「${presetName}」を削除しました。`);
+    showSuccess(`プリセット「${presetName}」を削除しました。`);
   }
 
   /**
@@ -656,7 +663,7 @@ export class BulkImportanceOperations {
     const description = document.getElementById('new-preset-description').value.trim();
 
     if (!name) {
-      alert('プリセット名を入力してください。');
+      showWarning('プリセット名を入力してください。');
       return;
     }
 
@@ -673,7 +680,7 @@ export class BulkImportanceOperations {
       name,
       description: description || `${new Date().toLocaleDateString()} に作成`,
       settings: currentSettings,
-      created: new Date().toISOString()
+      created: new Date().toISOString(),
     };
 
     this.presets.set(name, preset);
@@ -684,7 +691,7 @@ export class BulkImportanceOperations {
     document.getElementById('new-preset-name').value = '';
     document.getElementById('new-preset-description').value = '';
 
-    alert(`プリセット「${name}」を保存しました。`);
+    showSuccess(`プリセット「${name}」を保存しました。`);
   }
 
   /**
@@ -711,7 +718,7 @@ export class BulkImportanceOperations {
 
     const ruleSet = this.getRuleTemplate(template);
     if (!ruleSet) {
-      alert('選択されたテンプレートが見つかりません。');
+      showWarning('選択されたテンプレートが見つかりません。');
       return;
     }
 
@@ -723,9 +730,9 @@ export class BulkImportanceOperations {
     const affectedPaths = [];
     const beforeState = {};
 
-    ruleSet.rules.forEach(rule => {
+    ruleSet.rules.forEach((rule) => {
       const paths = this.manager.getElementPathsByPattern(rule.pattern);
-      paths.forEach(path => {
+      paths.forEach((path) => {
         beforeState[path] = this.manager.getImportanceLevel(path);
         this.manager.setImportanceLevel(path, rule.importance);
         affectedPaths.push(path);
@@ -738,10 +745,12 @@ export class BulkImportanceOperations {
       template,
       beforeState,
       affectedPaths,
-      count: affectedPaths.length
+      count: affectedPaths.length,
     });
 
-    alert(`ルールテンプレート「${ruleSet.name}」を適用しました。${affectedPaths.length} 個の要素が変更されました。`);
+    showSuccess(
+      `ルールテンプレート「${ruleSet.name}」を適用しました。${affectedPaths.length} 個の要素が変更されました。`,
+    );
   }
 
   /**
@@ -759,8 +768,8 @@ export class BulkImportanceOperations {
           { pattern: '//StbGirder', importance: IMPORTANCE_LEVELS.REQUIRED },
           { pattern: '//StbBeam', importance: IMPORTANCE_LEVELS.OPTIONAL },
           { pattern: '//StbWall', importance: IMPORTANCE_LEVELS.REQUIRED },
-          { pattern: '//StbSlab', importance: IMPORTANCE_LEVELS.OPTIONAL }
-        ]
+          { pattern: '//StbSlab', importance: IMPORTANCE_LEVELS.OPTIONAL },
+        ],
       },
       geometric: {
         name: '幾何情報重視',
@@ -768,16 +777,16 @@ export class BulkImportanceOperations {
         rules: [
           { pattern: '//@id', importance: IMPORTANCE_LEVELS.REQUIRED },
           { pattern: '//StbNode', importance: IMPORTANCE_LEVELS.REQUIRED },
-          { pattern: '//@id_section', importance: IMPORTANCE_LEVELS.OPTIONAL }
-        ]
+          { pattern: '//@id_section', importance: IMPORTANCE_LEVELS.OPTIONAL },
+        ],
       },
       minimal: {
         name: '最小限設定',
         description: '最小限の要素のみを高重要度に設定',
         rules: [
           { pattern: '//StbColumn', importance: IMPORTANCE_LEVELS.REQUIRED },
-          { pattern: '//StbGirder', importance: IMPORTANCE_LEVELS.REQUIRED }
-        ]
+          { pattern: '//StbGirder', importance: IMPORTANCE_LEVELS.REQUIRED },
+        ],
       },
       detailed: {
         name: '詳細設定',
@@ -789,9 +798,9 @@ export class BulkImportanceOperations {
           { pattern: '//StbBrace', importance: IMPORTANCE_LEVELS.OPTIONAL },
           { pattern: '//StbWall', importance: IMPORTANCE_LEVELS.REQUIRED },
           { pattern: '//StbSlab', importance: IMPORTANCE_LEVELS.OPTIONAL },
-          { pattern: '//StbNode', importance: IMPORTANCE_LEVELS.UNNECESSARY }
-        ]
-      }
+          { pattern: '//StbNode', importance: IMPORTANCE_LEVELS.UNNECESSARY },
+        ],
+      },
     };
 
     return templates[templateName] || null;
@@ -802,7 +811,7 @@ export class BulkImportanceOperations {
    */
   addCustomRule() {
     // 今後の実装で詳細なカスタムルール作成UIを追加
-    alert('カスタムルール機能は今後のバージョンで実装予定です。');
+    showInfo('カスタムルール機能は今後のバージョンで実装予定です。');
   }
 
   /**
@@ -816,7 +825,7 @@ export class BulkImportanceOperations {
       type,
       timestamp: new Date().toISOString(),
       details,
-      description: this.generateOperationDescription(type, details)
+      description: this.generateOperationDescription(type, details),
     };
 
     this.operationHistory.unshift(operation);
@@ -856,7 +865,7 @@ export class BulkImportanceOperations {
    */
   undoLastOperation() {
     if (this.operationHistory.length === 0) {
-      alert('元に戻す操作がありません。');
+      showWarning('元に戻す操作がありません。');
       return;
     }
 
@@ -877,9 +886,9 @@ export class BulkImportanceOperations {
       this.updateHistoryDisplay();
       this.updateUndoButton();
 
-      alert('操作を元に戻しました。');
+      showSuccess('操作を元に戻しました。');
     } else {
-      alert('この操作は元に戻すことができません。');
+      showWarning('この操作は元に戻すことができません。');
     }
   }
 
@@ -907,12 +916,17 @@ export class BulkImportanceOperations {
       return;
     }
 
-    container.innerHTML = this.operationHistory.slice(0, 10).map(operation => `
+    container.innerHTML = this.operationHistory
+      .slice(0, 10)
+      .map(
+        (operation) => `
       <div class="history-item">
         <div class="operation-description">${operation.description}</div>
         <div class="operation-time">${new Date(operation.timestamp).toLocaleString()}</div>
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
   }
 
   /**
@@ -930,7 +944,7 @@ export class BulkImportanceOperations {
     try {
       const exportData = {
         timestamp: new Date().toISOString(),
-        history: this.operationHistory
+        history: this.operationHistory,
       };
 
       const jsonContent = JSON.stringify(exportData, null, 2);
@@ -939,16 +953,18 @@ export class BulkImportanceOperations {
 
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', `operation_history_${new Date().toISOString().slice(0, 10)}.json`);
+      link.setAttribute(
+        'download',
+        `operation_history_${new Date().toISOString().slice(0, 10)}.json`,
+      );
       link.style.visibility = 'hidden';
 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
     } catch (error) {
       console.error('Failed to export history:', error);
-      alert('履歴の出力に失敗しました。');
+      showError('履歴の出力に失敗しました。');
     }
   }
 
@@ -962,7 +978,7 @@ export class BulkImportanceOperations {
 
       const exportData = {
         timestamp: new Date().toISOString(),
-        settings: this.manager.exportSettings()
+        settings: this.manager.exportSettings(),
       };
 
       if (includePresets) {
@@ -979,16 +995,18 @@ export class BulkImportanceOperations {
 
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', `bulk_operations_export_${new Date().toISOString().slice(0, 10)}.json`);
+      link.setAttribute(
+        'download',
+        `bulk_operations_export_${new Date().toISOString().slice(0, 10)}.json`,
+      );
       link.style.visibility = 'hidden';
 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
     } catch (error) {
       console.error('Failed to export settings:', error);
-      alert('設定の出力に失敗しました。');
+      showError('設定の出力に失敗しました。');
     }
   }
 
@@ -1042,11 +1060,10 @@ export class BulkImportanceOperations {
         this.updateUndoButton();
       }
 
-      alert(`設定をインポートしました。${importedCount}個の要素設定を更新しました。`);
-
+      showSuccess(`設定をインポートしました。${importedCount}個の要素設定を更新しました。`);
     } catch (error) {
       console.error('Failed to import settings:', error);
-      alert('設定のインポートに失敗しました。ファイル形式を確認してください。');
+      showError('設定のインポートに失敗しました。ファイル形式を確認してください。');
     }
   }
 
@@ -1068,14 +1085,9 @@ export class BulkImportanceOperations {
    * プリセットを読み込む
    */
   loadPresets() {
-    try {
-      const savedPresets = localStorage.getItem('importance-bulk-presets');
-      if (savedPresets) {
-        const presets = JSON.parse(savedPresets);
-        this.presets = new Map(Object.entries(presets));
-      }
-    } catch (error) {
-      console.error('Failed to load presets:', error);
+    const savedPresets = storageHelper.get('importance-bulk-presets');
+    if (savedPresets) {
+      this.presets = new Map(Object.entries(savedPresets));
     }
   }
 
@@ -1083,12 +1095,8 @@ export class BulkImportanceOperations {
    * プリセットを保存する
    */
   savePresets() {
-    try {
-      const presetsObj = Object.fromEntries(this.presets.entries());
-      localStorage.setItem('importance-bulk-presets', JSON.stringify(presetsObj));
-    } catch (error) {
-      console.error('Failed to save presets:', error);
-    }
+    const presetsObj = Object.fromEntries(this.presets.entries());
+    storageHelper.set('importance-bulk-presets', presetsObj);
   }
 
   /**

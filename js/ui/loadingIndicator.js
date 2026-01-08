@@ -37,7 +37,7 @@ export class LoadingIndicator {
       progress: 0,
       message: '',
       detail: '',
-      startTime: 0
+      startTime: 0,
     };
   }
 
@@ -71,18 +71,10 @@ export class LoadingIndicator {
       </div>
     `;
 
-    this.messageElement = this.container.querySelector(
-      '.loading-indicator-message'
-    );
-    this.percentElement = this.container.querySelector(
-      '.loading-indicator-percent'
-    );
-    this.progressBar = this.container.querySelector(
-      '.loading-indicator-progress-bar'
-    );
-    this.detailElement = this.container.querySelector(
-      '.loading-indicator-detail'
-    );
+    this.messageElement = this.container.querySelector('.loading-indicator-message');
+    this.percentElement = this.container.querySelector('.loading-indicator-percent');
+    this.progressBar = this.container.querySelector('.loading-indicator-progress-bar');
+    this.detailElement = this.container.querySelector('.loading-indicator-detail');
     this.timeElement = this.container.querySelector('.loading-indicator-time');
 
     this.injectStyles();
@@ -209,7 +201,7 @@ export class LoadingIndicator {
       progress: 0,
       message,
       detail: '',
-      startTime: Date.now()
+      startTime: Date.now(),
     };
 
     this.messageElement.textContent = message;
@@ -257,9 +249,10 @@ export class LoadingIndicator {
    */
   updateFromLoaderState(loaderState) {
     const message = `読み込み中: ${loaderState.currentElementType || '準備中'}`;
-    const detail = loaderState.totalElements > 0
-      ? `${loaderState.processedElements} / ${loaderState.totalElements} 要素`
-      : '';
+    const detail =
+      loaderState.totalElements > 0
+        ? `${loaderState.processedElements} / ${loaderState.totalElements} 要素`
+        : '';
 
     this.update(loaderState.progressPercent, message, detail);
   }

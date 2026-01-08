@@ -12,40 +12,33 @@
  * 保守性とパフォーマンスを向上させます。
  */
 
-import { getState, setState } from '../core/globalState.js';
+import { getState, setState } from '../app/globalState.js';
 import { getAllLabels } from './state.js';
 import {
   getCurrentStorySelection,
   getCurrentXAxisSelection,
-  getCurrentYAxisSelection
+  getCurrentYAxisSelection,
 } from './selectors.js';
-import labelDisplayManager from '../viewer/rendering/labelDisplayManager.js';
+import { renderingController } from '../app/controllers/renderingController.js';
+import { LABEL_ELEMENTS } from '../config/elementTypes.js';
+import { scheduleRender } from '../utils/renderScheduler.js';
+import { createLogger } from '../utils/logger.js';
+import { LABEL_CONTENT_TYPES, LABEL_CONTENT_DESCRIPTIONS } from '../constants/displayModes.js';
+
+const log = createLogger('unifiedLabelManager');
 
 // ラベル更新のバッチ処理用
 let labelUpdateScheduled = false;
 const pendingLabelUpdates = new Set();
 
-// ラベル内容タイプの定義
-export const LABEL_CONTENT_TYPES = {
-  ID: 'id',
-  NAME: 'name',
-  SECTION: 'section'
-};
-
-// ラベル内容の説明
-const CONTENT_TYPE_DESCRIPTIONS = {
-  [LABEL_CONTENT_TYPES.ID]: 'タグ（デフォルト）',
-  [LABEL_CONTENT_TYPES.NAME]: 'インスタンス名（Name）',
-  [LABEL_CONTENT_TYPES.SECTION]: '断面名（Section）'
-};
+// CONTENT_TYPE_DESCRIPTIONS は LABEL_CONTENT_DESCRIPTIONS のエイリアス
+const CONTENT_TYPE_DESCRIPTIONS = LABEL_CONTENT_DESCRIPTIONS;
 
 /**
  * 統合ラベル管理システムを初期化
  */
 export function initializeLabelManager() {
-  console.log(
-    '[LabelManager] Initializing label management system'
-  );
+  log.info('[LabelManager] Initializing label management system');
 
   // ラベル内容選択リスナーを設定
   setupLabelContentListener();
@@ -53,9 +46,7 @@ export function initializeLabelManager() {
   // 各要素タイプのラベル表示/非表示リスナーを設定
   setupLabelToggleListeners();
 
-  console.log(
-    '[LabelManager] Label management system initialized'
-  );
+  log.info('[LabelManager] Label management system initialized');
 }
 
 /**
@@ -66,36 +57,25 @@ function setupLabelContentListener() {
 
   if (labelContentSelector) {
     labelContentSelector.addEventListener('change', handleLabelContentChange);
-    console.log('[LabelManager] Label content listener setup complete');
+    log.info('[LabelManager] Label content listener setup complete');
   } else {
-    console.warn('[LabelManager] Label content selector not found');
+    log.warn('[LabelManager] Label content selector not found');
   }
 }
 
 /**
  * 各要素タイプのラベル表示/非表示リスナーを設定
+ * LABEL_ELEMENTSはelementTypes.jsで定義（SSOT）
  */
 function setupLabelToggleListeners() {
-  const labelTypes = [
-    'Node',
-    'Column',
-    'Girder',
-    'Beam',
-    'Brace',
-    'Slab',
-    'Wall',
-    'Axis',
-    'Story'
-  ];
-
-  labelTypes.forEach((type) => {
+  LABEL_ELEMENTS.forEach((type) => {
     const checkbox = document.getElementById(`toggleLabel-${type}`);
     if (checkbox) {
       checkbox.addEventListener('change', () => handleLabelToggleChange(type));
     }
   });
 
-  console.log('[LabelManager] Label toggle listeners setup complete');
+  log.info('[LabelManager] Label toggle listeners setup complete');
 }
 
 /**
@@ -104,9 +84,7 @@ function setupLabelToggleListeners() {
  */
 function handleLabelContentChange(event) {
   const newContentType = event.target.value;
-  console.log(
-    `[LabelManager] Label content changed to: ${newContentType}`
-  );
+  log.info(`[LabelManager] Label content changed to: ${newContentType}`);
 
   // グローバル状態を更新
   setState('ui.labelContentType', newContentType);
@@ -120,7 +98,7 @@ function handleLabelContentChange(event) {
  * @param {string} elementType - 要素タイプ
  */
 function handleLabelToggleChange(elementType) {
-  console.log(`[LabelManager] Label toggle changed for: ${elementType}`);
+  log.info(`[LabelManager] Label toggle changed for: ${elementType}`);
 
   // 該当要素タイプのラベル表示を更新
   updateLabelVisibilityForType(elementType);
@@ -144,16 +122,11 @@ export function generateLabelText(element, elementType) {
       case LABEL_CONTENT_TYPES.SECTION:
         return generateSectionLabel(element, elementType);
       default:
-        console.warn(
-          `[LabelManager] Unknown content type: ${contentType}, falling back to ID`
-        );
+        log.warn(`[LabelManager] Unknown content type: ${contentType}, falling back to ID`);
         return generateIdLabel(element, elementType);
     }
   } catch (error) {
-    console.error(
-      `[LabelManager] Error generating label for ${elementType}:`,
-      error
-    );
+    log.error(`[LabelManager] Error generating label for ${elementType}:`, error);
     return element.id || elementType;
   }
 }
@@ -179,11 +152,7 @@ function generateNameLabel(element, elementType) {
   const nameFields = ['name', 'instance_name', 'label', 'title'];
 
   for (const field of nameFields) {
-    if (
-      element[field] &&
-      typeof element[field] === 'string' &&
-      element[field].trim() !== ''
-    ) {
+    if (element[field] && typeof element[field] === 'string' && element[field].trim() !== '') {
       return element[field];
     }
   }
@@ -266,13 +235,12 @@ function performLabelVisibilityUpdate() {
   const allLabels = getAllLabels();
 
   if (allLabels.length === 0) {
-    console.log('[LabelManager] No labels to update');
+    log.info('[LabelManager] No labels to update');
     return;
   }
 
-  console.log(
-    `[LabelManager] Updating visibility for ${allLabels.length} labels`
-  );
+  // 頻繁に呼ばれるため詳細ログは抑制
+  // log.info(`[LabelManager] Updating visibility for ${allLabels.length} labels`);
 
   let visibleCount = 0;
   let hiddenCount = 0;
@@ -292,15 +260,13 @@ function performLabelVisibilityUpdate() {
     }
   });
 
-  console.log(
-    `[LabelManager] Updated: ${visibleCount} shown, ${hiddenCount} hidden`
-  );
+  // 実際に変更があった場合のみログを出力
+  if (visibleCount > 0 || hiddenCount > 0) {
+    log.info(`[LabelManager] Updated: ${visibleCount} shown, ${hiddenCount} hidden`);
+  }
 
   // 再描画をリクエスト
-  const scheduleRender = getState('rendering.scheduleRender');
-  if (scheduleRender) {
-    scheduleRender();
-  }
+  scheduleRender();
 }
 
 /**
@@ -310,8 +276,7 @@ function performLabelVisibilityUpdate() {
 function updateLabelVisibilityForType(elementType) {
   const allLabels = getAllLabels();
   const typeLabels = allLabels.filter(
-    (label) =>
-      label && label.userData && label.userData.elementType === elementType
+    (label) => label && label.userData && label.userData.elementType === elementType,
   );
 
   const isVisible = isLabelTypeVisible(elementType);
@@ -322,17 +287,14 @@ function updateLabelVisibilityForType(elementType) {
     }
   });
 
-  console.log(
+  log.info(
     `[LabelManager] Updated ${
       typeLabels.length
-    } ${elementType} labels to ${isVisible ? 'visible' : 'hidden'}`
+    } ${elementType} labels to ${isVisible ? 'visible' : 'hidden'}`,
   );
 
   // 再描画をリクエスト
-  const scheduleRender = getState('rendering.scheduleRender');
-  if (scheduleRender) {
-    scheduleRender();
-  }
+  scheduleRender();
 }
 
 /**
@@ -371,6 +333,7 @@ function calculateLabelVisibility(label) {
  */
 function isLabelTypeVisible(elementType) {
   // labelDisplayManagerと同期してから状態を取得
+  const labelDisplayManager = renderingController.getLabelDisplayManager();
   labelDisplayManager.syncWithCheckbox(elementType);
   return labelDisplayManager.isLabelVisible(elementType);
 }
@@ -422,19 +385,17 @@ function isLabelModelVisible(label) {
  * 全ラベルを再生成
  */
 export function regenerateAllLabels() {
-  console.log('[LabelManager] Regenerating all labels');
+  log.info('[LabelManager] Regenerating all labels');
 
   // ラベル再生成ロジック
-  import('./labelRegeneration.js').then(
-    ({ regenerateAllLabels: regenerateAllLabelsImpl }) => {
-      if (regenerateAllLabelsImpl) {
-        regenerateAllLabelsImpl();
-      }
-
-      // 再生成後に表示状態を更新
-      updateLabelVisibility();
+  import('./labelRegeneration.js').then(({ regenerateAllLabels: regenerateAllLabelsImpl }) => {
+    if (regenerateAllLabelsImpl) {
+      regenerateAllLabelsImpl();
     }
-  );
+
+    // 再生成後に表示状態を更新
+    updateLabelVisibility();
+  });
 }
 
 /**
@@ -459,9 +420,7 @@ export function getAvailableLabelContentTypes() {
  * この関数は colorModes.js から呼び出される
  */
 export function handleColorModeChange() {
-  console.log('[LabelManager] Handling color mode change');
-
-  // ラベルの表示状態を再計算
+  // ラベルの表示状態を再計算（頻繁に呼ばれるためログは抑制）
   updateLabelVisibility();
 
   // 必要に応じてラベル内容も更新

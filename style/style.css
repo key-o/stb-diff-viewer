@@ -37,6 +37,8 @@ body {
   min-width: 0;
   background-color: var(--bg-canvas);
   outline: 2px dashed rgba(255,255,255,0.08);
+  position: relative; /* キャンバス要素の絶対配置用 */
+  overflow: hidden;
 }
 
 /* #legendPanel は panels.css で定義 */
@@ -81,6 +83,7 @@ body {
   background-color: var(--bg-secondary);
   font-weight: 600;
   font-size: 0.85em;
+  white-space: nowrap;
 }
 
 .element-settings-table td:first-child {
@@ -95,6 +98,55 @@ body {
 .element-settings-table input[type="checkbox"] {
   margin: 0;
   cursor: pointer;
+}
+
+/* ライン専用表示インジケータ（Undefined要素等） */
+.line-only-indicator {
+  display: inline-block;
+  color: var(--text-muted, #888);
+  font-size: 1.2em;
+  text-align: center;
+  cursor: help;
+}
+
+/* 表示要素テーブル内の色ボックス */
+.element-color-input {
+  width: var(--color-picker-size);
+  height: var(--color-picker-size);
+  padding: 0;
+  border: var(--color-picker-border-width) solid var(--color-picker-border-color);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.element-color-input:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* デフォルト色リセットボタンコンテナ */
+.element-color-reset-container {
+  margin-top: 10px;
+  text-align: right;
+}
+
+.element-color-reset-container .btn-reset {
+  font-size: 0.85em;
+  padding: 4px 12px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  cursor: pointer;
+}
+
+.element-color-reset-container .btn-reset:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+}
+
+.element-color-reset-container .btn-reset:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 #overlay hr {

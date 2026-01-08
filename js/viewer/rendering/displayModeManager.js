@@ -6,30 +6,13 @@
  */
 
 import { BaseElementStateManager } from './baseElementStateManager.js';
+import { DISPLAY_MODE_ELEMENTS } from '../../config/elementTypes.js';
+import { DISPLAY_MODES } from '../../constants/displayModes.js';
 
 /**
- * 表示可能な要素タイプ
+ * 表示可能な要素タイプ（elementTypes.jsから取得）
  */
-const ELEMENT_TYPES = [
-  'Column',
-  'Beam',
-  'Girder',
-  'Brace',
-  'Post',
-  'Slab',
-  'Wall',
-  'FoundationColumn',
-  'Footing',
-  'Pile'
-];
-
-/**
- * 表示モード
- */
-const DISPLAY_MODES = {
-  LINE: 'line',
-  SOLID: 'solid'
-};
+const ELEMENT_TYPES = [...DISPLAY_MODE_ELEMENTS];
 
 /**
  * DisplayModeManagerクラス
@@ -113,10 +96,7 @@ class DisplayModeManager extends BaseElementStateManager {
    */
   toggleDisplayMode(elementType) {
     const currentMode = this.getDisplayMode(elementType);
-    const newMode =
-      currentMode === DISPLAY_MODES.LINE
-        ? DISPLAY_MODES.SOLID
-        : DISPLAY_MODES.LINE;
+    const newMode = currentMode === DISPLAY_MODES.LINE ? DISPLAY_MODES.SOLID : DISPLAY_MODES.LINE;
     this.setDisplayMode(elementType, newMode);
     return newMode;
   }
@@ -145,13 +125,10 @@ class DisplayModeManager extends BaseElementStateManager {
     return {
       displayModes: this.getAllDisplayModes(),
       callbackCounts: Object.fromEntries(
-        Array.from(this.callbacks.entries()).map(([type, callbacks]) => [
-          type,
-          callbacks.length
-        ])
+        Array.from(this.callbacks.entries()).map(([type, callbacks]) => [type, callbacks.length]),
       ),
       globalCallbackCount: this.globalCallbacks.length,
-      debugMode: this.debugMode
+      debugMode: this.debugMode,
     };
   }
 }

@@ -12,11 +12,8 @@
  */
 
 import * as THREE from 'three';
-import { IMPORTANCE_LEVELS } from '../../core/importanceManager.js';
-import {
-  IMPORTANCE_VISUAL_STYLES,
-  createImportanceOutlineMaterial
-} from './materials.js';
+import { IMPORTANCE_LEVELS } from '../../constants/importanceLevels.js';
+import { IMPORTANCE_VISUAL_STYLES, createImportanceOutlineMaterial } from './materials.js';
 
 /**
  * アウトライン管理クラス
@@ -48,10 +45,7 @@ export class OutlineManager {
     }
 
     try {
-      const outlineObject = this.createOutlineObject(
-        originalObject,
-        importance
-      );
+      const outlineObject = this.createOutlineObject(originalObject, importance);
       if (outlineObject) {
         this.outlineObjects.set(originalObject, outlineObject);
         parentGroup.add(outlineObject);
@@ -87,10 +81,7 @@ export class OutlineManager {
    * すべてのアウトラインをクリア
    */
   clearAllOutlines() {
-    for (const [
-      originalObject,
-      outlineObject
-    ] of this.outlineObjects.entries()) {
+    for (const [originalObject, outlineObject] of this.outlineObjects.entries()) {
       if (outlineObject.parent) {
         outlineObject.parent.remove(outlineObject);
       }
@@ -159,7 +150,7 @@ export class OutlineManager {
       color: style.highlightColor,
       linewidth: Math.max(style.outlineWidth * 2, 3),
       transparent: true,
-      opacity: Math.min(style.opacity * 0.8, 0.7)
+      opacity: Math.min(style.opacity * 0.8, 0.7),
     });
 
     const outlineGeometry = originalLine.geometry.clone();
@@ -261,7 +252,7 @@ export class OutlineManager {
       totalOutlines: this.outlineObjects.size,
       isEnabled: this.isEnabled,
       performanceThreshold: this.performanceThreshold,
-      memoryEstimate: this.outlineObjects.size * 2048 // 概算
+      memoryEstimate: this.outlineObjects.size * 2048, // 概算
     };
   }
 
@@ -270,8 +261,6 @@ export class OutlineManager {
    */
   debugInfo() {
     console.group('OutlineManager Debug Info');
-    console.log('Stats:', this.getStats());
-    console.log('Outline objects:', this.outlineObjects);
     console.groupEnd();
   }
 }
@@ -298,11 +287,7 @@ export function addImportanceOutline(element, importance, parentGroup) {
  * @param {THREE.Group} parentGroup - 親グループ
  */
 export function updateElementOutline(element, newImportance, parentGroup) {
-  globalOutlineManager.updateOutlineImportance(
-    element,
-    newImportance,
-    parentGroup
-  );
+  globalOutlineManager.updateOutlineImportance(element, newImportance, parentGroup);
 }
 
 /**
@@ -315,7 +300,7 @@ export class OutlineSettings {
       showOnlyHighImportance: false, // 高重要度のみ表示
       animateOutlines: false, // アニメーション効果
       performanceMode: false, // パフォーマンスモード
-      customStyles: {} // カスタムスタイル
+      customStyles: {}, // カスタムスタイル
     };
   }
 
@@ -359,8 +344,6 @@ export const globalOutlineSettings = new OutlineSettings();
  * アウトライン機能の初期化
  */
 export function initializeOutlineSystem() {
-  console.log('Outline system initialized');
-
   // デフォルト設定を適用
   globalOutlineSettings.applySettings();
 

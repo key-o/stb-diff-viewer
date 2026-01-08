@@ -7,6 +7,17 @@
  * - 視覚的な差分概要の提供
  */
 
+import { eventBus, ComparisonEvents } from '../app/events/index.js';
+import { ELEMENT_LABELS } from '../config/elementLabels.js';
+import {
+  getCurrentVersionInfo,
+  shouldShowVersionSpecificDifferences,
+  setShowVersionSpecificDifferences,
+} from './versionPanel.js';
+
+// 差分一覧ボタンのハンドラ参照（重複登録防止用）
+let diffListBtnHandler = null;
+
 /**
  * 差分結果のサマリーを表示する
  * @param {Object} comparisonResults - 比較結果オブジェクト
@@ -29,13 +40,27 @@ export function updateDiffSummary(comparisonResults) {
   contentElement.innerHTML = summaryHTML;
   summaryElement.classList.toggle('hidden', stats.totalElements === 0);
 
-  // 差分一覧ボタンのイベントリスナーを設定
+  // 差分一覧ボタンのイベントリスナーを設定（重複登録防止）
   const diffListBtn = document.getElementById('open-diff-list-from-summary');
   if (diffListBtn) {
-    diffListBtn.addEventListener('click', () => {
-      if (typeof window.toggleDiffList === 'function') {
-        window.toggleDiffList();
-      }
+    // 既存のハンドラがあれば削除（innerHTMLで要素が再作成されるため新しい要素に付ける）
+    // ハンドラ関数を再利用
+    if (!diffListBtnHandler) {
+      diffListBtnHandler = () => {
+        if (typeof window.toggleDiffList === 'function') {
+          window.toggleDiffList();
+        }
+      };
+    }
+    diffListBtn.addEventListener('click', diffListBtnHandler);
+  }
+
+  // バージョンフィルタチェックボックスのイベントリスナーを設定
+  const versionFilterCheckbox = document.getElementById('version-diff-filter');
+  if (versionFilterCheckbox) {
+    versionFilterCheckbox.addEventListener('change', (e) => {
+      setShowVersionSpecificDifferences(e.target.checked);
+      console.log('[DiffSummary] バージョン差分フィルタ変更:', e.target.checked);
     });
   }
 }
@@ -51,7 +76,7 @@ function calculateDiffStatistics(comparisonResults) {
     totalMatched: 0,
     totalOnlyA: 0,
     totalOnlyB: 0,
-    elementTypes: {}
+    elementTypes: {},
   };
 
   // 要素タイプ別に統計を計算
@@ -68,7 +93,7 @@ function calculateDiffStatistics(comparisonResults) {
         matched,
         onlyA,
         onlyB,
-        total
+        total,
       };
 
       stats.totalElements += total;
@@ -92,6 +117,23 @@ function generateSummaryHTML(stats) {
   }
 
   let html = '';
+
+  // クロスバージョン警告を先頭に表示
+  const versionInfo = getCurrentVersionInfo();
+  if (versionInfo.isCrossVersion) {
+    html += `
+      <div class="version-notice cross-version" style="display: flex; align-items: flex-start; gap: 8px; padding: 8px; margin-bottom: 10px; background: var(--bg-secondary, #f3f4f6); border-radius: 4px; border-left: 3px solid var(--color-warning, #d97706);">
+        <span style="font-size: 14px;">⚠️</span>
+        <span style="font-size: 12px; color: var(--text-primary, #374151);">異なるバージョン間の比較です</span>
+      </div>
+      <div class="version-filter-option" style="margin-bottom: 10px; padding: 8px; background: var(--bg-secondary, #f3f4f6); border-radius: 4px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px;">
+          <input type="checkbox" id="version-diff-filter" ${shouldShowVersionSpecificDifferences() ? 'checked' : ''} style="width: 14px; height: 14px; cursor: pointer;">
+          <span>バージョン固有の差異も表示</span>
+        </label>
+      </div>
+    `;
+  }
 
   // 全体統計
   html +=
@@ -166,33 +208,22 @@ function generateSummaryHTML(stats) {
 
 /**
  * 要素タイプの表示名を取得する
+ * ELEMENT_LABELS（SSOT）を使用
  * @param {string} elementType - 要素タイプ
  * @returns {string} 表示名
  */
 function getElementTypeDisplayName(elementType) {
-  const displayNames = {
-    Node: '節点',
-    Column: '柱',
-    Girder: '大梁',
-    Beam: '小梁',
-    Brace: 'ブレース',
-    Slab: 'スラブ',
-    Wall: '壁',
-    Axis: '通り芯',
-    Story: '階'
-  };
-
-  return displayNames[elementType] || elementType;
+  return ELEMENT_LABELS[elementType] || elementType;
 }
 
 /**
  * 差分結果が更新された際のイベントリスナーを設定する
  */
 export function setupDiffSummaryEventListeners() {
-  // 比較結果更新イベントを監視
-  window.addEventListener('updateComparisonStatistics', (event) => {
-    if (event.detail && event.detail.comparisonResults) {
-      updateDiffSummary(event.detail.comparisonResults);
+  // 比較結果更新イベントを監視（EventBus経由）
+  eventBus.on(ComparisonEvents.UPDATE_STATISTICS, (data) => {
+    if (data && data.comparisonResults) {
+      updateDiffSummary(data.comparisonResults);
     }
   });
 

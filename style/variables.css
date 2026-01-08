@@ -31,11 +31,11 @@
   --color-warning: #d97706;
   --color-info: #0891b2;
 
-  /* 差分表示カラー（視認性重視で維持） */
-  --color-matched: #00aaff;       /* 一致要素 */
-  --color-only-a: #ff6b6b;        /* モデルAのみ */
-  --color-only-b: #4ecdc4;        /* モデルBのみ */
-  --color-modified: #ffd93d;      /* 変更要素 */
+  /* 差分表示カラー（colorConfig.jsのDIFF_COLORSと同期） */
+  --color-matched: #4CAF50;       /* 一致要素（マテリアルグリーン） */
+  --color-only-a: #2196F3;        /* モデルAのみ（マテリアルブルー） */
+  --color-only-b: #F44336;        /* モデルBのみ（マテリアルレッド） */
+  --color-modified: #FF9800;      /* 変更要素（マテリアルオレンジ） */
 
   /* 背景色 */
   --bg-body: #ffffff;
@@ -153,6 +153,33 @@
   --input-focus-border-color: var(--color-primary);
 
   /* ========================================
+     チェックボックス・ラジオボタン
+     ======================================== */
+
+  --checkbox-size: 16px;
+  --checkbox-border-width: 2px;
+  --checkbox-border-color: var(--border-color);
+  --checkbox-checked-bg: var(--color-primary);
+  --checkbox-checked-border: var(--color-primary);
+  --checkbox-checkmark-color: var(--text-white);
+  --checkbox-border-radius: var(--border-radius-sm);
+  --radio-size: 16px;
+
+  /* ========================================
+     カラーピッカー
+     ======================================== */
+
+  --color-picker-size: 24px;
+  --color-picker-border-width: 2px;
+  --color-picker-border-color: var(--border-color-dark);
+
+  /* ========================================
+     フォーム要素スペーシング
+     ======================================== */
+
+  --form-element-margin: var(--spacing-sm);
+
+  /* ========================================
      アコーディオン
      ======================================== */
 
@@ -198,11 +225,11 @@
   --color-warning: #f59e0b;
   --color-info: #22d3ee;
 
-  /* 差分表示カラー（ダークテーマ用） */
-  --color-matched: #38bdf8;
-  --color-only-a: #fb7185;
-  --color-only-b: #5eead4;
-  --color-modified: #fde047;
+  /* 差分表示カラー（ダークテーマ用 - colorConfig.jsのDIFF_COLORSと同期） */
+  --color-matched: #66BB6A;       /* 一致要素（マテリアルグリーン明るめ） */
+  --color-only-a: #42A5F5;        /* モデルAのみ（マテリアルブルー明るめ） */
+  --color-only-b: #EF5350;        /* モデルBのみ（マテリアルレッド明るめ） */
+  --color-modified: #FFA726;      /* 変更要素（マテリアルオレンジ明るめ） */
 
   /* 背景色 */
   --bg-body: #1a1a1a;

@@ -1,10 +1,6 @@
 import { createLogger } from '../utils/logger.js';
-import { ensureUnifiedSectionType } from '../common/sectionTypeUtil.js';
-import {
-  getWidth,
-  getHeight,
-  getDimensions
-} from '../common/sectionDataAccessor.js';
+import { ensureUnifiedSectionType } from '../common-stb/section/sectionTypeUtil.js';
+import { getWidth, getHeight } from '../data/accessors/sectionDataAccessor.js';
 
 const log = createLogger('diagnostics:geom');
 const clog = createLogger('diagnostics:compare');
@@ -43,16 +39,9 @@ function resolveExpectedDimensions(sectionMeta) {
       }
 
       // steelSections マップから正規寸法を引き当てる
-      if (
-        (w === undefined || h === undefined) &&
-        typeof window !== 'undefined'
-      ) {
+      if ((w === undefined || h === undefined) && typeof window !== 'undefined') {
         const steelSections = window.steelSections;
-        if (
-          steelSections &&
-          steelSections.get &&
-          steelSections.has(shapeName)
-        ) {
+        if (steelSections && steelSections.get && steelSections.has(shapeName)) {
           const ss = steelSections.get(shapeName);
           // 代表的パラメータ: A(高さ), B(幅)
           const A = parseFloat(ss.A || ss.a);
@@ -94,8 +83,7 @@ export function inspectSectionMismatch(mesh) {
     mesh.userData?.columnData?.section;
   // section_type を正規化（profile_type 等の別名を吸収）
   if (meta) ensureUnifiedSectionType(meta);
-  const { width: expectedW, height: expectedD } =
-    resolveExpectedDimensions(meta);
+  const { width: expectedW, height: expectedD } = resolveExpectedDimensions(meta);
   const sectionTypeUnified = meta?.section_type;
 
   const result = {
@@ -107,8 +95,8 @@ export function inspectSectionMismatch(mesh) {
     expected: { width: expectedW, depth: expectedD },
     mismatch: {
       width: expectedW ? (width - expectedW) / expectedW : null,
-      depth: expectedD ? (depth - expectedD) / expectedD : null
-    }
+      depth: expectedD ? (depth - expectedD) / expectedD : null,
+    },
   };
 
   // 詳細は trace に格下げ（spam防止）
@@ -119,11 +107,7 @@ export function inspectSectionMismatch(mesh) {
 /**
  * シーン内の指定タイプのメッシュを走査し、断面差異を集計
  */
-export function scanSceneForSectionMismatches(
-  scene,
-  elementType = null,
-  limit = 50
-) {
+export function scanSceneForSectionMismatches(scene, elementType = null, limit = 50) {
   const out = [];
   let count = 0;
   scene.traverse((obj) => {
@@ -159,7 +143,7 @@ export function getDefaultScene() {
     () => window?.viewer?.scene,
     () => window?.stbViewer?.scene,
     () => window?.app?.scene,
-    () => window?.scene
+    () => window?.scene,
   ];
   for (const get of candidates) {
     try {
@@ -182,7 +166,7 @@ export function highlightMismatches(scene, results, tolerance = 0.02) {
         return w > tolerance || d > tolerance || r.profileSource === 'manual';
       })
       .map((r) => r.elementId)
-      .filter(Boolean)
+      .filter(Boolean),
   );
   let n = 0;
   scene.traverse((obj) => {
@@ -226,20 +210,14 @@ export function showMismatchPanel(results, tolerance = 0.02) {
       border: '1px solid #444',
       borderRadius: '8px',
       padding: '8px',
-      font: '12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
+      font: '12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
     });
     document.body.appendChild(el);
   }
   const rows = results
     .map((r) => {
-      const w =
-        r.mismatch.width != null
-          ? (r.mismatch.width * 100).toFixed(1) + '%'
-          : '-';
-      const d =
-        r.mismatch.depth != null
-          ? (r.mismatch.depth * 100).toFixed(1) + '%'
-          : '-';
+      const w = r.mismatch.width != null ? (r.mismatch.width * 100).toFixed(1) + '%' : '-';
+      const d = r.mismatch.depth != null ? (r.mismatch.depth * 100).toFixed(1) + '%' : '-';
       const bad =
         Math.abs(r.mismatch.width ?? 0) > tolerance ||
         Math.abs(r.mismatch.depth ?? 0) > tolerance ||
@@ -260,9 +238,9 @@ export function showMismatchPanel(results, tolerance = 0.02) {
       <strong>断面差異レポート</strong>
       <button id="diag-close" style="margin-left:auto">×</button>
     </div>
-    <div style="margin-bottom:6px;opacity:0.8">しきい値: ${(
-    tolerance * 100
-  ).toFixed(1)}% を超える差異、または profileSource=manual を強調表示</div>
+    <div style="margin-bottom:6px;opacity:0.8">しきい値: ${(tolerance * 100).toFixed(
+      1,
+    )}% を超える差異、または profileSource=manual を強調表示</div>
     <table style="width:100%;border-collapse:collapse">
       <thead>
   <tr><th style="text-align:left">Type</th><th style="text-align:left">ID</th><th>stb-diff-viewer</th><th>section_type</th><th>Actual (W x D)</th><th>Expected</th><th>ΔW / ΔD</th></tr>
@@ -276,12 +254,7 @@ export function showMismatchPanel(results, tolerance = 0.02) {
 /**
  * 断面比較ログをコンソール出力（1要素=1行）
  */
-export function logSectionComparisons(
-  scene,
-  elementType = null,
-  limit = 100,
-  options = {}
-) {
+export function logSectionComparisons(scene, elementType = null, limit = 100, options = {}) {
   const { tolerance = 0.02, level = 'info' } = options;
   const logger = typeof clog[level] === 'function' ? clog[level] : clog.info;
   let total = 0;
@@ -306,25 +279,19 @@ export function logSectionComparisons(
     const msg = `${over ? '!' : ' '} [${r.elementType ?? ''}] id=${
       r.elementId ?? ''
     } stb-diff-viewer=${r.profileSource ?? ''}/${r.sectionTypeUnified ?? ''} actual=${fmt(
-      r.actual.width
+      r.actual.width,
     )}x${fmt(r.actual.depth)} expected=${fmt(r.expected.width)}x${fmt(
-      r.expected.depth
+      r.expected.depth,
     )} dW=${sDW} dD=${sDD}`;
     logger(msg);
   });
   clog.info(
-    `Compared ${total} elements, flagged ${flagged} (tol=${(
-      tolerance * 100
-    ).toFixed(1)}%)`
+    `Compared ${total} elements, flagged ${flagged} (tol=${(tolerance * 100).toFixed(1)}%)`,
   );
   return { total, flagged };
 }
 
-export function logDefaultSceneComparisons(
-  elementType = null,
-  limit = 100,
-  options = {}
-) {
+export function logDefaultSceneComparisons(elementType = null, limit = 100, options = {}) {
   const s = getDefaultScene();
   if (!s) {
     clog.warn('logDefaultSceneComparisons: scene not found');
@@ -338,11 +305,7 @@ export function logDefaultSceneComparisons(
  * - width / height のどちらかが未解決 (undefined) のものを対象
  * - 利用可能なキー一覧とネスト1段目までのオブジェクト構造を簡易出力
  */
-export function debugMissingExpectedDimensions(
-  scene,
-  elementType = null,
-  limit = 50
-) {
+export function debugMissingExpectedDimensions(scene, elementType = null, limit = 50) {
   const s = scene || getDefaultScene();
   if (!s) {
     clog.warn('debugMissingExpectedDimensions: scene not found');
@@ -390,8 +353,8 @@ export function debugMissingExpectedDimensions(
       rawPreview: JSON.stringify(
         raw.dimensions ? raw.dimensions : raw,
         (k, v) => (typeof v === 'number' ? Number(v.toFixed(3)) : v),
-        0
-      ).slice(0, 400)
+        0,
+      ).slice(0, 400),
     };
     out.push(sample);
     counted++;
@@ -399,14 +362,12 @@ export function debugMissingExpectedDimensions(
       `[MISSING] id=${sample.elementId} type=${sample.elementType} stb-diff-viewer=${
         sample.profileSource
       }/${sample.sectionTypeUnified ?? ''} keys=${sample.dimensionsKeys.join(
-        ','
-      )} nums=${sample.numericCandidates.join(',')} rawPreview=${
-        sample.rawPreview
-      }`
+        ',',
+      )} nums=${sample.numericCandidates.join(',')} rawPreview=${sample.rawPreview}`,
     );
   });
   clog.info(
-    `debugMissingExpectedDimensions: collected ${out.length} unresolved items (limit=${limit})`
+    `debugMissingExpectedDimensions: collected ${out.length} unresolved items (limit=${limit})`,
   );
   return out;
 }
@@ -422,6 +383,6 @@ if (typeof window !== 'undefined') {
     highlightMismatches,
     logSectionComparisons,
     logDefaultSceneComparisons,
-    debugMissingExpectedDimensions
+    debugMissingExpectedDimensions,
   };
 }

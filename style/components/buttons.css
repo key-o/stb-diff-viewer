@@ -95,8 +95,9 @@
 }
 
 .btn-success:hover {
-  background-color: #218838;
-  border-color: #1e7e34;
+  background-color: var(--color-success);
+  border-color: var(--color-success);
+  filter: brightness(0.9);
 }
 
 /* Danger */
@@ -107,8 +108,9 @@
 }
 
 .btn-danger:hover {
-  background-color: #c82333;
-  border-color: #bd2130;
+  background-color: var(--color-danger);
+  border-color: var(--color-danger);
+  filter: brightness(0.9);
 }
 
 /* Warning */
@@ -119,8 +121,9 @@
 }
 
 .btn-warning:hover {
-  background-color: #e0a800;
-  border-color: #d39e00;
+  background-color: var(--color-warning);
+  border-color: var(--color-warning);
+  filter: brightness(0.9);
 }
 
 /* Info */
@@ -131,8 +134,36 @@
 }
 
 .btn-info:hover {
-  background-color: #138496;
-  border-color: #117a8b;
+  background-color: var(--color-info);
+  border-color: var(--color-info);
+  filter: brightness(0.9);
+}
+
+/* White (白背景ボタン) */
+.btn-white {
+  display: block;
+  width: 100%;
+  color: var(--text-primary);
+  background-color: var(--bg-body);
+  border: var(--border-width) solid var(--border-color);
+  padding: var(--btn-padding-y) var(--btn-padding-x);
+  font-size: var(--font-size-base);
+  line-height: 1.5;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  margin-bottom: var(--spacing-xs);
+}
+
+.btn-white:hover {
+  background-color: var(--bg-panel);
+  border-color: var(--color-primary);
+}
+
+.btn-white:focus {
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(74, 111, 165, 0.25);
 }
 
 /* ========================================
@@ -145,10 +176,10 @@
   color: var(--text-white);
   border: none;
   padding: 10px var(--spacing-md);
-  border-radius: 5px;
+  border-radius: var(--border-radius);
   font-weight: var(--font-weight-bold);
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: background-color var(--transition-fast);
 }
 
 .btn-primary.compare-button:hover {
@@ -164,16 +195,16 @@
   border-radius: var(--border-radius);
   font-size: var(--font-size-sm);
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color var(--transition-fast);
   margin-top: 5px;
 }
 
 .clip-apply-btn:hover {
-  background: #218838;
+  filter: brightness(0.9);
 }
 
 .clip-apply-btn:active {
-  background: #1e7e34;
+  filter: brightness(0.85);
 }
 
 /* クリッピング解除ボタン */
@@ -185,11 +216,11 @@
   border-radius: var(--border-radius);
   font-size: var(--font-size-sm);
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color var(--transition-fast);
 }
 
 .clear-clip-btn:hover {
-  background: #c82333;
+  filter: brightness(0.9);
 }
 
 /* プレビューボタン */
@@ -201,12 +232,12 @@
   border-radius: var(--border-radius);
   font-size: var(--font-size-sm);
   cursor: pointer;
-  transition: background-color 0.2s ease;
+  transition: background-color var(--transition-fast);
   margin-left: var(--spacing-sm);
 }
 
 .preview-clip-btn:hover {
-  background: #138496;
+  filter: brightness(0.9);
 }
 
 /* ========================================
@@ -217,7 +248,7 @@
   flex: 1;
   padding: var(--spacing-sm) var(--spacing-sm);
   border: var(--border-width) solid var(--border-color);
-  background: #fff;
+  background: var(--bg-body);
   color: var(--text-primary);
   border-radius: var(--border-radius);
   cursor: pointer;
@@ -226,7 +257,7 @@
 }
 
 .camera-mode-btn:hover {
-  background-color: #f8f9fa;
+  background-color: var(--bg-panel);
   border-color: var(--color-primary);
   color: var(--text-primary);
 }

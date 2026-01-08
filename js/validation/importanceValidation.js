@@ -8,6 +8,12 @@
  * - エラー報告とログ出力
  */
 
+/* global XPathResult */
+
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('validation/importanceValidation');
+
 // 妥当な重要度レベルの定数
 export const VALID_IMPORTANCE_LEVELS = ['high', 'medium', 'low', 'notApplicable'];
 
@@ -16,7 +22,7 @@ export const IMPORTANCE_LEVEL_NAMES = {
   high: '高重要度',
   medium: '中重要度',
   low: '低重要度',
-  notApplicable: '対象外'
+  notApplicable: '対象外',
 };
 
 /**
@@ -64,12 +70,13 @@ export function validateImportanceSettings(settings) {
     errors,
     warnings,
     summary: {
-      totalChecked: Object.keys(settings.elements || {}).length +
-                   Object.keys(settings.attributes || {}).length +
-                   Object.keys(settings.xpathPatterns || {}).length,
+      totalChecked:
+        Object.keys(settings.elements || {}).length +
+        Object.keys(settings.attributes || {}).length +
+        Object.keys(settings.xpathPatterns || {}).length,
       errorsCount: errors.length,
-      warningsCount: warnings.length
-    }
+      warningsCount: warnings.length,
+    },
   };
 }
 
@@ -125,7 +132,9 @@ function validateElementsSettings(elements) {
       if (pathValidation.severity === 'error') {
         errors.push(`Invalid element path "${elementPath}": ${pathValidation.message}`);
       } else {
-        warnings.push(`Potentially invalid element path "${elementPath}": ${pathValidation.message}`);
+        warnings.push(
+          `Potentially invalid element path "${elementPath}": ${pathValidation.message}`,
+        );
       }
     }
 
@@ -159,7 +168,9 @@ function validateAttributesSettings(attributes) {
       if (pathValidation.severity === 'error') {
         errors.push(`Invalid attribute path "${attributePath}": ${pathValidation.message}`);
       } else {
-        warnings.push(`Potentially invalid attribute path "${attributePath}": ${pathValidation.message}`);
+        warnings.push(
+          `Potentially invalid attribute path "${attributePath}": ${pathValidation.message}`,
+        );
       }
     }
   }
@@ -203,7 +214,7 @@ export function validateElementPath(elementPath) {
       isValid: false,
       severity: 'error',
       message: 'Element path must be a non-empty string',
-      isStbElement: false
+      isStbElement: false,
     };
   }
 
@@ -216,15 +227,31 @@ export function validateElementPath(elementPath) {
 
     // 既知のSTB要素名かチェック
     const knownElements = [
-      'StbColumn', 'StbGirder', 'StbBeam', 'StbBrace', 'StbNode', 'StbSlab', 'StbWall',
-      'StbStory', 'StbAxis', 'StbDrawingLineAxis', 'StbDrawingArcAxis',
-      'StbSecColumn_RC', 'StbSecColumn_S', 'StbSecColumn_SRC', 'StbSecColumn_CFT',
-      'StbSecBeam_RC', 'StbSecBeam_S', 'StbSecBeam_SRC', 'StbSecBrace_S',
-      'StbSecSlab_RC', 'StbSecWall_RC'
+      'StbColumn',
+      'StbGirder',
+      'StbBeam',
+      'StbBrace',
+      'StbNode',
+      'StbSlab',
+      'StbWall',
+      'StbStory',
+      'StbAxis',
+      'StbDrawingLineAxis',
+      'StbDrawingArcAxis',
+      'StbSecColumn_RC',
+      'StbSecColumn_S',
+      'StbSecColumn_SRC',
+      'StbSecColumn_CFT',
+      'StbSecBeam_RC',
+      'StbSecBeam_S',
+      'StbSecBeam_SRC',
+      'StbSecBrace_S',
+      'StbSecSlab_RC',
+      'StbSecWall_RC',
     ];
 
-    const isKnownElement = knownElements.some(known =>
-      elementName === known || elementName.startsWith(known)
+    const isKnownElement = knownElements.some(
+      (known) => elementName === known || elementName.startsWith(known),
     );
 
     return {
@@ -232,7 +259,7 @@ export function validateElementPath(elementPath) {
       severity: 'info',
       message: isKnownElement ? 'Valid STB element' : 'Unknown STB element',
       isStbElement: true,
-      elementName
+      elementName,
     };
   }
 
@@ -242,7 +269,7 @@ export function validateElementPath(elementPath) {
       isValid: true,
       severity: 'warning',
       message: 'XPath format detected but not STB element',
-      isStbElement: false
+      isStbElement: false,
     };
   }
 
@@ -252,7 +279,7 @@ export function validateElementPath(elementPath) {
       isValid: true,
       severity: 'warning',
       message: 'Simple element name format',
-      isStbElement: elementPath.startsWith('Stb')
+      isStbElement: elementPath.startsWith('Stb'),
     };
   }
 
@@ -260,7 +287,7 @@ export function validateElementPath(elementPath) {
     isValid: false,
     severity: 'error',
     message: 'Invalid element path format',
-    isStbElement: false
+    isStbElement: false,
   };
 }
 
@@ -274,7 +301,7 @@ export function validateAttributePath(attributePath) {
     return {
       isValid: false,
       severity: 'error',
-      message: 'Attribute path must be a non-empty string'
+      message: 'Attribute path must be a non-empty string',
     };
   }
 
@@ -285,9 +312,20 @@ export function validateAttributePath(attributePath) {
     if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(attrName)) {
       // 既知のSTB属性名かチェック
       const knownAttributes = [
-        'id', 'guid', 'name', 'material', 'shape',
-        'strength_concrete', 'strength_rebar', 'pos', 'rotate', 'offset',
-        'id_node_start', 'id_node_end', 'id_node_bottom', 'id_node_top'
+        'id',
+        'guid',
+        'name',
+        'material',
+        'shape',
+        'strength_concrete',
+        'strength_rebar',
+        'pos',
+        'rotate',
+        'offset',
+        'id_node_start',
+        'id_node_end',
+        'id_node_bottom',
+        'id_node_top',
       ];
 
       const isKnownAttribute = knownAttributes.includes(attrName);
@@ -296,13 +334,13 @@ export function validateAttributePath(attributePath) {
         isValid: true,
         severity: isKnownAttribute ? 'info' : 'warning',
         message: isKnownAttribute ? 'Valid STB attribute' : 'Unknown STB attribute',
-        attributeName: attrName
+        attributeName: attrName,
       };
     } else {
       return {
         isValid: false,
         severity: 'error',
-        message: 'Invalid attribute name format'
+        message: 'Invalid attribute name format',
       };
     }
   }
@@ -313,14 +351,14 @@ export function validateAttributePath(attributePath) {
       isValid: true,
       severity: 'warning',
       message: 'Attribute name without @ prefix',
-      attributeName: attributePath
+      attributeName: attributePath,
     };
   }
 
   return {
     isValid: false,
     severity: 'error',
-    message: 'Invalid attribute path format'
+    message: 'Invalid attribute path format',
   };
 }
 
@@ -333,7 +371,7 @@ export function validateXPathSyntax(xpath) {
   if (typeof xpath !== 'string' || xpath.length === 0) {
     return {
       isValid: false,
-      message: 'XPath must be a non-empty string'
+      message: 'XPath must be a non-empty string',
     };
   }
 
@@ -346,7 +384,7 @@ export function validateXPathSyntax(xpath) {
     if (openBrackets !== closeBrackets) {
       return {
         isValid: false,
-        message: 'Unmatched brackets in XPath'
+        message: 'Unmatched brackets in XPath',
       };
     }
 
@@ -356,7 +394,7 @@ export function validateXPathSyntax(xpath) {
     if (singleQuotes % 2 !== 0 || doubleQuotes % 2 !== 0) {
       return {
         isValid: false,
-        message: 'Unmatched quotes in XPath'
+        message: 'Unmatched quotes in XPath',
       };
     }
 
@@ -364,7 +402,7 @@ export function validateXPathSyntax(xpath) {
     if (/[<>]/.test(xpath)) {
       return {
         isValid: false,
-        message: 'Invalid characters in XPath'
+        message: 'Invalid characters in XPath',
       };
     }
 
@@ -377,13 +415,12 @@ export function validateXPathSyntax(xpath) {
 
     return {
       isValid: true,
-      message: 'Valid XPath syntax'
+      message: 'Valid XPath syntax',
     };
-
   } catch (error) {
     return {
       isValid: false,
-      message: `XPath syntax error: ${error.message}`
+      message: `XPath syntax error: ${error.message}`,
     };
   }
 }
@@ -406,20 +443,20 @@ export function logValidationResult(validationResult, context = '') {
   const prefix = context ? `[${context}] ` : '';
 
   if (validationResult.isValid) {
-    console.log(`${prefix}✅ Validation passed`);
+    log.info(`${prefix}✅ Validation passed`);
     if (validationResult.warnings && validationResult.warnings.length > 0) {
-      console.warn(`${prefix}⚠️ Warnings:`, validationResult.warnings);
+      log.warn(`${prefix}⚠️ Warnings:`, validationResult.warnings);
     }
   } else {
-    console.error(`${prefix}❌ Validation failed`);
-    console.error(`${prefix}Errors:`, validationResult.errors);
+    log.error(`${prefix}❌ Validation failed`);
+    log.error(`${prefix}Errors:`, validationResult.errors);
     if (validationResult.warnings && validationResult.warnings.length > 0) {
-      console.warn(`${prefix}Warnings:`, validationResult.warnings);
+      log.warn(`${prefix}Warnings:`, validationResult.warnings);
     }
   }
 
   if (validationResult.summary) {
-    console.log(`${prefix}Summary:`, validationResult.summary);
+    log.info(`${prefix}Summary:`, validationResult.summary);
   }
 }
 

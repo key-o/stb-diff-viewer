@@ -77,7 +77,7 @@
 .diff-list-summary .color-indicator {
   width: 10px;
   height: 10px;
-  border-radius: 2px;
+  border-radius: var(--border-radius-sm);
 }
 
 .diff-list-summary .summary-item.onlyA .color-indicator {
@@ -200,7 +200,7 @@
   justify-content: center;
   width: 20px;
   height: 20px;
-  border-radius: 3px;
+  border-radius: var(--border-radius-sm);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
   margin-right: 8px;
@@ -248,7 +248,7 @@
   padding: 10px 20px;
   border-radius: var(--border-radius);
   font-size: var(--font-size-sm);
-  z-index: 10000;
+  z-index: var(--z-toast);
   animation: toast-fade-in 0.3s ease;
 }
 
@@ -273,14 +273,120 @@
 
 .diff-list-container::-webkit-scrollbar-track {
   background: #f1f1f1;
-  border-radius: 3px;
+  border-radius: var(--border-radius-sm);
 }
 
 .diff-list-container::-webkit-scrollbar-thumb {
   background: #ccc;
-  border-radius: 3px;
+  border-radius: var(--border-radius-sm);
 }
 
 .diff-list-container::-webkit-scrollbar-thumb:hover {
   background: #aaa;
+}
+
+/* ========================================
+   バージョン差分表示
+   ======================================== */
+
+/* バージョン差分カウント */
+.diff-group-header .count-version {
+  color: #757575;
+  font-weight: 500;
+}
+
+/* バージョン固有差分アイテム */
+.diff-item.item-versionOnly {
+  border-left: 3px solid #9E9E9E;
+  opacity: 0.85;
+}
+
+.diff-item.item-versionOnly:hover {
+  background-color: #F5F5F5;
+  opacity: 1;
+}
+
+.diff-item.item-versionOnly .item-category {
+  background-color: #9E9E9E;
+  color: white;
+}
+
+/* バージョンバッジ */
+.diff-item .item-category.version-badge {
+  width: auto;
+  padding: 0 6px;
+  background-color: #757575;
+  font-size: 10px;
+}
+
+/* バージョン差分カウント表示 */
+.diff-item .version-diff-count {
+  font-size: var(--font-size-xs);
+  color: #757575;
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+/* 差分アイコン */
+.diff-item .diff-icon {
+  margin-right: 6px;
+  font-size: 12px;
+}
+
+/* ========================================
+   サマリー - バージョン固有差分
+   ======================================== */
+
+.diff-list-summary .summary-item.versionOnly {
+  display: inline-flex;
+}
+
+.diff-list-summary .summary-item.versionOnly .color-indicator {
+  background-color: #9E9E9E;
+}
+
+/* ========================================
+   凡例
+   ======================================== */
+
+.diff-list-legend {
+  display: flex;
+  gap: 12px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  background-color: #f0f0f0;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  color: #666;
+}
+
+.diff-list-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ========================================
+   ダークテーマ対応
+   ======================================== */
+
+[data-theme="dark"] .diff-item.item-versionOnly {
+  border-left-color: #757575;
+}
+
+[data-theme="dark"] .diff-item.item-versionOnly:hover {
+  background-color: #424242;
+}
+
+[data-theme="dark"] .diff-item .version-diff-count {
+  color: #BDBDBD;
+}
+
+[data-theme="dark"] .diff-list-legend {
+  background-color: #383838;
+  color: #BDBDBD;
+}
+
+[data-theme="dark"] .diff-group-header .count-version {
+  color: #BDBDBD;
 }

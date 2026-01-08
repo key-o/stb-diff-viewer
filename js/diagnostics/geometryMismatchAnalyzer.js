@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createLogger } from '../utils/logger.js';
 import { ElementGeometryUtils } from '../viewer/geometry/ElementGeometryUtils.js';
 import { getDefaultScene } from './geometryInspector.js';
-import { getState } from '../core/globalState.js';
+import { getState } from '../app/globalState.js';
 
 const log = createLogger('diagnostics:geomMismatch');
 
@@ -10,33 +10,33 @@ const ELEMENT_NODE_CONFIG = {
   Beam: {
     nodeType: '2node-horizontal',
     startKey: 'id_node_start',
-    endKey: 'id_node_end'
+    endKey: 'id_node_end',
   },
   Girder: {
     nodeType: '2node-horizontal',
     startKey: 'id_node_start',
-    endKey: 'id_node_end'
+    endKey: 'id_node_end',
   },
   Brace: {
     nodeType: '2node-horizontal',
     startKey: 'id_node_start',
-    endKey: 'id_node_end'
+    endKey: 'id_node_end',
   },
   Column: {
     nodeType: '2node-vertical',
     startKey: 'id_node_bottom',
-    endKey: 'id_node_top'
+    endKey: 'id_node_top',
   },
   Post: {
     nodeType: '2node-vertical',
     startKey: 'id_node_bottom',
-    endKey: 'id_node_top'
+    endKey: 'id_node_top',
   },
   Pile: {
     nodeType: '2node-vertical',
     startKey: 'id_node_bottom',
-    endKey: 'id_node_top'
-  }
+    endKey: 'id_node_top',
+  },
 };
 
 const DEFAULT_THRESHOLDS = {
@@ -47,13 +47,13 @@ const DEFAULT_THRESHOLDS = {
   lengthToleranceRatio: 0.002,
   lengthFailRatio: 0.01,
   angleToleranceDeg: 0.1,
-  angleFailDeg: 2
+  angleFailDeg: 2,
 };
 
 const DEFAULT_SCAN_OPTIONS = {
   elementTypes: null,
   limit: Infinity,
-  thresholds: DEFAULT_THRESHOLDS
+  thresholds: DEFAULT_THRESHOLDS,
 };
 
 export function scanSceneForGeometryMismatches(scene, options = {}) {
@@ -66,7 +66,7 @@ export function scanSceneForGeometryMismatches(scene, options = {}) {
   const mergedOptions = {
     ...DEFAULT_SCAN_OPTIONS,
     ...options,
-    thresholds: mergeThresholds(options.thresholds)
+    thresholds: mergeThresholds(options.thresholds),
   };
 
   const nodeMaps = resolveNodeMaps(options.nodeMaps);
@@ -92,7 +92,7 @@ export function scanSceneForGeometryMismatches(scene, options = {}) {
 
   return {
     summary: createSummary(results, mergedOptions.thresholds),
-    results
+    results,
   };
 }
 
@@ -107,7 +107,7 @@ export function highlightGeometryMismatches(scene, report, options = {}) {
     return 0;
   }
   const severityFilter = new Set(
-    (options.severity && [].concat(options.severity)) || ['warn', 'error']
+    (options.severity && [].concat(options.severity)) || ['warn', 'error'],
   );
   const severityMap = new Map();
   for (const entry of report.results) {
@@ -123,7 +123,7 @@ export function highlightGeometryMismatches(scene, report, options = {}) {
     }
     const key = serializeElementKey({
       elementId: obj.userData.elementId,
-      modelSource: obj.userData.modelSource || obj.userData.comparison || null
+      modelSource: obj.userData.modelSource || obj.userData.comparison || null,
     });
     const entry = severityMap.get(key);
     if (!entry) {
@@ -145,10 +145,7 @@ export function showGeometryMismatchPanel(report, options = {}) {
   const rows = report.results
     .slice(0, maxEntries)
     .map((entry) => {
-      const lengthDelta = formatDelta(
-        entry.deltas.lengthAbs,
-        entry.expected.length
-      );
+      const lengthDelta = formatDelta(entry.deltas.lengthAbs, entry.expected.length);
       const startOffset = entry.deltas.startOffset?.toFixed(2) ?? '-';
       const endOffset = entry.deltas.endOffset?.toFixed(2) ?? '-';
       const angle = entry.deltas.angleDeg?.toFixed(3) ?? '-';
@@ -184,7 +181,7 @@ export function showGeometryMismatchPanel(report, options = {}) {
       border: '1px solid #333',
       borderRadius: '8px',
       padding: '8px',
-      font: '12px/1.4 ui-monospace,Menlo,Consolas,monospace'
+      font: '12px/1.4 ui-monospace,Menlo,Consolas,monospace',
     });
     document.body.appendChild(panel);
   }
@@ -239,15 +236,15 @@ function analyzeMeshInternal(mesh, nodeMaps, thresholds) {
       start: vectorToPlain(expected.start),
       end: vectorToPlain(expected.end),
       length: expected.length,
-      source: expected.source
+      source: expected.source,
     },
     actual: {
       start: vectorToPlain(actual.start),
       end: vectorToPlain(actual.end),
-      length: actual.length
+      length: actual.length,
     },
     deltas,
-    severity
+    severity,
   };
 }
 
@@ -272,8 +269,7 @@ function extractElementContext(mesh) {
     elementId: mesh.userData.elementId || data.id,
     elementType,
     isJson: Boolean(mesh.userData?.isJsonInput || data.isJsonInput),
-    modelSource:
-      mesh.userData?.modelSource || mesh.userData?.comparison || null
+    modelSource: mesh.userData?.modelSource || mesh.userData?.comparison || null,
   };
 }
 
@@ -286,14 +282,10 @@ function resolveExpectedEndpoints(mesh, ctx, nodeMaps) {
     nodeType: config.nodeType,
     isJsonInput: ctx.isJson,
     node1KeyStart: config.startKey,
-    node1KeyEnd: config.endKey
+    node1KeyEnd: config.endKey,
   };
   const nodeMap = ctx.isJson ? null : pickNodeMap(mesh, nodeMaps);
-  const nodeData = ElementGeometryUtils.getNodePositions(
-    ctx.data,
-    nodeMap,
-    nodeConfig
-  );
+  const nodeData = ElementGeometryUtils.getNodePositions(ctx.data, nodeMap, nodeConfig);
   if (!nodeData?.valid || !nodeData.startNode || !nodeData.endNode) {
     return null;
   }
@@ -301,7 +293,7 @@ function resolveExpectedEndpoints(mesh, ctx, nodeMaps) {
     start: nodeData.startNode.clone(),
     end: nodeData.endNode.clone(),
     length: nodeData.startNode.distanceTo(nodeData.endNode),
-    source: ctx.isJson ? 'json' : 'stb'
+    source: ctx.isJson ? 'json' : 'stb',
   };
 }
 
@@ -319,7 +311,7 @@ function computeActualEndpoints(mesh) {
   return {
     start: worldStart,
     end: worldEnd,
-    length: worldStart.distanceTo(worldEnd)
+    length: worldStart.distanceTo(worldEnd),
   };
 }
 
@@ -343,26 +335,16 @@ function resolveMeshLength(mesh) {
 }
 
 function computeDeltas(expected, actual) {
-  const expectedDir = new THREE.Vector3()
-    .copy(expected.end)
-    .sub(expected.start)
-    .normalize();
-  const actualDir = new THREE.Vector3()
-    .copy(actual.end)
-    .sub(actual.start)
-    .normalize();
+  const expectedDir = new THREE.Vector3().copy(expected.end).sub(expected.start).normalize();
+  const actualDir = new THREE.Vector3().copy(actual.end).sub(actual.start).normalize();
   const angleRad = expectedDir.angleTo(actualDir);
 
   const deltaLength = actual.length - expected.length;
   const lengthRatio = expected.length ? deltaLength / expected.length : null;
   const startOffset = expected.start.distanceTo(actual.start);
   const endOffset = expected.end.distanceTo(actual.end);
-  const midpointExpected = new THREE.Vector3()
-    .copy(expected.start)
-    .lerp(expected.end, 0.5);
-  const midpointActual = new THREE.Vector3()
-    .copy(actual.start)
-    .lerp(actual.end, 0.5);
+  const midpointExpected = new THREE.Vector3().copy(expected.start).lerp(expected.end, 0.5);
+  const midpointActual = new THREE.Vector3().copy(actual.start).lerp(actual.end, 0.5);
   const midpointOffset = midpointExpected.distanceTo(midpointActual);
 
   return {
@@ -372,7 +354,7 @@ function computeDeltas(expected, actual) {
     endOffset,
     midpointOffset,
     maxPositionOffset: Math.max(startOffset, endOffset, midpointOffset),
-    angleDeg: THREE.MathUtils.radToDeg(angleRad)
+    angleDeg: THREE.MathUtils.radToDeg(angleRad),
   };
 }
 
@@ -384,8 +366,7 @@ function classifySeverity(deltas, thresholds) {
 
   const isError =
     (lengthAbs > thresholds.lengthFailMm && thresholds.lengthFailMm > 0) ||
-    (lengthRatio > thresholds.lengthFailRatio &&
-      thresholds.lengthFailRatio > 0) ||
+    (lengthRatio > thresholds.lengthFailRatio && thresholds.lengthFailRatio > 0) ||
     (position > thresholds.positionFailMm && thresholds.positionFailMm > 0) ||
     (angle > thresholds.angleFailDeg && thresholds.angleFailDeg > 0);
   if (isError) {
@@ -393,12 +374,9 @@ function classifySeverity(deltas, thresholds) {
   }
 
   const isWarn =
-    (lengthAbs > thresholds.lengthToleranceMm &&
-      thresholds.lengthToleranceMm > 0) ||
-    (lengthRatio > thresholds.lengthToleranceRatio &&
-      thresholds.lengthToleranceRatio > 0) ||
-    (position > thresholds.positionToleranceMm &&
-      thresholds.positionToleranceMm > 0) ||
+    (lengthAbs > thresholds.lengthToleranceMm && thresholds.lengthToleranceMm > 0) ||
+    (lengthRatio > thresholds.lengthToleranceRatio && thresholds.lengthToleranceRatio > 0) ||
+    (position > thresholds.positionToleranceMm && thresholds.positionToleranceMm > 0) ||
     (angle > thresholds.angleToleranceDeg && thresholds.angleToleranceDeg > 0);
   return isWarn ? 'warn' : 'ok';
 }
@@ -411,10 +389,7 @@ function createSummary(results, thresholds) {
 
   for (const entry of results) {
     counts[entry.severity] = (counts[entry.severity] || 0) + 1;
-    maxLengthAbs = Math.max(
-      maxLengthAbs,
-      Math.abs(entry.deltas.lengthAbs ?? 0)
-    );
+    maxLengthAbs = Math.max(maxLengthAbs, Math.abs(entry.deltas.lengthAbs ?? 0));
     maxPosition = Math.max(maxPosition, entry.deltas.maxPositionOffset ?? 0);
     maxAngle = Math.max(maxAngle, Math.abs(entry.deltas.angleDeg ?? 0));
   }
@@ -425,7 +400,7 @@ function createSummary(results, thresholds) {
     maxLengthAbs,
     maxPositionOffset: maxPosition,
     maxAngleDeg: maxAngle,
-    thresholds
+    thresholds,
   };
 }
 
@@ -433,7 +408,7 @@ function vectorToPlain(vec) {
   return {
     x: Number(vec.x.toFixed(3)),
     y: Number(vec.y.toFixed(3)),
-    z: Number(vec.z.toFixed(3))
+    z: Number(vec.z.toFixed(3)),
   };
 }
 
@@ -449,16 +424,12 @@ function resolveNodeMaps(overrides = {}) {
   return {
     modelA: mapA || fallback,
     modelB: mapB || fallback,
-    fallback
+    fallback,
   };
 }
 
 function pickNodeMap(mesh, nodeMaps) {
-  const source = (
-    mesh.userData?.modelSource ||
-    mesh.userData?.comparison ||
-    ''
-  ).toLowerCase();
+  const source = (mesh.userData?.modelSource || mesh.userData?.comparison || '').toLowerCase();
   if (source.includes('b')) {
     return nodeMaps.modelB || nodeMaps.fallback;
   }
@@ -493,12 +464,7 @@ function applyHighlight(mesh, severity) {
   } else if (materials[0]?.isMaterial) {
     mesh.material = materials[0];
   }
-  const color =
-    severity === 'error'
-      ? '#ff2d95'
-      : severity === 'warn'
-        ? '#ffd966'
-        : '#00ffaa';
+  const color = severity === 'error' ? '#ff2d95' : severity === 'warn' ? '#ffd966' : '#00ffaa';
   try {
     for (const mat of materials) {
       if (!mat || !mat.isMaterial) {
@@ -520,8 +486,7 @@ function formatDelta(lengthAbs, expectedLength) {
     return '-';
   }
   const ratio = expectedLength ? (lengthAbs / expectedLength) * 100 : null;
-  const ratioText =
-    ratio == null ? '' : ` (${ratio >= 0 ? '+' : ''}${ratio.toFixed(2)}%)`;
+  const ratioText = ratio == null ? '' : ` (${ratio >= 0 ? '+' : ''}${ratio.toFixed(2)}%)`;
   return `${lengthAbs.toFixed(2)}${ratioText}`;
 }
 
@@ -533,9 +498,7 @@ if (typeof window !== 'undefined') {
       return highlightGeometryMismatches(scene, report, options);
     },
     panel: (report, options = {}) => showGeometryMismatchPanel(report, options),
-    analyzeMesh: analyzeMeshGeometry
+    analyzeMesh: analyzeMeshGeometry,
   };
-  console.log(
-    'GeometryMismatchAnalyzer ready. Use window.GeometryMismatchAnalyzer.scan().'
-  );
+  console.log('GeometryMismatchAnalyzer ready. Use window.GeometryMismatchAnalyzer.scan().');
 }

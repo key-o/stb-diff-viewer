@@ -12,13 +12,14 @@
  * 作業に集中でき、視覚的ノイズを削減できます。
  */
 
-import {
-  IMPORTANCE_LEVELS,
-  IMPORTANCE_LEVEL_NAMES
-} from '../core/importanceManager.js';
-import { getState, setState } from '../core/globalState.js';
-import { applyImportanceVisibilityFilter } from '../viewer/rendering/materials.js';
+import { IMPORTANCE_LEVELS } from '../constants/importanceLevels.js';
+import { getState } from '../app/globalState.js';
 import { UI_TIMING } from '../config/uiTimingConfig.js';
+import { eventBus, ImportanceEvents, ComparisonEvents } from '../app/events/index.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('importanceFilter');
+import { sceneController } from '../app/controllers/sceneController.js';
 
 /**
  * 重要度フィルタリングクラス
@@ -44,37 +45,28 @@ export class ImportanceFilter {
       all: {
         name: '全て表示',
         levels: new Set(Object.values(IMPORTANCE_LEVELS)),
-        description: 'すべての重要度レベルを表示'
+        description: 'すべての重要度レベルを表示',
       },
       highOnly: {
         name: '高重要度のみ',
         levels: new Set([IMPORTANCE_LEVELS.REQUIRED]),
-        description: '高重要度の要素のみ表示'
+        description: '高重要度の要素のみ表示',
       },
       mediumHigh: {
         name: '中・高重要度',
-        levels: new Set([
-          IMPORTANCE_LEVELS.REQUIRED,
-          IMPORTANCE_LEVELS.OPTIONAL
-        ]),
-        description: '中重要度と高重要度の要素を表示'
+        levels: new Set([IMPORTANCE_LEVELS.REQUIRED, IMPORTANCE_LEVELS.OPTIONAL]),
+        description: '中重要度と高重要度の要素を表示',
       },
       lowExcluded: {
         name: '低重要度除外',
-        levels: new Set([
-          IMPORTANCE_LEVELS.REQUIRED,
-          IMPORTANCE_LEVELS.OPTIONAL
-        ]),
-        description: '低重要度と対象外を除いた要素を表示'
+        levels: new Set([IMPORTANCE_LEVELS.REQUIRED, IMPORTANCE_LEVELS.OPTIONAL]),
+        description: '低重要度と対象外を除いた要素を表示',
       },
       differencesOnly: {
         name: '差分のみ（カスタム）',
-        levels: new Set([
-          IMPORTANCE_LEVELS.REQUIRED,
-          IMPORTANCE_LEVELS.OPTIONAL
-        ]),
-        description: '差分要素で重要度が高い要素のみ表示'
-      }
+        levels: new Set([IMPORTANCE_LEVELS.REQUIRED, IMPORTANCE_LEVELS.OPTIONAL]),
+        description: '差分要素で重要度が高い要素のみ表示',
+      },
     };
   }
 
@@ -82,20 +74,20 @@ export class ImportanceFilter {
    * イベントリスナーを設定
    */
   setupEventListeners() {
-    // フィルタ変更通知を受信
-    window.addEventListener('importanceFilterChanged', (event) => {
-      this.handleFilterChange(event.detail);
+    // フィルタ変更通知を受信（EventBus経由）
+    eventBus.on(ImportanceEvents.FILTER_CHANGED, (data) => {
+      this.handleFilterChange(data);
     });
 
-    // 重要度設定変更時のフィルタ再適用
-    window.addEventListener('importanceSettingsChanged', (event) => {
+    // 重要度設定変更時のフィルタ再適用（EventBus経由）
+    eventBus.on(ImportanceEvents.SETTINGS_CHANGED, (data) => {
       if (this.isEnabled) {
         this.applyFilter();
       }
     });
 
-    // 比較結果更新時のフィルタ再適用
-    window.addEventListener('updateComparisonStatistics', (event) => {
+    // 比較結果更新時のフィルタ再適用（EventBus経由）
+    eventBus.on(ComparisonEvents.UPDATE_STATISTICS, (data) => {
       if (this.isEnabled) {
         setTimeout(() => this.applyFilter(), UI_TIMING.FILTER_APPLY_DELAY_MS);
       }
@@ -108,7 +100,7 @@ export class ImportanceFilter {
    */
   toggleImportanceLevel(level) {
     if (!Object.values(IMPORTANCE_LEVELS).includes(level)) {
-      console.warn(`Invalid importance level: ${level}`);
+      log.warn(`Invalid importance level: ${level}`);
       return;
     }
 
@@ -125,7 +117,7 @@ export class ImportanceFilter {
     this.notifyFilterChange('toggle', {
       level,
       wasActive,
-      isActive: !wasActive
+      isActive: !wasActive,
     });
   }
 
@@ -141,7 +133,7 @@ export class ImportanceFilter {
     this.applyFilter();
     this.notifyFilterChange('bulk', {
       previousFilters,
-      currentFilters: this.activeFilters
+      currentFilters: this.activeFilters,
     });
   }
 
@@ -166,7 +158,7 @@ export class ImportanceFilter {
   applyPreset(presetName) {
     const preset = this.presets[presetName];
     if (!preset) {
-      console.warn(`Unknown preset: ${presetName}`);
+      log.warn(`Unknown preset: ${presetName}`);
       return;
     }
 
@@ -179,22 +171,21 @@ export class ImportanceFilter {
    */
   applyFilter() {
     if (!this.isEnabled) {
-      console.log('Importance filter is disabled');
+      log.info('Importance filter is disabled');
       return;
     }
 
     try {
-      const elementGroups = getState('elementGroups');
-      if (!elementGroups) {
-        console.log('No element groups available for filtering');
+      if (!sceneController.getElementGroups() || Object.keys(sceneController.getElementGroups()).length === 0) {
+        log.info('No element groups available for filtering');
         return;
       }
 
       let totalElements = 0;
       let visibleElements = 0;
 
-      // elementGroups may be an object, so use its values
-      Object.values(elementGroups).forEach((group) => {
+      // sceneController.getElementGroups() may be an object, so use its values
+      Object.values(sceneController.getElementGroups()).forEach((group) => {
         if (!group || !group.children) return;
         group.children.forEach((element) => {
           totalElements++;
@@ -212,18 +203,18 @@ export class ImportanceFilter {
       // 描画更新を要求
       this.requestRender();
 
-      console.log(
-        `Importance filter applied: ${visibleElements}/${totalElements} elements visible`
+      log.info(
+        `Importance filter applied: ${visibleElements}/${totalElements} elements visible`,
       );
 
       // フィルタ適用完了を通知
       this.notifyFilterApplied({
         totalElements,
         visibleElements,
-        activeFilters: Array.from(this.activeFilters)
+        activeFilters: Array.from(this.activeFilters),
       });
     } catch (error) {
-      console.error('Failed to apply importance filter:', error);
+      log.error('Failed to apply importance filter:', error);
     }
   }
 
@@ -247,14 +238,15 @@ export class ImportanceFilter {
       viewer.requestRender();
     }
 
-    // カスタム描画更新イベントを発行
+    // カスタム描画更新イベントを発行（EventBus経由）
+    // 注: requestRenderはRenderEventsに含まれていないため、レガシー発行を維持
     window.dispatchEvent(
       new CustomEvent('requestRender', {
         detail: {
           reason: 'importanceFilter',
-          timestamp: new Date().toISOString()
-        }
-      })
+          timestamp: new Date().toISOString(),
+        },
+      }),
     );
   }
 
@@ -264,7 +256,7 @@ export class ImportanceFilter {
   saveToHistory() {
     const currentState = {
       filters: new Set(this.activeFilters),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     this.filterHistory.unshift(currentState);
@@ -317,10 +309,9 @@ export class ImportanceFilter {
    */
   showAllElements() {
     try {
-      const elementGroups = getState('elementGroups');
-      if (!elementGroups) return;
+      if (!sceneController.getElementGroups() || Object.keys(sceneController.getElementGroups()).length === 0) return;
 
-      elementGroups.forEach((group) => {
+      Object.values(sceneController.getElementGroups()).forEach((group) => {
         if (!group || !group.children) return;
         group.children.forEach((element) => {
           element.visible = true;
@@ -329,7 +320,7 @@ export class ImportanceFilter {
 
       this.requestRender();
     } catch (error) {
-      console.error('Failed to show all elements:', error);
+      log.error('Failed to show all elements:', error);
     }
   }
 
@@ -339,17 +330,14 @@ export class ImportanceFilter {
    * @param {Object} details - 詳細情報
    */
   notifyFilterChange(action, details = {}) {
-    window.dispatchEvent(
-      new CustomEvent('importanceFilterChanged', {
-        detail: {
-          action,
-          activeFilters: Array.from(this.activeFilters),
-          isEnabled: this.isEnabled,
-          timestamp: new Date().toISOString(),
-          ...details
-        }
-      })
-    );
+    // EventBus経由でイベントを発行
+    eventBus.emit(ImportanceEvents.FILTER_CHANGED, {
+      action,
+      activeFilters: Array.from(this.activeFilters),
+      isEnabled: this.isEnabled,
+      timestamp: new Date().toISOString(),
+      ...details,
+    });
   }
 
   /**
@@ -357,15 +345,12 @@ export class ImportanceFilter {
    * @param {Object} stats - 統計情報
    */
   notifyFilterApplied(stats) {
-    window.dispatchEvent(
-      new CustomEvent('importanceFilterApplied', {
-        detail: {
-          ...stats,
-          isEnabled: this.isEnabled,
-          timestamp: new Date().toISOString()
-        }
-      })
-    );
+    // EventBus経由でイベントを発行
+    eventBus.emit(ImportanceEvents.FILTER_APPLIED, {
+      ...stats,
+      isEnabled: this.isEnabled,
+      timestamp: new Date().toISOString(),
+    });
   }
 
   /**
@@ -394,8 +379,8 @@ export class ImportanceFilter {
       presets: Object.keys(this.presets),
       history: this.filterHistory.map((h) => ({
         filters: Array.from(h.filters),
-        timestamp: h.timestamp
-      }))
+        timestamp: h.timestamp,
+      })),
     };
   }
 
@@ -404,21 +389,20 @@ export class ImportanceFilter {
    * @returns {Object} フィルタ統計
    */
   getStats() {
-    const elementGroups = getState('elementGroups');
-    if (!elementGroups) {
+    if (!sceneController.getElementGroups() || Object.keys(sceneController.getElementGroups()).length === 0) {
       return {
         totalElements: 0,
         visibleElements: 0,
         hiddenElements: 0,
-        filterEfficiency: 0
+        filterEfficiency: 0,
       };
     }
 
     let totalElements = 0;
     let visibleElements = 0;
 
-    // elementGroups may be an object, so use its values
-    Object.values(elementGroups).forEach((group) => {
+    // sceneController.getElementGroups() may be an object, so use its values
+    Object.values(sceneController.getElementGroups()).forEach((group) => {
       if (!group || !group.children) return;
       group.children.forEach((element) => {
         totalElements++;
@@ -429,8 +413,7 @@ export class ImportanceFilter {
     });
 
     const hiddenElements = totalElements - visibleElements;
-    const filterEfficiency =
-      totalElements > 0 ? (hiddenElements / totalElements) * 100 : 0;
+    const filterEfficiency = totalElements > 0 ? (hiddenElements / totalElements) * 100 : 0;
 
     return {
       totalElements,
@@ -438,7 +421,7 @@ export class ImportanceFilter {
       hiddenElements,
       filterEfficiency: Math.round(filterEfficiency * 100) / 100,
       activeFilterCount: this.activeFilters.size,
-      isEnabled: this.isEnabled
+      isEnabled: this.isEnabled,
     };
   }
 
@@ -446,13 +429,13 @@ export class ImportanceFilter {
    * デバッグ情報を出力
    */
   debug() {
-    console.group('ImportanceFilter Debug Info');
-    console.log('Active filters:', Array.from(this.activeFilters));
-    console.log('Is enabled:', this.isEnabled);
-    console.log('Presets:', this.presets);
-    console.log('History:', this.filterHistory);
-    console.log('Stats:', this.getStats());
-    console.groupEnd();
+    log.info('ImportanceFilter Debug Info');
+    log.info('Active filters:', Array.from(this.activeFilters));
+    log.info('Is enabled:', this.isEnabled);
+    log.info('Presets:', this.presets);
+    log.info('History:', this.filterHistory);
+    log.info('Stats:', this.getStats());
+    log.infoEnd();
   }
 }
 
@@ -517,13 +500,13 @@ export class FilterStatusIndicator {
       }
     });
 
-    // フィルタ状態変更の監視
-    window.addEventListener('importanceFilterChanged', (event) => {
-      this.updateDisplay(event.detail);
+    // フィルタ状態変更の監視（EventBus経由）
+    eventBus.on(ImportanceEvents.FILTER_CHANGED, (data) => {
+      this.updateDisplay(data);
     });
 
-    window.addEventListener('importanceFilterApplied', (event) => {
-      this.updateStats(event.detail);
+    eventBus.on(ImportanceEvents.FILTER_APPLIED, (data) => {
+      this.updateStats(data);
     });
   }
 
@@ -618,16 +601,14 @@ export const globalImportanceFilter = new ImportanceFilter();
  * @param {HTMLElement} indicatorContainer - インジケーター配置先
  * @returns {Object} フィルタとインジケーターのインスタンス
  */
-export function initializeImportanceFilterSystem(
-  indicatorContainer = document.body
-) {
+export function initializeImportanceFilterSystem(indicatorContainer = document.body) {
   const indicator = new FilterStatusIndicator(indicatorContainer);
   indicator.setFilter(globalImportanceFilter);
 
-  console.log('Importance filter system initialized');
+  log.info('Importance filter system initialized');
 
   return {
     filter: globalImportanceFilter,
-    indicator
+    indicator,
   };
 }

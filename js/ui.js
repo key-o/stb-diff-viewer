@@ -28,7 +28,7 @@ export {
   updateAxesData,
   addStateChangeListener,
   removeStateChangeListener,
-  getStateStatistics
+  getStateStatistics,
 } from './ui/state.js';
 
 export {
@@ -42,7 +42,7 @@ export {
   setYAxisSelection,
   resetSelectorsToDefault,
   getSelectorStatistics,
-  validateSelectorElements
+  validateSelectorElements,
 } from './ui/selectors.js';
 
 import { updateLabelVisibility } from './ui/unifiedLabelManager.js';
@@ -54,8 +54,8 @@ export {
   toggleModelBVisibility,
   toggleLegend,
   resetAllSelectors,
-  getEventListenerStatus
-} from './ui/events.js';
+  getEventListenerStatus,
+} from './ui/events/index.js';
 
 export {
   applyStoryClip,
@@ -67,8 +67,12 @@ export {
   createBoxClippingPlanes,
   getCurrentClippingState,
   updateClippingRange,
-  restoreCameraView
+  restoreCameraView,
 } from './ui/clipping.js';
+
+// RC柱断面リストパネル
+import { initColumnSectionListPanel } from './ui/sectionList/index.js';
+export { initColumnSectionListPanel };
 
 /**
  * Initialize all UI modules
@@ -87,6 +91,13 @@ export function initializeUI() {
 
     // Initialize state change coordination
     initializeStateChangeCoordination();
+
+    // Initialize RC column section list panel
+    try {
+      initColumnSectionListPanel();
+    } catch (e) {
+      console.warn('Failed to initialize column section list panel:', e);
+    }
 
     return true;
   } catch (error) {
@@ -119,7 +130,7 @@ export function getUIStatus() {
     labels: getLabelVisibilityStatistics(),
     events: getEventListenerStatus(),
     clipping: getClippingStatus(),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -146,4 +157,4 @@ export function resetAllUI() {
 
 // Import validation and other utilities
 import { validateSelectorElements } from './ui/selectors.js';
-import { setupUIEventListeners } from './ui/events.js';
+import { setupUIEventListeners } from './ui/events/index.js';

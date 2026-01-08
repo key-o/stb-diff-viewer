@@ -12,12 +12,17 @@
  * 重要な差分に注意を向けることができます。
  */
 
-import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../core/importanceManager.js';
+import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../constants/importanceLevels.js';
 import { IMPORTANCE_COLORS } from '../config/importanceConfig.js';
-import { getState, setState } from '../core/globalState.js';
-import { generateImportanceSummary } from '../comparator.js';
+import { getState, setState } from '../app/globalState.js';
+import { comparisonController } from '../app/controllers/comparisonController.js';
 import { floatingWindowManager } from './floatingWindowManager.js';
 import { UI_TIMING } from '../config/uiTimingConfig.js';
+import { eventBus, ImportanceEvents, ComparisonEvents, EditEvents } from '../app/events/index.js';
+import { showError, showWarning } from './toast.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('statistics');
 
 /**
  * 重要度別統計表示クラス
@@ -38,29 +43,36 @@ export class ImportanceStatistics {
    * イベントリスナーを設定
    */
   setupEventListeners() {
-    // 比較結果更新時の統計更新
-    window.addEventListener('updateComparisonStatistics', (event) => {
-      if (event.detail && event.detail.comparisonResults) {
-        this.updateStatistics(event.detail.comparisonResults);
+    // 比較結果更新時の統計更新（EventBus経由）
+    eventBus.on(ComparisonEvents.UPDATE_STATISTICS, (data) => {
+      if (data && data.comparisonResults) {
+        this.updateStatistics(data.comparisonResults);
       }
     });
 
-    // 重要度設定変更時の統計更新
-    window.addEventListener('importanceSettingsChanged', (event) => {
+    // 重要度設定変更時の統計更新（EventBus経由）
+    eventBus.on(ImportanceEvents.SETTINGS_CHANGED, (_data) => {
       if (this.autoUpdateEnabled) {
         setTimeout(() => this.refreshStatistics(), UI_TIMING.STATISTICS_REFRESH_DELAY_MS);
       }
     });
 
-    // フィルタ適用時の統計更新
-    window.addEventListener('importanceFilterApplied', (event) => {
-      this.updateFilterStatistics(event.detail);
+    // フィルタ適用時の統計更新（EventBus経由）
+    eventBus.on(ImportanceEvents.FILTER_APPLIED, (data) => {
+      this.updateFilterStatistics(data);
+    });
+
+    // 編集による属性変更時の統計更新（EventBus経由）
+    eventBus.on(EditEvents.ATTRIBUTE_CHANGED, (_data) => {
+      if (this.autoUpdateEnabled) {
+        setTimeout(() => this.refreshStatistics(), UI_TIMING.STATISTICS_REFRESH_DELAY_MS);
+      }
     });
   }
 
   /**
    * 統計表示を初期化
-  * @param {HTMLElement} containerElement - 統計表示用コンテナー
+   * @param {HTMLElement} containerElement - 統計表示用コンテナー
    */
   initialize(containerElement) {
     this.containerElement = containerElement;
@@ -73,7 +85,7 @@ export class ImportanceStatistics {
     // 初回統計の生成
     this.refreshStatistics();
 
-    console.log('ImportanceStatistics initialized');
+    log.info('ImportanceStatistics initialized');
   }
 
   /**
@@ -95,7 +107,7 @@ export class ImportanceStatistics {
       onHide: () => {
         this.isVisible = false;
         setState('ui.statisticsPanelVisible', false);
-      }
+      },
     });
   }
 
@@ -280,7 +292,7 @@ export class ImportanceStatistics {
     if (typeof window.toggleDiffList === 'function') {
       window.toggleDiffList();
     } else {
-      console.warn('差分一覧パネルが初期化されていません');
+      log.warn('差分一覧パネルが初期化されていません');
     }
   }
 
@@ -290,32 +302,31 @@ export class ImportanceStatistics {
    */
   updateStatistics(comparisonResults) {
     try {
-      console.log('Updating statistics with comparison results:', comparisonResults);
+      log.info('Updating statistics with comparison results:', comparisonResults);
 
       // 比較結果から統計を生成
       const results = Array.from(comparisonResults.values());
-      console.log('Raw comparison results:', results);
+      log.info('Raw comparison results:', results);
 
-      const resultsWithImportance = results.filter(result => result.importanceStats);
-      console.log('Results with importance stats:', resultsWithImportance);
+      const resultsWithImportance = results.filter((result) => result.importanceStats);
+      log.info('Results with importance stats:', resultsWithImportance);
 
       if (resultsWithImportance.length === 0) {
-        console.warn('No results with importance statistics found');
+        log.warn('No results with importance statistics found');
         // 重要度情報がない場合は基本的な統計を作成
         this.createBasicStatistics(results);
       } else {
-        this.statistics = generateImportanceSummary(resultsWithImportance);
+        this.statistics = comparisonController.getImportanceSummary(resultsWithImportance);
       }
 
-      console.log('Final statistics:', this.statistics);
+      log.info('Final statistics:', this.statistics);
 
       // 表示を更新
       if (this.isVisible) {
         this.updateDisplay();
       }
-
     } catch (error) {
-      console.error('Failed to update statistics:', error);
+      log.error('Failed to update statistics:', error);
     }
   }
 
@@ -330,7 +341,7 @@ export class ImportanceStatistics {
       criticalDifferences: 0,
       byImportance: {},
       byElementType: {},
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     // 重要度レベル別の初期化
@@ -339,12 +350,12 @@ export class ImportanceStatistics {
         matched: 0,
         differences: 0,
         onlyA: 0,
-        onlyB: 0
+        onlyB: 0,
       };
     }
 
     // 各結果を処理
-    results.forEach(result => {
+    results.forEach((result) => {
       if (!result) return;
 
       const matched = result.matched ? result.matched.length : 0;
@@ -362,7 +373,7 @@ export class ImportanceStatistics {
           totalMatched: matched,
           totalDifferences: differences,
           totalOnlyA: onlyA,
-          totalOnlyB: onlyB
+          totalOnlyB: onlyB,
         };
       }
 
@@ -374,7 +385,7 @@ export class ImportanceStatistics {
       this.statistics.criticalDifferences += differences;
     });
 
-    console.log('Created basic statistics:', this.statistics);
+    log.info('Created basic statistics:', this.statistics);
   }
 
   /**
@@ -385,7 +396,7 @@ export class ImportanceStatistics {
     if (comparisonResults) {
       this.updateStatistics(comparisonResults);
     } else {
-      console.log('No comparison results available for statistics');
+      log.info('No comparison results available for statistics');
     }
   }
 
@@ -435,9 +446,10 @@ export class ImportanceStatistics {
       const levelName = IMPORTANCE_LEVEL_NAMES[level];
       const color = IMPORTANCE_COLORS[level];
       const total = stats.matched + stats.differences;
-      const percentage = this.statistics.totalElements > 0
-        ? ((total / this.statistics.totalElements) * 100).toFixed(1)
-        : '0.0';
+      const percentage =
+        this.statistics.totalElements > 0
+          ? ((total / this.statistics.totalElements) * 100).toFixed(1)
+          : '0.0';
 
       row.innerHTML = `
         <td class="importance-cell">
@@ -562,7 +574,7 @@ export class ImportanceStatistics {
    */
   updateStatisticsDisplay(mode) {
     // 現在は基本的な切り替えのみ実装
-    console.log(`Statistics view mode changed to: ${mode}`);
+    log.info(`Statistics view mode changed to: ${mode}`);
     this.updateStatisticsTable();
   }
 
@@ -576,7 +588,7 @@ export class ImportanceStatistics {
     button.textContent = isDetailed ? '詳細表示' : '簡易表示';
 
     // 詳細表示の実装（今後拡張可能）
-    console.log(`Type detail view: ${!isDetailed ? 'detailed' : 'simple'}`);
+    log.info(`Type detail view: ${!isDetailed ? 'detailed' : 'simple'}`);
   }
 
   /**
@@ -584,7 +596,7 @@ export class ImportanceStatistics {
    */
   exportStatistics() {
     if (!this.statistics) {
-      alert('エクスポートする統計データがありません。');
+      showWarning('エクスポートする統計データがありません。');
       return;
     }
 
@@ -594,10 +606,10 @@ export class ImportanceStatistics {
         summary: {
           totalElements: this.statistics.totalElements,
           totalDifferences: this.statistics.totalDifferences,
-          criticalDifferences: this.statistics.criticalDifferences
+          criticalDifferences: this.statistics.criticalDifferences,
         },
         byImportance: this.statistics.byImportance,
-        byElementType: this.statistics.byElementType
+        byElementType: this.statistics.byElementType,
       };
 
       const jsonContent = JSON.stringify(exportData, null, 2);
@@ -606,18 +618,20 @@ export class ImportanceStatistics {
 
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', `importance_statistics_${new Date().toISOString().slice(0, 10)}.json`);
+      link.setAttribute(
+        'download',
+        `importance_statistics_${new Date().toISOString().slice(0, 10)}.json`,
+      );
       link.style.visibility = 'hidden';
 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
-      console.log('Statistics exported successfully');
-
+      log.info('Statistics exported successfully');
     } catch (error) {
-      console.error('Failed to export statistics:', error);
-      alert('統計データのエクスポートに失敗しました。');
+      log.error('Failed to export statistics:', error);
+      showError('統計データのエクスポートに失敗しました。');
     }
   }
 

@@ -26,9 +26,9 @@
 .clip-range-controls {
   margin-top: 10px;
   padding: 12px;
-  background: #f8f9fa;
-  border-radius: 6px;
-  border: 1px solid #e9ecef;
+  background: var(--bg-panel);
+  border-radius: var(--border-radius-lg);
+  border: var(--border-width) solid var(--border-color-light);
   animation: slideDown 0.3s ease;
 }
 
@@ -60,7 +60,7 @@
 .range-control-group label {
   font-size: 0.85em;
   font-weight: 600;
-  color: #495057;
+  color: var(--text-primary);
   margin-bottom: 4px;
 }
 
@@ -72,7 +72,7 @@
 
 .range-label {
   font-size: 0.75em;
-  color: #6c757d;
+  color: var(--text-secondary);
   white-space: nowrap;
   min-width: 30px;
   text-align: center;
@@ -82,11 +82,11 @@
   text-align: center;
   font-size: 0.9em;
   font-weight: 600;
-  color: #495057;
-  background: #fff;
+  color: var(--text-primary);
+  background: var(--bg-body);
   padding: 4px 8px;
-  border-radius: 4px;
-  border: 1px solid #dee2e6;
+  border-radius: var(--border-radius);
+  border: var(--border-width) solid var(--border-color);
   min-width: 60px;
 }
 
@@ -97,8 +97,8 @@
 .clip-range-slider {
   flex: 1;
   height: 6px;
-  background: #dee2e6;
-  border-radius: 3px;
+  background: var(--border-color);
+  border-radius: var(--border-radius-sm);
   outline: none;
   -webkit-appearance: none;
   appearance: none;
@@ -154,11 +154,11 @@
 }
 
 .clip-apply-btn:hover {
-  background: #218838;
+  filter: brightness(0.9);
 }
 
 .clip-apply-btn:active {
-  background: #1e7e34;
+  filter: brightness(0.85);
 }
 
 .clear-clip-btn {
@@ -173,7 +173,7 @@
 }
 
 .clear-clip-btn:hover {
-  background: #c82333;
+  filter: brightness(0.9);
 }
 
 .preview-clip-btn {
@@ -189,7 +189,7 @@
 }
 
 .preview-clip-btn:hover {
-  background: #138496;
+  filter: brightness(0.9);
 }
 
 /* ========================================
@@ -198,7 +198,7 @@
 
 .clipping-active {
   border-left: 4px solid var(--color-success);
-  background: linear-gradient(135deg, #f8fff9 0%, #f1f9f1 100%);
+  background: linear-gradient(135deg, rgba(5, 150, 105, 0.05) 0%, rgba(5, 150, 105, 0.1) 100%);
 }
 
 .clipping-group.active .clip-apply-btn {
@@ -207,5 +207,5 @@
 }
 
 .clipping-group.active .clip-apply-btn:hover {
-  background: #e0a800;
+  filter: brightness(0.9);
 }

@@ -44,7 +44,7 @@ export class BaseElementGenerator {
     return {
       elementName: 'Element',
       loggerName: 'viewer:geometry:element',
-      defaultElementType: 'Element'
+      defaultElementType: 'Element',
     };
   }
 
@@ -73,14 +73,7 @@ export class BaseElementGenerator {
    * @param {boolean} [isJsonInput=false] - JSON入力かどうか
    * @returns {Array<THREE.Mesh>} 生成されたメッシュ配列
    */
-  static createMeshes(
-    elements,
-    nodes,
-    sections,
-    steelSections,
-    elementType,
-    isJsonInput = false
-  ) {
+  static createMeshes(elements, nodes, sections, steelSections, elementType, isJsonInput = false) {
     const config = this.getConfig();
     const log = this._getLogger();
     const resolvedElementType = elementType || config.defaultElementType;
@@ -95,7 +88,7 @@ export class BaseElementGenerator {
       steelSections,
       elementType: resolvedElementType,
       isJsonInput,
-      log
+      log,
     };
 
     for (const element of elements) {
@@ -133,9 +126,7 @@ export class BaseElementGenerator {
    * @abstract
    */
   static _createSingleMesh(element, context) {
-    throw new Error(
-      `${this.name}._createSingleMesh() must be implemented by subclass`
-    );
+    throw new Error(`${this.name}._createSingleMesh() must be implemented by subclass`);
   }
 
   // ===== 共通ヘルパーメソッド =====
@@ -152,7 +143,7 @@ export class BaseElementGenerator {
     return {
       elementType: context.elementType,
       silent: false,
-      ...options
+      ...options,
     };
   }
 
@@ -166,11 +157,7 @@ export class BaseElementGenerator {
    */
   static _validateNodePositions(nodePositions, element, context) {
     const options = this._createValidatorOptions(element, context);
-    return MeshCreationValidator.validateNodePositions(
-      nodePositions,
-      element.id,
-      options
-    );
+    return MeshCreationValidator.validateNodePositions(nodePositions, element.id, options);
   }
 
   /**
@@ -183,11 +170,7 @@ export class BaseElementGenerator {
    */
   static _validateSectionData(sectionData, element, context) {
     const options = this._createValidatorOptions(element, context);
-    return MeshCreationValidator.validateSectionData(
-      sectionData,
-      element.id,
-      options
-    );
+    return MeshCreationValidator.validateSectionData(sectionData, element.id, options);
   }
 
   /**
@@ -200,11 +183,7 @@ export class BaseElementGenerator {
    */
   static _validatePlacement(placement, element, context) {
     const options = this._createValidatorOptions(element, context);
-    return MeshCreationValidator.validatePlacement(
-      placement,
-      element.id,
-      options
-    );
+    return MeshCreationValidator.validatePlacement(placement, element.id, options);
   }
 
   /**
@@ -217,11 +196,7 @@ export class BaseElementGenerator {
    */
   static _validateProfile(profileResult, element, context) {
     const options = this._createValidatorOptions(element, context);
-    return MeshCreationValidator.validateProfile(
-      profileResult,
-      element.id,
-      options
-    );
+    return MeshCreationValidator.validateProfile(profileResult, element.id, options);
   }
 
   /**
@@ -234,11 +209,7 @@ export class BaseElementGenerator {
    */
   static _validateGeometry(geometry, element, context) {
     const options = this._createValidatorOptions(element, context);
-    return MeshCreationValidator.validateGeometry(
-      geometry,
-      element.id,
-      options
-    );
+    return MeshCreationValidator.validateGeometry(geometry, element.id, options);
   }
 
   /**
@@ -260,10 +231,7 @@ export class BaseElementGenerator {
    * @returns {number} 最終回転角度（度）
    */
   static _calculateRotation(sectionData, baseRotation = 0) {
-    return SectionTypeNormalizer.calculateRotationWithReference(
-      sectionData,
-      baseRotation
-    );
+    return SectionTypeNormalizer.calculateRotationWithReference(sectionData, baseRotation);
   }
 
   /**

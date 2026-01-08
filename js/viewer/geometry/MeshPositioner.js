@@ -29,39 +29,83 @@ export class MeshPositioner {
    * @param {Object} options.offsets - Element offsets ({start_X, start_Y, start_Z, end_X, end_Y, end_Z})
    * @param {Object} options.sectionDimensions - Section dimensions for height adjustment
    * @returns {THREE.Mesh} Positioned mesh
+   * @throws {TypeError} If mesh is not a THREE.Mesh
+   * @throws {TypeError} If startNode or endNode is not a valid Vector3
+   * @throws {TypeError} If geometry is not provided
+   * @throws {TypeError} If options is not an object
    */
-  static positionLinearElement(
-    mesh,
-    startNode,
-    endNode,
-    geometry,
-    options = {}
-  ) {
+  static positionLinearElement(mesh, startNode, endNode, geometry, options = {}) {
+    // Validate mesh
+    if (!mesh || !(mesh instanceof THREE.Mesh)) {
+      const error = new TypeError('mesh must be a THREE.Mesh instance');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    // Validate startNode and endNode
+    if (!this.isValidVector(startNode)) {
+      const error = new TypeError('startNode must be a valid THREE.Vector3');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    if (!this.isValidVector(endNode)) {
+      const error = new TypeError('endNode must be a valid THREE.Vector3');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    // Validate geometry
+    if (!geometry) {
+      const error = new TypeError('geometry must be provided');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    // Validate options
+    if (options !== null && typeof options !== 'object') {
+      const error = new TypeError('options must be an object if provided');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    if (Array.isArray(options)) {
+      const error = new TypeError('options must be an object, not an array');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
     const {
       elementType = 'beam',
       coordinateSystem = 'architectural',
       rollAngle = 0,
       offsets = {},
-      sectionDimensions = {}
+      sectionDimensions = {},
     } = options;
+
+    // Validate extracted options
+    if (typeof elementType !== 'string') {
+      const error = new TypeError('options.elementType must be a string');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    if (typeof rollAngle !== 'number' || !isFinite(rollAngle)) {
+      const error = new TypeError('options.rollAngle must be a finite number');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
 
     // Calculate element vector and properties
     const elementVector = new THREE.Vector3().subVectors(endNode, startNode);
-    const elementLength = elementVector.length();
     const elementDirection = elementVector.normalize();
 
     // Apply offsets to node positions if provided
-    const adjustedStartNode = this.applyNodeOffsets(
-      startNode,
-      offsets,
-      'start'
-    );
+    const adjustedStartNode = this.applyNodeOffsets(startNode, offsets, 'start');
     const adjustedEndNode = this.applyNodeOffsets(endNode, offsets, 'end');
 
     // Calculate position with offset adjustments
-    const basePosition = new THREE.Vector3()
-      .copy(adjustedStartNode)
-      .lerp(adjustedEndNode, 0.5);
+    const basePosition = new THREE.Vector3().copy(adjustedStartNode).lerp(adjustedEndNode, 0.5);
 
     // Apply beam-specific height adjustment for proper bottom level positioning
     if (elementType === 'beam' && sectionDimensions.height) {
@@ -72,13 +116,7 @@ export class MeshPositioner {
     mesh.position.copy(basePosition);
 
     // Apply rotation based on geometry type and element orientation
-    this.applyElementRotation(
-      mesh,
-      elementDirection,
-      geometry,
-      elementType,
-      rollAngle
-    );
+    this.applyElementRotation(mesh, elementDirection, geometry, elementType, rollAngle);
 
     // Apply coordinate system adjustments if needed
     if (coordinateSystem === 'structural') {
@@ -95,14 +133,40 @@ export class MeshPositioner {
    * @param {THREE.Geometry} geometry - Geometry type
    * @param {string} elementType - Element type
    * @param {number} rollAngle - Roll angle in radians
+   * @throws {TypeError} If mesh is not a THREE.Mesh
+   * @throws {TypeError} If direction is not a valid Vector3
+   * @throws {TypeError} If elementType is not a string
+   * @throws {TypeError} If rollAngle is not a finite number
    */
-  static applyElementRotation(
-    mesh,
-    direction,
-    geometry,
-    elementType,
-    rollAngle
-  ) {
+  static applyElementRotation(mesh, direction, geometry, elementType, rollAngle) {
+    // Validate mesh
+    if (!mesh || !(mesh instanceof THREE.Mesh)) {
+      const error = new TypeError('mesh must be a THREE.Mesh instance');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    // Validate direction
+    if (!this.isValidVector(direction)) {
+      const error = new TypeError('direction must be a valid THREE.Vector3');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    // Validate elementType
+    if (typeof elementType !== 'string') {
+      const error = new TypeError('elementType must be a string');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    // Validate rollAngle
+    if (typeof rollAngle !== 'number' || !isFinite(rollAngle)) {
+      const error = new TypeError('rollAngle must be a finite number');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
     // Define reference axes based on geometry type
     const referenceAxis = this.getReferenceAxis(geometry, elementType);
 
@@ -129,8 +193,24 @@ export class MeshPositioner {
    * @param {THREE.Geometry} geometry - Geometry instance
    * @param {string} elementType - Element type
    * @returns {THREE.Vector3} Reference axis vector
+   * @throws {TypeError} If geometry is not provided
+   * @throws {TypeError} If elementType is not a string
    */
   static getReferenceAxis(geometry, elementType) {
+    // Validate geometry
+    if (!geometry) {
+      const error = new TypeError('geometry must be provided');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    // Validate elementType
+    if (typeof elementType !== 'string') {
+      const error = new TypeError('elementType must be a string');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
     if (geometry instanceof THREE.CylinderGeometry) {
       // ブレース用CylinderGeometry: 事前にZ軸方向に回転済みなのでZ軸を基準軸とする
       // 柱用の場合は従来通りY軸を使用
@@ -176,10 +256,6 @@ export class MeshPositioner {
       // デバッグ用ログ
       if (Math.random() < 0.01) {
         // 1%の確率
-        console.log(
-          `Applied H-section roll rotation for ${elementType} along direction:`,
-          direction.toArray().map((v) => v.toFixed(3))
-        );
       }
     }
 
@@ -189,10 +265,6 @@ export class MeshPositioner {
     // デバッグ用：実際の配置情報をログ出力
     if (console.log && Math.random() < 0.01) {
       // 1%の確率でログ出力
-      console.log(
-        `Element ${elementType} positioned along direction:`,
-        direction.toArray().map((v) => v.toFixed(3))
-      );
     }
   }
 
@@ -221,13 +293,6 @@ export class MeshPositioner {
     // デバッグログ
     if (Math.random() < 0.05) {
       // 5%の確率でブレースログ
-      console.log(
-        `Brace rotation applied: geometry=${
-          mesh.geometry.constructor.name
-        }, direction=(${direction.x.toFixed(3)}, ${direction.y.toFixed(
-          3
-        )}, ${direction.z.toFixed(3)})`
-      );
     }
   }
 
@@ -265,9 +330,7 @@ export class MeshPositioner {
       // 水平梁：強軸をZ軸に向ける
       const rightVector = new THREE.Vector3().copy(direction).normalize();
       const upVector = new THREE.Vector3(0, 0, 1); // Z軸を上方向とする
-      const forwardVector = new THREE.Vector3()
-        .crossVectors(rightVector, upVector)
-        .normalize();
+      const forwardVector = new THREE.Vector3().crossVectors(rightVector, upVector).normalize();
 
       // 梁の向きに合わせた座標系を作成
       const matrix = new THREE.Matrix4();
@@ -311,8 +374,33 @@ export class MeshPositioner {
    * @param {THREE.Vector3} endNode - End node position
    * @param {Object} sectionDimensions - Section dimensions
    * @returns {THREE.Box3} Element bounding box
+   * @throws {TypeError} If startNode or endNode is not a valid Vector3
+   * @throws {TypeError} If sectionDimensions is provided but not an object
    */
   static calculateElementBounds(startNode, endNode, sectionDimensions) {
+    // Validate startNode
+    if (!this.isValidVector(startNode)) {
+      const error = new TypeError('startNode must be a valid THREE.Vector3');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    // Validate endNode
+    if (!this.isValidVector(endNode)) {
+      const error = new TypeError('endNode must be a valid THREE.Vector3');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    // Validate sectionDimensions if provided
+    if (sectionDimensions !== null && sectionDimensions !== undefined) {
+      if (typeof sectionDimensions !== 'object' || Array.isArray(sectionDimensions)) {
+        const error = new TypeError('sectionDimensions must be an object if provided');
+        console.error('MeshPositioner validation failed:', error);
+        throw error;
+      }
+    }
+
     const box = new THREE.Box3();
 
     // Add start and end points
@@ -324,7 +412,7 @@ export class MeshPositioner {
       const maxDim = Math.max(
         sectionDimensions.width || 0,
         sectionDimensions.height || 0,
-        sectionDimensions.depth || 0
+        sectionDimensions.depth || 0,
       );
 
       box.expandByScalar(maxDim / 2);
@@ -340,7 +428,7 @@ export class MeshPositioner {
    * @param {Object} options - Positioning options
    * @returns {boolean} True if parameters are valid
    */
-  static validatePositioningParameters(startNode, endNode, options = {}) {
+  static validatePositioningParameters(startNode, endNode, _options = {}) {
     // Check node validity
     if (!startNode || !endNode) {
       console.error('Invalid start or end node for positioning');
@@ -395,10 +483,7 @@ export class MeshPositioner {
     debugGroup.name = `debug_${elementId}`;
 
     // Element centerline
-    const lineGeometry = new THREE.BufferGeometry().setFromPoints([
-      startNode,
-      endNode
-    ]);
+    const lineGeometry = new THREE.BufferGeometry().setFromPoints([startNode, endNode]);
     const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
     const centerline = new THREE.Line(lineGeometry, lineMaterial);
     debugGroup.add(centerline);
@@ -434,8 +519,38 @@ export class MeshPositioner {
    * @param {Object} offsets - Offset values
    * @param {string} side - 'start' or 'end'
    * @returns {THREE.Vector3} Adjusted node position
+   * @throws {TypeError} If nodePosition is not a valid Vector3
+   * @throws {TypeError} If offsets is not an object
+   * @throws {TypeError} If side is not a string
    */
   static applyNodeOffsets(nodePosition, offsets, side) {
+    // Validate nodePosition
+    if (!this.isValidVector(nodePosition)) {
+      const error = new TypeError('nodePosition must be a valid THREE.Vector3');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    // Validate offsets
+    if (!offsets || typeof offsets !== 'object' || Array.isArray(offsets)) {
+      const error = new TypeError('offsets must be a non-null object');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    // Validate side
+    if (typeof side !== 'string') {
+      const error = new TypeError('side must be a string');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    if (side !== 'start' && side !== 'end') {
+      const error = new RangeError('side must be either "start" or "end"');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
     const adjustedNode = nodePosition.clone();
 
     // Apply X, Y, Z offsets if they exist
@@ -457,8 +572,40 @@ export class MeshPositioner {
    * @param {THREE.Vector3} position - Base position to adjust
    * @param {Object} sectionDimensions - Section dimensions
    * @param {Object} offsets - Offset values
+   * @throws {TypeError} If position is not a valid Vector3
+   * @throws {TypeError} If sectionDimensions is not an object
+   * @throws {RangeError} If sectionDimensions.height is negative
    */
-  static applyBeamHeightAdjustment(position, sectionDimensions, offsets) {
+  static applyBeamHeightAdjustment(position, sectionDimensions, _offsets) {
+    // Validate position
+    if (!this.isValidVector(position)) {
+      const error = new TypeError('position must be a valid THREE.Vector3');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    // Validate sectionDimensions
+    if (!sectionDimensions || typeof sectionDimensions !== 'object' || Array.isArray(sectionDimensions)) {
+      const error = new TypeError('sectionDimensions must be a non-null object');
+      console.error('MeshPositioner validation failed:', error);
+      throw error;
+    }
+
+    // Validate height if provided
+    if (sectionDimensions.height !== undefined) {
+      if (typeof sectionDimensions.height !== 'number' || !isFinite(sectionDimensions.height)) {
+        const error = new TypeError('sectionDimensions.height must be a finite number if provided');
+        console.error('MeshPositioner validation failed:', error);
+        throw error;
+      }
+
+      if (sectionDimensions.height < 0) {
+        const error = new RangeError('sectionDimensions.height must be non-negative');
+        console.error('MeshPositioner validation failed:', error);
+        throw error;
+      }
+    }
+
     const beamHeight = sectionDimensions.height || 0;
 
     // 梁の場合：節点レベルから梁せいの半分下げて、梁の中心位置とする
@@ -468,11 +615,6 @@ export class MeshPositioner {
 
     // デバッグ用ログ
     if (Math.random() < 0.01) {
-      console.log(
-        `Beam height adjustment: height=${beamHeight}mm, position adjusted by ${
-          -beamHeight / 2
-        }mm in Z`
-      );
     }
   }
 }

@@ -31,7 +31,7 @@ export class SectionTypeNormalizer {
     'T',
     'C',
     'FLAT',
-    'ROUND'
+    'ROUND',
   ];
 
   /**
@@ -51,22 +51,22 @@ export class SectionTypeNormalizer {
    * @constant
    */
   static TYPE_ALIASES = {
-    'RECTANGULAR': 'RECTANGLE',
-    'RECT': 'RECTANGLE',
-    'SQ': 'RECTANGLE',
-    'SQUARE': 'RECTANGLE',
-    'CIRCULAR': 'CIRCLE',
-    'ROUND': 'CIRCLE',
-    'HOLLOW': 'PIPE',
-    'TUBE': 'PIPE',
-    'CHS': 'PIPE',
-    'RHS': 'BOX',
-    'SHS': 'BOX',
-    'I': 'H',
-    'WIDE_FLANGE': 'H',
-    'ANGLE': 'L',
-    'CHANNEL': 'C',
-    'TEE': 'T'
+    RECTANGULAR: 'RECTANGLE',
+    RECT: 'RECTANGLE',
+    SQ: 'RECTANGLE',
+    SQUARE: 'RECTANGLE',
+    CIRCULAR: 'CIRCLE',
+    ROUND: 'CIRCLE',
+    HOLLOW: 'PIPE',
+    TUBE: 'PIPE',
+    CHS: 'PIPE',
+    RHS: 'BOX',
+    SHS: 'BOX',
+    I: 'H',
+    WIDE_FLANGE: 'H',
+    ANGLE: 'L',
+    CHANNEL: 'C',
+    TEE: 'T',
   };
 
   /**
@@ -79,10 +79,7 @@ export class SectionTypeNormalizer {
    * @returns {string} 正規化された断面タイプ（大文字）
    */
   static normalize(sectionData, options = {}) {
-    const {
-      defaultType = 'RECTANGLE',
-      inferFromDimensions = true
-    } = options;
+    const { defaultType = 'RECTANGLE', inferFromDimensions = true } = options;
 
     if (!sectionData) {
       return defaultType;
@@ -285,16 +282,16 @@ export class SectionTypeNormalizer {
     }
 
     const displayNames = {
-      'H': 'H形鋼',
-      'BOX': '角形鋼管',
-      'PIPE': '円形鋼管',
-      'RECTANGLE': '矩形',
-      'CIRCLE': '円形',
-      'L': '山形鋼',
-      'T': 'T形鋼',
-      'C': '溝形鋼',
-      'FLAT': 'フラットバー',
-      'ROUND': '丸鋼'
+      H: 'H形鋼',
+      BOX: '角形鋼管',
+      PIPE: '円形鋼管',
+      RECTANGLE: '矩形',
+      CIRCLE: '円形',
+      L: '山形鋼',
+      T: 'T形鋼',
+      C: '溝形鋼',
+      FLAT: 'フラットバー',
+      ROUND: '丸鋼',
     };
 
     const upper = sectionType.toUpperCase();

@@ -31,7 +31,7 @@ export function parseDxf(dxfContent) {
     log.info('DXFパース完了:', {
       entities: dxf.entities?.length || 0,
       layers: Object.keys(dxf.tables?.layer?.layers || {}).length,
-      blocks: Object.keys(dxf.blocks || {}).length
+      blocks: Object.keys(dxf.blocks || {}).length,
     });
 
     return dxf;
@@ -55,9 +55,9 @@ export function extractEntities(dxf) {
     lwpolylines: [],
     points: [],
     texts: [],
-    inserts: [],  // ブロック参照
+    inserts: [], // ブロック参照
     dimensions: [],
-    others: []
+    others: [],
   };
 
   if (!dxf.entities) {
@@ -76,7 +76,7 @@ export function extractEntities(dxf) {
     arcs: entities.arcs.length,
     texts: entities.texts.length,
     dimensions: entities.dimensions.length,
-    inserts: entities.inserts.length
+    inserts: entities.inserts.length,
   });
 
   return entities;
@@ -95,7 +95,18 @@ export function extractEntities(dxf) {
  * @param {number} scaleZ - Z スケール
  * @param {number} rotation - 回転角度（度）
  */
-function processEntity(entity, dxf, entities, offsetX, offsetY, offsetZ, scaleX, scaleY, scaleZ, rotation) {
+function processEntity(
+  entity,
+  dxf,
+  entities,
+  offsetX,
+  offsetY,
+  offsetZ,
+  scaleX,
+  scaleY,
+  scaleZ,
+  rotation,
+) {
   const layer = entity.layer || '0';
   const color = getEntityColor(entity, dxf);
 
@@ -108,7 +119,7 @@ function processEntity(entity, dxf, entities, offsetX, offsetY, offsetZ, scaleX,
 
     // 回転適用（Z軸周り）
     if (rotation !== 0) {
-      const rad = rotation * Math.PI / 180;
+      const rad = (rotation * Math.PI) / 180;
       const cos = Math.cos(rad);
       const sin = Math.sin(rad);
       const rx = tx * cos - ty * sin;
@@ -121,39 +132,43 @@ function processEntity(entity, dxf, entities, offsetX, offsetY, offsetZ, scaleX,
     return {
       x: tx + offsetX,
       y: ty + offsetY,
-      z: tz + offsetZ
+      z: tz + offsetZ,
     };
   };
 
   switch (entity.type) {
     case 'LINE': {
-      const start = transformPoint(entity.vertices[0].x, entity.vertices[0].y, entity.vertices[0].z);
+      const start = transformPoint(
+        entity.vertices[0].x,
+        entity.vertices[0].y,
+        entity.vertices[0].z,
+      );
       const end = transformPoint(entity.vertices[1].x, entity.vertices[1].y, entity.vertices[1].z);
       entities.lines.push({
         start,
         end,
         layer,
-        color
+        color,
       });
       break;
     }
 
     case 'POLYLINE':
     case 'LWPOLYLINE': {
-      const points = entity.vertices.map(v => {
+      const points = entity.vertices.map((v) => {
         const tp = transformPoint(v.x, v.y, v.z);
         return {
           x: tp.x,
           y: tp.y,
           z: tp.z,
-          bulge: v.bulge || 0
+          bulge: v.bulge || 0,
         };
       });
       entities.lwpolylines.push({
         points,
         closed: entity.shape || false,
         layer,
-        color
+        color,
       });
       break;
     }
@@ -162,9 +177,9 @@ function processEntity(entity, dxf, entities, offsetX, offsetY, offsetZ, scaleX,
       const center = transformPoint(entity.center.x, entity.center.y, entity.center.z);
       entities.circles.push({
         center,
-        radius: entity.radius * Math.abs(scaleX),  // スケールを適用
+        radius: entity.radius * Math.abs(scaleX), // スケールを適用
         layer,
-        color
+        color,
       });
       break;
     }
@@ -177,7 +192,7 @@ function processEntity(entity, dxf, entities, offsetX, offsetY, offsetZ, scaleX,
         startAngle: entity.startAngle + rotation,
         endAngle: entity.endAngle + rotation,
         layer,
-        color
+        color,
       });
       break;
     }
@@ -187,7 +202,7 @@ function processEntity(entity, dxf, entities, offsetX, offsetY, offsetZ, scaleX,
       entities.points.push({
         position,
         layer,
-        color
+        color,
       });
       break;
     }
@@ -204,7 +219,7 @@ function processEntity(entity, dxf, entities, offsetX, offsetY, offsetZ, scaleX,
         height: (entity.textHeight || entity.height || 1) * Math.abs(scaleY),
         rotation: (entity.rotation || 0) + rotation,
         layer,
-        color
+        color,
       });
       break;
     }
@@ -238,7 +253,7 @@ function processEntity(entity, dxf, entities, offsetX, offsetY, offsetZ, scaleX,
             newScaleX,
             newScaleY,
             newScaleZ,
-            newRotation
+            newRotation,
           );
         }
       }
@@ -246,11 +261,15 @@ function processEntity(entity, dxf, entities, offsetX, offsetY, offsetZ, scaleX,
       // INSERT自体も記録（参照用）
       entities.inserts.push({
         name: entity.name,
-        position: transformPoint(entity.position?.x || 0, entity.position?.y || 0, entity.position?.z || 0),
+        position: transformPoint(
+          entity.position?.x || 0,
+          entity.position?.y || 0,
+          entity.position?.z || 0,
+        ),
         scale: { x: entity.xScale || 1, y: entity.yScale || 1, z: entity.zScale || 1 },
         rotation: entity.rotation || 0,
         layer,
-        color
+        color,
       });
       break;
     }
@@ -264,7 +283,7 @@ function processEntity(entity, dxf, entities, offsetX, offsetY, offsetZ, scaleX,
         type: entity.type,
         layer,
         color,
-        raw: entity
+        raw: entity,
       });
   }
 }
@@ -286,42 +305,52 @@ function extractDimensionData(entity, layer, color) {
   // 5: Angular 3-point
   // 6: Ordinate (座標寸法)
 
-  const dimType = entity.dimensionType & 0x0F; // 下位4ビットがタイプ
+  const dimType = entity.dimensionType & 0x0f; // 下位4ビットがタイプ
 
   const dimension = {
     dimensionType: dimType,
     layer,
     color,
     // 寸法線の定義点
-    anchorPoint: entity.anchorPoint ? {
-      x: entity.anchorPoint.x || 0,
-      y: entity.anchorPoint.y || 0,
-      z: entity.anchorPoint.z || 0
-    } : null,
+    anchorPoint: entity.anchorPoint
+      ? {
+          x: entity.anchorPoint.x || 0,
+          y: entity.anchorPoint.y || 0,
+          z: entity.anchorPoint.z || 0,
+        }
+      : null,
     // 寸法補助線の起点1 (線形寸法用)
-    extLine1: entity.middleOfText ? {
-      x: entity.middleOfText.x || 0,
-      y: entity.middleOfText.y || 0,
-      z: entity.middleOfText.z || 0
-    } : null,
+    extLine1: entity.middleOfText
+      ? {
+          x: entity.middleOfText.x || 0,
+          y: entity.middleOfText.y || 0,
+          z: entity.middleOfText.z || 0,
+        }
+      : null,
     // 寸法補助線の起点2 (線形寸法用)
-    extLine2: entity.insertionPoint ? {
-      x: entity.insertionPoint.x || 0,
-      y: entity.insertionPoint.y || 0,
-      z: entity.insertionPoint.z || 0
-    } : null,
+    extLine2: entity.insertionPoint
+      ? {
+          x: entity.insertionPoint.x || 0,
+          y: entity.insertionPoint.y || 0,
+          z: entity.insertionPoint.z || 0,
+        }
+      : null,
     // 寸法線の位置を決定する点
-    dimensionLinePoint: entity.linearOrAngularPoint1 ? {
-      x: entity.linearOrAngularPoint1.x || 0,
-      y: entity.linearOrAngularPoint1.y || 0,
-      z: entity.linearOrAngularPoint1.z || 0
-    } : null,
+    dimensionLinePoint: entity.linearOrAngularPoint1
+      ? {
+          x: entity.linearOrAngularPoint1.x || 0,
+          y: entity.linearOrAngularPoint1.y || 0,
+          z: entity.linearOrAngularPoint1.z || 0,
+        }
+      : null,
     // 2つ目の点 (角度寸法用など)
-    point2: entity.linearOrAngularPoint2 ? {
-      x: entity.linearOrAngularPoint2.x || 0,
-      y: entity.linearOrAngularPoint2.y || 0,
-      z: entity.linearOrAngularPoint2.z || 0
-    } : null,
+    point2: entity.linearOrAngularPoint2
+      ? {
+          x: entity.linearOrAngularPoint2.x || 0,
+          y: entity.linearOrAngularPoint2.y || 0,
+          z: entity.linearOrAngularPoint2.z || 0,
+        }
+      : null,
     // テキスト
     text: entity.text || '',
     // 実測値
@@ -331,7 +360,7 @@ function extractDimensionData(entity, layer, color) {
     // ブロック参照名（寸法の見た目を定義するブロック）
     block: entity.block || null,
     // 生データ（デバッグ用）
-    raw: entity
+    raw: entity,
   };
 
   return dimension;
@@ -368,17 +397,17 @@ function getEntityColor(entity, dxf) {
 function aciToRgb(aci) {
   // AutoCAD標準色のマッピング（簡略版）
   const aciColors = {
-    0: 0x000000,   // ByBlock
-    1: 0xff0000,   // Red
-    2: 0xffff00,   // Yellow
-    3: 0x00ff00,   // Green
-    4: 0x00ffff,   // Cyan
-    5: 0x0000ff,   // Blue
-    6: 0xff00ff,   // Magenta
-    7: 0xffffff,   // White
-    8: 0x808080,   // Dark Gray
-    9: 0xc0c0c0,   // Light Gray
-    256: 0xffffff  // ByLayer (default to white)
+    0: 0x000000, // ByBlock
+    1: 0xff0000, // Red
+    2: 0xffff00, // Yellow
+    3: 0x00ff00, // Green
+    4: 0x00ffff, // Cyan
+    5: 0x0000ff, // Blue
+    6: 0xff00ff, // Magenta
+    7: 0xffffff, // White
+    8: 0x808080, // Dark Gray
+    9: 0xc0c0c0, // Light Gray
+    256: 0xffffff, // ByLayer (default to white)
   };
 
   return aciColors[aci] !== undefined ? aciColors[aci] : 0xffffff;
@@ -400,7 +429,7 @@ export function getLayers(dxf) {
         color: aciToRgb(layer.color || 7),
         visible: !layer.frozen && layer.visible !== false,
         frozen: layer.frozen || false,
-        locked: layer.locked || false
+        locked: layer.locked || false,
       });
     }
   }
@@ -423,7 +452,7 @@ export function getBlocks(dxf) {
       blocks[name] = {
         name,
         position: block.position || { x: 0, y: 0, z: 0 },
-        entities: block.entities || []
+        entities: block.entities || [],
       };
     }
   }
@@ -439,7 +468,7 @@ export function getBlocks(dxf) {
 export function calculateBounds(entities) {
   const bounds = {
     min: { x: Infinity, y: Infinity, z: Infinity },
-    max: { x: -Infinity, y: -Infinity, z: -Infinity }
+    max: { x: -Infinity, y: -Infinity, z: -Infinity },
   };
 
   function updateBounds(point) {
@@ -466,8 +495,16 @@ export function calculateBounds(entities) {
 
   // 円
   for (const circle of entities.circles) {
-    updateBounds({ x: circle.center.x - circle.radius, y: circle.center.y - circle.radius, z: circle.center.z });
-    updateBounds({ x: circle.center.x + circle.radius, y: circle.center.y + circle.radius, z: circle.center.z });
+    updateBounds({
+      x: circle.center.x - circle.radius,
+      y: circle.center.y - circle.radius,
+      z: circle.center.z,
+    });
+    updateBounds({
+      x: circle.center.x + circle.radius,
+      y: circle.center.y + circle.radius,
+      z: circle.center.z,
+    });
   }
 
   // 円弧

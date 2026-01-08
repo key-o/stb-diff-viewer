@@ -10,22 +10,45 @@
  * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
-import { loadStbXmlAutoEncoding } from '../viewer/utils/utils.js';
+import { loadStbXmlAutoEncoding } from '../viewer/loader/stbXmlLoader.js';
 import {
   buildNodeMap,
   parseStories,
   parseAxes,
-  extractAllSections
-} from '../parser/stbXmlParser.js';
-import { setState } from '../core/globalState.js';
+} from '../common-stb/parser/stbXmlParser.js';
+import { extractAllSections } from '../parser/sectionExtractor.js';
+import { detectStbVersion, getVersionInfo } from '../common-stb/parser/utils/versionDetector.js';
+import { parseStbCalData } from '../parser/stbCalDataParser.js';
 
 /**
  * Process model documents and extract structural data
  * @param {File|null} fileA - Model A file
  * @param {File|null} fileB - Model B file
  * @returns {Object} Processing result with model data
+ * @throws {TypeError} If fileA or fileB is provided but not a File object
+ * @throws {Error} If both fileA and fileB are null
  */
 export async function processModelDocuments(fileA, fileB) {
+  // Validate input parameters
+  if (fileA !== null && !(fileA instanceof File)) {
+    const error = new TypeError('fileA must be a File object if provided');
+    console.error('Model processing validation failed:', error);
+    throw error;
+  }
+
+  if (fileB !== null && !(fileB instanceof File)) {
+    const error = new TypeError('fileB must be a File object if provided');
+    console.error('Model processing validation failed:', error);
+    throw error;
+  }
+
+  // At least one file must be provided
+  if (fileA === null && fileB === null) {
+    const error = new Error('At least one model file (fileA or fileB) must be provided');
+    console.error('Model processing validation failed:', error);
+    throw error;
+  }
+
   let modelADocument = null;
   let modelBDocument = null;
   let nodeMapA = new Map();
@@ -40,8 +63,18 @@ export async function processModelDocuments(fileA, fileB) {
     braceSections: new Map(),
     pileSections: new Map(),
     footingSections: new Map(),
-    foundationcolumnSections: new Map()
+    foundationcolumnSections: new Map(),
+    slabSections: new Map(),
+    wallSections: new Map(),
   };
+
+  // Version information
+  let versionA = null;
+  let versionB = null;
+
+  // Calculation data (StbCalData)
+  let calDataA = null;
+  let calDataB = null;
 
   try {
     // Process Model A
@@ -51,6 +84,8 @@ export async function processModelDocuments(fileA, fileB) {
       nodeMapA = resultA.nodeMap;
       stories.push(...resultA.stories);
       axesData = resultA.axesData;
+      versionA = resultA.version;
+      calDataA = resultA.calData;
 
       // Merge section data from Model A
       mergeSectionMaps(sectionMaps, resultA.sectionMaps);
@@ -61,6 +96,8 @@ export async function processModelDocuments(fileA, fileB) {
       const resultB = await processModelFile(fileB, 'B');
       modelBDocument = resultB.document;
       nodeMapB = resultB.nodeMap;
+      versionB = resultB.version;
+      calDataB = resultB.calData;
 
       // If Model A doesn't exist, use Model B's story and axis data
       if (!fileA) {
@@ -74,14 +111,18 @@ export async function processModelDocuments(fileA, fileB) {
     }
 
     // Section maps will be stored in global state by modelLoader.js as 'sectionsData'
-    console.log(`Stored section maps: Column=${sectionMaps.columnSections.size}, Post=${sectionMaps.postSections.size}, Girder=${sectionMaps.girderSections.size}, Beam=${sectionMaps.beamSections.size}, Brace=${sectionMaps.braceSections.size}, Pile=${sectionMaps.pileSections.size}, Footing=${sectionMaps.footingSections.size}, FoundationColumn=${sectionMaps.foundationcolumnSections.size}`);
 
     // Remove duplicates from stories and sort by height
     const uniqueStoriesMap = new Map();
     stories.forEach((s) => uniqueStoriesMap.set(s.height, s));
-    stories = Array.from(uniqueStoriesMap.values()).sort(
-      (a, b) => a.height - b.height
-    );
+    stories = Array.from(uniqueStoriesMap.values()).sort((a, b) => a.height - b.height);
+
+    // Build version info object
+    const versionInfo = {
+      versionA: versionA || 'unknown',
+      versionB: versionB || 'unknown',
+      isCrossVersion: versionA && versionB && versionA !== versionB,
+    };
 
     return {
       success: true,
@@ -91,9 +132,11 @@ export async function processModelDocuments(fileA, fileB) {
       nodeMapB,
       stories,
       axesData,
-      sectionMaps
+      sectionMaps,
+      versionInfo,
+      calDataA,
+      calDataB,
     };
-
   } catch (error) {
     console.error('Model processing failed:', error);
     return {
@@ -104,7 +147,10 @@ export async function processModelDocuments(fileA, fileB) {
       nodeMapA: new Map(),
       nodeMapB: new Map(),
       stories: [],
-      axesData: { xAxes: [], yAxes: [] }
+      axesData: { xAxes: [], yAxes: [] },
+      versionInfo: { versionA: null, versionB: null, isCrossVersion: false },
+      calDataA: null,
+      calDataB: null,
     };
   }
 }
@@ -117,28 +163,30 @@ export async function processModelDocuments(fileA, fileB) {
  */
 async function processModelFile(file, modelId) {
   try {
-    console.log(`Processing Model ${modelId}:`, file.name);
-
     // Load and parse STB XML document
     const document = await loadStbXmlAutoEncoding(file);
     if (!document) {
       throw new Error(`モデル${modelId}の解析に失敗しました。`);
     }
 
+    // Detect STB version
+    const version = detectStbVersion(document);
+    const versionInfo = getVersionInfo(document);
+
     // Build node map
     const nodeMap = buildNodeMap(document);
-    console.log(`Model ${modelId}: Built node map with ${nodeMap.size} nodes`);
 
     // Parse stories
     const stories = parseStories(document);
-    console.log(`Model ${modelId}: Parsed ${stories.length} stories`);
 
     // Parse axes
     const axesData = parseAxes(document);
-    console.log(`Model ${modelId}: Parsed axes - X: ${axesData.xAxes.length}, Y: ${axesData.yAxes.length}`);
 
     // Extract section data (unified)
     const sectionMaps = extractAllSections(document);
+
+    // Parse calculation data (StbCalData) for load visualization
+    const calData = parseStbCalData(document);
 
     // Set global reference for model access
     if (modelId === 'A') {
@@ -152,9 +200,11 @@ async function processModelFile(file, modelId) {
       nodeMap,
       stories,
       axesData,
-      sectionMaps
+      sectionMaps,
+      calData,
+      version,
+      versionInfo,
     };
-
   } catch (error) {
     console.error(`Failed to process Model ${modelId}:`, error);
     throw new Error(`モデル${modelId}の処理中にエラーが発生しました: ${error.message}`);
@@ -168,8 +218,6 @@ export function clearModelProcessingState() {
   // Clear global window references
   window.docA = null;
   window.docB = null;
-
-  console.log('Model processing state cleared');
 }
 
 /**
@@ -177,17 +225,38 @@ export function clearModelProcessingState() {
  * @param {Document} document - XML document to validate
  * @param {string} modelId - Model identifier
  * @returns {Object} Validation result
+ * @throws {TypeError} If modelId is not a string
  */
 export function validateModelDocument(document, modelId) {
+  // Validate modelId
+  if (typeof modelId !== 'string') {
+    const error = new TypeError('modelId must be a string');
+    console.error('Model validation failed:', error);
+    throw error;
+  }
+
+  if (modelId.trim().length === 0) {
+    const error = new Error('modelId must be a non-empty string');
+    console.error('Model validation failed:', error);
+    throw error;
+  }
+
   const validation = {
     isValid: true,
     warnings: [],
-    errors: []
+    errors: [],
   };
 
   if (!document) {
     validation.isValid = false;
     validation.errors.push(`Model ${modelId}: Document is null or undefined`);
+    return validation;
+  }
+
+  // Validate document type
+  if (!(document instanceof Document)) {
+    validation.isValid = false;
+    validation.errors.push(`Model ${modelId}: document must be an XML Document instance`);
     return validation;
   }
 
@@ -201,22 +270,22 @@ export function validateModelDocument(document, modelId) {
   const nodeElements = document.getElementsByTagName('StbNode');
   if (nodeElements.length === 0) {
     validation.warnings.push(`Model ${modelId}: No nodes found`);
-  } else {
-    console.log(`Model ${modelId}: Found ${nodeElements.length} nodes`);
   }
 
   // Check for basic structural elements
   const structuralElements = [
-    'StbColumn', 'StbGirder', 'StbBeam', 'StbBrace', 'StbSlab', 'StbWall'
+    'StbColumn',
+    'StbGirder',
+    'StbBeam',
+    'StbBrace',
+    'StbSlab',
+    'StbWall',
   ];
 
   let totalElements = 0;
-  structuralElements.forEach(elementType => {
+  structuralElements.forEach((elementType) => {
     const elements = document.getElementsByTagName(elementType);
     totalElements += elements.length;
-    if (elements.length > 0) {
-      console.log(`Model ${modelId}: Found ${elements.length} ${elementType} elements`);
-    }
   });
 
   if (totalElements === 0) {
@@ -243,10 +312,12 @@ function mergeSectionMaps(targetMaps, sourceMaps) {
     'braceSections',
     'pileSections',
     'footingSections',
-    'foundationcolumnSections'
+    'foundationcolumnSections',
+    'slabSections',
+    'wallSections',
   ];
 
-  sectionTypes.forEach(sectionType => {
+  sectionTypes.forEach((sectionType) => {
     if (sourceMaps[sectionType]) {
       sourceMaps[sectionType].forEach((value, key) => {
         if (!targetMaps[sectionType]) {

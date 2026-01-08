@@ -16,9 +16,9 @@
  */
 
 import * as THREE from 'three';
+import { createExtrudeGeometry } from './core/ThreeJSConverter.js';
 import { materials } from '../rendering/materials.js';
 import { ElementGeometryUtils } from './ElementGeometryUtils.js';
-import { createExtrudeGeometry } from './core/ThreeJSConverter.js';
 import { BaseElementGenerator } from './core/BaseElementGenerator.js';
 import { SectionTypeNormalizer } from './core/SectionTypeNormalizer.js';
 import { MeshMetadataBuilder } from './core/MeshMetadataBuilder.js';
@@ -34,7 +34,7 @@ export class ProfileBasedBraceGenerator extends BaseElementGenerator {
     return {
       elementName: 'Brace',
       loggerName: 'viewer:profile:brace',
-      defaultElementType: 'Brace'
+      defaultElementType: 'Brace',
     };
   }
 
@@ -54,7 +54,7 @@ export class ProfileBasedBraceGenerator extends BaseElementGenerator {
     braceSections,
     steelSections,
     elementType = 'Brace',
-    isJsonInput = false
+    isJsonInput = false,
   ) {
     return this.createMeshes(
       braceElements,
@@ -62,7 +62,7 @@ export class ProfileBasedBraceGenerator extends BaseElementGenerator {
       braceSections,
       steelSections,
       elementType,
-      isJsonInput
+      isJsonInput,
     );
   }
 
@@ -80,7 +80,7 @@ export class ProfileBasedBraceGenerator extends BaseElementGenerator {
       nodeType: '2node-horizontal',
       isJsonInput: isJsonInput,
       node1KeyStart: 'id_node_start',
-      node1KeyEnd: 'id_node_end'
+      node1KeyEnd: 'id_node_end',
     });
 
     if (!this._validateNodePositions(nodePositions, brace, context)) {
@@ -88,11 +88,7 @@ export class ProfileBasedBraceGenerator extends BaseElementGenerator {
     }
 
     // 2. 断面データの取得（ElementGeometryUtils使用）
-    const sectionData = ElementGeometryUtils.getSectionData(
-      brace,
-      sections,
-      isJsonInput
-    );
+    const sectionData = ElementGeometryUtils.getSectionData(brace, sections, isJsonInput);
 
     if (!this._validateSectionData(sectionData, brace, context)) {
       return null;
@@ -116,8 +112,8 @@ export class ProfileBasedBraceGenerator extends BaseElementGenerator {
         endOffset: offsets.endOffset,
         rollAngle: (offsets.rollAngle * Math.PI) / 180, // 度→ラジアン
         placementMode: 'center',
-        sectionHeight: 0
-      }
+        sectionHeight: 0,
+      },
     );
 
     if (!this._validatePlacement(placement, brace, context)) {
@@ -125,11 +121,7 @@ export class ProfileBasedBraceGenerator extends BaseElementGenerator {
     }
 
     // 6. プロファイル生成（ElementGeometryUtils使用）
-    const profileResult = ElementGeometryUtils.createProfile(
-      sectionData,
-      sectionType,
-      brace
-    );
+    const profileResult = ElementGeometryUtils.createProfile(sectionData, sectionType, brace);
 
     if (!this._validateProfile(profileResult, brace, context)) {
       return null;
@@ -140,6 +132,12 @@ export class ProfileBasedBraceGenerator extends BaseElementGenerator {
 
     if (!this._validateGeometry(geometry, brace, context)) {
       return null;
+    }
+
+    // 7.5. 材軸（Z軸）回りの断面回転をジオメトリに適用
+    // rotate属性は配置基準線（材軸）を中心に断面を回転させる
+    if (placement.rollAngle && placement.rollAngle !== 0) {
+      geometry.rotateZ(placement.rollAngle);
     }
 
     // 8. メッシュを作成
@@ -159,29 +157,23 @@ export class ProfileBasedBraceGenerator extends BaseElementGenerator {
       sectionData: sectionData,
       isJsonInput: isJsonInput,
       extraData: {
-        placementMode: 'center'
-      }
+        placementMode: 'center',
+      },
     });
 
     // 11. 配置基準線を添付（ElementGeometryUtils使用）
     try {
-      ElementGeometryUtils.attachPlacementLine(
-        mesh,
-        placement.length,
-        materials.placementLine,
-        {
-          elementType: elementType,
-          elementId: brace.id,
-          modelSource: 'solid'
-        }
-      );
+      ElementGeometryUtils.attachPlacementLine(mesh, placement.length, materials.placementLine, {
+        elementType: elementType,
+        elementId: brace.id,
+        modelSource: 'solid',
+      });
     } catch (e) {
       log.warn(`Brace ${brace.id}: Failed to attach placement axis line`, e);
     }
 
     log.debug(
-      `Brace ${brace.id}: length=${placement.length.toFixed(1)}mm, ` +
-        `sectionType=${sectionType}`
+      `Brace ${brace.id}: length=${placement.length.toFixed(1)}mm, ` + `sectionType=${sectionType}`,
     );
 
     return mesh;
@@ -195,7 +187,7 @@ export function createBraceMeshes(
   braceSections,
   steelSections,
   elementType = 'Brace',
-  isJsonInput = false
+  isJsonInput = false,
 ) {
   return ProfileBasedBraceGenerator.createBraceMeshes(
     braceElements,
@@ -203,6 +195,6 @@ export function createBraceMeshes(
     braceSections,
     steelSections,
     elementType,
-    isJsonInput
+    isJsonInput,
   );
 }

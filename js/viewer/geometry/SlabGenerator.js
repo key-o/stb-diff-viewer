@@ -25,7 +25,7 @@ export class SlabGenerator extends BaseElementGenerator {
     return {
       elementName: 'Slab',
       loggerName: 'viewer:geometry:slab',
-      defaultElementType: 'Slab'
+      defaultElementType: 'Slab',
     };
   }
 
@@ -45,7 +45,7 @@ export class SlabGenerator extends BaseElementGenerator {
     slabSections,
     steelSections,
     elementType = 'Slab',
-    isJsonInput = false
+    isJsonInput = false,
   ) {
     return this.createMeshes(
       slabElements,
@@ -53,7 +53,7 @@ export class SlabGenerator extends BaseElementGenerator {
       slabSections,
       steelSections,
       elementType,
-      isJsonInput
+      isJsonInput,
     );
   }
 
@@ -90,26 +90,26 @@ export class SlabGenerator extends BaseElementGenerator {
       const offsetY = offset?.offset_Y || 0;
       const offsetZ = offset?.offset_Z || 0;
 
-      vertices.push(new THREE.Vector3(
-        node.x + offsetX,
-        node.y + offsetY,
-        node.z + offsetZ
-      ));
+      vertices.push(new THREE.Vector3(node.x + offsetX, node.y + offsetY, node.z + offsetZ));
     }
 
     // 3. 断面データの取得（厚さ）
     let depth = 150; // デフォルト厚さ (mm)
 
     if (sections) {
-      const sectionId = isJsonInput ? slab.id_section : slab.id_section;
+      // 型統一: sectionExtractorは数値IDを整数として保存するため変換
+      const rawId = slab.id_section;
+      const parsedId = parseInt(rawId, 10);
+      const sectionId = isNaN(parsedId) ? rawId : parsedId;
       const sectionData = sections.get(sectionId);
       if (sectionData) {
         // depth属性を取得（様々なパターンに対応）
-        depth = sectionData.depth ||
-                sectionData.dimensions?.depth ||
-                sectionData.t ||
-                sectionData.thickness ||
-                150;
+        depth =
+          sectionData.depth ||
+          sectionData.dimensions?.depth ||
+          sectionData.t ||
+          sectionData.thickness ||
+          150;
       }
     }
 
@@ -136,9 +136,8 @@ export class SlabGenerator extends BaseElementGenerator {
     const localZ = normal.clone().normalize();
 
     // localXの基準ベクトルを選択（法線がZ軸に近い場合はY軸、そうでなければZ軸を使用）
-    const upVector = Math.abs(localZ.z) > 0.9
-      ? new THREE.Vector3(0, 1, 0)
-      : new THREE.Vector3(0, 0, 1);
+    const upVector =
+      Math.abs(localZ.z) > 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1);
 
     const localX = new THREE.Vector3().crossVectors(upVector, localZ).normalize();
     const localY = new THREE.Vector3().crossVectors(localZ, localX).normalize();
@@ -166,7 +165,7 @@ export class SlabGenerator extends BaseElementGenerator {
     // 8. 押し出しジオメトリを作成
     const extrudeSettings = {
       depth: depth,
-      bevelEnabled: false
+      bevelEnabled: false,
     };
     const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
 
@@ -213,19 +212,18 @@ export class SlabGenerator extends BaseElementGenerator {
         isFoundation: slab.isFoundation,
         // 傾斜情報を追加
         normal: { x: normal.x, y: normal.y, z: normal.z },
-        isInclined: Math.abs(normal.z) < 0.999 // 水平でない場合true
-      }
+        isInclined: Math.abs(normal.z) < 0.999, // 水平でない場合true
+      },
     };
 
     log.debug(
       `Slab ${slab.id}: center=(${center.x.toFixed(0)}, ${center.y.toFixed(0)}, ${center.z.toFixed(0)}), ` +
-      `normal=(${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)}), ` +
-      `isInclined=${mesh.userData.slabData.isInclined}`
+        `normal=(${normal.x.toFixed(3)}, ${normal.y.toFixed(3)}, ${normal.z.toFixed(3)}), ` +
+        `isInclined=${mesh.userData.slabData.isInclined}`,
     );
 
     return mesh;
   }
-
 
   /**
    * 頂点群からスラブ平面の法線ベクトルを計算

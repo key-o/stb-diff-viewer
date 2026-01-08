@@ -46,7 +46,7 @@ class GeometryCacheManager {
       hits: 0,
       misses: 0,
       entries: 0,
-      totalSize: 0
+      totalSize: 0,
     };
 
     /** @type {number} 最大キャッシュエントリ数 */
@@ -89,10 +89,8 @@ class GeometryCacheManager {
    * @returns {string} キャッシュキー
    */
   generateKeyFromSection(sectionData, length = null) {
-    const shapeType = sectionData.shapeTypeAttr ||
-                      sectionData.elementTag ||
-                      sectionData.type ||
-                      'unknown';
+    const shapeType =
+      sectionData.shapeTypeAttr || sectionData.elementTag || sectionData.type || 'unknown';
 
     // 主要なパラメータを抽出
     const params = {};
@@ -173,7 +171,7 @@ class GeometryCacheManager {
       geometry: geometry,
       refCount: 1,
       lastAccess: Date.now(),
-      size: size
+      size: size,
     };
 
     this.cache.set(key, entry);
@@ -303,7 +301,7 @@ class GeometryCacheManager {
       hits: 0,
       misses: 0,
       entries: 0,
-      totalSize: 0
+      totalSize: 0,
     };
 
     log.info('Geometry cache cleared');
@@ -318,8 +316,8 @@ class GeometryCacheManager {
     const total = this.stats.hits + this.stats.misses;
     return {
       ...this.stats,
-      hitRate: total > 0 ? (this.stats.hits / total * 100).toFixed(1) : 0,
-      totalSizeMB: (this.stats.totalSize / (1024 * 1024)).toFixed(2)
+      hitRate: total > 0 ? ((this.stats.hits / total) * 100).toFixed(1) : 0,
+      totalSizeMB: (this.stats.totalSize / (1024 * 1024)).toFixed(2),
     };
   }
 
@@ -340,12 +338,6 @@ class GeometryCacheManager {
    */
   debugPrint() {
     const stats = this.getStats();
-    console.log('=== Geometry Cache Stats ===');
-    console.log(`Entries: ${stats.entries}`);
-    console.log(`Hits: ${stats.hits}, Misses: ${stats.misses}`);
-    console.log(`Hit Rate: ${stats.hitRate}%`);
-    console.log(`Total Size: ${stats.totalSizeMB} MB`);
-    console.log('============================');
   }
 }
 

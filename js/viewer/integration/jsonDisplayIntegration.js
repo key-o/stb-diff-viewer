@@ -30,13 +30,13 @@ export class JsonDisplayIntegration {
       walls: [],
       slabs: [],
       footings: [],
-      piles: []
+      piles: [],
     };
     this.renderingStats = {
       totalMeshes: 0,
       generationTime: 0,
       memoryUsage: 0,
-      errors: []
+      errors: [],
     };
   }
 
@@ -47,16 +47,14 @@ export class JsonDisplayIntegration {
    * @returns {Promise<Object>} 3D表示用データ
    */
   async generateFrom3DDataFromJson(input, options = {}) {
-    console.log('JsonDisplayIntegration: Starting 3D data generation from JSON...');
     const startTime = performance.now();
 
     try {
       // JSON解析
-      this.parsedData = typeof input === 'string' && input.startsWith('{')
-        ? this.parser.parseFromObject(JSON.parse(input))
-        : await this.parser.parseFromFile(input);
-
-      console.log(`JsonDisplayIntegration: JSON parsing completed - ${this.parsedData.statistics.totalElements} elements found`);
+      this.parsedData =
+        typeof input === 'string' && input.startsWith('{')
+          ? this.parser.parseFromObject(JSON.parse(input))
+          : await this.parser.parseFromFile(input);
 
       // 3Dメッシュ生成
       await this._generateAllMeshes(options);
@@ -65,11 +63,7 @@ export class JsonDisplayIntegration {
       this.renderingStats.generationTime = performance.now() - startTime;
       this.renderingStats.totalMeshes = this._countTotalMeshes();
 
-      console.log(`JsonDisplayIntegration: 3D generation completed in ${this.renderingStats.generationTime.toFixed(1)}ms`);
-      console.log(`JsonDisplayIntegration: Generated ${this.renderingStats.totalMeshes} total meshes`);
-
       return this._createDisplayResult();
-
     } catch (error) {
       this.renderingStats.errors.push(`3D generation failed: ${error.message}`);
       console.error('JsonDisplayIntegration: 3D generation failed:', error);
@@ -84,7 +78,6 @@ export class JsonDisplayIntegration {
    * @returns {Object} 3D表示用データ
    */
   generateFromJsonObject(jsonObject, options = {}) {
-    console.log('JsonDisplayIntegration: Generating 3D data from JSON object...');
     const startTime = performance.now();
 
     try {
@@ -98,10 +91,7 @@ export class JsonDisplayIntegration {
       this.renderingStats.generationTime = performance.now() - startTime;
       this.renderingStats.totalMeshes = this._countTotalMeshes();
 
-      console.log(`JsonDisplayIntegration: Sync 3D generation completed in ${this.renderingStats.generationTime.toFixed(1)}ms`);
-
       return this._createDisplayResult();
-
     } catch (error) {
       this.renderingStats.errors.push(`Sync 3D generation failed: ${error.message}`);
       console.error('JsonDisplayIntegration: Sync 3D generation failed:', error);
@@ -114,8 +104,6 @@ export class JsonDisplayIntegration {
    * @private
    */
   async _generateAllMeshes(options) {
-    console.log('JsonDisplayIntegration: Generating meshes for all element types...');
-
     const generationTasks = [];
 
     // 並列でメッシュ生成を実行
@@ -133,19 +121,15 @@ export class JsonDisplayIntegration {
 
     // 他の要素タイプは後で実装
     if (this.parsedData.data.walls.length > 0) {
-      console.log('JsonDisplayIntegration: Wall rendering will be implemented in next phase');
     }
 
     if (this.parsedData.data.slabs.length > 0) {
-      console.log('JsonDisplayIntegration: Slab rendering will be implemented in next phase');
     }
 
     if (this.parsedData.data.footings.length > 0) {
-      console.log('JsonDisplayIntegration: Footing rendering will be implemented in next phase');
     }
 
     if (this.parsedData.data.piles.length > 0) {
-      console.log('JsonDisplayIntegration: Pile rendering will be implemented in next phase');
     }
 
     // 全タスクの完了を待機
@@ -156,9 +140,7 @@ export class JsonDisplayIntegration {
    * 全要素タイプの3Dメッシュを生成（同期版）
    * @private
    */
-  _generateAllMeshesSync(options) {
-    console.log('JsonDisplayIntegration: Generating meshes synchronously...');
-
+  _generateAllMeshesSync(_options) {
     // ブレース要素（ProfileBased方式に移行）
     if (this.parsedData.data.braces.length > 0) {
       this.generatedMeshes.braces = ProfileBasedBraceGenerator.createBraceMeshes(
@@ -167,31 +149,32 @@ export class JsonDisplayIntegration {
         null, // JSONでは断面マップ不要
         null, // JSONでは鋼材マップ不要
         'Brace',
-        true  // JSON形式フラグ
+        true, // JSON形式フラグ
       );
-      console.log(`JsonDisplayIntegration: Generated ${this.generatedMeshes.braces.length} brace meshes (ProfileBased)`);
     }
 
     // 梁要素（ProfileBased方式に移行）
     if (this.parsedData.data.beams.length > 0) {
       this.generatedMeshes.beams = ProfileBasedBeamGenerator.createBeamMeshes(
         this.parsedData.data.beams,
-        null, null, null,
+        null,
+        null,
+        null,
         'Beam',
-        true
+        true,
       );
-      console.log(`JsonDisplayIntegration: Generated ${this.generatedMeshes.beams.length} beam meshes (ProfileBased)`);
     }
 
     // 柱要素（ProfileBased方式に移行）
     if (this.parsedData.data.columns.length > 0) {
       this.generatedMeshes.columns = ProfileBasedColumnGenerator.createColumnMeshes(
         this.parsedData.data.columns,
-        null, null, null,
+        null,
+        null,
+        null,
         'Column',
-        true
+        true,
       );
-      console.log(`JsonDisplayIntegration: Generated ${this.generatedMeshes.columns.length} column meshes (ProfileBased)`);
     }
   }
 
@@ -199,9 +182,7 @@ export class JsonDisplayIntegration {
    * ブレースメッシュの生成（ProfileBased方式）
    * @private
    */
-  async _generateBraceMeshes(options) {
-    console.log('JsonDisplayIntegration: Generating brace meshes (ProfileBased)...');
-
+  async _generateBraceMeshes(_options) {
     try {
       this.generatedMeshes.braces = ProfileBasedBraceGenerator.createBraceMeshes(
         this.parsedData.data.braces,
@@ -209,11 +190,8 @@ export class JsonDisplayIntegration {
         null, // JSONでは断面マップ不要
         null, // JSONでは鋼材マップ不要
         'Brace',
-        true  // JSON形式フラグ
+        true, // JSON形式フラグ
       );
-
-      console.log(`JsonDisplayIntegration: Successfully generated ${this.generatedMeshes.braces.length} brace meshes (ProfileBased)`);
-
     } catch (error) {
       this.renderingStats.errors.push(`Brace mesh generation failed: ${error.message}`);
       console.error('JsonDisplayIntegration: Brace mesh generation failed:', error);
@@ -224,9 +202,7 @@ export class JsonDisplayIntegration {
    * 梁メッシュの生成（ProfileBased方式）
    * @private
    */
-  async _generateBeamMeshes(options) {
-    console.log('JsonDisplayIntegration: Generating beam meshes (ProfileBased)...');
-
+  async _generateBeamMeshes(_options) {
     try {
       this.generatedMeshes.beams = ProfileBasedBeamGenerator.createBeamMeshes(
         this.parsedData.data.beams,
@@ -234,11 +210,8 @@ export class JsonDisplayIntegration {
         null, // JSONでは断面マップ不要
         null, // JSONでは鋼材マップ不要
         'Beam',
-        true  // JSON形式フラグ
+        true, // JSON形式フラグ
       );
-
-      console.log(`JsonDisplayIntegration: Successfully generated ${this.generatedMeshes.beams.length} beam meshes (ProfileBased)`);
-
     } catch (error) {
       this.renderingStats.errors.push(`Beam mesh generation failed: ${error.message}`);
       console.error('JsonDisplayIntegration: Beam mesh generation failed:', error);
@@ -249,9 +222,7 @@ export class JsonDisplayIntegration {
    * 柱メッシュの生成（ProfileBased方式）
    * @private
    */
-  async _generateColumnMeshes(options) {
-    console.log('JsonDisplayIntegration: Generating column meshes (ProfileBased)...');
-
+  async _generateColumnMeshes(_options) {
     try {
       this.generatedMeshes.columns = ProfileBasedColumnGenerator.createColumnMeshes(
         this.parsedData.data.columns,
@@ -259,11 +230,8 @@ export class JsonDisplayIntegration {
         null, // JSONでは断面マップ不要
         null, // JSONでは鋼材マップ不要
         'Column',
-        true  // JSON形式フラグ
+        true, // JSON形式フラグ
       );
-
-      console.log(`JsonDisplayIntegration: Successfully generated ${this.generatedMeshes.columns.length} column meshes (ProfileBased)`);
-
     } catch (error) {
       this.renderingStats.errors.push(`Column mesh generation failed: ${error.message}`);
       console.error('JsonDisplayIntegration: Column mesh generation failed:', error);
@@ -287,7 +255,7 @@ export class JsonDisplayIntegration {
   _createDisplayResult() {
     // 全メッシュを統合
     const allMeshes = [];
-    Object.values(this.generatedMeshes).forEach(meshArray => {
+    Object.values(this.generatedMeshes).forEach((meshArray) => {
       if (Array.isArray(meshArray)) {
         allMeshes.push(...meshArray);
       }
@@ -299,7 +267,7 @@ export class JsonDisplayIntegration {
       allMeshes: allMeshes,
       statistics: {
         parsing: this.parsedData.statistics,
-        rendering: this.renderingStats
+        rendering: this.renderingStats,
       },
       metadata: this.parsedData.metadata,
 
@@ -309,18 +277,16 @@ export class JsonDisplayIntegration {
       },
 
       getMeshById: (elementId) => {
-        return allMeshes.find(mesh => mesh.userData.elementId === elementId);
+        return allMeshes.find((mesh) => mesh.userData.elementId === elementId);
       },
 
       addToScene: (scene) => {
-        allMeshes.forEach(mesh => scene.add(mesh));
-        console.log(`JsonDisplayIntegration: Added ${allMeshes.length} meshes to scene`);
+        allMeshes.forEach((mesh) => scene.add(mesh));
       },
 
       removeFromScene: (scene) => {
-        allMeshes.forEach(mesh => scene.remove(mesh));
-        console.log(`JsonDisplayIntegration: Removed ${allMeshes.length} meshes from scene`);
-      }
+        allMeshes.forEach((mesh) => scene.remove(mesh));
+      },
     };
   }
 
@@ -330,8 +296,6 @@ export class JsonDisplayIntegration {
    * @returns {Object} 統合された表示データ
    */
   integrateWithStbDisplay(stbDisplayData) {
-    console.log('JsonDisplayIntegration: Integrating with STB display system...');
-
     if (!this.parsedData) {
       throw new Error('No JSON data parsed. Call generateFrom3DDataFromJson first.');
     }
@@ -346,20 +310,15 @@ export class JsonDisplayIntegration {
       jsonMetadata: this.parsedData.metadata,
 
       // 統合されたメッシュ配列
-      allMeshes: [
-        ...(stbDisplayData.allMeshes || []),
-        ...this._getAllJsonMeshes()
-      ],
+      allMeshes: [...(stbDisplayData.allMeshes || []), ...this._getAllJsonMeshes()],
 
       // 統合統計
       combinedStatistics: {
         stb: stbDisplayData.statistics || {},
         json: this.renderingStats,
-        totalElements: (stbDisplayData.totalElements || 0) + this.renderingStats.totalMeshes
-      }
+        totalElements: (stbDisplayData.totalElements || 0) + this.renderingStats.totalMeshes,
+      },
     };
-
-    console.log(`JsonDisplayIntegration: Integration completed - total ${integratedData.allMeshes.length} meshes`);
 
     return integratedData;
   }
@@ -370,7 +329,7 @@ export class JsonDisplayIntegration {
    */
   _getAllJsonMeshes() {
     const allJsonMeshes = [];
-    Object.values(this.generatedMeshes).forEach(meshArray => {
+    Object.values(this.generatedMeshes).forEach((meshArray) => {
       if (Array.isArray(meshArray)) {
         allJsonMeshes.push(...meshArray);
       }
@@ -382,11 +341,9 @@ export class JsonDisplayIntegration {
    * メッシュのクリーンアップ
    */
   cleanup() {
-    console.log('JsonDisplayIntegration: Cleaning up meshes...');
-
-    Object.values(this.generatedMeshes).forEach(meshArray => {
+    Object.values(this.generatedMeshes).forEach((meshArray) => {
       if (Array.isArray(meshArray)) {
-        meshArray.forEach(mesh => {
+        meshArray.forEach((mesh) => {
           if (mesh.geometry) mesh.geometry.dispose();
           if (mesh.material) mesh.material.dispose();
         });
@@ -401,7 +358,7 @@ export class JsonDisplayIntegration {
       walls: [],
       slabs: [],
       footings: [],
-      piles: []
+      piles: [],
     };
 
     this.parsedData = null;
@@ -409,10 +366,8 @@ export class JsonDisplayIntegration {
       totalMeshes: 0,
       generationTime: 0,
       memoryUsage: 0,
-      errors: []
+      errors: [],
     };
-
-    console.log('JsonDisplayIntegration: Cleanup completed');
   }
 
   /**
@@ -425,11 +380,11 @@ export class JsonDisplayIntegration {
       meshCounts: Object.fromEntries(
         Object.entries(this.generatedMeshes).map(([key, meshes]) => [
           key,
-          Array.isArray(meshes) ? meshes.length : 0
-        ])
+          Array.isArray(meshes) ? meshes.length : 0,
+        ]),
       ),
       hasErrors: this.renderingStats.errors.length > 0,
-      errors: this.renderingStats.errors
+      errors: this.renderingStats.errors,
     };
   }
 
@@ -441,10 +396,13 @@ export class JsonDisplayIntegration {
       totalParsingTime: this.parsedData?.statistics.parseTime || 0,
       totalRenderingTime: this.renderingStats.generationTime,
       totalTime: (this.parsedData?.statistics.parseTime || 0) + this.renderingStats.generationTime,
-      meshesPerSecond: this.renderingStats.generationTime > 0
-        ? (this.renderingStats.totalMeshes / (this.renderingStats.generationTime / 1000)).toFixed(1)
-        : 0,
-      memoryEstimate: this.renderingStats.totalMeshes * 1024 // 概算（バイト）
+      meshesPerSecond:
+        this.renderingStats.generationTime > 0
+          ? (this.renderingStats.totalMeshes / (this.renderingStats.generationTime / 1000)).toFixed(
+              1,
+            )
+          : 0,
+      memoryEstimate: this.renderingStats.totalMeshes * 1024, // 概算（バイト）
     };
   }
 }
@@ -461,8 +419,7 @@ export class JsonDisplayUtils {
    */
   static areElementsCompatible(jsonElement, stbElement) {
     // 基本的な互換性チェック
-    return jsonElement.elementType === stbElement.elementType &&
-           jsonElement.id === stbElement.id;
+    return jsonElement.elementType === stbElement.elementType && jsonElement.id === stbElement.id;
   }
 
   /**
@@ -478,7 +435,7 @@ export class JsonDisplayUtils {
       originalData: undefined,
       // STB互換フィールドを追加
       convertedFromJson: true,
-      stbCompatible: true
+      stbCompatible: true,
     };
   }
 
@@ -494,7 +451,7 @@ export class JsonDisplayUtils {
       generateBounds: options.generateBounds !== false,
       enableShadows: options.enableShadows === true,
       wireframe: options.wireframe === true,
-      ...options
+      ...options,
     };
   }
 }

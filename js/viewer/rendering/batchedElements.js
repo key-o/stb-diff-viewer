@@ -9,13 +9,74 @@
 
 import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
-import { createLabelSprite } from '../ui/labels.js';
-import { generateLabelText } from '../../ui/unifiedLabelManager.js';
-import { attachElementDataToLabel } from '../../ui/labelRegeneration.js';
 import { getMaterialForElementWithMode } from './materials.js';
 import { LineBatcher, getHitElementFromBatch } from './geometryBatcher.js';
 
 const log = createLogger('viewer:batchedElements');
+
+// ============================================
+// ラベル処理プロバイダー（依存性注入）
+// ============================================
+
+/**
+ * @typedef {Object} LabelProvider
+ * @property {function(Object, string): string} generateLabelText - ラベルテキスト生成
+ * @property {function(THREE.Sprite, Object): void} attachElementDataToLabel - 要素データをラベルに付与
+ * @property {function(string, THREE.Vector3, THREE.Group, string, Object=): THREE.Sprite|null} createLabelSprite - ラベルスプライト作成
+ */
+
+/** @type {LabelProvider|null} */
+let labelProvider = null;
+
+/**
+ * ラベルプロバイダーを設定（依存性注入）
+ * @param {LabelProvider} provider - ラベルプロバイダー
+ */
+export function setLabelProvider(provider) {
+  labelProvider = provider;
+}
+
+/**
+ * ラベルスプライトを作成（プロバイダー経由）
+ * @param {string} text - ラベルテキスト
+ * @param {THREE.Vector3} position - 位置
+ * @param {THREE.Group} group - グループ
+ * @param {string} elementType - 要素タイプ
+ * @param {Object} [meta] - メタ情報
+ * @returns {THREE.Sprite|null} ラベルスプライト
+ */
+function createLabelSpriteInternal(text, position, group, elementType, meta) {
+  if (labelProvider && labelProvider.createLabelSprite) {
+    return labelProvider.createLabelSprite(text, position, group, elementType, meta);
+  }
+  // プロバイダー未設定時はnull（初期化タイミングによる正常な状態）
+  return null;
+}
+
+/**
+ * ラベルテキストを生成（プロバイダー経由）
+ * @param {Object} element - 要素データ
+ * @param {string} elementType - 要素タイプ
+ * @returns {string} ラベルテキスト
+ */
+function generateLabelTextInternal(element, elementType) {
+  if (labelProvider && labelProvider.generateLabelText) {
+    return labelProvider.generateLabelText(element, elementType);
+  }
+  // フォールバック: 要素名またはID
+  return element.name || element.id || '';
+}
+
+/**
+ * 要素データをラベルに付与（プロバイダー経由）
+ * @param {THREE.Sprite} sprite - ラベルスプライト
+ * @param {Object} element - 要素データ
+ */
+function attachElementDataToLabelInternal(sprite, element) {
+  if (labelProvider && labelProvider.attachElementDataToLabel) {
+    labelProvider.attachElementDataToLabel(sprite, element);
+  }
+}
 
 /**
  * バッチ処理を使用する要素数の閾値
@@ -55,7 +116,7 @@ export function drawLineElementsBatched(
   group,
   elementType,
   labelToggle,
-  modelBounds
+  modelBounds,
 ) {
   group.clear();
   const createdLabels = [];
@@ -63,7 +124,7 @@ export function drawLineElementsBatched(
   log.info(`Drawing batched line elements for ${elementType}:`, {
     matched: comparisonResult.matched.length,
     onlyA: comparisonResult.onlyA.length,
-    onlyB: comparisonResult.onlyB.length
+    onlyB: comparisonResult.onlyB.length,
   });
 
   // カテゴリごとにバッチャーを作成
@@ -81,11 +142,7 @@ export function drawLineElementsBatched(
       return;
     }
 
-    const startVec = new THREE.Vector3(
-      startCoords.x,
-      startCoords.y,
-      startCoords.z
-    );
+    const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
     const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
 
     matchedBatcher.addLine(startVec, endVec, {
@@ -97,7 +154,7 @@ export function drawLineElementsBatched(
       id: dataA.id,
       importance,
       toleranceState: matchType,
-      isLine: true
+      isLine: true,
     });
 
     modelBounds.expandByPoint(startVec);
@@ -112,7 +169,7 @@ export function drawLineElementsBatched(
         dataB,
         'matched',
         elementType,
-        group
+        group,
       );
       if (label) createdLabels.push(label);
     }
@@ -126,11 +183,7 @@ export function drawLineElementsBatched(
       return;
     }
 
-    const startVec = new THREE.Vector3(
-      startCoords.x,
-      startCoords.y,
-      startCoords.z
-    );
+    const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
     const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
 
     onlyABatcher.addLine(startVec, endVec, {
@@ -138,7 +191,7 @@ export function drawLineElementsBatched(
       elementId: id,
       modelSource: 'A',
       importance,
-      isLine: true
+      isLine: true,
     });
 
     modelBounds.expandByPoint(startVec);
@@ -153,7 +206,7 @@ export function drawLineElementsBatched(
         'A',
         elementType,
         group,
-        150
+        150,
       );
       if (label) createdLabels.push(label);
     }
@@ -167,11 +220,7 @@ export function drawLineElementsBatched(
       return;
     }
 
-    const startVec = new THREE.Vector3(
-      startCoords.x,
-      startCoords.y,
-      startCoords.z
-    );
+    const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
     const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
 
     onlyBBatcher.addLine(startVec, endVec, {
@@ -179,7 +228,7 @@ export function drawLineElementsBatched(
       elementId: id,
       modelSource: 'B',
       importance,
-      isLine: true
+      isLine: true,
     });
 
     modelBounds.expandByPoint(startVec);
@@ -194,7 +243,7 @@ export function drawLineElementsBatched(
         'B',
         elementType,
         group,
-        -150
+        -150,
       );
       if (label) createdLabels.push(label);
     }
@@ -202,39 +251,21 @@ export function drawLineElementsBatched(
 
   // バッチをビルドしてグループに追加
   if (matchedBatcher.count > 0) {
-    const material = getMaterialForElementWithMode(
-      elementType,
-      'matched',
-      true,
-      false,
-      null
-    );
+    const material = getMaterialForElementWithMode(elementType, 'matched', true, false, null);
     const batchedLines = matchedBatcher.build(material);
     batchedLines.userData.batchType = 'matched';
     group.add(batchedLines);
   }
 
   if (onlyABatcher.count > 0) {
-    const material = getMaterialForElementWithMode(
-      elementType,
-      'onlyA',
-      true,
-      false,
-      null
-    );
+    const material = getMaterialForElementWithMode(elementType, 'onlyA', true, false, null);
     const batchedLines = onlyABatcher.build(material);
     batchedLines.userData.batchType = 'onlyA';
     group.add(batchedLines);
   }
 
   if (onlyBBatcher.count > 0) {
-    const material = getMaterialForElementWithMode(
-      elementType,
-      'onlyB',
-      true,
-      false,
-      null
-    );
+    const material = getMaterialForElementWithMode(elementType, 'onlyB', true, false, null);
     const batchedLines = onlyBBatcher.build(material);
     batchedLines.userData.batchType = 'onlyB';
     group.add(batchedLines);
@@ -245,7 +276,7 @@ export function drawLineElementsBatched(
     onlyASegments: onlyABatcher.count,
     onlyBSegments: onlyBBatcher.count,
     totalDrawCalls: 3, // matched, onlyA, onlyB
-    labelsCreated: createdLabels.length
+    labelsCreated: createdLabels.length,
   });
 
   return createdLabels;
@@ -259,10 +290,7 @@ export function drawLineElementsBatched(
  */
 function isValidCoords(coords) {
   return (
-    coords &&
-    Number.isFinite(coords.x) &&
-    Number.isFinite(coords.y) &&
-    Number.isFinite(coords.z)
+    coords && Number.isFinite(coords.x) && Number.isFinite(coords.y) && Number.isFinite(coords.z)
   );
 }
 
@@ -278,18 +306,8 @@ function isValidCoords(coords) {
  * @param {THREE.Group} group - 描画グループ
  * @returns {THREE.Sprite|null}
  */
-function createBatchedLabel(
-  startVec,
-  endVec,
-  dataA,
-  dataB,
-  modelSource,
-  elementType,
-  group
-) {
-  const midPoint = new THREE.Vector3()
-    .addVectors(startVec, endVec)
-    .multiplyScalar(0.5);
+function createBatchedLabel(startVec, endVec, dataA, dataB, modelSource, elementType, group) {
+  const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
 
   const contentType = window.globalState?.get('ui.labelContentType') || 'id';
   let labelText;
@@ -302,14 +320,14 @@ function createBatchedLabel(
     labelText = `${nameA || '?'} / ${nameB || '?'}`;
   }
 
-  const sprite = createLabelSprite(labelText, midPoint, group, elementType);
+  const sprite = createLabelSpriteInternal(labelText, midPoint, group, elementType);
   if (sprite) {
     sprite.userData.elementIdA = dataA.id;
     sprite.userData.elementIdB = dataB.id;
     sprite.userData.modelSource = modelSource;
 
     if (dataA.element) {
-      attachElementDataToLabel(sprite, dataA.element);
+      attachElementDataToLabelInternal(sprite, dataA.element);
     }
   }
 
@@ -337,19 +355,15 @@ function createSingleModelLabel(
   modelSource,
   elementType,
   group,
-  offsetAmount
+  offsetAmount,
 ) {
-  const midPoint = new THREE.Vector3()
-    .addVectors(startVec, endVec)
-    .multiplyScalar(0.5);
+  const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
 
   const direction = endVec.clone().sub(startVec).normalize();
   let offsetDir = new THREE.Vector3(-direction.y, direction.x, 0).normalize();
   if (offsetDir.lengthSq() < 0.1) offsetDir = new THREE.Vector3(1, 0, 0);
 
-  const labelPosition = midPoint
-    .clone()
-    .add(offsetDir.multiplyScalar(offsetAmount));
+  const labelPosition = midPoint.clone().add(offsetDir.multiplyScalar(offsetAmount));
 
   const contentType = window.globalState?.get('ui.labelContentType') || 'id';
   let displayText = id;
@@ -357,18 +371,18 @@ function createSingleModelLabel(
   if (contentType === 'name' && element?.name) {
     displayText = element.name;
   } else if (contentType === 'section') {
-    displayText = generateLabelText(element, elementType);
+    displayText = generateLabelTextInternal(element, elementType);
   }
 
   const labelText = `${modelSource}: ${displayText}`;
-  const sprite = createLabelSprite(labelText, labelPosition, group, elementType);
+  const sprite = createLabelSpriteInternal(labelText, labelPosition, group, elementType);
 
   if (sprite) {
     sprite.userData.elementId = id;
     sprite.userData.modelSource = modelSource;
 
     if (element) {
-      attachElementDataToLabel(sprite, element);
+      attachElementDataToLabelInternal(sprite, element);
     }
   }
 
@@ -410,10 +424,9 @@ export function getBatchRenderingStats(group) {
     totalSegments,
     regularMeshCount,
     estimatedDrawCallReduction:
-      totalSegments > 0 ? Math.round((1 - batchCount / totalSegments) * 100) : 0
+      totalSegments > 0 ? Math.round((1 - batchCount / totalSegments) * 100) : 0,
   };
 }
-
 
 /**
  * 共有球体ジオメトリ（全節点で再利用）
@@ -445,13 +458,7 @@ function getSharedSphereGeometry() {
  * @param {THREE.Box3} modelBounds - モデル境界
  * @returns {Array<THREE.Sprite>} 作成されたラベル
  */
-export function drawNodesBatched(
-  comparisonResult,
-  materials,
-  group,
-  labelToggle,
-  modelBounds
-) {
+export function drawNodesBatched(comparisonResult, materials, group, labelToggle, modelBounds) {
   group.clear();
   const createdLabels = [];
 
@@ -487,12 +494,12 @@ export function drawNodesBatched(
       idA,
       idB,
       importance,
-      matchType
+      matchType,
     });
 
     if (labelToggle) {
       const labelText = `${idA} / ${idB}`;
-      const sprite = createLabelSprite(labelText, pos, group, 'Node');
+      const sprite = createLabelSpriteInternal(labelText, pos, group, 'Node');
       if (sprite) {
         sprite.userData.elementIdA = idA;
         sprite.userData.elementIdB = idB;
@@ -517,12 +524,12 @@ export function drawNodesBatched(
     onlyANodes.push({
       position: pos,
       id,
-      importance
+      importance,
     });
 
     if (labelToggle) {
       const labelText = `A: ${id}`;
-      const sprite = createLabelSprite(labelText, pos, group, 'Node');
+      const sprite = createLabelSpriteInternal(labelText, pos, group, 'Node');
       if (sprite) {
         sprite.userData.elementId = id;
         sprite.userData.modelSource = 'A';
@@ -546,12 +553,12 @@ export function drawNodesBatched(
     onlyBNodes.push({
       position: pos,
       id,
-      importance
+      importance,
     });
 
     if (labelToggle) {
       const labelText = `B: ${id}`;
-      const sprite = createLabelSprite(labelText, pos, group, 'Node');
+      const sprite = createLabelSpriteInternal(labelText, pos, group, 'Node');
       if (sprite) {
         sprite.userData.elementId = id;
         sprite.userData.modelSource = 'B';
@@ -573,14 +580,10 @@ export function drawNodesBatched(
       false,
       false,
       null,
-      matchType
+      matchType,
     );
 
-    const instancedMesh = new THREE.InstancedMesh(
-      sphereGeometry,
-      material,
-      nodes.length
-    );
+    const instancedMesh = new THREE.InstancedMesh(sphereGeometry, material, nodes.length);
 
     const matrix = new THREE.Matrix4();
     const instanceUserData = [];
@@ -593,7 +596,7 @@ export function drawNodesBatched(
         elementIdA: node.idA,
         elementIdB: node.idB,
         modelSource: 'matched',
-        toleranceState: node.matchType
+        toleranceState: node.matchType,
       });
     });
 
@@ -604,7 +607,7 @@ export function drawNodesBatched(
       elementType: 'Node',
       batchType: 'matched',
       instanceCount: nodes.length,
-      instances: instanceUserData
+      instances: instanceUserData,
     };
 
     group.add(instancedMesh);
@@ -612,19 +615,9 @@ export function drawNodesBatched(
 
   // OnlyA ノードの InstancedMesh を作成
   if (onlyANodes.length > 0) {
-    const material = getMaterialForElementWithMode(
-      'Node',
-      'onlyA',
-      false,
-      false,
-      null
-    );
+    const material = getMaterialForElementWithMode('Node', 'onlyA', false, false, null);
 
-    const instancedMesh = new THREE.InstancedMesh(
-      sphereGeometry,
-      material,
-      onlyANodes.length
-    );
+    const instancedMesh = new THREE.InstancedMesh(sphereGeometry, material, onlyANodes.length);
 
     const matrix = new THREE.Matrix4();
     const instanceUserData = [];
@@ -635,7 +628,7 @@ export function drawNodesBatched(
       instanceUserData.push({
         elementType: 'Node',
         elementId: node.id,
-        modelSource: 'A'
+        modelSource: 'A',
       });
     });
 
@@ -646,7 +639,7 @@ export function drawNodesBatched(
       elementType: 'Node',
       batchType: 'onlyA',
       instanceCount: onlyANodes.length,
-      instances: instanceUserData
+      instances: instanceUserData,
     };
 
     group.add(instancedMesh);
@@ -654,19 +647,9 @@ export function drawNodesBatched(
 
   // OnlyB ノードの InstancedMesh を作成
   if (onlyBNodes.length > 0) {
-    const material = getMaterialForElementWithMode(
-      'Node',
-      'onlyB',
-      false,
-      false,
-      null
-    );
+    const material = getMaterialForElementWithMode('Node', 'onlyB', false, false, null);
 
-    const instancedMesh = new THREE.InstancedMesh(
-      sphereGeometry,
-      material,
-      onlyBNodes.length
-    );
+    const instancedMesh = new THREE.InstancedMesh(sphereGeometry, material, onlyBNodes.length);
 
     const matrix = new THREE.Matrix4();
     const instanceUserData = [];
@@ -677,7 +660,7 @@ export function drawNodesBatched(
       instanceUserData.push({
         elementType: 'Node',
         elementId: node.id,
-        modelSource: 'B'
+        modelSource: 'B',
       });
     });
 
@@ -688,24 +671,23 @@ export function drawNodesBatched(
       elementType: 'Node',
       batchType: 'onlyB',
       instanceCount: onlyBNodes.length,
-      instances: instanceUserData
+      instances: instanceUserData,
     };
 
     group.add(instancedMesh);
   }
 
   const totalNodes =
-    comparisonResult.matched.length +
-    comparisonResult.onlyA.length +
-    comparisonResult.onlyB.length;
+    comparisonResult.matched.length + comparisonResult.onlyA.length + comparisonResult.onlyB.length;
 
   log.info(`Batched Node rendering summary:`, {
     totalNodes,
     matchedNodes: comparisonResult.matched.length,
     onlyANodes: onlyANodes.length,
     onlyBNodes: onlyBNodes.length,
-    drawCalls: matchedByType.size + (onlyANodes.length > 0 ? 1 : 0) + (onlyBNodes.length > 0 ? 1 : 0),
-    labelsCreated: createdLabels.length
+    drawCalls:
+      matchedByType.size + (onlyANodes.length > 0 ? 1 : 0) + (onlyBNodes.length > 0 ? 1 : 0),
+    labelsCreated: createdLabels.length,
   });
 
   return createdLabels;

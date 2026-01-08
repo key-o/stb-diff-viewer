@@ -50,16 +50,101 @@ select.form-control {
 }
 
 /* ========================================
-   チェックボックスとラジオ
+   チェックボックスとラジオ - カスタムスタイル
    ======================================== */
 
 input[type="checkbox"],
 input[type="radio"] {
-  margin-right: 5px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: var(--checkbox-size);
+  height: var(--checkbox-size);
+  margin: 0;
+  margin-right: var(--form-element-margin);
+  padding: 0;
+  border: var(--checkbox-border-width) solid var(--checkbox-border-color);
+  background-color: var(--bg-body);
   cursor: pointer;
+  flex-shrink: 0;
+  vertical-align: middle;
+  position: relative;
+  transition: all var(--transition-fast);
 }
 
-/* カスタムチェックボックス（将来の拡張用） */
+input[type="checkbox"] {
+  border-radius: var(--checkbox-border-radius);
+}
+
+input[type="radio"] {
+  border-radius: 50%;
+}
+
+/* ホバー状態 */
+input[type="checkbox"]:hover,
+input[type="radio"]:hover {
+  border-color: var(--color-primary);
+}
+
+/* フォーカス状態 */
+input[type="checkbox"]:focus,
+input[type="radio"]:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.25);
+}
+
+/* チェックボックス: チェック状態 */
+input[type="checkbox"]:checked {
+  background-color: var(--checkbox-checked-bg);
+  border-color: var(--checkbox-checked-border);
+}
+
+input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid var(--checkbox-checkmark-color);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+/* ラジオボタン: チェック状態 */
+input[type="radio"]:checked {
+  background-color: var(--checkbox-checked-bg);
+  border-color: var(--checkbox-checked-bg);
+}
+
+input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--checkbox-checkmark-color);
+  transform: translate(-50%, -50%);
+}
+
+/* 無効状態 */
+input[type="checkbox"]:disabled,
+input[type="radio"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: var(--bg-disabled);
+}
+
+input[type="checkbox"]:disabled:checked,
+input[type="radio"]:disabled:checked {
+  background-color: var(--color-secondary);
+  border-color: var(--color-secondary);
+}
+
+/* カスタムチェックボックス（レガシー互換） */
 .custom-checkbox {
   position: relative;
   padding-left: 1.5rem;
@@ -115,15 +200,19 @@ label {
 }
 
 /* ========================================
-   カラーピッカー
+   カラーピッカー（統一サイズ: 24px x 24px）
    ======================================== */
 
 input[type="color"] {
   -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
   border: none;
-  width: 32px;
-  height: 32px;
+  width: var(--color-picker-size);
+  height: var(--color-picker-size);
+  padding: 0;
   cursor: pointer;
+  background: transparent;
 }
 
 input[type="color"]::-webkit-color-swatch-wrapper {
@@ -131,25 +220,30 @@ input[type="color"]::-webkit-color-swatch-wrapper {
 }
 
 input[type="color"]::-webkit-color-swatch {
-  border: var(--border-width) solid var(--border-color);
-  border-radius: var(--border-radius-sm);
+  border: var(--color-picker-border-width) solid var(--color-picker-border-color);
+  border-radius: var(--border-radius);
 }
 
-/* 凡例用カラーボックス */
+input[type="color"]::-moz-color-swatch {
+  border: var(--color-picker-border-width) solid var(--color-picker-border-color);
+  border-radius: var(--border-radius);
+}
+
+/* 凡例用カラーボックス（統一スタイル） */
 .legend-color-box {
-  width: 28px;
-  height: 28px;
-  border: 2px solid #ddd;
+  width: var(--color-picker-size);
+  height: var(--color-picker-size);
+  border: var(--color-picker-border-width) solid var(--color-picker-border-color);
   border-radius: var(--border-radius);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
   padding: 0;
   flex-shrink: 0;
-  margin-right: var(--spacing-sm);
+  margin-right: var(--form-element-margin);
 }
 
 .legend-color-box:hover {
-  border-color: #333;
+  border-color: var(--text-primary);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
@@ -175,7 +269,7 @@ input[type="range"]::-webkit-slider-thumb {
   border-radius: 50%;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
@@ -191,7 +285,7 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
   border: none;
   box-shadow: var(--shadow-sm);
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
 }
 
 input[type="range"]::-moz-range-thumb:hover {
@@ -248,4 +342,62 @@ input[type="range"]::-moz-range-thumb:hover {
 .form-control.is-valid ~ .valid-feedback,
 .form-control.is-invalid ~ .invalid-feedback {
   display: block;
+}
+
+/* ========================================
+   チェックボックスラベル
+   ======================================== */
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  /* サイズはグローバルで定義済み */
+  margin-right: 0; /* gap で間隔を制御 */
+}
+
+.checkbox-label span {
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+}
+
+/* ========================================
+   設定説明テキスト
+   ======================================== */
+
+.setting-desc {
+  margin-top: var(--spacing-xs);
+  margin-bottom: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* ========================================
+   ビューアモード設定
+   ======================================== */
+
+.viewer-mode-settings {
+  padding: var(--spacing-sm);
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius);
+  margin-top: var(--spacing-sm);
+}
+
+/* ========================================
+   テーブルヘッダーのマスターチェックボックス
+   ======================================== */
+
+.element-settings-table thead th {
+  white-space: nowrap;
+}
+
+.element-settings-table thead th input[type="checkbox"] {
+  margin-left: 0.25rem;
+  vertical-align: middle;
 }

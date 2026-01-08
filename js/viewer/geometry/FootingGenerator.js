@@ -28,7 +28,7 @@ export class FootingGenerator extends BaseElementGenerator {
     return {
       elementName: 'Footing',
       loggerName: 'viewer:geometry:footing',
-      defaultElementType: 'Footing'
+      defaultElementType: 'Footing',
     };
   }
 
@@ -48,7 +48,7 @@ export class FootingGenerator extends BaseElementGenerator {
     footingSections,
     steelSections,
     elementType = 'Footing',
-    isJsonInput = false
+    isJsonInput = false,
   ) {
     return this.createMeshes(
       footingElements,
@@ -56,7 +56,7 @@ export class FootingGenerator extends BaseElementGenerator {
       footingSections,
       steelSections,
       elementType,
-      isJsonInput
+      isJsonInput,
     );
   }
 
@@ -70,26 +70,18 @@ export class FootingGenerator extends BaseElementGenerator {
     const { nodes, sections, elementType, isJsonInput, log } = context;
 
     // 1. ノード位置の取得（ElementGeometryUtils使用）
-    const nodePositions = ElementGeometryUtils.getNodePositions(
-      footing,
-      nodes,
-      {
-        nodeType: '1node',
-        isJsonInput: isJsonInput,
-        node1Key: 'id_node'
-      }
-    );
+    const nodePositions = ElementGeometryUtils.getNodePositions(footing, nodes, {
+      nodeType: '1node',
+      isJsonInput: isJsonInput,
+      node1Key: 'id_node',
+    });
 
     if (!this._validateNodePositions(nodePositions, footing, context)) {
       return null;
     }
 
     // 2. 断面データの取得（ElementGeometryUtils使用）
-    const sectionData = ElementGeometryUtils.getSectionData(
-      footing,
-      sections,
-      isJsonInput
-    );
+    const sectionData = ElementGeometryUtils.getSectionData(footing, sections, isJsonInput);
 
     if (!this._validateSectionData(sectionData, footing, context)) {
       return null;
@@ -99,18 +91,13 @@ export class FootingGenerator extends BaseElementGenerator {
     const dimensions = sectionData.dimensions || sectionData;
 
     // 基礎の寸法（STB属性名に対応）
-    const widthX =
-      dimensions.width_X || dimensions.outer_width || dimensions.width || 1000; // mm
-    const widthY =
-      dimensions.width_Y ||
-      dimensions.overall_depth ||
-      dimensions.height ||
-      1000; // mm
+    const widthX = dimensions.width_X || dimensions.outer_width || dimensions.width || 1000; // mm
+    const widthY = dimensions.width_Y || dimensions.overall_depth || dimensions.height || 1000; // mm
     const depth = dimensions.depth || dimensions.overall_height || 1500; // mm
 
     if (!widthX || !widthY || !depth) {
       log.warn(
-        `Skipping footing ${footing.id}: Invalid dimensions (widthX=${widthX}, widthY=${widthY}, depth=${depth})`
+        `Skipping footing ${footing.id}: Invalid dimensions (widthX=${widthX}, widthY=${widthY}, depth=${depth})`,
       );
       return null;
     }
@@ -121,12 +108,9 @@ export class FootingGenerator extends BaseElementGenerator {
     const levelBottom = footing.level_bottom || 0;
 
     // 5. オフセットと回転の取得（ElementGeometryUtils使用）
-    const offsetAndRotation = ElementGeometryUtils.getOffsetAndRotation(
-      footing,
-      {
-        nodeType: '1node'
-      }
-    );
+    const offsetAndRotation = ElementGeometryUtils.getOffsetAndRotation(footing, {
+      nodeType: '1node',
+    });
 
     // 6. 配置計算（1ノード要素専用ロジック - ElementGeometryUtils使用）
     const placement = ElementGeometryUtils.calculateSingleNodePlacement(
@@ -135,19 +119,15 @@ export class FootingGenerator extends BaseElementGenerator {
       depth,
       {
         offset: offsetAndRotation.startOffset,
-        rotation: (offsetAndRotation.rollAngle * Math.PI) / 180 // 度→ラジアン変換
-      }
+        rotation: (offsetAndRotation.rollAngle * Math.PI) / 180, // 度→ラジアン変換
+      },
     );
 
     log.debug(
       `Footing ${footing.id}: position=(${placement.position.x.toFixed(
-        0
-      )}, ${placement.position.y.toFixed(0)}, ${placement.position.z.toFixed(
-        0
-      )}), ` +
-        `bottomZ=${placement.bottomZ.toFixed(0)}, topZ=${placement.topZ.toFixed(
-          0
-        )}`
+        0,
+      )}, ${placement.position.y.toFixed(0)}, ${placement.position.z.toFixed(0)}), ` +
+        `bottomZ=${placement.bottomZ.toFixed(0)}, topZ=${placement.topZ.toFixed(0)}`,
     );
 
     // 7. 直方体ジオメトリを作成
@@ -168,8 +148,8 @@ export class FootingGenerator extends BaseElementGenerator {
         length: depth,
         sectionType: 'RECTANGLE',
         profileMeta: { profileSource: 'BoxGeometry', profileType: 'RECTANGLE' },
-        sectionData: sectionData
-      }
+        sectionData: sectionData,
+      },
     );
 
     // 9. 配置を適用
@@ -183,7 +163,7 @@ export class FootingGenerator extends BaseElementGenerator {
       depth: depth,
       levelBottom: levelBottom,
       bottomZ: placement.bottomZ,
-      topZ: placement.topZ
+      topZ: placement.topZ,
     };
 
     // 11. 配置基準線を添付（オプション - 基礎では省略可能）

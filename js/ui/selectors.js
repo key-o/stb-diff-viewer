@@ -10,7 +10,10 @@
  * より良い整理のため、大きなui.jsモジュールから分割されました。
  */
 
+import { createLogger } from '../utils/logger.js';
 import { getCurrentStories, getCurrentAxesData } from './state.js';
+
+const log = createLogger('ui:selectors');
 
 // --- UI Element References ---
 const storySelector = document.getElementById('storySelector');
@@ -22,7 +25,7 @@ const yAxisSelector = document.getElementById('yAxisSelector');
  */
 export function updateStorySelector() {
   if (!storySelector) {
-    console.warn('Story selector element not found');
+    log.warn('Story selector element not found');
     return;
   }
 
@@ -53,7 +56,7 @@ export function updateStorySelector() {
   // Set default selection
   storySelector.value = 'all';
 
-  console.log(`Story selector updated with ${stories.length} stories`);
+  log.info(`Story selector updated with ${stories.length} stories`);
 }
 
 /**
@@ -65,7 +68,7 @@ export function updateAxisSelectors() {
   updateXAxisSelector(axesData.xAxes);
   updateYAxisSelector(axesData.yAxes);
 
-  console.log(`Axis selectors updated: X=${axesData.xAxes.length}, Y=${axesData.yAxes.length}`);
+  log.info(`Axis selectors updated: X=${axesData.xAxes.length}, Y=${axesData.yAxes.length}`);
 }
 
 /**
@@ -74,7 +77,7 @@ export function updateAxisSelectors() {
  */
 function updateXAxisSelector(xAxes) {
   if (!xAxisSelector) {
-    console.warn('X-axis selector element not found');
+    log.warn('X-axis selector element not found');
     return;
   }
 
@@ -110,7 +113,7 @@ function updateXAxisSelector(xAxes) {
  */
 function updateYAxisSelector(yAxes) {
   if (!yAxisSelector) {
-    console.warn('Y-axis selector element not found');
+    log.warn('Y-axis selector element not found');
     return;
   }
 
@@ -171,7 +174,7 @@ export function getCurrentYAxisSelection() {
 export function setStorySelection(storyId) {
   if (storySelector) {
     storySelector.value = storyId;
-    console.log(`Story selection set to: ${storyId}`);
+    log.info(`Story selection set to: ${storyId}`);
   }
 }
 
@@ -182,7 +185,7 @@ export function setStorySelection(storyId) {
 export function setXAxisSelection(axisId) {
   if (xAxisSelector) {
     xAxisSelector.value = axisId;
-    console.log(`X-axis selection set to: ${axisId}`);
+    log.info(`X-axis selection set to: ${axisId}`);
   }
 }
 
@@ -193,7 +196,7 @@ export function setXAxisSelection(axisId) {
 export function setYAxisSelection(axisId) {
   if (yAxisSelector) {
     yAxisSelector.value = axisId;
-    console.log(`Y-axis selection set to: ${axisId}`);
+    log.info(`Y-axis selection set to: ${axisId}`);
   }
 }
 
@@ -204,7 +207,7 @@ export function resetSelectorsToDefault() {
   setStorySelection('all');
   setXAxisSelection('all');
   setYAxisSelection('all');
-  console.log('All selectors reset to default values');
+  log.info('All selectors reset to default values');
 }
 
 /**
@@ -216,18 +219,18 @@ export function getSelectorStatistics() {
     storySelector: {
       exists: !!storySelector,
       optionCount: storySelector?.options.length || 0,
-      currentValue: storySelector?.value || null
+      currentValue: storySelector?.value || null,
     },
     xAxisSelector: {
       exists: !!xAxisSelector,
       optionCount: xAxisSelector?.options.length || 0,
-      currentValue: xAxisSelector?.value || null
+      currentValue: xAxisSelector?.value || null,
     },
     yAxisSelector: {
       exists: !!yAxisSelector,
       optionCount: yAxisSelector?.options.length || 0,
-      currentValue: yAxisSelector?.value || null
-    }
+      currentValue: yAxisSelector?.value || null,
+    },
   };
 }
 
@@ -238,7 +241,7 @@ export function getSelectorStatistics() {
 export function validateSelectorElements() {
   const validation = {
     isValid: true,
-    missing: []
+    missing: [],
   };
 
   if (!storySelector) {

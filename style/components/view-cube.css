@@ -1,0 +1,427 @@
+/**
+ * ViewCube - 3Dナビゲーションキューブ
+ *
+ * カメラの向きを表示し、クリックでビュー方向を変更できるUIコンポーネント
+ */
+
+/* ========================================
+   コンテナ
+   ======================================== */
+
+.view-cube-container {
+  position: fixed;
+  top: 20px;
+  right: 320px; /* パネル幅(300px) + マージン(20px) */
+  width: 100px;
+  height: 100px;
+  z-index: var(--z-panel);
+  perspective: 300px;
+  pointer-events: auto;
+}
+
+/* ========================================
+   3Dキューブ
+   ======================================== */
+
+.view-cube {
+  width: 60px;
+  height: 60px;
+  position: relative;
+  transform-style: preserve-3d;
+  /* 初期状態：等角投影風に斜めから見る（JSで上書きされる） */
+  transform: translateZ(-30px) rotateX(-20deg) rotateY(-30deg);
+  margin: 20px;
+  /* カメラ同期時のスムーズな回転 */
+  transition: transform 0.1s ease-out;
+}
+
+/* ========================================
+   キューブ面 - 共通スタイル
+   ======================================== */
+
+.view-cube-face {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  background-color: var(--bg-window);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  backface-visibility: visible;
+  opacity: 0.92;
+  transition: background-color var(--transition-fast),
+              opacity var(--transition-fast),
+              border-color var(--transition-fast);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.view-cube-face:hover {
+  background-color: var(--color-primary);
+  color: var(--text-white);
+  opacity: 1;
+  border-color: var(--color-primary-hover);
+}
+
+.view-cube-face:active {
+  background-color: var(--color-primary-active);
+}
+
+/* フォーカス時のアウトライン（アクセシビリティ） */
+.view-cube-face:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.view-cube-face:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ========================================
+   キューブ面 - 3D配置
+   Z軸上向き座標系（建築標準）に対応
+
+   Three.js座標系: X→右, Y→奥, Z→上
+   CSS座標系:      X→右, Y→下, Z→手前
+
+   変換: CSS の rotateX は Three.js の -rotateX に相当
+   ======================================== */
+
+/* 上面（Z+方向から見る = 平面図） */
+.view-cube-face.top {
+  transform: rotateX(90deg) translateZ(30px);
+}
+
+/* 下面（Z-方向から見る） */
+.view-cube-face.bottom {
+  transform: rotateX(-90deg) translateZ(30px);
+}
+
+/* 前面（Y-方向から見る = 正面図） */
+.view-cube-face.front {
+  transform: translateZ(30px);
+}
+
+/* 後面（Y+方向から見る） */
+.view-cube-face.back {
+  transform: rotateY(180deg) translateZ(30px);
+}
+
+/* 右面（X+方向から見る = 右側面図） */
+.view-cube-face.right {
+  transform: rotateY(90deg) translateZ(30px);
+}
+
+/* 左面（X-方向から見る = 左側面図） */
+.view-cube-face.left {
+  transform: rotateY(-90deg) translateZ(30px);
+}
+
+/* ========================================
+   辺（エッジ）- 12個
+   各面の縁に配置、面と同じ transform ベース
+   ======================================== */
+
+.view-cube-edge {
+  position: absolute;
+  background-color: var(--bg-window);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  opacity: 0.85;
+  transition: background-color var(--transition-fast),
+              opacity var(--transition-fast);
+  box-sizing: border-box;
+  /* 立体感: box-shadowで奥行き表現 */
+  box-shadow:
+    inset 1px 1px 2px rgba(255,255,255,0.3),
+    inset -1px -1px 2px rgba(0,0,0,0.1);
+  /* left/top で位置決め、transform は回転のみ */
+}
+
+.view-cube-edge:hover {
+  background-color: var(--color-primary);
+  opacity: 1;
+  z-index: 10;
+}
+
+/* 上面・下面の水平辺: 法線がキューブ中心を向くように45度傾ける */
+/* キューブ: 60x60px、辺: 48x12px */
+
+/* top-front: 上面と前面の境界、法線は斜め上前方向 */
+.view-cube-edge.top-front {
+  width: 48px;
+  height: 12px;
+  left: 6px;
+  top: 24px;
+  transform: rotateX(-45deg) translateZ(42.43px);  /* 30 * sqrt(2) */
+}
+
+/* top-back: 上面と後面の境界、法線は斜め上後方向 */
+.view-cube-edge.top-back {
+  width: 48px;
+  height: 12px;
+  left: 6px;
+  top: 24px;
+  transform: rotateY(180deg) rotateX(-45deg) translateZ(42.43px);
+}
+
+/* top-right: 上面と右面の境界、法線は斜め上右方向 */
+.view-cube-edge.top-right {
+  width: 48px;
+  height: 12px;
+  left: 6px;
+  top: 24px;
+  transform: rotateY(90deg) rotateX(-45deg) translateZ(42.43px);
+}
+
+/* top-left: 上面と左面の境界、法線は斜め上左方向 */
+.view-cube-edge.top-left {
+  width: 48px;
+  height: 12px;
+  left: 6px;
+  top: 24px;
+  transform: rotateY(-90deg) rotateX(-45deg) translateZ(42.43px);
+}
+
+/* bottom-front: 下面と前面の境界、法線は斜め下前方向 */
+.view-cube-edge.bottom-front {
+  width: 48px;
+  height: 12px;
+  left: 6px;
+  top: 24px;
+  transform: rotateX(45deg) translateZ(42.43px);
+}
+
+/* bottom-back: 下面と後面の境界、法線は斜め下後方向 */
+.view-cube-edge.bottom-back {
+  width: 48px;
+  height: 12px;
+  left: 6px;
+  top: 24px;
+  transform: rotateY(180deg) rotateX(45deg) translateZ(42.43px);
+}
+
+/* bottom-right: 下面と右面の境界、法線は斜め下右方向 */
+.view-cube-edge.bottom-right {
+  width: 48px;
+  height: 12px;
+  left: 6px;
+  top: 24px;
+  transform: rotateY(90deg) rotateX(45deg) translateZ(42.43px);
+}
+
+/* bottom-left: 下面と左面の境界、法線は斜め下左方向 */
+.view-cube-edge.bottom-left {
+  width: 48px;
+  height: 12px;
+  left: 6px;
+  top: 24px;
+  transform: rotateY(-90deg) rotateX(45deg) translateZ(42.43px);
+}
+
+/* 縦の4辺: 法線がキューブ中心を向くように45度傾ける */
+.view-cube-edge.front-right {
+  width: 12px;
+  height: 48px;
+  left: 24px;
+  top: 6px;
+  transform: rotateY(45deg) translateZ(42.43px);
+}
+
+.view-cube-edge.front-left {
+  width: 12px;
+  height: 48px;
+  left: 24px;
+  top: 6px;
+  transform: rotateY(-45deg) translateZ(42.43px);
+}
+
+.view-cube-edge.back-right {
+  width: 12px;
+  height: 48px;
+  left: 24px;
+  top: 6px;
+  transform: rotateY(135deg) translateZ(42.43px);
+}
+
+.view-cube-edge.back-left {
+  width: 12px;
+  height: 48px;
+  left: 24px;
+  top: 6px;
+  transform: rotateY(-135deg) translateZ(42.43px);
+}
+
+/* ========================================
+   角（コーナー）- 8個
+   上面/下面の四隅に配置
+   ======================================== */
+
+.view-cube-corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background-color: var(--bg-window);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  opacity: 0.85;
+  transition: background-color var(--transition-fast),
+              opacity var(--transition-fast);
+  box-sizing: border-box;
+  /* 立体感: box-shadowで奥行き表現 + 角丸で頂点らしさ */
+  box-shadow:
+    inset 1px 1px 3px rgba(255,255,255,0.4),
+    inset -1px -1px 3px rgba(0,0,0,0.15);
+  border-radius: var(--border-radius-sm);
+  /* left/top で位置決め、transform は回転のみ */
+}
+
+.view-cube-corner:hover {
+  background-color: var(--color-primary);
+  opacity: 1;
+  z-index: 20;
+}
+
+/* コーナー: 法線がキューブ中心を向くように2軸で傾ける */
+/* arctan(1/√2) ≈ 35.264deg、translateZ = 30 * sqrt(3) ≈ 51.96px */
+
+/* 上前右: 法線は(1, -1, 1)方向 */
+.view-cube-corner.top-front-right {
+  left: 22px;
+  top: 22px;
+  transform: rotateY(45deg) rotateX(-35.264deg) translateZ(51.96px);
+}
+
+/* 上前左: 法線は(-1, -1, 1)方向 */
+.view-cube-corner.top-front-left {
+  left: 22px;
+  top: 22px;
+  transform: rotateY(-45deg) rotateX(-35.264deg) translateZ(51.96px);
+}
+
+/* 下前右: 法線は(1, -1, -1)方向 */
+.view-cube-corner.bottom-front-right {
+  left: 22px;
+  top: 22px;
+  transform: rotateY(45deg) rotateX(35.264deg) translateZ(51.96px);
+}
+
+/* 下前左: 法線は(-1, -1, -1)方向 */
+.view-cube-corner.bottom-front-left {
+  left: 22px;
+  top: 22px;
+  transform: rotateY(-45deg) rotateX(35.264deg) translateZ(51.96px);
+}
+
+/* 上後右: 法線は(1, 1, 1)方向 */
+.view-cube-corner.top-back-right {
+  left: 22px;
+  top: 22px;
+  transform: rotateY(135deg) rotateX(-35.264deg) translateZ(51.96px);
+}
+
+/* 上後左: 法線は(-1, 1, 1)方向 */
+.view-cube-corner.top-back-left {
+  left: 22px;
+  top: 22px;
+  transform: rotateY(-135deg) rotateX(-35.264deg) translateZ(51.96px);
+}
+
+/* 下後右: 法線は(1, 1, -1)方向 */
+.view-cube-corner.bottom-back-right {
+  left: 22px;
+  top: 22px;
+  transform: rotateY(135deg) rotateX(35.264deg) translateZ(51.96px);
+}
+
+/* 下後左: 法線は(-1, 1, -1)方向 */
+.view-cube-corner.bottom-back-left {
+  left: 22px;
+  top: 22px;
+  transform: rotateY(-135deg) rotateX(35.264deg) translateZ(51.96px);
+}
+
+/* ========================================
+   軸インジケーター（オプション）
+   ======================================== */
+
+.view-cube-axis-indicator {
+  position: absolute;
+  bottom: -25px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.view-cube-axis-x { color: #e74c3c; }
+.view-cube-axis-y { color: #2ecc71; }
+.view-cube-axis-z { color: #3498db; }
+
+/* ========================================
+   レスポンシブ対応
+   ======================================== */
+
+/* パネルが非表示の場合 */
+@media (max-width: 768px) {
+  .view-cube-container {
+    right: 20px;
+  }
+}
+
+/* 小さい画面 */
+@media (max-width: 480px) {
+  .view-cube-container {
+    width: 80px;
+    height: 80px;
+    top: 10px;
+    right: 10px;
+  }
+
+  .view-cube {
+    width: 50px;
+    height: 50px;
+    margin: 15px;
+  }
+
+  .view-cube-face {
+    width: 50px;
+    height: 50px;
+    font-size: var(--font-size-xs);
+  }
+
+  .view-cube-face.top,
+  .view-cube-face.bottom {
+    transform: rotateX(90deg) translateZ(25px);
+  }
+  .view-cube-face.bottom {
+    transform: rotateX(-90deg) translateZ(25px);
+  }
+  .view-cube-face.front {
+    transform: translateZ(25px);
+  }
+  .view-cube-face.back {
+    transform: rotateY(180deg) translateZ(25px);
+  }
+  .view-cube-face.right {
+    transform: rotateY(90deg) translateZ(25px);
+  }
+  .view-cube-face.left {
+    transform: rotateY(-90deg) translateZ(25px);
+  }
+}
+
+/* ========================================
+   ダークテーマ対応
+   （variables.cssの変数で自動対応）
+   ======================================== */
+
+[data-theme="dark"] .view-cube-face {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}

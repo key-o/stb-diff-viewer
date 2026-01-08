@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { camera, scene } from '../core/core.js';
 
 // --- 設定定数 ---
-const AXIS_STORY_BASE_SCALE = 1.0; // 基準スケール
+// const AXIS_STORY_BASE_SCALE = 1.0; // 基準スケール
 const MIN_SCALE_FACTOR = 0.1; // 最小スケール係数（より小さく）
 const MAX_SCALE_FACTOR = 2.0; // 最大スケール係数（より抑制）
 const DISTANCE_SCALE_FACTOR = 0.00005; // 距離に対するスケール係数（より緩やかに）
@@ -24,8 +24,7 @@ const axisStoryElements = new Set();
 export function registerAxisStoryElement(element) {
   if (
     element &&
-    (element.userData.elementType === 'Axis' ||
-      element.userData.elementType === 'Story')
+    (element.userData.elementType === 'Axis' || element.userData.elementType === 'Story')
   ) {
     axisStoryElements.add(element);
     // 初期スケールを保存
@@ -59,11 +58,7 @@ function calculateScaleFactor() {
   let target = new THREE.Vector3(0, 0, 0);
 
   // controlsが利用可能な場合はそのターゲットを使用
-  if (
-    typeof window !== 'undefined' &&
-    window.controls &&
-    window.controls.target
-  ) {
+  if (typeof window !== 'undefined' && window.controls && window.controls.target) {
     target = window.controls.target;
   }
 
@@ -74,10 +69,7 @@ function calculateScaleFactor() {
   let scaleFactor = distance * DISTANCE_SCALE_FACTOR;
 
   // 最小/最大値でクランプ
-  scaleFactor = Math.max(
-    MIN_SCALE_FACTOR,
-    Math.min(MAX_SCALE_FACTOR, scaleFactor)
-  );
+  scaleFactor = Math.max(MIN_SCALE_FACTOR, Math.min(MAX_SCALE_FACTOR, scaleFactor));
 
   return scaleFactor;
 }
@@ -91,9 +83,7 @@ export function updateAxisStoryScale() {
   axisStoryElements.forEach((element) => {
     if (element.userData.originalScale) {
       // 元のスケールにスケール係数を適用
-      element.scale
-        .copy(element.userData.originalScale)
-        .multiplyScalar(scaleFactor);
+      element.scale.copy(element.userData.originalScale).multiplyScalar(scaleFactor);
     }
   });
 }
@@ -105,8 +95,7 @@ export function autoRegisterAxisStoryElements() {
   scene.traverse((child) => {
     if (
       child.userData &&
-      (child.userData.elementType === 'Axis' ||
-        child.userData.elementType === 'Story')
+      (child.userData.elementType === 'Axis' || child.userData.elementType === 'Story')
     ) {
       registerAxisStoryElement(child);
     }
@@ -118,24 +107,11 @@ export function autoRegisterAxisStoryElements() {
  */
 export function logScalingDebugInfo() {
   const scaleFactor = calculateScaleFactor();
-  const distance = camera.position.distanceTo(
-    camera.target || new THREE.Vector3(0, 0, 0)
-  );
-
-  console.log(
-    `[AxisStoryScaling] Distance: ${distance.toFixed(
-      0
-    )}mm, Scale Factor: ${scaleFactor.toFixed(3)}, Elements: ${
-      axisStoryElements.size
-    }`
-  );
+  const distance = camera.position.distanceTo(camera.target || new THREE.Vector3(0, 0, 0));
 }
 
 // --- 初期化時の自動登録（オプション） ---
 export function initializeAxisStoryScaling() {
   autoRegisterAxisStoryElements();
   updateAxisStoryScale();
-  console.log(
-    `[AxisStoryScaling] Initialized with ${axisStoryElements.size} elements`
-  );
 }

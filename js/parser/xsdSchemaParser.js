@@ -17,6 +17,18 @@
  * - パラメータ編集UIでのリアルタイムバリデーション
  */
 
+// デバッグログの有効/無効（本番環境では false）
+const XSD_DEBUG = false;
+
+/**
+ * デバッグログ出力（XSD_DEBUG が true の場合のみ出力）
+ * @param {...any} args - ログ引数
+ */
+function debugLog(...args) {
+  if (XSD_DEBUG) {
+  }
+}
+
 // グローバルにスキーマ情報を保持
 let xsdSchema = null;
 const elementDefinitions = new Map();
@@ -28,7 +40,7 @@ const elementDefinitions = new Map();
  */
 export async function loadXsdSchema(xsdUrl) {
   try {
-    console.log(`[XSD] Loading XSD schema from: ${xsdUrl}`);
+    debugLog(`[XSD] Loading XSD schema from: ${xsdUrl}`);
 
     // 複数のパス候補を試す
     const pathCandidates = [
@@ -36,7 +48,7 @@ export async function loadXsdSchema(xsdUrl) {
       `./schemas/ST-Bridge202.xsd`,
       `../schemas/ST-Bridge202.xsd`,
       `./materials/ST-Bridge202.xsd`,
-      `../materials/ST-Bridge202.xsd`
+      `../materials/ST-Bridge202.xsd`,
     ];
 
     let response = null;
@@ -44,30 +56,32 @@ export async function loadXsdSchema(xsdUrl) {
 
     for (const candidate of pathCandidates) {
       try {
-        console.log(`[XSD] Trying path: ${candidate}`);
+        debugLog(`[XSD] Trying path: ${candidate}`);
         response = await fetch(candidate);
-        console.log(`[XSD] Fetch response for ${candidate}: status=${response.status}, ok=${response.ok}`);
+        debugLog(
+          `[XSD] Fetch response for ${candidate}: status=${response.status}, ok=${response.ok}`,
+        );
 
         if (response.ok) {
           successUrl = candidate;
           break;
         }
       } catch (fetchError) {
-        console.log(`[XSD] Fetch failed for ${candidate}: ${fetchError.message}`);
+        debugLog(`[XSD] Fetch failed for ${candidate}: ${fetchError.message}`);
         continue;
       }
     }
 
     if (!response || !response.ok) {
       throw new Error(
-        `Failed to fetch XSD from any candidate paths. Last status: ${response?.status} ${response?.statusText}`
+        `Failed to fetch XSD from any candidate paths. Last status: ${response?.status} ${response?.statusText}`,
       );
     }
 
-    console.log(`[XSD] Successfully loaded from: ${successUrl}`);
+    debugLog(`[XSD] Successfully loaded from: ${successUrl}`);
 
     const xsdText = await response.text();
-    console.log(`XSD text loaded, length: ${xsdText.length} characters`);
+    debugLog(`XSD text loaded, length: ${xsdText.length} characters`);
 
     const parser = new DOMParser();
     xsdSchema = parser.parseFromString(xsdText, 'application/xml');
@@ -78,20 +92,17 @@ export async function loadXsdSchema(xsdUrl) {
       throw new Error('Failed to parse XSD file');
     }
 
-    console.log('XSD parsed successfully, analyzing element definitions...');
+    debugLog('XSD parsed successfully, analyzing element definitions...');
 
     // スキーマ情報を解析して要素定義を構築
     parseElementDefinitions();
 
-    console.log(
-      `XSD schema loaded successfully. Found ${elementDefinitions.size} element definitions.`
+    debugLog(
+      `XSD schema loaded successfully. Found ${elementDefinitions.size} element definitions.`,
     );
 
     // デバッグ: 見つかった要素定義をログ出力
-    console.log(
-      'Found element definitions:',
-      Array.from(elementDefinitions.keys())
-    );
+    debugLog('Found element definitions:', Array.from(elementDefinitions.keys()));
 
     return true;
   } catch (error) {
@@ -109,17 +120,15 @@ function parseElementDefinitions() {
     return;
   }
 
-  console.log('Starting parseElementDefinitions...');
+  debugLog('Starting parseElementDefinitions...');
 
   // 名前空間の確認
   const namespaceURI = 'https://www.building-smart.or.jp/dl';
 
   // 要素定義を直接取得（name属性を持つもの）
-  const elements = xsdSchema.querySelectorAll(
-    'xs\\:element[name], element[name]'
-  );
+  const elements = xsdSchema.querySelectorAll('xs\\:element[name], element[name]');
 
-  console.log(`Found ${elements.length} named elements`);
+  debugLog(`Found ${elements.length} named elements`);
 
   elements.forEach((element) => {
     const elementName = element.getAttribute('name');
@@ -127,44 +136,36 @@ function parseElementDefinitions() {
       return;
     }
 
-    console.log(`Processing element: ${elementName}`);
+    debugLog(`Processing element: ${elementName}`);
 
     const attributes = new Map();
 
     // 型参照がある場合の処理
     const typeRef = element.getAttribute('type');
     if (typeRef) {
-      console.log(`Element ${elementName} has type reference: ${typeRef}`);
+      debugLog(`Element ${elementName} has type reference: ${typeRef}`);
 
       // 型参照を解決して属性を取得
       const typeAttributes = resolveTypeReference(typeRef);
       if (typeAttributes) {
-        console.log(
-          `Resolved ${typeAttributes.size} attributes from type reference ${typeRef}`
-        );
+        debugLog(`Resolved ${typeAttributes.size} attributes from type reference ${typeRef}`);
         typeAttributes.forEach((attrDef, attrName) => {
           if (!attributes.has(attrName)) {
             attributes.set(attrName, attrDef);
-            console.log(
-              `  Added type attribute: ${attrName} (${
-                attrDef.required ? 'required' : 'optional'
-              })`
+            debugLog(
+              `  Added type attribute: ${attrName} (${attrDef.required ? 'required' : 'optional'})`,
             );
           }
         });
       } else {
-        console.log(`Failed to resolve type reference: ${typeRef}`);
+        debugLog(`Failed to resolve type reference: ${typeRef}`);
       }
     }
 
     // 直接の属性定義を取得
-    const attributeElements = element.querySelectorAll(
-      'xs\\:attribute, attribute'
-    );
+    const attributeElements = element.querySelectorAll('xs\\:attribute, attribute');
 
-    console.log(
-      `Found ${attributeElements.length} direct attributes for ${elementName}`
-    );
+    debugLog(`Found ${attributeElements.length} direct attributes for ${elementName}`);
 
     attributeElements.forEach((attr) => {
       const attrName = attr.getAttribute('name');
@@ -183,23 +184,19 @@ function parseElementDefinitions() {
           required: use === 'required',
           default: defaultValue,
           fixed: fixed,
-          documentation: documentation
+          documentation: documentation,
         });
 
-        console.log(`  Added attribute: ${attrName} (${use})`);
+        debugLog(`  Added attribute: ${attrName} (${use})`);
       }
     });
 
     // complexTypeの場合、内部の属性も処理
     const complexType = element.querySelector('xs\\:complexType, complexType');
     if (complexType) {
-      const complexAttributes = complexType.querySelectorAll(
-        'xs\\:attribute, attribute'
-      );
+      const complexAttributes = complexType.querySelectorAll('xs\\:attribute, attribute');
 
-      console.log(
-        `Found ${complexAttributes.length} complex type attributes for ${elementName}`
-      );
+      debugLog(`Found ${complexAttributes.length} complex type attributes for ${elementName}`);
 
       complexAttributes.forEach((attr) => {
         const attrName = attr.getAttribute('name');
@@ -218,41 +215,35 @@ function parseElementDefinitions() {
             required: use === 'required',
             default: defaultValue,
             fixed: fixed,
-            documentation: documentation
+            documentation: documentation,
           });
 
-          console.log(`  Added complex type attribute: ${attrName} (${use})`);
+          debugLog(`  Added complex type attribute: ${attrName} (${use})`);
         }
       });
 
       // attributeGroup参照の処理
       const attributeGroups = complexType.querySelectorAll(
-        'xs\\:attributeGroup[ref], attributeGroup[ref]'
+        'xs\\:attributeGroup[ref], attributeGroup[ref]',
       );
 
-      console.log(
-        `Found ${attributeGroups.length} attribute group references for ${elementName}`
-      );
+      debugLog(`Found ${attributeGroups.length} attribute group references for ${elementName}`);
 
       attributeGroups.forEach((attrGroup) => {
         const ref = attrGroup.getAttribute('ref');
         if (ref) {
-          console.log(`  Processing attribute group reference: ${ref}`);
+          debugLog(`  Processing attribute group reference: ${ref}`);
           const groupAttributes = resolveAttributeGroupReference(ref);
           if (groupAttributes) {
-            console.log(
-              `  Resolved ${groupAttributes.size} attributes from attribute group ${ref}`
-            );
+            debugLog(`  Resolved ${groupAttributes.size} attributes from attribute group ${ref}`);
             groupAttributes.forEach((attrDef, attrName) => {
               if (!attributes.has(attrName)) {
                 attributes.set(attrName, attrDef);
-                console.log(`    Added attribute group attribute: ${attrName}`);
+                debugLog(`    Added attribute group attribute: ${attrName}`);
               }
             });
           } else {
-            console.log(
-              `  Failed to resolve attribute group reference: ${ref}`
-            );
+            debugLog(`  Failed to resolve attribute group reference: ${ref}`);
           }
         }
       });
@@ -261,33 +252,29 @@ function parseElementDefinitions() {
     elementDefinitions.set(elementName, {
       name: elementName,
       attributes: attributes,
-      documentation: getDocumentation(element)
+      documentation: getDocumentation(element),
     });
 
-    console.log(
-      `Registered element definition: ${elementName} with ${attributes.size} attributes`
-    );
+    debugLog(`Registered element definition: ${elementName} with ${attributes.size} attributes`);
 
     // StbColumnの詳細ログ
     if (elementName === 'StbColumn') {
-      console.log(`=== StbColumn Debug Info ===`);
-      console.log(`Type reference: ${element.getAttribute('type')}`);
-      console.log(`Direct attributes: ${attributeElements.length}`);
-      console.log(`Has complexType: ${!!complexType}`);
-      console.log(`Final attribute count: ${attributes.size}`);
+      debugLog(`=== StbColumn Debug Info ===`);
+      debugLog(`Type reference: ${element.getAttribute('type')}`);
+      debugLog(`Direct attributes: ${attributeElements.length}`);
+      debugLog(`Has complexType: ${!!complexType}`);
+      debugLog(`Final attribute count: ${attributes.size}`);
       if (attributes.size > 0) {
-        console.log(`Attributes:`, Array.from(attributes.keys()));
+        debugLog(`Attributes:`, Array.from(attributes.keys()));
       }
-      console.log(`=== End StbColumn Debug ===`);
+      debugLog(`=== End StbColumn Debug ===`);
     }
   });
 
   // 複合型の定義も処理（名前空間考慮）
-  const complexTypes = xsdSchema.querySelectorAll(
-    'xs\\:complexType[name], complexType[name]'
-  );
+  const complexTypes = xsdSchema.querySelectorAll('xs\\:complexType[name], complexType[name]');
 
-  console.log(`Found ${complexTypes.length} named complex types`);
+  debugLog(`Found ${complexTypes.length} named complex types`);
 
   complexTypes.forEach((complexType) => {
     const typeName = complexType.getAttribute('name');
@@ -295,24 +282,20 @@ function parseElementDefinitions() {
       return;
     }
 
-    console.log(`Processing complex type: ${typeName}`);
+    debugLog(`Processing complex type: ${typeName}`);
 
     // 既に要素定義として処理されている場合はスキップ
     if (elementDefinitions.has(typeName)) {
-      console.log(`Skipping ${typeName} - already processed as element`);
+      debugLog(`Skipping ${typeName} - already processed as element`);
       return;
     }
 
     const attributes = new Map();
 
     // 属性定義を取得
-    const attributeElements = complexType.querySelectorAll(
-      'xs\\:attribute, attribute'
-    );
+    const attributeElements = complexType.querySelectorAll('xs\\:attribute, attribute');
 
-    console.log(
-      `Found ${attributeElements.length} attributes for complex type ${typeName}`
-    );
+    debugLog(`Found ${attributeElements.length} attributes for complex type ${typeName}`);
 
     attributeElements.forEach((attr) => {
       const attrName = attr.getAttribute('name');
@@ -330,28 +313,26 @@ function parseElementDefinitions() {
         required: use === 'required',
         default: defaultValue,
         fixed: fixed,
-        documentation: documentation
+        documentation: documentation,
       });
 
-      console.log(`  Added attribute: ${attrName} (${use})`);
+      debugLog(`  Added attribute: ${attrName} (${use})`);
     });
 
     // 基底型からの継承も考慮
     const extension = complexType.querySelector('xs\\:extension, extension');
     if (extension) {
       const baseType = extension.getAttribute('base');
-      console.log(`Found extension base type: ${baseType} for ${typeName}`);
+      debugLog(`Found extension base type: ${baseType} for ${typeName}`);
 
       // 基底型の属性を追加
       const baseAttributes = resolveTypeReference(baseType, new Set());
       if (baseAttributes) {
-        console.log(
-          `Inherited ${baseAttributes.size} attributes from base type ${baseType}`
-        );
+        debugLog(`Inherited ${baseAttributes.size} attributes from base type ${baseType}`);
         baseAttributes.forEach((attrDef, attrName) => {
           if (!attributes.has(attrName)) {
             attributes.set(attrName, attrDef);
-            console.log(`  Inherited attribute: ${attrName}`);
+            debugLog(`  Inherited attribute: ${attrName}`);
           }
         });
       }
@@ -360,12 +341,10 @@ function parseElementDefinitions() {
     elementDefinitions.set(typeName, {
       name: typeName,
       attributes: attributes,
-      documentation: getDocumentation(complexType)
+      documentation: getDocumentation(complexType),
     });
 
-    console.log(
-      `Registered complex type definition: ${typeName} with ${attributes.size} attributes`
-    );
+    debugLog(`Registered complex type definition: ${typeName} with ${attributes.size} attributes`);
   });
 }
 
@@ -378,9 +357,7 @@ function getDocumentation(element) {
   const annotation = element.querySelector('xs\\:annotation, annotation');
   if (!annotation) return null;
 
-  const documentation = annotation.querySelector(
-    'xs\\:documentation, documentation'
-  );
+  const documentation = annotation.querySelector('xs\\:documentation, documentation');
   return documentation ? documentation.textContent.trim() : null;
 }
 
@@ -395,37 +372,32 @@ export function getElementAttributes(elementType) {
   if (!getElementAttributes._lastLog) getElementAttributes._lastLog = {};
 
   const shouldLog =
-    !getElementAttributes._lastLog[elementType] ||
-    now - getElementAttributes._lastLog[elementType] > 5000; // 5秒間隔
+    XSD_DEBUG &&
+    (!getElementAttributes._lastLog[elementType] ||
+      now - getElementAttributes._lastLog[elementType] > 5000); // 5秒間隔
 
   if (shouldLog) {
-    console.log(`getElementAttributes called for: ${elementType}`);
+    debugLog(`getElementAttributes called for: ${elementType}`);
     getElementAttributes._lastLog[elementType] = now;
   }
 
   const definition = elementDefinitions.get(elementType);
   if (definition) {
     if (shouldLog) {
-      console.log(
-        `Found definition for ${elementType}, attributes:`,
-        definition.attributes.size
-      );
+      debugLog(`Found definition for ${elementType}, attributes:`, definition.attributes.size);
     }
     return definition.attributes;
   } else {
     if (shouldLog) {
-      console.log(`No definition found for ${elementType}`);
-      console.log(`Total definitions available: ${elementDefinitions.size}`);
+      debugLog(`No definition found for ${elementType}`);
+      debugLog(`Total definitions available: ${elementDefinitions.size}`);
 
       // StbColumnが見つからない場合は、類似の要素を検索
       if (elementType === 'StbColumn') {
-        const columnRelated = Array.from(elementDefinitions.keys()).filter(
-          (key) => key.toLowerCase().includes('column')
+        const columnRelated = Array.from(elementDefinitions.keys()).filter((key) =>
+          key.toLowerCase().includes('column'),
         );
-        console.log(
-          `Column-related elements found:`,
-          columnRelated.slice(0, 5)
-        );
+        debugLog(`Column-related elements found:`, columnRelated.slice(0, 5));
       }
     }
     return null;
@@ -512,7 +484,7 @@ export function validateAttributeValue(elementType, attributeName, value) {
       return {
         valid: false,
         error: `許可された値ではありません`,
-        suggestions: enumValues
+        suggestions: enumValues,
       };
     }
   }
@@ -551,7 +523,7 @@ function validateXsType(type, value) {
         return {
           valid: false,
           error: 'true または false である必要があります',
-          suggestions: ['true', 'false']
+          suggestions: ['true', 'false'],
         };
       }
       return { valid: true };
@@ -571,14 +543,12 @@ function getEnumerationValues(typeName) {
 
   // カスタム型の定義を検索
   const simpleType = xsdSchema.querySelector(
-    `xs\\:simpleType[name="${typeName}"], simpleType[name="${typeName}"]`
+    `xs\\:simpleType[name="${typeName}"], simpleType[name="${typeName}"]`,
   );
   if (!simpleType) return [];
 
   // 列挙値を取得
-  const enumerations = simpleType.querySelectorAll(
-    'xs\\:enumeration, enumeration'
-  );
+  const enumerations = simpleType.querySelectorAll('xs\\:enumeration, enumeration');
   return Array.from(enumerations)
     .map((enumElement) => enumElement.getAttribute('value'))
     .filter((v) => v);
@@ -614,10 +584,7 @@ export function getMissingRequiredAttributes(elementType, attributes) {
 
   const missing = [];
   elementDef.attributes.forEach((attrInfo, attrName) => {
-    if (
-      attrInfo.required &&
-      (!attributes[attrName] || attributes[attrName].trim() === '')
-    ) {
+    if (attrInfo.required && (!attributes[attrName] || attributes[attrName].trim() === '')) {
       missing.push(attrName);
     }
   });
@@ -647,14 +614,14 @@ export function validateElement(elementType, attributes) {
       errors.push({
         attr: attrName,
         error: result.error,
-        suggestions: result.suggestions
+        suggestions: result.suggestions,
       });
     }
   });
 
   return {
     valid: errors.length === 0,
-    errors: errors
+    errors: errors,
   };
 }
 
@@ -670,20 +637,20 @@ function resolveTypeReference(typeRef, visited = new Set()) {
     return null;
   }
 
-  console.log(`Resolving type reference: ${typeRef}`);
+  debugLog(`Resolving type reference: ${typeRef}`);
 
   // 名前空間プレフィックスを除去
   const typeName = typeRef.includes(':') ? typeRef.split(':')[1] : typeRef;
 
   // ビルトイン型（xs:string, xs:double等）の場合は解決しない
   if (typeRef.startsWith('xs:') || typeRef.startsWith('xsd:')) {
-    console.log(`Skipping built-in type: ${typeRef}`);
+    debugLog(`Skipping built-in type: ${typeRef}`);
     return null;
   }
 
   // 循環参照のチェック
   if (visited.has(typeName)) {
-    console.log(`Circular reference detected for type: ${typeName}`);
+    debugLog(`Circular reference detected for type: ${typeName}`);
     return null;
   }
 
@@ -691,27 +658,23 @@ function resolveTypeReference(typeRef, visited = new Set()) {
 
   // complexType定義を検索
   const complexType = xsdSchema.querySelector(
-    `xs\\:complexType[name="${typeName}"], complexType[name="${typeName}"]`
+    `xs\\:complexType[name="${typeName}"], complexType[name="${typeName}"]`,
   );
 
   if (!complexType) {
-    console.log(`Complex type ${typeName} not found`);
+    debugLog(`Complex type ${typeName} not found`);
     visited.delete(typeName);
     return null;
   }
 
-  console.log(`Found complex type definition for: ${typeName}`);
+  debugLog(`Found complex type definition for: ${typeName}`);
 
   const attributes = new Map();
 
   // 属性定義を取得
-  const attributeElements = complexType.querySelectorAll(
-    'xs\\:attribute, attribute'
-  );
+  const attributeElements = complexType.querySelectorAll('xs\\:attribute, attribute');
 
-  console.log(
-    `Found ${attributeElements.length} attributes in complex type ${typeName}`
-  );
+  debugLog(`Found ${attributeElements.length} attributes in complex type ${typeName}`);
 
   attributeElements.forEach((attr) => {
     const attrName = attr.getAttribute('name');
@@ -730,10 +693,10 @@ function resolveTypeReference(typeRef, visited = new Set()) {
         required: use === 'required',
         default: defaultValue,
         fixed: fixed,
-        documentation: documentation
+        documentation: documentation,
       });
 
-      console.log(`  Added type reference attribute: ${attrName} (${use})`);
+      debugLog(`  Added type reference attribute: ${attrName} (${use})`);
     }
   });
 
@@ -741,17 +704,15 @@ function resolveTypeReference(typeRef, visited = new Set()) {
   const extension = complexType.querySelector('xs\\:extension, extension');
   if (extension) {
     const baseType = extension.getAttribute('base');
-    console.log(`Found extension base type: ${baseType} for ${typeName}`);
+    debugLog(`Found extension base type: ${baseType} for ${typeName}`);
 
     const baseAttributes = resolveTypeReference(baseType, visited);
     if (baseAttributes) {
-      console.log(
-        `Inherited ${baseAttributes.size} attributes from base type ${baseType}`
-      );
+      debugLog(`Inherited ${baseAttributes.size} attributes from base type ${baseType}`);
       baseAttributes.forEach((attrDef, attrName) => {
         if (!attributes.has(attrName)) {
           attributes.set(attrName, attrDef);
-          console.log(`  Inherited attribute: ${attrName}`);
+          debugLog(`  Inherited attribute: ${attrName}`);
         }
       });
     }
@@ -775,30 +736,26 @@ function resolveAttributeGroupReference(ref) {
   // 名前空間プレフィックスを除去
   const groupName = ref.includes(':') ? ref.split(':')[1] : ref;
 
-  console.log(`Resolving attribute group: ${groupName}`);
+  debugLog(`Resolving attribute group: ${groupName}`);
 
   // attributeGroup要素を検索
   const attributeGroup = xsdSchema.querySelector(
-    `xs\\:attributeGroup[name="${groupName}"], attributeGroup[name="${groupName}"]`
+    `xs\\:attributeGroup[name="${groupName}"], attributeGroup[name="${groupName}"]`,
   );
 
   if (!attributeGroup) {
-    console.warn(`Attribute group not found: ${groupName}`);
+    debugLog(`Attribute group not found: ${groupName}`);
     return null;
   }
 
-  console.log(`Found attribute group definition for: ${groupName}`);
+  debugLog(`Found attribute group definition for: ${groupName}`);
 
   const attributes = new Map();
 
   // 属性定義を取得
-  const attributeElements = attributeGroup.querySelectorAll(
-    'xs\\:attribute, attribute'
-  );
+  const attributeElements = attributeGroup.querySelectorAll('xs\\:attribute, attribute');
 
-  console.log(
-    `Found ${attributeElements.length} attributes in attribute group ${groupName}`
-  );
+  debugLog(`Found ${attributeElements.length} attributes in attribute group ${groupName}`);
 
   attributeElements.forEach((attr) => {
     const attrName = attr.getAttribute('name');
@@ -817,10 +774,10 @@ function resolveAttributeGroupReference(ref) {
         required: use === 'required',
         default: defaultValue,
         fixed: fixed,
-        documentation: documentation
+        documentation: documentation,
       });
 
-      console.log(`  Added attribute: ${attrName} (${use})`);
+      debugLog(`  Added attribute: ${attrName} (${use})`);
     }
   });
 

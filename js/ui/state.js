@@ -26,30 +26,6 @@ export function setGlobalStateForUI(labels, stories, axesData) {
   currentStories = stories || [];
   currentAxesData = axesData || { xAxes: [], yAxes: [] };
 
-  console.log('=== UI STATE DEBUG ===');
-  console.log('setGlobalStateForUI called with:', {
-    labelCount: allLabels.length,
-    storyCount: currentStories.length,
-    axisCountX: currentAxesData.xAxes.length,
-    axisCountY: currentAxesData.yAxes.length,
-    axesDataReceived: axesData
-  });
-
-  // Detailed axis data logging
-  if (currentAxesData.xAxes.length > 0) {
-    console.log('X-Axes data:', currentAxesData.xAxes);
-  } else {
-    console.warn('No X-axes data received');
-  }
-
-  if (currentAxesData.yAxes.length > 0) {
-    console.log('Y-Axes data:', currentAxesData.yAxes);
-  } else {
-    console.warn('No Y-axes data received');
-  }
-
-  console.log('=== END UI STATE DEBUG ===');
-
   // Trigger state change notification
   notifyStateChange();
 }
@@ -64,8 +40,8 @@ export function getGlobalUIState() {
     currentStories: [...currentStories],
     currentAxesData: {
       xAxes: [...currentAxesData.xAxes],
-      yAxes: [...currentAxesData.yAxes]
-    }
+      yAxes: [...currentAxesData.yAxes],
+    },
   };
 }
 
@@ -83,7 +59,6 @@ export function getAllLabels() {
  */
 export function setAllLabels(labels) {
   allLabels = labels || [];
-  console.log(`Labels set: ${allLabels.length} labels`);
   notifyStateChange();
 }
 
@@ -108,13 +83,9 @@ export function getCurrentAxesData() {
  * @param {string} elementType - Element type to remove labels for
  */
 export function removeLabelsForElementType(elementType) {
-  const beforeCount = allLabels.length;
-  allLabels = allLabels.filter(label =>
-    !label.userData || label.userData.elementType !== elementType
+  allLabels = allLabels.filter(
+    (label) => !label.userData || label.userData.elementType !== elementType,
   );
-  const afterCount = allLabels.length;
-
-  console.log(`Removed ${beforeCount - afterCount} labels for element type: ${elementType}`);
   notifyStateChange();
 }
 
@@ -125,7 +96,6 @@ export function removeLabelsForElementType(elementType) {
 export function addLabelsToGlobalState(labels) {
   if (Array.isArray(labels) && labels.length > 0) {
     allLabels.push(...labels);
-    console.log(`Added ${labels.length} labels to global state. Total: ${allLabels.length}`);
     notifyStateChange();
   }
 }
@@ -137,8 +107,6 @@ export function clearUIState() {
   allLabels = [];
   currentStories = [];
   currentAxesData = { xAxes: [], yAxes: [] };
-
-  console.log('UI state cleared');
   notifyStateChange();
 }
 
@@ -148,7 +116,6 @@ export function clearUIState() {
  */
 export function updateStoriesData(stories) {
   currentStories = stories || [];
-  console.log(`Stories updated: ${currentStories.length} stories`);
   notifyStateChange();
 }
 
@@ -158,7 +125,6 @@ export function updateStoriesData(stories) {
  */
 export function updateAxesData(axesData) {
   currentAxesData = axesData || { xAxes: [], yAxes: [] };
-  console.log(`Axes updated: X=${currentAxesData.xAxes.length}, Y=${currentAxesData.yAxes.length}`);
   notifyStateChange();
 }
 
@@ -186,7 +152,7 @@ export function removeStateChangeListener(listener) {
  */
 function notifyStateChange() {
   const currentState = getGlobalUIState();
-  stateChangeListeners.forEach(listener => {
+  stateChangeListeners.forEach((listener) => {
     try {
       listener(currentState);
     } catch (error) {
@@ -209,7 +175,7 @@ export function getStateStatistics() {
     memoryUsage: {
       labelsMemory: allLabels.length * 64, // Rough estimate
       storiesMemory: currentStories.length * 128,
-      axesMemory: (currentAxesData.xAxes.length + currentAxesData.yAxes.length) * 64
-    }
+      axesMemory: (currentAxesData.xAxes.length + currentAxesData.yAxes.length) * 64,
+    },
   };
 }

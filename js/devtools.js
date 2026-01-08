@@ -11,7 +11,9 @@
  */
 
 import { compareModels } from './modelLoader.js';
-import { displayElementInfo } from './viewer/ui/elementInfoDisplay.js';
+import { displayElementInfo } from './viewer/ui/element-info/index.js';
+import { UI_TIMING } from './config/uiTimingConfig.js';
+import { scheduleRender } from './utils/renderScheduler.js';
 
 /**
  * 開発者用ツールクラス
@@ -89,17 +91,15 @@ class DevTools {
    * サンプルSTBデータをロード
    */
   async loadSampleData(dataA, dataB = null) {
-    console.log('📁 Loading sample STB data for development testing...');
-
     try {
       const blobA = new Blob([dataA], { type: 'application/xml' });
       const blobB = new Blob([dataB || dataA], { type: 'application/xml' });
 
       const fileA = new File([blobA], 'sampleA.stb', {
-        type: 'application/xml'
+        type: 'application/xml',
       });
       const fileB = new File([blobB], 'sampleB.stb', {
-        type: 'application/xml'
+        type: 'application/xml',
       });
 
       const fileInputA = document.getElementById('fileA');
@@ -114,7 +114,6 @@ class DevTools {
         dtB.items.add(fileB);
         fileInputB.files = dtB.files;
 
-        console.log('✅ Sample data loaded into file inputs');
         return true;
       } else {
         throw new Error('File input elements not found');
@@ -129,8 +128,6 @@ class DevTools {
    * 要素情報表示テスト
    */
   async testElementDisplay(elementType, idA, idB) {
-    console.log(`🧪 Testing ${elementType} display - A:${idA}, B:${idB}`);
-
     try {
       await displayElementInfo(idA, idB, elementType, 'matched');
 
@@ -149,9 +146,6 @@ class DevTools {
         throw new Error('Error message displayed in element info');
       }
 
-      console.log(
-        `✅ ${elementType} A:${idA} B:${idB} - Parameters displayed successfully`
-      );
       return true;
     } catch (error) {
       console.error(`❌ ${elementType} display test failed:`, error);
@@ -163,8 +157,6 @@ class DevTools {
    * クイックテスト実行
    */
   async quickTest() {
-    console.log('🚀 Running quick development test...');
-
     try {
       // 1. サンプルデータ生成・ロード
       const sampleData = this.generateMinimalSTBSample();
@@ -175,31 +167,29 @@ class DevTools {
       }
 
       // 2. モデル比較実行
-      console.log('🔄 Running model comparison...');
-      const success = await compareModels(window.requestRender);
+      const success = await compareModels(scheduleRender);
 
       if (!success) {
         throw new Error('Model comparison failed');
       }
 
-      // 少し待機してレンダリング完了
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // 少し待機してレンダリング完了（SSOT: uiTimingConfig.js）
+      await new Promise((resolve) => setTimeout(resolve, UI_TIMING.DEVTOOLS_WAIT_MS));
 
       // 3. 要素選択テスト
-      console.log('🎯 Testing element selection...');
       const testResults = [];
 
       const testCases = [
         { elementType: 'Column', idA: 'C1', idB: 'C1' },
         { elementType: 'Girder', idA: 'G1', idB: 'G1' },
-        { elementType: 'Beam', idA: 'B1', idB: 'B1' }
+        { elementType: 'Beam', idA: 'B1', idB: 'B1' },
       ];
 
       for (const testCase of testCases) {
         const result = await this.testElementDisplay(
           testCase.elementType,
           testCase.idA,
-          testCase.idB
+          testCase.idB,
         );
         testResults.push({ ...testCase, success: result });
       }
@@ -208,21 +198,17 @@ class DevTools {
       const passed = testResults.filter((r) => r.success).length;
       const total = testResults.length;
 
-      console.log('📊 Quick Test Results:');
-      console.log(`✅ Passed: ${passed}/${total}`);
-      console.log(`⏱️ Quick test completed successfully`);
-
       return {
         success: true,
         passed,
         total,
-        results: testResults
+        results: testResults,
       };
     } catch (error) {
       console.error('❌ Quick test failed:', error);
       return {
         success: false,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -233,7 +219,6 @@ class DevTools {
   startPerformanceMonitoring() {
     this.startTime = Date.now();
     this.memoryStart = this.getMemoryUsage();
-    console.log('⏱️ Performance monitoring started');
   }
 
   /**
@@ -252,12 +237,8 @@ class DevTools {
       duration: endTime - this.startTime,
       memoryUsed: memoryEnd - this.memoryStart,
       memoryStart: this.memoryStart,
-      memoryEnd: memoryEnd
+      memoryEnd: memoryEnd,
     };
-
-    console.log('📊 Performance Results:');
-    console.log(`⏱️ Duration: ${result.duration}ms`);
-    console.log(`💾 Memory used: ${result.memoryUsed.toFixed(2)} MB`);
 
     this.startTime = null;
     this.memoryStart = null;
@@ -278,60 +259,12 @@ class DevTools {
   /**
    * デバッグ情報出力
    */
-  printDebugInfo() {
-    console.group('🔍 Debug Information');
-
-    // メモリ使用量
-    const memory = this.getMemoryUsage();
-    console.log(`💾 Current memory usage: ${memory.toFixed(2)} MB`);
-
-    // DOM要素チェック
-    const keyElements = [
-      'fileA',
-      'fileB',
-      'element-info-content',
-      'story-selector',
-      'axis-selector'
-    ];
-
-    console.log('🏗️ Key DOM elements:');
-    keyElements.forEach((id) => {
-      const element = document.getElementById(id);
-      console.log(`  ${id}: ${element ? '✅ Found' : '❌ Missing'}`);
-    });
-
-    // Three.js シーン情報
-    if (window.viewer && window.viewer.scene) {
-      console.log(
-        `🎨 Three.js scene children: ${window.viewer.scene.children.length}`
-      );
-    }
-
-    console.groupEnd();
-  }
+  printDebugInfo() {}
 
   /**
    * 利用可能なコマンド一覧表示
    */
-  showHelp() {
-    console.log('🛠️ Development Tools Available Commands:');
-    console.log('  devtools.quickTest() - Run quick functionality test');
-    console.log(
-      '  devtools.generateMinimalSTBSample() - Generate test STB data'
-    );
-    console.log('  devtools.loadSampleData(xmlString) - Load sample data');
-    console.log(
-      '  devtools.testElementDisplay(type, idA, idB) - Test element display'
-    );
-    console.log(
-      '  devtools.startPerformanceMonitoring() - Start performance monitoring'
-    );
-    console.log(
-      '  devtools.endPerformanceMonitoring() - End performance monitoring'
-    );
-    console.log('  devtools.printDebugInfo() - Show debug information');
-    console.log('  devtools.showHelp() - Show this help');
-  }
+  showHelp() {}
 }
 
 // グローバルインスタンス
@@ -340,10 +273,6 @@ const devtools = new DevTools();
 // デバッグ用にwindowに公開
 if (typeof window !== 'undefined') {
   window.devtools = devtools;
-
-  console.log(
-    "🛠️ Development tools loaded. Type 'devtools.showHelp()' for available commands."
-  );
 }
 
 export default devtools;

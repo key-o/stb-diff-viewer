@@ -14,13 +14,122 @@
 
 import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
-import { createLabelSprite } from '../ui/labels.js';
-import { generateLabelText } from '../../ui/unifiedLabelManager.js';
-import { attachElementDataToLabel } from '../../ui/labelRegeneration.js';
 import { getMaterialForElementWithMode } from './materials.js';
-import { IMPORTANCE_LEVELS } from '../../core/importanceManager.js';
+import { IMPORTANCE_LEVELS } from '../../constants/importanceLevels.js';
 
 const log = createLogger('viewer:elements');
+
+// ============================================
+// 共有ジオメトリ（パフォーマンス最適化）
+// ============================================
+
+/** @type {THREE.SphereGeometry|null} */
+let sharedNodeSphereGeometry = null;
+
+/**
+ * ノード用の共有SphereGeometryを取得
+ * @returns {THREE.SphereGeometry}
+ */
+function getSharedNodeSphereGeometry() {
+  if (!sharedNodeSphereGeometry) {
+    sharedNodeSphereGeometry = new THREE.SphereGeometry(50, 12, 8);
+  }
+  return sharedNodeSphereGeometry;
+}
+
+/**
+ * 共有ジオメトリを破棄
+ */
+export function disposeSharedGeometries() {
+  if (sharedNodeSphereGeometry) {
+    sharedNodeSphereGeometry.dispose();
+    sharedNodeSphereGeometry = null;
+  }
+  log.info('Shared geometries disposed');
+}
+
+/**
+ * グループ内の子要素のジオメトリを適切に破棄してからクリア
+ * @param {THREE.Group} group - クリアするグループ
+ */
+function disposeAndClearGroup(group) {
+  // 子要素を逆順で処理（削除時のインデックス変更を避ける）
+  while (group.children.length > 0) {
+    const child = group.children[group.children.length - 1];
+
+    // ジオメトリの破棄（共有ジオメトリは除く）
+    if (child.geometry && child.geometry !== sharedNodeSphereGeometry) {
+      child.geometry.dispose();
+    }
+
+    // 親から削除
+    group.remove(child);
+  }
+}
+
+// ============================================
+// ラベル処理プロバイダー（依存性注入）
+// ============================================
+
+/**
+ * @typedef {Object} ElementsLabelProvider
+ * @property {function(Object, string): string} generateLabelText - ラベルテキスト生成
+ * @property {function(THREE.Sprite, Object): void} attachElementDataToLabel - 要素データをラベルに付与
+ * @property {function(string, THREE.Vector3, THREE.Group, string, Object=): THREE.Sprite|null} createLabelSprite - ラベルスプライト作成
+ */
+
+/** @type {ElementsLabelProvider|null} */
+let elementsLabelProvider = null;
+
+/**
+ * ラベルプロバイダーを設定（依存性注入）
+ * @param {ElementsLabelProvider} provider - ラベルプロバイダー
+ */
+export function setElementsLabelProvider(provider) {
+  elementsLabelProvider = provider;
+}
+
+/**
+ * ラベルスプライトを作成（プロバイダー経由）
+ * @param {string} text - ラベルテキスト
+ * @param {THREE.Vector3} position - 位置
+ * @param {THREE.Group} group - グループ
+ * @param {string} elementType - 要素タイプ
+ * @param {Object} [meta] - メタ情報
+ * @returns {THREE.Sprite|null} ラベルスプライト
+ */
+function createLabelSpriteInternal(text, position, group, elementType, meta) {
+  if (elementsLabelProvider && elementsLabelProvider.createLabelSprite) {
+    return elementsLabelProvider.createLabelSprite(text, position, group, elementType, meta);
+  }
+  // プロバイダー未設定時はnull（初期化タイミングによる正常な状態）
+  return null;
+}
+
+/**
+ * ラベルテキストを生成（プロバイダー経由）
+ * @param {Object} element - 要素データ
+ * @param {string} elementType - 要素タイプ
+ * @returns {string} ラベルテキスト
+ */
+function generateLabelTextInternal(element, elementType) {
+  if (elementsLabelProvider && elementsLabelProvider.generateLabelText) {
+    return elementsLabelProvider.generateLabelText(element, elementType);
+  }
+  // フォールバック: 要素名またはID
+  return element?.name || element?.id || '';
+}
+
+/**
+ * 要素データをラベルに付与（プロバイダー経由）
+ * @param {THREE.Sprite} sprite - ラベルスプライト
+ * @param {Object} element - 要素データ
+ */
+function attachElementDataToLabelInternal(sprite, element) {
+  if (elementsLabelProvider && elementsLabelProvider.attachElementDataToLabel) {
+    elementsLabelProvider.attachElementDataToLabel(sprite, element);
+  }
+}
 
 /**
  * 重要度に基づいて要素の視覚的調整を適用する
@@ -35,7 +144,7 @@ function applyImportanceVisuals(object, importance) {
     [IMPORTANCE_LEVELS.REQUIRED]: 1.0,
     [IMPORTANCE_LEVELS.OPTIONAL]: 0.8,
     [IMPORTANCE_LEVELS.UNNECESSARY]: 0.4,
-    [IMPORTANCE_LEVELS.NOT_APPLICABLE]: 0.1
+    [IMPORTANCE_LEVELS.NOT_APPLICABLE]: 0.1,
   };
 
   const targetOpacity = opacityLevels[importance] || 1.0;
@@ -74,16 +183,16 @@ export function drawLineElements(
   group,
   elementType,
   labelToggle,
-  modelBounds
+  modelBounds,
 ) {
-  group.clear();
+  disposeAndClearGroup(group);
   const createdLabels = [];
   const labelOffsetAmount = 150;
 
   log.info(`Drawing line elements for ${elementType}:`, {
     matched: comparisonResult.matched.length,
     onlyA: comparisonResult.onlyA.length,
-    onlyB: comparisonResult.onlyB.length
+    onlyB: comparisonResult.onlyB.length,
   });
 
   let processedCount = 0;
@@ -91,7 +200,17 @@ export function drawLineElements(
   let addedToGroupCount = 0;
 
   comparisonResult.matched.forEach((item, index) => {
+    if (!item) {
+      log.warn(`Skipping undefined item in matched for ${elementType}`);
+      return;
+    }
     const { dataA, dataB, importance, matchType } = item;
+
+    // dataAまたはdataBがundefinedの場合はスキップ
+    if (!dataA || !dataB) {
+      log.warn(`Skipping item with undefined dataA or dataB in matched for ${elementType}`);
+      return;
+    }
 
     if (index < 3) {
       // 最初の3つの要素について詳細ログを出力
@@ -99,7 +218,7 @@ export function drawLineElements(
         dataA,
         dataB,
         importance,
-        matchType
+        matchType,
       });
       log.trace('dataA.startCoords:', dataA.startCoords);
       log.trace('dataA.endCoords:', dataA.endCoords);
@@ -122,37 +241,30 @@ export function drawLineElements(
       Number.isFinite(endCoords.y) &&
       Number.isFinite(endCoords.z)
     ) {
-      const startVec = new THREE.Vector3(
-        startCoords.x,
-        startCoords.y,
-        startCoords.z
-      );
+      const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
       const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
 
       // デバッグ出力（最初の3個の一致要素のみ）
       if (index < 3) {
         log.debug(
           `${elementType} matched element ${index}: Start=(${startCoords.x.toFixed(
-            0
+            0,
           )}, ${startCoords.y.toFixed(0)}, ${startCoords.z.toFixed(
-            0
+            0,
           )})mm, End=(${endCoords.x.toFixed(0)}, ${endCoords.y.toFixed(
-            0
-          )}, ${endCoords.z.toFixed(0)})mm`
+            0,
+          )}, ${endCoords.z.toFixed(0)})mm`,
         );
       }
 
-      const geometry = new THREE.BufferGeometry().setFromPoints([
-        startVec,
-        endVec
-      ]);
+      const geometry = new THREE.BufferGeometry().setFromPoints([startVec, endVec]);
       const material = getMaterialForElementWithMode(
         elementType,
         'matched',
         true,
         false,
         idA,
-        matchType
+        matchType,
       );
       if (index < 3) {
         log.trace(`Material for matched item ${index}:`, material);
@@ -168,14 +280,13 @@ export function drawLineElements(
           // 要素の重要度を取得（まずAから、なければBから）
           importance =
             importanceManager.getElementImportance?.(dataA.element) ||
-            (dataB.element
-              ? importanceManager.getElementImportance?.(dataB.element)
-              : null);
+            (dataB.element ? importanceManager.getElementImportance?.(dataB.element) : null);
         }
       }
 
       line.userData = {
         elementType: elementType,
+        elementId: idA, // 統一されたID参照用（colorModes.js, modelLoader.js等で使用）
         elementIdA: idA,
         elementIdB: idB,
         modelSource: 'matched',
@@ -183,7 +294,7 @@ export function drawLineElements(
         id: idA,
         importance: importance, // 重要度データを設定
         toleranceState: matchType,
-        isLine: true
+        isLine: true,
       };
 
       if (index < 3) {
@@ -199,42 +310,29 @@ export function drawLineElements(
       addedToGroupCount++;
 
       if (index < 3) {
-        log.debug(
-          `Added line ${index} to group. Group children count:`,
-          group.children.length
-        );
+        log.debug(`Added line ${index} to group. Group children count:`, group.children.length);
       }
 
       modelBounds.expandByPoint(startVec);
       modelBounds.expandByPoint(endVec);
 
       if (labelToggle && (idA || idB)) {
-        const midPoint = new THREE.Vector3()
-          .addVectors(startVec, endVec)
-          .multiplyScalar(0.5);
+        const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
 
         // マッチした要素の場合、設定に応じてラベルテキストを生成
-        const contentType =
-          window.globalState?.get('ui.labelContentType') || 'id';
+        const contentType = window.globalState?.get('ui.labelContentType') || 'id';
         let labelText;
 
         if (contentType === 'id') {
           labelText = `${idA || '?'} / ${idB || '?'}`;
         } else {
           // 名前また断面名を使用する場合
-          const nameA =
-            dataA.element && dataA.element.name ? dataA.element.name : idA;
-          const nameB =
-            dataB.element && dataB.element.name ? dataB.element.name : idB;
+          const nameA = dataA.element && dataA.element.name ? dataA.element.name : idA;
+          const nameB = dataB.element && dataB.element.name ? dataB.element.name : idB;
           labelText = `${nameA || '?'} / ${nameB || '?'}`;
         }
 
-        const sprite = createLabelSprite(
-          labelText,
-          midPoint,
-          group,
-          elementType
-        );
+        const sprite = createLabelSpriteInternal(labelText, midPoint, group, elementType);
         if (sprite) {
           sprite.userData.elementIdA = idA;
           sprite.userData.elementIdB = idB;
@@ -242,7 +340,7 @@ export function drawLineElements(
 
           // 要素データを保存（両方のモデルの要素データを保存）
           if (dataA.element) {
-            attachElementDataToLabel(sprite, dataA.element);
+            attachElementDataToLabelInternal(sprite, dataA.element);
           }
 
           createdLabels.push(sprite);
@@ -250,14 +348,16 @@ export function drawLineElements(
       }
     } else {
       skippedCount++;
-      log.warn(
-        `Skipping matched line due to invalid coords: A=${idA}, B=${idB}`
-      );
+      log.warn(`Skipping matched line due to invalid coords: A=${idA}, B=${idB}`);
     }
   });
 
   let onlyACount = 0;
   comparisonResult.onlyA.forEach((item) => {
+    if (!item) {
+      log.warn(`Skipping undefined item in onlyA for ${elementType}`);
+      return;
+    }
     const { startCoords, endCoords, id, element, importance } = item;
     if (
       startCoords &&
@@ -269,38 +369,33 @@ export function drawLineElements(
       Number.isFinite(endCoords.y) &&
       Number.isFinite(endCoords.z)
     ) {
-      const startVec = new THREE.Vector3(
-        startCoords.x,
-        startCoords.y,
-        startCoords.z
-      );
+      const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
       const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
 
       // デバッグ出力（最初の2個のOnlyA要素のみ）
       if (onlyACount < 2) {
         log.debug(
           `${elementType} onlyA element ${onlyACount}: Start=(${startCoords.x.toFixed(
-            0
+            0,
           )}, ${startCoords.y.toFixed(0)}, ${startCoords.z.toFixed(
-            0
+            0,
           )})mm, End=(${endCoords.x.toFixed(0)}, ${endCoords.y.toFixed(
-            0
-          )}, ${endCoords.z.toFixed(0)})mm`
+            0,
+          )}, ${endCoords.z.toFixed(0)})mm`,
         );
       }
       onlyACount++;
-      const geometry = new THREE.BufferGeometry().setFromPoints([
-        startVec,
-        endVec
-      ]);
+      const geometry = new THREE.BufferGeometry().setFromPoints([startVec, endVec]);
       const line = new THREE.Line(
         geometry,
-        getMaterialForElementWithMode(elementType, 'onlyA', true, false, id)
+        getMaterialForElementWithMode(elementType, 'onlyA', true, false, id),
       );
       line.userData = {
         elementType: elementType,
         elementId: id,
-        modelSource: 'A'
+        modelSource: 'A',
+        importance: importance, // 重要度データを設定
+        isLine: true, // 一貫性のため追加
       };
 
       // 重要度による視覚調整を適用
@@ -311,46 +406,32 @@ export function drawLineElements(
       modelBounds.expandByPoint(endVec);
 
       if (labelToggle && id) {
-        const midPoint = new THREE.Vector3()
-          .addVectors(startVec, endVec)
-          .multiplyScalar(0.5);
+        const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
         const direction = endVec.clone().sub(startVec).normalize();
-        let offsetDir = new THREE.Vector3(
-          -direction.y,
-          direction.x,
-          0
-        ).normalize();
+        let offsetDir = new THREE.Vector3(-direction.y, direction.x, 0).normalize();
         if (offsetDir.lengthSq() < 0.1) offsetDir = new THREE.Vector3(1, 0, 0);
-        const labelPosition = midPoint
-          .clone()
-          .add(offsetDir.multiplyScalar(labelOffsetAmount));
+        const labelPosition = midPoint.clone().add(offsetDir.multiplyScalar(labelOffsetAmount));
 
         // 設定に応じてラベルテキストを生成
-        const contentType =
-          window.globalState?.get('ui.labelContentType') || 'id';
+        const contentType = window.globalState?.get('ui.labelContentType') || 'id';
         let displayText = id;
 
         if (contentType === 'name' && element && element.name) {
           displayText = element.name;
         } else if (contentType === 'section') {
           // 断面名表示の場合、統合ラベル管理システムを使用
-          displayText = generateLabelText(element, elementType);
+          displayText = generateLabelTextInternal(element, elementType);
         }
 
         const labelText = `A: ${displayText}`;
-        const sprite = createLabelSprite(
-          labelText,
-          labelPosition,
-          group,
-          elementType
-        );
+        const sprite = createLabelSpriteInternal(labelText, labelPosition, group, elementType);
         if (sprite) {
           sprite.userData.elementId = id;
           sprite.userData.modelSource = 'A';
 
           // 要素データを保存
           if (element) {
-            attachElementDataToLabel(sprite, element);
+            attachElementDataToLabelInternal(sprite, element);
           }
 
           createdLabels.push(sprite);
@@ -362,6 +443,10 @@ export function drawLineElements(
   });
 
   comparisonResult.onlyB.forEach((item) => {
+    if (!item) {
+      log.warn(`Skipping undefined item in onlyB for ${elementType}`);
+      return;
+    }
     const { startCoords, endCoords, id, element, importance } = item;
     if (
       startCoords &&
@@ -373,24 +458,19 @@ export function drawLineElements(
       Number.isFinite(endCoords.y) &&
       Number.isFinite(endCoords.z)
     ) {
-      const startVec = new THREE.Vector3(
-        startCoords.x,
-        startCoords.y,
-        startCoords.z
-      );
+      const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
       const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
-      const geometry = new THREE.BufferGeometry().setFromPoints([
-        startVec,
-        endVec
-      ]);
+      const geometry = new THREE.BufferGeometry().setFromPoints([startVec, endVec]);
       const line = new THREE.Line(
         geometry,
-        getMaterialForElementWithMode(elementType, 'onlyB', true, false, id)
+        getMaterialForElementWithMode(elementType, 'onlyB', true, false, id),
       );
       line.userData = {
         elementType: elementType,
         elementId: id,
-        modelSource: 'B'
+        modelSource: 'B',
+        importance: importance, // 重要度データを設定
+        isLine: true, // 一貫性のため追加
       };
 
       // 重要度による視覚調整を適用
@@ -401,46 +481,32 @@ export function drawLineElements(
       modelBounds.expandByPoint(endVec);
 
       if (labelToggle && id) {
-        const midPoint = new THREE.Vector3()
-          .addVectors(startVec, endVec)
-          .multiplyScalar(0.5);
+        const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
         const direction = endVec.clone().sub(startVec).normalize();
-        let offsetDir = new THREE.Vector3(
-          -direction.y,
-          direction.x,
-          0
-        ).normalize();
+        let offsetDir = new THREE.Vector3(-direction.y, direction.x, 0).normalize();
         if (offsetDir.lengthSq() < 0.1) offsetDir = new THREE.Vector3(1, 0, 0);
-        const labelPosition = midPoint
-          .clone()
-          .sub(offsetDir.multiplyScalar(labelOffsetAmount));
+        const labelPosition = midPoint.clone().sub(offsetDir.multiplyScalar(labelOffsetAmount));
 
         // 設定に応じてラベルテキストを生成
-        const contentType =
-          window.globalState?.get('ui.labelContentType') || 'id';
+        const contentType = window.globalState?.get('ui.labelContentType') || 'id';
         let displayText = id;
 
         if (contentType === 'name' && element && element.name) {
           displayText = element.name;
         } else if (contentType === 'section') {
           // 断面名表示の場合、統合ラベル管理システムを使用
-          displayText = generateLabelText(element, elementType);
+          displayText = generateLabelTextInternal(element, elementType);
         }
 
         const labelText = `B: ${displayText}`;
-        const sprite = createLabelSprite(
-          labelText,
-          labelPosition,
-          group,
-          elementType
-        );
+        const sprite = createLabelSpriteInternal(labelText, labelPosition, group, elementType);
         if (sprite) {
           sprite.userData.elementId = id;
           sprite.userData.modelSource = 'B';
 
           // 要素データを保存
           if (element) {
-            attachElementDataToLabel(sprite, element);
+            attachElementDataToLabelInternal(sprite, element);
           }
 
           createdLabels.push(sprite);
@@ -456,7 +522,7 @@ export function drawLineElements(
     skippedCount,
     addedToGroupCount,
     groupChildrenCount: group.children.length,
-    groupVisible: group.visible
+    groupVisible: group.visible,
   });
 
   return createdLabels;
@@ -471,22 +537,13 @@ export function drawLineElements(
  * @param {THREE.Box3} modelBounds - 更新するモデル全体のバウンディングボックス
  * @returns {Array<THREE.Sprite>} 作成されたラベルスプライトの配列
  */
-export function drawPolyElements(
-  comparisonResult,
-  materials,
-  group,
-  labelToggle,
-  modelBounds
-) {
-  group.clear();
+export function drawPolyElements(comparisonResult, materials, group, labelToggle, modelBounds) {
+  disposeAndClearGroup(group);
   const createdLabels = [];
 
   const elementType = group.userData.elementType;
   if (!elementType) {
-    log.error(
-      'elementType is missing in group userData or name for drawPolyElements:',
-      group
-    );
+    log.error('elementType is missing in group userData or name for drawPolyElements:', group);
   }
 
   // labelToggle を createMeshes に渡す
@@ -496,12 +553,7 @@ export function drawPolyElements(
       const points = [];
       let validPoints = true;
       for (const p of vertexCoordsList) {
-        if (
-          p &&
-          Number.isFinite(p.x) &&
-          Number.isFinite(p.y) &&
-          Number.isFinite(p.z)
-        ) {
+        if (p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)) {
           points.push(new THREE.Vector3(p.x, p.y, p.z));
         } else {
           log.warn('Skipping polygon due to invalid vertex coord:', p);
@@ -537,7 +589,7 @@ export function drawPolyElements(
           false,
           true,
           id,
-          matchType
+          matchType,
         );
       }
 
@@ -550,7 +602,7 @@ export function drawPolyElements(
         id: id,
         importance: actualImportance, // 重要度データを設定
         toleranceState: matchType,
-        isPoly: true
+        isPoly: true,
       };
 
       // matched要素の場合、A/B両方のIDを設定
@@ -582,11 +634,11 @@ export function drawPolyElements(
         }
 
         if (labelText) {
-          const sprite = createLabelSprite(
+          const sprite = createLabelSpriteInternal(
             labelText,
             centerPoint,
             group, // ラベルも同じグループに追加
-            elementType
+            elementType,
           );
           if (sprite) {
             sprite.userData.elementId = id; // スプライトにIDを設定
@@ -610,41 +662,29 @@ export function drawPolyElements(
       id: item.dataA.id,
       idB: item.dataB.id, // B側のIDを追加
       importance: item.importance,
-      matchType: item.matchType
+      matchType: item.matchType,
     })),
     getMaterialForElementWithMode(
       elementType,
       'matched',
       false,
       true,
-      comparisonResult.matched[0]?.dataA?.id
+      comparisonResult.matched[0]?.dataA?.id,
     ),
     'matched',
-    labelToggle
+    labelToggle,
   );
   createMeshes(
     comparisonResult.onlyA,
-    getMaterialForElementWithMode(
-      elementType,
-      'onlyA',
-      false,
-      true,
-      comparisonResult.onlyA[0]?.id
-    ),
+    getMaterialForElementWithMode(elementType, 'onlyA', false, true, comparisonResult.onlyA[0]?.id),
     'A',
-    labelToggle
+    labelToggle,
   );
   createMeshes(
     comparisonResult.onlyB,
-    getMaterialForElementWithMode(
-      elementType,
-      'onlyB',
-      false,
-      true,
-      comparisonResult.onlyB[0]?.id
-    ),
+    getMaterialForElementWithMode(elementType, 'onlyB', false, true, comparisonResult.onlyB[0]?.id),
     'B',
-    labelToggle
+    labelToggle,
   );
 
   return createdLabels;
@@ -659,17 +699,15 @@ export function drawPolyElements(
  * @param {THREE.Box3} modelBounds - 更新するモデル全体のバウンディングボックス
  * @returns {Array<THREE.Sprite>} 作成されたラベルスプライトの配列
  */
-export function drawNodes(
-  comparisonResult,
-  materials,
-  group,
-  labelToggle,
-  modelBounds
-) {
-  group.clear();
+export function drawNodes(comparisonResult, materials, group, labelToggle, modelBounds) {
+  disposeAndClearGroup(group);
   const createdLabels = [];
 
   comparisonResult.matched.forEach((item) => {
+    if (!item) {
+      log.warn('Skipping undefined item in matched for Node');
+      return;
+    }
     const { dataA, dataB, importance, matchType } = item;
     const coords = dataA.coords;
     const idA = dataA.id;
@@ -681,25 +719,18 @@ export function drawNodes(
       Number.isFinite(coords.z)
     ) {
       const pos = new THREE.Vector3(coords.x, coords.y, coords.z);
-      const sphereGeo = new THREE.SphereGeometry(50, 12, 8);
       const sphere = new THREE.Mesh(
-        sphereGeo,
-        getMaterialForElementWithMode(
-          'Node',
-          'matched',
-          false,
-          false,
-          idA,
-          matchType
-        )
+        getSharedNodeSphereGeometry(),
+        getMaterialForElementWithMode('Node', 'matched', false, false, idA, matchType),
       );
       sphere.position.copy(pos);
       sphere.userData = {
         elementType: 'Node',
+        elementId: idA, // 統一されたID参照用
         elementIdA: idA,
         elementIdB: idB,
         modelSource: 'matched',
-        toleranceState: matchType
+        toleranceState: matchType,
       };
 
       // 重要度による視覚調整を適用
@@ -709,7 +740,7 @@ export function drawNodes(
       modelBounds.expandByPoint(pos);
       if (labelToggle) {
         const labelText = `${idA} / ${idB}`;
-        const sprite = createLabelSprite(labelText, pos, group, 'Node');
+        const sprite = createLabelSpriteInternal(labelText, pos, group, 'Node');
         if (sprite) {
           sprite.userData.elementIdA = idA;
           sprite.userData.elementIdB = idB;
@@ -718,13 +749,15 @@ export function drawNodes(
         }
       }
     } else {
-      log.warn(
-        `Skipping matched node due to invalid coords: A=${idA}, B=${idB}`
-      );
+      log.warn(`Skipping matched node due to invalid coords: A=${idA}, B=${idB}`);
     }
   });
 
   comparisonResult.onlyA.forEach((item) => {
+    if (!item) {
+      log.warn('Skipping undefined item in onlyA for Node');
+      return;
+    }
     const { coords, id, importance } = item;
     if (
       coords &&
@@ -733,16 +766,15 @@ export function drawNodes(
       Number.isFinite(coords.z)
     ) {
       const pos = new THREE.Vector3(coords.x, coords.y, coords.z);
-      const sphereGeo = new THREE.SphereGeometry(50, 12, 8);
       const sphere = new THREE.Mesh(
-        sphereGeo,
-        getMaterialForElementWithMode('Node', 'onlyA', false, false, id)
+        getSharedNodeSphereGeometry(),
+        getMaterialForElementWithMode('Node', 'onlyA', false, false, id),
       );
       sphere.position.copy(pos);
       sphere.userData = {
         elementType: 'Node',
         elementId: id,
-        modelSource: 'A'
+        modelSource: 'A',
       };
 
       // 重要度による視覚調整を適用
@@ -752,7 +784,7 @@ export function drawNodes(
       modelBounds.expandByPoint(pos);
       if (labelToggle) {
         const labelText = `A: ${id}`;
-        const sprite = createLabelSprite(labelText, pos, group, 'Node');
+        const sprite = createLabelSpriteInternal(labelText, pos, group, 'Node');
         if (sprite) {
           sprite.userData.elementId = id;
           sprite.userData.modelSource = 'A';
@@ -765,6 +797,10 @@ export function drawNodes(
   });
 
   comparisonResult.onlyB.forEach((item) => {
+    if (!item) {
+      log.warn('Skipping undefined item in onlyB for Node');
+      return;
+    }
     const { coords, id, importance } = item;
     if (
       coords &&
@@ -773,16 +809,15 @@ export function drawNodes(
       Number.isFinite(coords.z)
     ) {
       const pos = new THREE.Vector3(coords.x, coords.y, coords.z);
-      const sphereGeo = new THREE.SphereGeometry(50, 12, 8);
       const sphere = new THREE.Mesh(
-        sphereGeo,
-        getMaterialForElementWithMode('Node', 'onlyB', false, false, id)
+        getSharedNodeSphereGeometry(),
+        getMaterialForElementWithMode('Node', 'onlyB', false, false, id),
       );
       sphere.position.copy(pos);
       sphere.userData = {
         elementType: 'Node',
         elementId: id,
-        modelSource: 'B'
+        modelSource: 'B',
       };
 
       // 重要度による視覚調整を適用
@@ -792,7 +827,7 @@ export function drawNodes(
       modelBounds.expandByPoint(pos);
       if (labelToggle) {
         const labelText = `B: ${id}`;
-        const sprite = createLabelSprite(labelText, pos, group, 'Node');
+        const sprite = createLabelSpriteInternal(labelText, pos, group, 'Node');
         if (sprite) {
           sprite.userData.elementId = id;
           sprite.userData.modelSource = 'B';

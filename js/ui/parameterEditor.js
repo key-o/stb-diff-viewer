@@ -9,10 +9,7 @@
  * - XSDスキーマ連携
  */
 
-import {
-  validateAttributeValue,
-  isSchemaLoaded
-} from '../parser/xsdSchemaParser.js';
+import { validationController } from '../app/controllers/validationController.js';
 
 /**
  * パラメータ編集モーダルクラス
@@ -70,13 +67,8 @@ export class ParameterEditor {
    * モーダルDOM要素を作成
    */
   createModal() {
-    const {
-      attributeName,
-      currentValue,
-      suggestions,
-      allowFreeText,
-      required
-    } = this.currentConfig;
+    const { attributeName, currentValue, suggestions, allowFreeText, required } =
+      this.currentConfig;
     const normalizedSuggestions = this.normalizeSuggestionList(suggestions);
 
     // モーダル背景
@@ -96,11 +88,7 @@ export class ParameterEditor {
     header.innerHTML = `
       <h3 id="param-editor-title" class="parameter-editor-title">
         属性の編集: ${attributeName}
-        ${
-  required
-    ? '<span class="required-indicator" title="必須">*</span>'
-    : ''
-}
+        ${required ? '<span class="required-indicator" title="必須">*</span>' : ''}
       </h3>
       <button type="button" class="parameter-editor-close" aria-label="閉じる">×</button>
     `;
@@ -113,7 +101,7 @@ export class ParameterEditor {
     const inputSection = this.createInputSection(
       normalizedSuggestions,
       currentValue,
-      allowFreeText
+      allowFreeText,
     );
     content.appendChild(inputSection);
 
@@ -165,10 +153,8 @@ export class ParameterEditor {
     section.className = 'parameter-editor-input-section';
 
     const hasEnumeration = suggestions.length > 0;
-    const useDropdownOnly =
-      hasEnumeration && suggestions.length <= 10 && !allowFreeText;
-    const useMixedMode =
-      hasEnumeration && (suggestions.length > 10 || allowFreeText);
+    const useDropdownOnly = hasEnumeration && suggestions.length <= 10 && !allowFreeText;
+    const useMixedMode = hasEnumeration && (suggestions.length > 10 || allowFreeText);
 
     if (useDropdownOnly) {
       // ドロップダウンのみモード
@@ -214,7 +200,7 @@ export class ParameterEditor {
         value,
         label,
         meta: entry.meta || {},
-        source: entry.source || 'unknown'
+        source: entry.source || 'unknown',
       };
     }
 
@@ -469,9 +455,7 @@ export class ParameterEditor {
     // 混合モードの場合、ドロップダウンの選択もクリア
     const dropdown = this.modal.querySelector('.parameter-dropdown');
     if (dropdown) {
-      const matchingOption = Array.from(dropdown.options).find(
-        (opt) => opt.value === currentValue
-      );
+      const matchingOption = Array.from(dropdown.options).find((opt) => opt.value === currentValue);
       dropdown.value = matchingOption ? currentValue : '';
     }
 
@@ -507,31 +491,22 @@ export class ParameterEditor {
    */
   validateCurrentInput() {
     const currentValue = this.getCurrentValue();
-    const validationArea = this.modal.querySelector(
-      '.parameter-editor-validation'
-    );
+    const validationArea = this.modal.querySelector('.parameter-editor-validation');
     const okBtn = this.modal.querySelector('.parameter-editor-ok');
 
     let isValid = true;
     let message = '';
 
     // 必須チェック
-    if (
-      this.currentConfig.required &&
-      (!currentValue || currentValue.trim() === '')
-    ) {
+    if (this.currentConfig.required && (!currentValue || currentValue.trim() === '')) {
       isValid = false;
       message = '⚠️ この属性は必須です';
     }
     // XSDバリデーション
-    else if (isSchemaLoaded() && currentValue && currentValue.trim() !== '') {
+    else if (validationController.isSchemaReady() && currentValue && currentValue.trim() !== '') {
       const { elementType, attributeName } = this.currentConfig;
       const tagName = elementType === 'Node' ? 'StbNode' : `Stb${elementType}`;
-      const validation = validateAttributeValue(
-        tagName,
-        attributeName,
-        currentValue
-      );
+      const validation = validationController.validateAttribute(tagName, attributeName, currentValue);
 
       if (!validation.valid) {
         isValid = false;
@@ -547,9 +522,7 @@ export class ParameterEditor {
 
     // UI更新
     validationArea.innerHTML = message;
-    validationArea.className = `parameter-editor-validation ${
-      isValid ? 'valid' : 'invalid'
-    }`;
+    validationArea.className = `parameter-editor-validation ${isValid ? 'valid' : 'invalid'}`;
     okBtn.disabled = !isValid;
 
     return isValid;
@@ -643,10 +616,7 @@ export class ParameterEditor {
     }
 
     // グローバルイベントリスナーを削除
-    document.removeEventListener(
-      'keydown',
-      this.handleGlobalKeydown.bind(this)
-    );
+    document.removeEventListener('keydown', this.handleGlobalKeydown.bind(this));
   }
 
   /**

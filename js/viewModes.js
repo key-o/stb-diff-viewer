@@ -14,24 +14,21 @@
 
 import * as THREE from 'three';
 import { createLogger } from './utils/logger.js';
+import { materials, elementGroups, SUPPORTED_ELEMENTS } from './viewer/index.js';
+// ジオメトリジェネレータファクトリー（統一インターフェース）
 import {
-  materials,
-  elementGroups,
-  SUPPORTED_ELEMENTS
-} from './viewer/index.js';
-// プロファイルベース実装に移行
-import { ProfileBasedBraceGenerator } from './viewer/geometry/ProfileBasedBraceGenerator.js';
-import { ProfileBasedColumnGenerator } from './viewer/geometry/ProfileBasedColumnGenerator.js';
-import { ProfileBasedPostGenerator } from './viewer/geometry/ProfileBasedPostGenerator.js';
-import { ProfileBasedBeamGenerator } from './viewer/geometry/ProfileBasedBeamGenerator.js';
-import { PileGenerator } from './viewer/geometry/PileGenerator.js';
-import { FootingGenerator } from './viewer/geometry/FootingGenerator.js';
-import { SlabGenerator } from './viewer/geometry/SlabGenerator.js';
-import { WallGenerator } from './viewer/geometry/WallGenerator.js';
-import { parseElements, buildNodeMap } from './parser/stbXmlParser.js';
-import { parseStbFile } from './viewer/geometry/stbStructureReader.js';
-import { compareElements, lineElementKeyExtractor } from './comparator.js';
-import { drawLineElements } from './viewer/index.js';
+  geometryGeneratorFactory,
+  JointGenerator,
+} from './viewer/geometry/GeometryGeneratorFactory.js';
+import { parseElements } from './common-stb/parser/stbXmlParser.js';
+import {
+  parseStbFile,
+  setStateProvider,
+  clearParseCache,
+} from './viewer/geometry/stbStructureReader.js';
+import { setState, getState } from './app/globalState.js';
+import { compareElements, lineElementKeyExtractor, polyElementKeyExtractor } from './comparator.js';
+import { drawLineElements, drawPolyElements } from './viewer/index.js';
 import { updateLabelVisibility } from './ui/unifiedLabelManager.js';
 import { removeLabelsForElementType, addLabelsToGlobalState } from './ui.js';
 import { createLabelSprite } from './viewer/ui/labels.js';
@@ -42,27 +39,27 @@ import displayModeManager from './viewer/rendering/displayModeManager.js';
 import labelDisplayManager from './viewer/rendering/labelDisplayManager.js';
 import modelVisibilityManager from './viewer/rendering/modelVisibilityManager.js';
 // カメラ管理（静的インポート）
-import { setCameraMode, CAMERA_MODES } from './viewer/camera/cameraManager.js';
-import { setView } from './viewer/camera/viewManager.js';
+import { setCameraMode } from './viewer/camera/cameraManagerImpl.js';
+import { CAMERA_MODES } from './constants/displayModes.js';
+import { setView } from './viewer/camera/viewManagerImpl.js';
 // 2Dクリッピング管理
-import {
-  updateDepth2DClippingVisibility,
-  initDepth2DClippingUI,
-  adjustDepth2DClippingRangeFromModel
-} from './ui/clipping2D.js';
-import {
-  setStbExportPanelVisibility,
-  updateStbExportStatus
-} from './dxfLoader.js';
+import { updateDepth2DClippingVisibility } from './ui/clipping2DImpl.js';
+import { setStbExportPanelVisibility, updateStbExportStatus } from './dxfLoader.js';
 // 設定ファイル
 import { VIEW_MODE_CHECKBOX_IDS } from './config/uiElementConfig.js';
 import { COORDINATE_PRECISION } from './config/geometryConfig.js';
 import { UI_TIMING } from './config/uiTimingConfig.js';
+import { getElementRedrawConfig } from './config/elementRedrawConfig.js';
 // イベント処理
-import { redrawAxesAtStory } from './ui/events.js';
+import { redrawAxesAtStory } from './ui/events/index.js';
+// 色付けモード管理（静的インポート - 表示モード変更時の色適用同期化のため）
+import { updateElementsForColorMode } from './colorModes/index.js';
 
 // ロガー
 const log = createLogger('viewModes');
+
+// stbStructureReaderに状態プロバイダーを設定（依存性注入）
+setStateProvider({ setState });
 
 // モデル情報の参照
 let modelBounds = null;
@@ -76,6 +73,9 @@ let nodeMapB = null;
  * @param {Object} modelData - モデルデータ参照
  */
 export function initViewModes(modelData) {
+  // 新しいモデルが設定される前にパースキャッシュをクリア
+  clearParseCache();
+
   modelBounds = modelData.modelBounds;
   modelADocument = modelData.modelADocument;
   modelBDocument = modelData.modelBDocument;
@@ -112,19 +112,26 @@ function syncDisplayModeFromUI() {
  * @private
  */
 function applyInitialDisplayModes() {
+  console.log('[DEBUG] applyInitialDisplayModes called');
   log.debug('[applyInitialDisplayModes] Applying initial display modes');
 
   // 各要素タイプの立体表示状態を確認
+  // Slab/Wallは常に再描画（renderingOrchestratorでスキップされるため）
+  // Slab/Wallは常に再描画（renderingOrchestratorでスキップされるため）
   const needsRedraw = {
     Column: displayModeManager.getDisplayMode('Column') === 'solid',
     Post: displayModeManager.getDisplayMode('Post') === 'solid',
-    Beam: displayModeManager.getDisplayMode('Beam') === 'solid' || displayModeManager.getDisplayMode('Girder') === 'solid',
+    Beam:
+      displayModeManager.getDisplayMode('Beam') === 'solid' ||
+      displayModeManager.getDisplayMode('Girder') === 'solid',
     Brace: displayModeManager.getDisplayMode('Brace') === 'solid',
     Pile: displayModeManager.getDisplayMode('Pile') === 'solid',
     Footing: displayModeManager.getDisplayMode('Footing') === 'solid',
     FoundationColumn: displayModeManager.getDisplayMode('FoundationColumn') === 'solid',
-    Slab: displayModeManager.getDisplayMode('Slab') === 'solid',
-    Wall: displayModeManager.getDisplayMode('Wall') === 'solid'
+    Slab: true, // 常に再描画（renderingOrchestratorでスキップされる）
+    Wall: true, // 常に再描画（renderingOrchestratorでスキップされる）
+    Parapet: displayModeManager.getDisplayMode('Parapet') === 'solid',
+    Joint: displayModeManager.getDisplayMode('Joint') === 'solid', // 継手（初期状態で空）
   };
 
   // 再描画が必要な要素をカウント
@@ -174,6 +181,21 @@ function applyInitialDisplayModes() {
     log.debug('[applyInitialDisplayModes] Redrawing Wall in solid mode');
     redrawWallsForViewMode(null);
   }
+  if (needsRedraw.Parapet) {
+    log.debug('[applyInitialDisplayModes] Redrawing Parapet in solid mode');
+    redrawParapetsForViewMode(null);
+  }
+  console.log('[DEBUG] needsRedraw.Joint:', needsRedraw.Joint);
+  if (needsRedraw.Joint) {
+    console.log('[DEBUG] Calling redrawJointsForViewMode');
+    log.debug('[applyInitialDisplayModes] Redrawing Joint in solid mode');
+    redrawJointsForViewMode(null);
+  }
+
+  // Undefined要素は常にライン表示（renderingOrchestratorで空で返される）
+  // 初期レンダリング後にここで描画
+  log.debug('[applyInitialDisplayModes] Redrawing Undefined elements (always line mode)');
+  redrawUndefinedElementsForViewMode(null);
 }
 
 /**
@@ -188,9 +210,13 @@ const ELEMENT_REDRAW_FUNCTIONS = {
   Brace: () => redrawBracesForViewMode,
   Pile: () => redrawPilesForViewMode,
   Footing: () => redrawFootingsForViewMode,
+  StripFooting: () => redrawStripFootingsForViewMode,
   FoundationColumn: () => redrawFoundationColumnsForViewMode,
   Slab: () => redrawSlabsForViewMode,
-  Wall: () => redrawWallsForViewMode
+  Wall: () => redrawWallsForViewMode,
+  Parapet: () => redrawParapetsForViewMode,
+  Joint: () => redrawJointsForViewMode,
+  Undefined: () => redrawUndefinedElementsForViewMode,
 };
 
 /**
@@ -201,6 +227,17 @@ const ELEMENT_REDRAW_FUNCTIONS = {
  */
 export function setElementViewMode(elementType, mode, scheduleRender) {
   if (mode !== 'line' && mode !== 'solid') return;
+
+  // common/viewerモードの場合はアダプター経由で表示モード設定
+  const useCommonViewer = getState('viewer.useCommonViewer');
+  const adapter = getState('viewer.adapter');
+
+  if (useCommonViewer && adapter) {
+    adapter.setDisplayMode(elementType, mode);
+    return;
+  }
+
+  // 通常モード
   displayModeManager.setDisplayMode(elementType, mode);
   const redrawFn = ELEMENT_REDRAW_FUNCTIONS[elementType];
   if (redrawFn) {
@@ -278,6 +315,16 @@ export function setFoundationColumnViewMode(mode, scheduleRender) {
  * @param {Function} scheduleRender - 再描画要求関数
  */
 export function setModelVisibility(model, visible, scheduleRender) {
+  // common/viewerモードの場合はアダプター経由で表示設定
+  const useCommonViewer = getState('viewer.useCommonViewer');
+  const adapter = getState('viewer.adapter');
+
+  if (useCommonViewer && adapter) {
+    adapter.setModelVisibility(model, visible);
+    return;
+  }
+
+  // 通常モード
   const success = modelVisibilityManager.setModelVisibility(model, visible);
   if (success) {
     updateModelVisibility(scheduleRender);
@@ -308,11 +355,7 @@ export function getModelVisibility(model) {
  * @param {boolean} updateLabelsAfter - 再描画後にラベル更新を実行するか（デフォルト: true）
  * @private
  */
-function redrawElementForViewMode(
-  config,
-  scheduleRender,
-  updateLabelsAfter = true
-) {
+function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = true) {
   const {
     elementType,
     stbTagName,
@@ -321,7 +364,7 @@ function redrawElementForViewMode(
     generator,
     generatorMethod,
     elementsKey,
-    sectionsKey
+    sectionsKey,
   } = config;
 
   // 必要なデータが揃っているかチェック
@@ -341,8 +384,12 @@ function redrawElementForViewMode(
   if (viewMode === 'solid') {
     // 立体表示（ProfileBased方式）- 差分表示対応
     // saveToGlobalState: true でパース結果をglobalStateに保存し、IFC変換で再利用
-    const stbDataA = modelADocument ? parseStbFile(modelADocument, { modelKey: 'A', saveToGlobalState: true }) : null;
-    const stbDataB = modelBDocument ? parseStbFile(modelBDocument, { modelKey: 'B', saveToGlobalState: true }) : null;
+    const stbDataA = modelADocument
+      ? parseStbFile(modelADocument, { modelKey: 'A', saveToGlobalState: true })
+      : null;
+    const stbDataB = modelBDocument
+      ? parseStbFile(modelBDocument, { modelKey: 'B', saveToGlobalState: true })
+      : null;
 
     // 両方のモデルがある場合は比較を実行
     if (stbDataA && stbDataB) {
@@ -353,7 +400,7 @@ function redrawElementForViewMode(
         stbDataA.nodes,
         stbDataB.nodes,
         nodeStartAttr,
-        nodeEndAttr
+        nodeEndAttr,
       );
 
       log.debug(
@@ -361,7 +408,7 @@ function redrawElementForViewMode(
           `matched=${comparisonResult.matched.length}, ` +
           `mismatch=${comparisonResult.mismatch.length}, ` +
           `onlyA=${comparisonResult.onlyA.length}, ` +
-          `onlyB=${comparisonResult.onlyB.length}`
+          `onlyB=${comparisonResult.onlyB.length}`,
       );
 
       // マッチした要素（属性も一致）のメッシュを生成（モデルAのデータを使用）
@@ -374,7 +421,7 @@ function redrawElementForViewMode(
           stbDataA.steelSections,
           elementType,
           false, // isJsonInput
-          elementType === 'Wall' ? stbDataA.openingElements : null // 壁の場合のみ開口情報を渡す
+          elementType === 'Wall' ? stbDataA.openingElements : null, // 壁の場合のみ開口情報を渡す
         );
 
         // matched要素のペア情報をマップに変換
@@ -406,7 +453,7 @@ function redrawElementForViewMode(
           stbDataA.steelSections,
           elementType,
           false, // isJsonInput
-          elementType === 'Wall' ? stbDataA.openingElements : null // 壁の場合のみ開口情報を渡す
+          elementType === 'Wall' ? stbDataA.openingElements : null, // 壁の場合のみ開口情報を渡す
         );
 
         // mismatch要素のペア情報をマップに変換
@@ -437,7 +484,7 @@ function redrawElementForViewMode(
           stbDataA.steelSections,
           elementType,
           false, // isJsonInput
-          elementType === 'Wall' ? stbDataA.openingElements : null // 壁の場合のみ開口情報を渡す
+          elementType === 'Wall' ? stbDataA.openingElements : null, // 壁の場合のみ開口情報を渡す
         );
         onlyAMeshes.forEach((mesh) => {
           mesh.userData.modelSource = 'A';
@@ -454,7 +501,7 @@ function redrawElementForViewMode(
           stbDataB.steelSections,
           elementType,
           false, // isJsonInput
-          elementType === 'Wall' ? stbDataB.openingElements : null // 壁の場合のみ開口情報を渡す
+          elementType === 'Wall' ? stbDataB.openingElements : null, // 壁の場合のみ開口情報を渡す
         );
         onlyBMeshes.forEach((mesh) => {
           mesh.userData.modelSource = 'B';
@@ -465,9 +512,7 @@ function redrawElementForViewMode(
       // ラベル作成（すべての要素に対して）
       labelDisplayManager.syncWithCheckbox(elementType);
       const createLabelsFlag = labelDisplayManager.isLabelVisible(elementType);
-      log.debug(
-        `[redraw${elementType}ForViewMode] solid mode - createLabels: ${createLabelsFlag}`
-      );
+      log.debug(`[redraw${elementType}ForViewMode] solid mode - createLabels: ${createLabelsFlag}`);
 
       if (createLabelsFlag) {
         // マッチした要素のラベル
@@ -475,33 +520,33 @@ function redrawElementForViewMode(
           comparisonResult.matched.map((m) => m.elementA),
           stbDataA.nodes,
           elementType,
-          'matched'
+          'matched',
         );
         // 不一致要素のラベル
         const mismatchLabels = createLabelsForSolidElementsWithSource(
           comparisonResult.mismatch.map((m) => m.elementA),
           stbDataA.nodes,
           elementType,
-          'mismatch'
+          'mismatch',
         );
         // モデルAのみの要素のラベル
         const onlyALabels = createLabelsForSolidElementsWithSource(
           comparisonResult.onlyA,
           stbDataA.nodes,
           elementType,
-          'A'
+          'A',
         );
         // モデルBのみの要素のラベル
         const onlyBLabels = createLabelsForSolidElementsWithSource(
           comparisonResult.onlyB,
           stbDataB.nodes,
           elementType,
-          'B'
+          'B',
         );
 
         const allLabels = [...matchedLabels, ...mismatchLabels, ...onlyALabels, ...onlyBLabels];
         log.debug(
-          `[redraw${elementType}ForViewMode] solid mode - created ${allLabels.length} labels`
+          `[redraw${elementType}ForViewMode] solid mode - created ${allLabels.length} labels`,
         );
         allLabels.forEach((label) => group.add(label));
         addLabelsToGlobalState(allLabels);
@@ -519,7 +564,7 @@ function redrawElementForViewMode(
           stbData.steelSections,
           elementType,
           false, // isJsonInput
-          elementType === 'Wall' ? stbData.openingElements : null // 壁の場合のみ開口情報を渡す
+          elementType === 'Wall' ? stbData.openingElements : null, // 壁の場合のみ開口情報を渡す
         );
         meshes.forEach((mesh) => {
           mesh.userData.modelSource = modelSource;
@@ -530,7 +575,7 @@ function redrawElementForViewMode(
         labelDisplayManager.syncWithCheckbox(elementType);
         const createLabelsFlag = labelDisplayManager.isLabelVisible(elementType);
         log.debug(
-          `[redraw${elementType}ForViewMode] solid mode - createLabels: ${createLabelsFlag}`
+          `[redraw${elementType}ForViewMode] solid mode - createLabels: ${createLabelsFlag}`,
         );
 
         if (createLabelsFlag) {
@@ -538,10 +583,10 @@ function redrawElementForViewMode(
             stbData[elementsKey],
             stbData.nodes,
             elementType,
-            modelSource
+            modelSource,
           );
           log.debug(
-            `[redraw${elementType}ForViewMode] solid mode - created ${labels.length} labels`
+            `[redraw${elementType}ForViewMode] solid mode - created ${labels.length} labels`,
           );
           labels.forEach((label) => group.add(label));
           addLabelsToGlobalState(labels);
@@ -549,58 +594,80 @@ function redrawElementForViewMode(
       }
     }
 
-    // 生成されたメッシュに現在のカラーモードを適用
-    import('./colorModes.js')
-      .then(({ updateElementsForColorMode }) => {
-        updateElementsForColorMode();
-      })
-      .catch((err) => {
-        console.error('Failed to update colors for solid mode:', err);
-      });
+    // 生成されたメッシュに現在のカラーモードを適用（同期的に実行）
+    try {
+      updateElementsForColorMode();
+    } catch (err) {
+      console.error('Failed to update colors for solid mode:', err);
+    }
   } else {
-    // 線表示 - 1ノード要素（基礎など）は線表示をサポートしない
-    if (nodeEndAttr === null) {
+    // 線表示 / パネル表示
+
+    // ポリゴン要素（Wall, Slab）の場合はdrawPolyElementsを使用
+    if (elementType === 'Wall' || elementType === 'Slab') {
+      const elementsA = parseElements(modelADocument, stbTagName);
+      const elementsB = parseElements(modelBDocument, stbTagName);
+
+      const comparisonResult = compareElements(elementsA, elementsB, nodeMapA, nodeMapB, (el, nm) =>
+        polyElementKeyExtractor(el, nm, 'StbNodeIdOrder'),
+      );
+
+      labelDisplayManager.syncWithCheckbox(elementType);
+      const createLabels = labelDisplayManager.isLabelVisible(elementType);
+      log.debug(`[redraw${elementType}ForViewMode] poly mode - createLabels: ${createLabels}`);
+
+      const createdLabels = drawPolyElements(
+        comparisonResult,
+        materials,
+        group,
+        createLabels,
+        modelBounds,
+      );
+
+      if (createdLabels && createdLabels.length > 0) {
+        log.debug(
+          `[redraw${elementType}ForViewMode] poly mode - created ${createdLabels.length} labels`,
+        );
+        addLabelsToGlobalState(createdLabels);
+      } else {
+        log.debug(`[redraw${elementType}ForViewMode] poly mode - no labels created`);
+      }
+    } else if (nodeEndAttr === null) {
+      // 1ノード要素（基礎など）は線表示をサポートしない
       log.debug(
-        `[redraw${elementType}ForViewMode] line mode not supported for single-node elements`
+        `[redraw${elementType}ForViewMode] line mode not supported for single-node elements`,
       );
       if (scheduleRender) scheduleRender();
       return;
-    }
-
-    const elementsA = parseElements(modelADocument, stbTagName);
-    const elementsB = parseElements(modelBDocument, stbTagName);
-    const comparisonResult = compareElements(
-      elementsA,
-      elementsB,
-      nodeMapA,
-      nodeMapB,
-      (el, nm) => lineElementKeyExtractor(el, nm, nodeStartAttr, nodeEndAttr)
-    );
-
-    labelDisplayManager.syncWithCheckbox(elementType);
-    const createLabels = labelDisplayManager.isLabelVisible(elementType);
-    log.debug(
-      `[redraw${elementType}ForViewMode] line mode - createLabels: ${createLabels}`
-    );
-
-    const createdLabels = drawLineElements(
-      comparisonResult,
-      materials,
-      group,
-      elementType,
-      createLabels,
-      modelBounds
-    );
-
-    if (createdLabels && createdLabels.length > 0) {
-      log.debug(
-        `[redraw${elementType}ForViewMode] line mode - created ${createdLabels.length} labels`
-      );
-      addLabelsToGlobalState(createdLabels);
     } else {
-      log.debug(
-        `[redraw${elementType}ForViewMode] line mode - no labels created`
+      // 2ノード要素の線表示（既存コード）
+      const elementsA = parseElements(modelADocument, stbTagName);
+      const elementsB = parseElements(modelBDocument, stbTagName);
+      const comparisonResult = compareElements(elementsA, elementsB, nodeMapA, nodeMapB, (el, nm) =>
+        lineElementKeyExtractor(el, nm, nodeStartAttr, nodeEndAttr),
       );
+
+      labelDisplayManager.syncWithCheckbox(elementType);
+      const createLabels = labelDisplayManager.isLabelVisible(elementType);
+      log.debug(`[redraw${elementType}ForViewMode] line mode - createLabels: ${createLabels}`);
+
+      const createdLabels = drawLineElements(
+        comparisonResult,
+        materials,
+        group,
+        elementType,
+        createLabels,
+        modelBounds,
+      );
+
+      if (createdLabels && createdLabels.length > 0) {
+        log.debug(
+          `[redraw${elementType}ForViewMode] line mode - created ${createdLabels.length} labels`,
+        );
+        addLabelsToGlobalState(createdLabels);
+      } else {
+        log.debug(`[redraw${elementType}ForViewMode] line mode - no labels created`);
+      }
     }
   }
 
@@ -613,44 +680,57 @@ function redrawElementForViewMode(
   }
 }
 
+// ============================================================================
+// ファクトリーパターンによる要素再描画関数の統一
+// ============================================================================
+
 /**
- * 柱の再描画処理
+ * 要素タイプに基づいて再描画を実行する汎用関数
+ * @param {string} elementType - 要素タイプ名
  * @param {Function} scheduleRender - 再描画要求関数
+ * @param {boolean} [updateLabelsAfter=true] - ラベル更新を行うか
  */
-export function redrawColumnsForViewMode(scheduleRender) {
-  redrawElementForViewMode(
-    {
-      elementType: 'Column',
-      stbTagName: 'StbColumn',
-      nodeStartAttr: 'id_node_bottom',
-      nodeEndAttr: 'id_node_top',
-      generator: ProfileBasedColumnGenerator,
-      generatorMethod: 'createColumnMeshes',
-      elementsKey: 'columnElements',
-      sectionsKey: 'columnSections'
-    },
-    scheduleRender
-  );
+export function redrawElementByType(elementType, scheduleRender, updateLabelsAfter = true) {
+  const config = getElementRedrawConfig(elementType);
+  if (!config) {
+    log.warn(`Unknown element type: ${elementType}`);
+    return;
+  }
+  redrawElementForViewMode(config, scheduleRender, updateLabelsAfter);
 }
 
 /**
- * 間柱の再描画処理（Postは柱と同じ構造を持つため、同様の処理）
+ * ファクトリー関数: 要素タイプに対応する再描画関数を生成
+ * @param {string} elementType - 要素タイプ名
+ * @returns {Function} 再描画関数
+ */
+function createRedrawFunction(elementType) {
+  return function (scheduleRender) {
+    redrawElementByType(elementType, scheduleRender);
+  };
+}
+
+// 後方互換性のためのエクスポート（設定ベースで生成）
+export const redrawColumnsForViewMode = createRedrawFunction('Column');
+export const redrawPostsForViewMode = createRedrawFunction('Post');
+export const redrawBracesForViewMode = createRedrawFunction('Brace');
+export const redrawPilesForViewMode = createRedrawFunction('Pile');
+export const redrawFootingsForViewMode = createRedrawFunction('Footing');
+export const redrawFoundationColumnsForViewMode = createRedrawFunction('FoundationColumn');
+export const redrawSlabsForViewMode = createRedrawFunction('Slab');
+export const redrawWallsForViewMode = createRedrawFunction('Wall');
+export const redrawParapetsForViewMode = createRedrawFunction('Parapet');
+export const redrawStripFootingsForViewMode = createRedrawFunction('StripFooting');
+
+/**
+ * 梁の再描画処理（大梁と小梁の両方を処理 - 特殊ケース）
  * @param {Function} scheduleRender - 再描画要求関数
  */
-export function redrawPostsForViewMode(scheduleRender) {
-  redrawElementForViewMode(
-    {
-      elementType: 'Post',
-      stbTagName: 'StbPost',
-      nodeStartAttr: 'id_node_bottom',
-      nodeEndAttr: 'id_node_top',
-      generator: ProfileBasedPostGenerator,
-      generatorMethod: 'createPostMeshes',
-      elementsKey: 'postElements',
-      sectionsKey: 'postSections'
-    },
-    scheduleRender
-  );
+export function redrawBeamsForViewMode(scheduleRender) {
+  // 大梁（Girder）を処理（ラベル更新はスキップ）
+  redrawElementByType('Girder', scheduleRender, false);
+  // 小梁（Beam）を処理（ラベル更新を実行）
+  redrawElementByType('Beam', scheduleRender, true);
 }
 
 /**
@@ -667,36 +747,26 @@ function createLabelsForSolidElements(elements, nodes, elementType) {
     let startNode, endNode, labelText, centerPosition;
 
     // 要素タイプに応じて座標とラベルテキストを取得
-    if (
-      elementType === 'Column' ||
-      elementType === 'Post' ||
-      elementType === 'FoundationColumn'
-    ) {
+    if (elementType === 'Column' || elementType === 'Post' || elementType === 'FoundationColumn') {
       startNode = nodes.get(element.id_node_bottom);
       endNode = nodes.get(element.id_node_top);
       labelText = generateLabelText(element, elementType);
       if (startNode && endNode) {
-        centerPosition = new THREE.Vector3()
-          .addVectors(startNode, endNode)
-          .multiplyScalar(0.5);
+        centerPosition = new THREE.Vector3().addVectors(startNode, endNode).multiplyScalar(0.5);
       }
     } else if (elementType === 'Girder' || elementType === 'Beam') {
       startNode = nodes.get(element.id_node_start);
       endNode = nodes.get(element.id_node_end);
       labelText = generateLabelText(element, elementType);
       if (startNode && endNode) {
-        centerPosition = new THREE.Vector3()
-          .addVectors(startNode, endNode)
-          .multiplyScalar(0.5);
+        centerPosition = new THREE.Vector3().addVectors(startNode, endNode).multiplyScalar(0.5);
       }
     } else if (elementType === 'Brace' || elementType === 'Pile') {
       startNode = nodes.get(element.id_node_start || element.id_node_bottom);
       endNode = nodes.get(element.id_node_end || element.id_node_top);
       labelText = generateLabelText(element, elementType);
       if (startNode && endNode) {
-        centerPosition = new THREE.Vector3()
-          .addVectors(startNode, endNode)
-          .multiplyScalar(0.5);
+        centerPosition = new THREE.Vector3().addVectors(startNode, endNode).multiplyScalar(0.5);
       }
     } else if (elementType === 'Footing') {
       // 基礎は1ノード要素 - ノード位置をそのまま使用
@@ -714,12 +784,7 @@ function createLabelsForSolidElements(elements, nodes, elementType) {
     if (!centerPosition) continue;
 
     // ラベルスプライトを作成（グループは後で追加するため、nullを渡す）
-    const sprite = createLabelSprite(
-      labelText,
-      centerPosition,
-      null,
-      elementType
-    );
+    const sprite = createLabelSprite(labelText, centerPosition, null, elementType);
     if (sprite) {
       sprite.userData.elementId = element.id;
       sprite.userData.modelSource = 'solid'; // 立体表示由来のラベル
@@ -746,14 +811,7 @@ function createLabelsForSolidElements(elements, nodes, elementType) {
  * @param {string} nodeEndAttr - 終点ノード属性名（1ノード要素の場合はnull）
  * @returns {{matched: Array<{elementA, elementB}>, mismatch: Array<{elementA, elementB}>, onlyA: Array, onlyB: Array}}
  */
-function compareSolidElements(
-  elementsA,
-  elementsB,
-  nodesA,
-  nodesB,
-  nodeStartAttr,
-  nodeEndAttr
-) {
+function compareSolidElements(elementsA, elementsB, nodesA, nodesB, nodeStartAttr, nodeEndAttr) {
   // 座標比較時の精度（共有定数を使用）
   const PRECISION = COORDINATE_PRECISION;
 
@@ -780,6 +838,19 @@ function compareSolidElements(
    * @returns {string|null}
    */
   function getElementKey(element, nodes) {
+    // 多角形要素（複数ノード要素: Slab, Wall）のチェック
+    if (element.node_ids && Array.isArray(element.node_ids) && element.node_ids.length >= 3) {
+      const nodeCoords = [];
+      for (const nodeId of element.node_ids) {
+        const node = nodes.get(nodeId);
+        const coordKey = getCoordKey(node);
+        if (!coordKey) return null;
+        nodeCoords.push(coordKey);
+      }
+      // 順序に依存しないキー（ソート済み）
+      return `poly:${nodeCoords.sort().join('|')}`;
+    }
+
     if (nodeEndAttr === null) {
       // 1ノード要素（基礎など）
       const nodeId = element.id_node;
@@ -824,21 +895,21 @@ function compareSolidElements(
   function compareElementAttributes(elementA, elementB) {
     // 比較対象の主要属性（断面、材質、回転、オフセットなど）
     const attributesToCompare = [
-      'id_sec',           // 断面ID
-      'kind',             // 材質種別
-      'rotate',           // 回転角
-      'offset_X',         // X方向オフセット
-      'offset_Y',         // Y方向オフセット
-      'offset_Z',         // Z方向オフセット
-      'level_top',        // 上端レベル
-      'level_bottom',     // 下端レベル
+      'id_sec', // 断面ID
+      'kind', // 材質種別
+      'rotate', // 回転角
+      'offset_X', // X方向オフセット
+      'offset_Y', // Y方向オフセット
+      'offset_Z', // Z方向オフセット
+      'level_top', // 上端レベル
+      'level_bottom', // 下端レベル
       'condition_bottom', // 下端条件
-      'condition_top',    // 上端条件
-      'joint_bottom',     // 下端接合部
-      'joint_top',        // 上端接合部
-      'haunch_H',         // ハンチ高さ
-      'haunch_start',     // ハンチ開始
-      'haunch_end'       // ハンチ終了
+      'condition_top', // 上端条件
+      'joint_bottom', // 下端接合部
+      'joint_top', // 上端接合部
+      'haunch_H', // ハンチ高さ
+      'haunch_start', // ハンチ開始
+      'haunch_end', // ハンチ終了
     ];
 
     for (const attr of attributesToCompare) {
@@ -877,7 +948,7 @@ function compareSolidElements(
     matched: [],
     mismatch: [],
     onlyA: [],
-    onlyB: []
+    onlyB: [],
   };
 
   // モデルAの要素をキーでマッピング
@@ -905,12 +976,12 @@ function compareSolidElements(
       if (compareElementAttributes(elementA, elementB)) {
         result.matched.push({
           elementA: elementA,
-          elementB: elementB
+          elementB: elementB,
         });
       } else {
         result.mismatch.push({
           elementA: elementA,
-          elementB: elementB
+          elementB: elementB,
         });
       }
       keysB.delete(key);
@@ -942,36 +1013,26 @@ function createLabelsForSolidElementsWithSource(elements, nodes, elementType, mo
     let startNode, endNode, labelText, centerPosition;
 
     // 要素タイプに応じて座標とラベルテキストを取得
-    if (
-      elementType === 'Column' ||
-      elementType === 'Post' ||
-      elementType === 'FoundationColumn'
-    ) {
+    if (elementType === 'Column' || elementType === 'Post' || elementType === 'FoundationColumn') {
       startNode = nodes.get(element.id_node_bottom);
       endNode = nodes.get(element.id_node_top);
       labelText = generateLabelText(element, elementType);
       if (startNode && endNode) {
-        centerPosition = new THREE.Vector3()
-          .addVectors(startNode, endNode)
-          .multiplyScalar(0.5);
+        centerPosition = new THREE.Vector3().addVectors(startNode, endNode).multiplyScalar(0.5);
       }
     } else if (elementType === 'Girder' || elementType === 'Beam') {
       startNode = nodes.get(element.id_node_start);
       endNode = nodes.get(element.id_node_end);
       labelText = generateLabelText(element, elementType);
       if (startNode && endNode) {
-        centerPosition = new THREE.Vector3()
-          .addVectors(startNode, endNode)
-          .multiplyScalar(0.5);
+        centerPosition = new THREE.Vector3().addVectors(startNode, endNode).multiplyScalar(0.5);
       }
     } else if (elementType === 'Brace' || elementType === 'Pile') {
       startNode = nodes.get(element.id_node_start || element.id_node_bottom);
       endNode = nodes.get(element.id_node_end || element.id_node_top);
       labelText = generateLabelText(element, elementType);
       if (startNode && endNode) {
-        centerPosition = new THREE.Vector3()
-          .addVectors(startNode, endNode)
-          .multiplyScalar(0.5);
+        centerPosition = new THREE.Vector3().addVectors(startNode, endNode).multiplyScalar(0.5);
       }
     } else if (elementType === 'Footing') {
       // 基礎は1ノード要素 - ノード位置をそのまま使用
@@ -1011,12 +1072,7 @@ function createLabelsForSolidElementsWithSource(elements, nodes, elementType, mo
     if (!centerPosition) continue;
 
     // ラベルスプライトを作成（グループは後で追加するため、nullを渡す）
-    const sprite = createLabelSprite(
-      labelText,
-      centerPosition,
-      null,
-      elementType
-    );
+    const sprite = createLabelSprite(labelText, centerPosition, null, elementType);
     if (sprite) {
       sprite.userData.elementId = element.id;
       sprite.userData.modelSource = modelSource; // 差分表示用のモデルソースを設定
@@ -1032,161 +1088,325 @@ function createLabelsForSolidElementsWithSource(elements, nodes, elementType, mo
 }
 
 /**
- * 梁の再描画処理（大梁と小梁の両方を処理）
+ * 継手要素の表示モードを再描画
+ * 継手は梁・柱の端部に配置される接合プレート
  * @param {Function} scheduleRender - 再描画要求関数
  */
-export function redrawBeamsForViewMode(scheduleRender) {
-  // 大梁（Girder）を処理（ラベル更新はスキップ）
-  redrawElementForViewMode(
-    {
-      elementType: 'Girder',
-      stbTagName: 'StbGirder',
-      nodeStartAttr: 'id_node_start',
-      nodeEndAttr: 'id_node_end',
-      generator: ProfileBasedBeamGenerator,
-      generatorMethod: 'createBeamMeshes',
-      elementsKey: 'girderElements',
-      sectionsKey: 'girderSections'
-    },
-    scheduleRender,
-    false
-  );
+export function redrawJointsForViewMode(scheduleRender) {
+  console.log('[DEBUG] redrawJointsForViewMode called');
+  // 継手は特殊な要素で、梁・柱に関連付けられている
+  // solid表示モードの場合のみ継手プレートを描画
 
-  // 小梁（Beam）を処理（ラベル更新を実行）
-  redrawElementForViewMode(
-    {
-      elementType: 'Beam',
-      stbTagName: 'StbBeam',
-      nodeStartAttr: 'id_node_start',
-      nodeEndAttr: 'id_node_end',
-      generator: ProfileBasedBeamGenerator,
-      generatorMethod: 'createBeamMeshes',
-      elementsKey: 'beamElements',
-      sectionsKey: 'beamSections'
-    },
-    scheduleRender,
-    true
-  );
+  if (!modelADocument && !modelBDocument) {
+    console.log('[DEBUG] redrawJointsForViewMode: No model documents');
+    return;
+  }
+
+  const group = elementGroups['Joint'];
+  if (!group) {
+    console.log('[DEBUG] redrawJointsForViewMode: Joint group not found');
+    return;
+  }
+
+  // 既存のラベルを削除
+  removeLabelsForElementType('Joint');
+  group.clear();
+
+  // グループを可視状態に設定（初期レンダリング時にfalseになっている可能性があるため）
+  group.visible = true;
+
+  const viewMode = displayModeManager.getDisplayMode('Joint');
+  console.log('[DEBUG] redrawJointsForViewMode: viewMode =', viewMode);
+  log.debug(`[redrawJointsForViewMode] mode: ${viewMode}`);
+
+  if (viewMode !== 'solid') {
+    // 線表示モードでは継手は非表示
+    group.visible = false;
+    if (scheduleRender) scheduleRender();
+    return;
+  }
+
+  // 立体表示モード: 梁・柱から継手情報を取得して描画
+  // 継手IDはパース時に適用されるため、キャッシュが古い場合は強制再パース
+  const stbDataA = modelADocument
+    ? parseStbFile(modelADocument, { modelKey: 'A', saveToGlobalState: true, forceReparse: true })
+    : null;
+  const stbDataB = modelBDocument
+    ? parseStbFile(modelBDocument, { modelKey: 'B', saveToGlobalState: true, forceReparse: true })
+    : null;
+
+  // 継手を持つ梁要素を収集（GirderとBeam）
+  const jointedElementsA = [];
+  const jointedElementsB = [];
+
+  if (stbDataA) {
+    console.log('[DEBUG] stbDataA:', {
+      girders: stbDataA.girderElements?.length || 0,
+      beams: stbDataA.beamElements?.length || 0,
+      jointElements: stbDataA.jointElements?.size || 0,
+    });
+    // 最初の大梁要素の中身を確認
+    if (stbDataA.girderElements?.length > 0) {
+      const firstGirder = stbDataA.girderElements[0];
+      console.log('[DEBUG] First girder element:', {
+        id: firstGirder.id,
+        joint_id_start: firstGirder.joint_id_start,
+        joint_id_end: firstGirder.joint_id_end,
+        keys: Object.keys(firstGirder).join(', '),
+      });
+    }
+    // jointElements の中身を確認
+    if (stbDataA.jointElements) {
+      console.log('[DEBUG] jointElements keys:', Array.from(stbDataA.jointElements.keys()));
+    }
+    log.debug(
+      `[redrawJointsForViewMode] stbDataA: girders=${stbDataA.girderElements?.length || 0}, beams=${stbDataA.beamElements?.length || 0}, jointElements=${stbDataA.jointElements?.size || 0}`,
+    );
+
+    // Girder要素から継手情報を持つものを抽出
+    for (const girder of stbDataA.girderElements || []) {
+      if (girder.joint_id_start || girder.joint_id_end) {
+        console.log('[DEBUG] Found jointed girder:', girder.id, girder.joint_id_start, girder.joint_id_end);
+        log.debug(
+          `[redrawJointsForViewMode] Found jointed girder: id=${girder.id}, joint_id_start=${girder.joint_id_start}, joint_id_end=${girder.joint_id_end}`,
+        );
+        jointedElementsA.push({ ...girder, elementType: 'Girder' });
+      }
+    }
+    // Beam要素から継手情報を持つものを抽出
+    for (const beam of stbDataA.beamElements || []) {
+      if (beam.joint_id_start || beam.joint_id_end) {
+        console.log('[DEBUG] Found jointed beam:', beam.id, beam.joint_id_start, beam.joint_id_end);
+        log.debug(
+          `[redrawJointsForViewMode] Found jointed beam: id=${beam.id}, joint_id_start=${beam.joint_id_start}, joint_id_end=${beam.joint_id_end}`,
+        );
+        jointedElementsA.push({ ...beam, elementType: 'Beam' });
+      }
+    }
+    console.log('[DEBUG] Total jointed elements A:', jointedElementsA.length);
+    log.debug(`[redrawJointsForViewMode] Total jointed elements A: ${jointedElementsA.length}`);
+  }
+
+  if (stbDataB) {
+    for (const girder of stbDataB.girderElements || []) {
+      if (girder.joint_id_start || girder.joint_id_end) {
+        jointedElementsB.push({ ...girder, elementType: 'Girder' });
+      }
+    }
+    for (const beam of stbDataB.beamElements || []) {
+      if (beam.joint_id_start || beam.joint_id_end) {
+        jointedElementsB.push({ ...beam, elementType: 'Beam' });
+      }
+    }
+  }
+
+  // 継手メッシュを生成
+  console.log('[DEBUG] Creating joint meshes, jointedElementsA:', jointedElementsA.length);
+  if (stbDataA && jointedElementsA.length > 0) {
+    console.log('[DEBUG] Calling JointGenerator.createJointMeshes with:', {
+      jointedElements: jointedElementsA.length,
+      nodes: stbDataA.nodes?.size || 0,
+      jointElements: stbDataA.jointElements?.size || 0,
+    });
+    const meshes = JointGenerator.createJointMeshes(
+      jointedElementsA,
+      stbDataA.nodes,
+      stbDataA.jointElements,
+      stbDataA.steelSections,
+      'Joint',
+      false,
+      {
+        girderSections: stbDataA.girderSections,
+        beamSections: stbDataA.beamSections,
+      },
+    );
+    console.log('[DEBUG] Created meshes:', meshes.length);
+    meshes.forEach((mesh, index) => {
+      mesh.userData.modelSource = 'A';
+      group.add(mesh);
+      if (index === 0) {
+        console.log('[DEBUG] First mesh position:', mesh.position);
+        console.log('[DEBUG] First mesh geometry bounding box:', mesh.geometry.boundingBox);
+        mesh.geometry.computeBoundingBox();
+        console.log('[DEBUG] First mesh computed bounding box:', mesh.geometry.boundingBox);
+      }
+    });
+    console.log('[DEBUG] Group children count after adding:', group.children.length);
+    console.log('[DEBUG] Group visible:', group.visible);
+    console.log('[DEBUG] Group position:', group.position);
+    log.debug(`[redrawJointsForViewMode] Created ${meshes.length} joint meshes from model A`);
+  }
+
+  if (stbDataB && jointedElementsB.length > 0) {
+    const meshes = JointGenerator.createJointMeshes(
+      jointedElementsB,
+      stbDataB.nodes,
+      stbDataB.jointElements,
+      stbDataB.steelSections,
+      'Joint',
+      false,
+      {
+        girderSections: stbDataB.girderSections,
+        beamSections: stbDataB.beamSections,
+      },
+    );
+    meshes.forEach((mesh) => {
+      mesh.userData.modelSource = 'B';
+      group.add(mesh);
+    });
+    log.debug(`[redrawJointsForViewMode] Created ${meshes.length} joint meshes from model B`);
+  }
+
+  // カラーモード適用
+  import('./colorModes/index.js')
+    .then(({ updateElementsForColorMode }) => {
+      updateElementsForColorMode();
+    })
+    .catch((err) => {
+      console.error('Failed to update colors for joint mode:', err);
+    });
+
+  if (scheduleRender) scheduleRender();
 }
 
 /**
- * ブレースの再描画処理
+ * Undefined断面を参照する要素の再描画
+ * StbSecUndefinedを参照する要素は断面寸法が不明なため、常にラインのみで表示
  * @param {Function} scheduleRender - 再描画要求関数
  */
-export function redrawBracesForViewMode(scheduleRender) {
-  redrawElementForViewMode(
-    {
-      elementType: 'Brace',
-      stbTagName: 'StbBrace',
-      nodeStartAttr: 'id_node_start',
-      nodeEndAttr: 'id_node_end',
-      generator: ProfileBasedBraceGenerator,
-      generatorMethod: 'createBraceMeshes',
-      elementsKey: 'braceElements',
-      sectionsKey: 'braceSections'
-    },
-    scheduleRender
-  );
-}
+export function redrawUndefinedElementsForViewMode(scheduleRender) {
+  if (!modelADocument && !modelBDocument) return;
 
-/**
- * 杭の再描画処理
- * @param {Function} scheduleRender - 再描画要求関数
- */
-export function redrawPilesForViewMode(scheduleRender) {
-  redrawElementForViewMode(
-    {
-      elementType: 'Pile',
-      stbTagName: 'StbPile',
-      nodeStartAttr: 'id_node_bottom',
-      nodeEndAttr: 'id_node_top',
-      generator: PileGenerator,
-      generatorMethod: 'createPileMeshes',
-      elementsKey: 'pileElements',
-      sectionsKey: 'pileSections'
-    },
-    scheduleRender
-  );
-}
+  const group = elementGroups['Undefined'];
+  if (!group) {
+    log.warn('[redrawUndefinedElementsForViewMode] Undefined group not found');
+    return;
+  }
 
-/**
- * 基礎の再描画処理
- * @param {Function} scheduleRender - 再描画要求関数
- */
-export function redrawFootingsForViewMode(scheduleRender) {
-  redrawElementForViewMode(
-    {
-      elementType: 'Footing',
-      stbTagName: 'StbFooting',
-      nodeStartAttr: 'id_node',
-      nodeEndAttr: null, // 基礎は1ノード要素
-      generator: FootingGenerator,
-      generatorMethod: 'createFootingMeshes',
-      elementsKey: 'footingElements',
-      sectionsKey: 'footingSections'
-    },
-    scheduleRender
-  );
-}
+  // 既存のラベルを削除してグループをクリア
+  removeLabelsForElementType('Undefined');
+  group.clear();
 
-/**
- * 基礎柱の再描画処理
- * @param {Function} scheduleRender - 再描画要求関数
- */
-export function redrawFoundationColumnsForViewMode(scheduleRender) {
-  redrawElementForViewMode(
-    {
-      elementType: 'FoundationColumn',
-      stbTagName: 'StbFoundationColumn',
-      nodeStartAttr: 'id_node_bottom',
-      nodeEndAttr: 'id_node_top',
-      generator: ProfileBasedColumnGenerator,
-      generatorMethod: 'createColumnMeshes',
-      elementsKey: 'foundationColumnElements',
-      sectionsKey: 'foundationcolumnSections' // 注意: 小文字 - sectionExtractorのtoLowerCase()による
-    },
-    scheduleRender
-  );
-}
+  // Undefined要素は表示モードに関係なく常にラインで表示
+  log.debug('[redrawUndefinedElementsForViewMode] Drawing undefined elements as lines');
 
-/**
- * 床の再描画処理
- * @param {Function} scheduleRender - 再描画要求関数
- */
-export function redrawSlabsForViewMode(scheduleRender) {
-  redrawElementForViewMode(
-    {
-      elementType: 'Slab',
-      stbTagName: 'StbSlab',
-      nodeStartAttr: 'node_ids',  // 複数ノード要素
-      nodeEndAttr: null,          // 1ノード要素扱い（線表示なし）
-      generator: SlabGenerator,
-      generatorMethod: 'createSlabMeshes',
-      elementsKey: 'slabElements',
-      sectionsKey: 'slabSections'
-    },
-    scheduleRender
-  );
-}
+  // モデルデータを取得
+  const stbDataA = modelADocument
+    ? parseStbFile(modelADocument, { modelKey: 'A', saveToGlobalState: true })
+    : null;
+  const stbDataB = modelBDocument
+    ? parseStbFile(modelBDocument, { modelKey: 'B', saveToGlobalState: true })
+    : null;
 
-/**
- * 壁の再描画処理
- * @param {Function} scheduleRender - 再描画要求関数
- */
-export function redrawWallsForViewMode(scheduleRender) {
-  redrawElementForViewMode(
-    {
-      elementType: 'Wall',
-      stbTagName: 'StbWall',
-      nodeStartAttr: 'node_ids',  // 複数ノード要素
-      nodeEndAttr: null,          // 1ノード要素扱い（線表示なし）
-      generator: WallGenerator,
-      generatorMethod: 'createWallMeshes',
-      elementsKey: 'wallElements',
-      sectionsKey: 'wallSections'
-    },
-    scheduleRender
+  const undefinedElementsA = stbDataA?.undefinedElements || [];
+  const undefinedElementsB = stbDataB?.undefinedElements || [];
+
+  log.debug(
+    `[redrawUndefinedElementsForViewMode] Found ${undefinedElementsA.length} elements in A, ${undefinedElementsB.length} in B`,
   );
+
+  // ノードマップを取得
+  const nodeMapA = stbDataA?.nodes || new Map();
+  const nodeMapB = stbDataB?.nodes || new Map();
+
+  log.debug(
+    `[redrawUndefinedElementsForViewMode] NodeMap sizes: A=${nodeMapA.size}, B=${nodeMapB.size}`,
+  );
+
+  // デバッグ: 最初のundefined要素の属性を確認
+  if (undefinedElementsA.length > 0) {
+    const firstEl = undefinedElementsA[0];
+    log.debug(
+      `[redrawUndefinedElementsForViewMode] First element A: id=${firstEl.id}, ` +
+        `originalType=${firstEl.originalType}, ` +
+        `nodeStartAttr=${firstEl.nodeStartAttr}, nodeEndAttr=${firstEl.nodeEndAttr}, ` +
+        `startValue=${firstEl[firstEl.nodeStartAttr]}, endValue=${firstEl[firstEl.nodeEndAttr]}`,
+    );
+  }
+
+  // 比較用にデータを変換
+  const convertToComparisonFormat = (elements, nodeMap) => {
+    return elements
+      .map((el) => {
+        // nodeStartAttr/nodeEndAttrは属性名（例: 'id_node_start'）
+        const startAttr = el.nodeStartAttr;
+        const endAttr = el.nodeEndAttr;
+        const startNodeId = el[startAttr];
+        const endNodeId = el[endAttr];
+
+        if (!startNodeId || !endNodeId) {
+          log.warn(
+            `[redrawUndefinedElementsForViewMode] Missing node attr for element ${el.id}: ` +
+              `startAttr=${startAttr}, endAttr=${endAttr}, ` +
+              `startId=${startNodeId}, endId=${endNodeId}`,
+          );
+          return null;
+        }
+
+        // ノードマップからノードを取得（キーは文字列）
+        const startNode = nodeMap.get(String(startNodeId));
+        const endNode = nodeMap.get(String(endNodeId));
+
+        if (!startNode || !endNode) {
+          log.debug(
+            `[redrawUndefinedElementsForViewMode] Node not found for element ${el.id}: ` +
+              `startId=${startNodeId} (found=${!!startNode}), endId=${endNodeId} (found=${!!endNode})`,
+          );
+          return null;
+        }
+
+        return {
+          id: el.id,
+          startCoords: { x: startNode.x, y: startNode.y, z: startNode.z },
+          endCoords: { x: endNode.x, y: endNode.y, z: endNode.z },
+          originalType: el.originalType,
+          name: el.name,
+        };
+      })
+      .filter((el) => el !== null);
+  };
+
+  const dataA = convertToComparisonFormat(undefinedElementsA, nodeMapA);
+  const dataB = convertToComparisonFormat(undefinedElementsB, nodeMapB);
+
+  // 要素の比較を実行
+  const comparisonResult = compareElements(dataA, dataB, nodeMapA, nodeMapB, (el) => {
+    // 位置ベースのキー生成（start-end座標で比較）
+    const start = el.startCoords;
+    const end = el.endCoords;
+    return `${start.x.toFixed(0)},${start.y.toFixed(0)},${start.z.toFixed(0)}-${end.x.toFixed(0)},${end.y.toFixed(0)},${end.z.toFixed(0)}`;
+  });
+
+  // ラベル表示設定を取得
+  labelDisplayManager.syncWithCheckbox('Undefined');
+  const createLabels = labelDisplayManager.isLabelVisible('Undefined');
+  log.debug(`[redrawUndefinedElementsForViewMode] createLabels: ${createLabels}`);
+
+  // 線要素を描画
+  const createdLabels = drawLineElements(
+    comparisonResult,
+    materials,
+    group,
+    'Undefined',
+    createLabels,
+    modelBounds,
+  );
+
+  if (createdLabels && createdLabels.length > 0) {
+    log.debug(`[redrawUndefinedElementsForViewMode] Created ${createdLabels.length} labels`);
+    addLabelsToGlobalState(createdLabels);
+  }
+
+  // カラーモード適用
+  import('./colorModes/index.js')
+    .then(({ updateElementsForColorMode }) => {
+      updateElementsForColorMode();
+    })
+    .catch((err) => {
+      console.error('Failed to update colors for undefined elements:', err);
+    });
+
+  if (scheduleRender) scheduleRender();
 }
 
 /**
@@ -1196,8 +1416,8 @@ export function redrawWallsForViewMode(scheduleRender) {
 export function updateModelVisibility(scheduleRender) {
   log.debug(
     `Updating model visibility: A=${modelVisibilityManager.isModelVisible(
-      'A'
-    )}, B=${modelVisibilityManager.isModelVisible('B')}`
+      'A',
+    )}, B=${modelVisibilityManager.isModelVisible('B')}`,
   );
 
   SUPPORTED_ELEMENTS.forEach((elementType) => {
@@ -1209,10 +1429,7 @@ export function updateModelVisibility(scheduleRender) {
           let shouldBeVisible = false;
           if (source === 'A' && modelVisibilityManager.isModelVisible('A')) {
             shouldBeVisible = true;
-          } else if (
-            source === 'B' &&
-            modelVisibilityManager.isModelVisible('B')
-          ) {
+          } else if (source === 'B' && modelVisibilityManager.isModelVisible('B')) {
             shouldBeVisible = true;
           } else if (
             source === 'matched' &&
@@ -1231,21 +1448,17 @@ export function updateModelVisibility(scheduleRender) {
           }
           // 要素タイプ自体の表示状態も考慮する
           const elementCheckbox = document.querySelector(
-            `#elementSelector input[name="elements"][value="${elementType}"]`
+            `#elementSelector input[name="elements"][value="${elementType}"]`,
           );
-          const isElementTypeVisible = elementCheckbox
-            ? elementCheckbox.checked
-            : false;
+          const isElementTypeVisible = elementCheckbox ? elementCheckbox.checked : false;
 
           child.visible = shouldBeVisible && isElementTypeVisible;
         } else if (elementType === 'Axis' || elementType === 'Story') {
           // 軸と階はモデルA/Bに依存しないが、要素タイプのチェックボックスには従う
           const elementCheckbox = document.querySelector(
-            `#elementSelector input[name="elements"][value="${elementType}"]`
+            `#elementSelector input[name="elements"][value="${elementType}"]`,
           );
-          const isElementTypeVisible = elementCheckbox
-            ? elementCheckbox.checked
-            : false;
+          const isElementTypeVisible = elementCheckbox ? elementCheckbox.checked : false;
           child.visible = isElementTypeVisible;
         }
       });
@@ -1261,142 +1474,37 @@ export function updateModelVisibility(scheduleRender) {
 
 /**
  * 表示モード関連のイベントリスナーを設定
+ * ファクトリーパターンを使用して、要素タイプ別のリスナーを統一
  * @param {Function} scheduleRender - 再描画要求関数
  */
 export function setupViewModeListeners(scheduleRender) {
-  // 柱表示モード切替リスナー
-  const toggleColumnViewCheckbox = document.getElementById('toggleColumnView');
-  if (toggleColumnViewCheckbox) {
-    toggleColumnViewCheckbox.addEventListener('change', function () {
-      // チェックが入っている場合は立体表示、そうでなければ線表示
-      const mode = this.checked ? 'solid' : 'line';
-      displayModeManager.setDisplayMode('Column', mode);
-      redrawColumnsForViewMode(scheduleRender);
-      updateStbExportStatus(); // STBエクスポート状態を更新
-      log.info('柱表示モード:', mode);
-    });
-  }
+  // ==========================================================================
+  // 立体/線表示モード切替リスナー（VIEW_MODE_CHECKBOX_IDSを使用した統一ループ）
+  // ==========================================================================
+  Object.entries(VIEW_MODE_CHECKBOX_IDS).forEach(([elementType, checkboxId]) => {
+    const checkbox = document.getElementById(checkboxId);
+    if (!checkbox) return;
 
-  // 大梁表示モード切替リスナー
-  const toggleGirderViewCheckbox = document.getElementById('toggleGirderView');
-  if (toggleGirderViewCheckbox) {
-    toggleGirderViewCheckbox.addEventListener('change', function () {
-      // チェックが入っている場合は立体表示、そうでなければ線表示
+    checkbox.addEventListener('change', function () {
       const mode = this.checked ? 'solid' : 'line';
-      displayModeManager.setDisplayMode('Girder', mode);
-      redrawBeamsForViewMode(scheduleRender);
-      updateStbExportStatus(); // STBエクスポート状態を更新
-      log.info('大梁表示モード:', mode);
-    });
-  }
+      displayModeManager.setDisplayMode(elementType, mode);
 
-  // ブレース表示モード切替リスナー
-  const toggleBrace3DViewCheckbox =
-    document.getElementById('toggleBrace3DView');
-  if (toggleBrace3DViewCheckbox) {
-    toggleBrace3DViewCheckbox.addEventListener('change', function () {
-      // チェックが入っている場合は立体表示、そうでなければ線表示
-      const mode = this.checked ? 'solid' : 'line';
-      displayModeManager.setDisplayMode('Brace', mode);
-      redrawBracesForViewMode(scheduleRender);
-      updateStbExportStatus(); // STBエクスポート状態を更新
-      log.info('ブレース表示モード:', mode);
-    });
-  }
-
-  // 支保工表示モード切替リスナー
-  const togglePost3DViewCheckbox = document.getElementById('togglePost3DView');
-  if (togglePost3DViewCheckbox) {
-    togglePost3DViewCheckbox.addEventListener('change', function () {
-      // チェックが入っている場合は立体表示、そうでなければ線表示
-      const mode = this.checked ? 'solid' : 'line';
-      displayModeManager.setDisplayMode('Post', mode);
-      redrawPostsForViewMode(scheduleRender);
-      updateStbExportStatus(); // STBエクスポート状態を更新
-      log.info('支保工表示モード:', mode);
-    });
-  }
-
-  // 小梁3D表示モード切替リスナー
-  const toggleBeam3DViewCheckbox = document.getElementById('toggleBeam3DView');
-  if (toggleBeam3DViewCheckbox) {
-    toggleBeam3DViewCheckbox.addEventListener('change', function () {
-      // チェックが入っている場合は立体表示、そうでなければ線表示
-      const mode = this.checked ? 'solid' : 'line';
-      displayModeManager.setDisplayMode('Beam', mode);
-      redrawBeamsForViewMode(scheduleRender);
-      updateStbExportStatus(); // STBエクスポート状態を更新
-      log.info('小梁表示モード:', mode);
-    });
-  }
-
-  // 杭3D表示モード切替リスナー
-  const togglePile3DViewCheckbox = document.getElementById('togglePile3DView');
-  if (togglePile3DViewCheckbox) {
-    togglePile3DViewCheckbox.addEventListener('change', function () {
-      const mode = this.checked ? 'solid' : 'line';
-      displayModeManager.setDisplayMode('Pile', mode);
-      redrawPilesForViewMode(scheduleRender);
-      updateStbExportStatus(); // STBエクスポート状態を更新
-      log.info('杭表示モード:', mode);
-    });
-  }
-
-  // 基礎3D表示モード切替リスナー
-  const toggleFooting3DViewCheckbox = document.getElementById(
-    'toggleFooting3DView'
-  );
-  if (toggleFooting3DViewCheckbox) {
-    toggleFooting3DViewCheckbox.addEventListener('change', function () {
-      const mode = this.checked ? 'solid' : 'line';
-      displayModeManager.setDisplayMode('Footing', mode);
-      redrawFootingsForViewMode(scheduleRender);
-      updateStbExportStatus(); // STBエクスポート状態を更新
-      log.info('基礎表示モード:', mode);
-    });
-  }
-
-  // 基礎柱3D表示モード切替リスナー
-  const toggleFoundationColumn3DViewCheckbox = document.getElementById(
-    'toggleFoundationColumn3DView'
-  );
-  if (toggleFoundationColumn3DViewCheckbox) {
-    toggleFoundationColumn3DViewCheckbox.addEventListener(
-      'change',
-      function () {
-        const mode = this.checked ? 'solid' : 'line';
-        displayModeManager.setDisplayMode('FoundationColumn', mode);
-        redrawFoundationColumnsForViewMode(scheduleRender);
-        updateStbExportStatus(); // STBエクスポート状態を更新
-        log.info('基礎柱表示モード:', mode);
+      // Beam/Girderは特殊ケース（redrawBeamsForViewModeで両方処理）
+      if (elementType === 'Beam' || elementType === 'Girder') {
+        redrawBeamsForViewMode(scheduleRender);
+      } else if (elementType === 'Joint') {
+        redrawJointsForViewMode(scheduleRender);
+      } else {
+        // ファクトリーパターンを使用した汎用再描画
+        redrawElementByType(elementType, scheduleRender);
       }
-    );
-  }
 
-  // スラブ3D表示モード切替リスナー
-  const toggleSlab3DViewCheckbox = document.getElementById('toggleSlab3DView');
-  if (toggleSlab3DViewCheckbox) {
-    toggleSlab3DViewCheckbox.addEventListener('change', function () {
-      const mode = this.checked ? 'solid' : 'line';
-      displayModeManager.setDisplayMode('Slab', mode);
-      redrawSlabsForViewMode(scheduleRender);
-      updateStbExportStatus(); // STBエクスポート状態を更新
-      log.info('スラブ表示モード:', mode);
+      updateStbExportStatus();
+      log.info(`${elementType}表示モード:`, mode);
     });
-  }
+  });
 
-  // 壁3D表示モード切替リスナー
-  const toggleWall3DViewCheckbox = document.getElementById('toggleWall3DView');
-  if (toggleWall3DViewCheckbox) {
-    toggleWall3DViewCheckbox.addEventListener('change', function () {
-      const mode = this.checked ? 'solid' : 'line';
-      displayModeManager.setDisplayMode('Wall', mode);
-      redrawWallsForViewMode(scheduleRender);
-      updateStbExportStatus(); // STBエクスポート状態を更新
-      log.info('壁表示モード:', mode);
-    });
-  }
-
+  // ==========================================================================
   // 節点表示切替リスナー
   const toggleNodeViewCheckbox = document.getElementById('toggleNodeView');
   if (toggleNodeViewCheckbox) {
@@ -1411,9 +1519,7 @@ export function setupViewModeListeners(scheduleRender) {
   }
 
   // 柱カテゴリ表示切替リスナー（立体表示チェックボックスと連動）
-  const columnElementCheckbox = document.querySelector(
-    'input[name="elements"][value="Column"]'
-  );
+  const columnElementCheckbox = document.querySelector('input[name="elements"][value="Column"]');
   if (columnElementCheckbox) {
     columnElementCheckbox.addEventListener('change', function () {
       const elementGroup = elementGroups['Column'];
@@ -1434,9 +1540,7 @@ export function setupViewModeListeners(scheduleRender) {
   }
 
   // 大梁カテゴリ表示切替リスナー（立体表示チェックボックスと連動）
-  const girderElementCheckbox = document.querySelector(
-    'input[name="elements"][value="Girder"]'
-  );
+  const girderElementCheckbox = document.querySelector('input[name="elements"][value="Girder"]');
   if (girderElementCheckbox) {
     girderElementCheckbox.addEventListener('change', function () {
       const elementGroup = elementGroups['Girder'];
@@ -1457,9 +1561,7 @@ export function setupViewModeListeners(scheduleRender) {
   }
 
   // 小梁カテゴリ表示切替リスナー（立体表示チェックボックスと連動）
-  const beamElementCheckbox = document.querySelector(
-    'input[name="elements"][value="Beam"]'
-  );
+  const beamElementCheckbox = document.querySelector('input[name="elements"][value="Beam"]');
   if (beamElementCheckbox) {
     beamElementCheckbox.addEventListener('change', function () {
       const elementGroup = elementGroups['Beam'];
@@ -1480,9 +1582,7 @@ export function setupViewModeListeners(scheduleRender) {
   }
 
   // 間柱カテゴリ表示切替リスナー（立体表示チェックボックスと連動）
-  const postElementCheckbox = document.querySelector(
-    'input[name="elements"][value="Post"]'
-  );
+  const postElementCheckbox = document.querySelector('input[name="elements"][value="Post"]');
   if (postElementCheckbox) {
     postElementCheckbox.addEventListener('change', function () {
       const elementGroup = elementGroups['Post'];
@@ -1511,12 +1611,18 @@ export function setupViewModeListeners(scheduleRender) {
       id: 'toggleFoundationColumnView',
       type: 'FoundationColumn',
       name: '基礎柱',
-      solidViewId: 'toggleFoundationColumn3DView'
+      solidViewId: 'toggleFoundationColumn3DView',
     },
-    { id: 'toggleSlabView', type: 'Slab', name: 'スラブ' },
-    { id: 'toggleWallView', type: 'Wall', name: '壁' },
+    { id: 'toggleSlabView', type: 'Slab', name: 'スラブ', solidViewId: 'toggleSlab3DView' },
+    { id: 'toggleWallView', type: 'Wall', name: '壁', solidViewId: 'toggleWall3DView' },
+    {
+      id: 'toggleParapetView',
+      type: 'Parapet',
+      name: 'パラペット',
+      solidViewId: 'toggleParapet3DView',
+    },
     { id: 'toggleAxisView', type: 'Axis', name: '通り芯' },
-    { id: 'toggleStoryView', type: 'Story', name: '階' }
+    { id: 'toggleStoryView', type: 'Story', name: '階' },
   ];
 
   elementToggleIds.forEach(({ id, type, name, solidViewId }) => {
@@ -1576,46 +1682,199 @@ export function setupCameraModeListeners(scheduleRender) {
   const cameraOrthographic = document.getElementById('cameraOrthographic');
   const viewDirectionPanel = document.getElementById('viewDirectionPanel');
 
-  if (!cameraPerspective || !cameraOrthographic) {
-    log.warn(
-      '[setupCameraModeListeners] Camera mode radio buttons not found in DOM'
-    );
-    return;
-  }
-
-  // ボタン形式のカメラモード切り替え
+  // ボタン形式のカメラモード切り替え（フローティングウィンドウ内）
   const cameraPerspectiveBtn = document.getElementById('cameraPerspectiveBtn');
   const cameraOrthographicBtn = document.getElementById('cameraOrthographicBtn');
 
-  if (cameraPerspectiveBtn && cameraOrthographicBtn) {
+  // パネル上部の常時表示ボタン
+  const viewModePerspectiveBtn = document.getElementById('viewModePerspectiveBtn');
+  const viewModeOrthographicBtn = document.getElementById('viewModeOrthographicBtn');
+  const viewDirectionButtons = document.getElementById('viewDirectionButtons');
+
+  // 少なくとも1組のボタンが必要
+  const hasRadioButtons = cameraPerspective && cameraOrthographic;
+  const hasFloatingButtons = cameraPerspectiveBtn && cameraOrthographicBtn;
+  const hasPanelButtons = viewModePerspectiveBtn && viewModeOrthographicBtn;
+
+  if (!hasRadioButtons && !hasFloatingButtons && !hasPanelButtons) {
+    log.warn('[setupCameraModeListeners] No camera mode buttons found in DOM');
+    return;
+  }
+
+  /**
+   * すべての表示モードボタンのアクティブ状態を同期
+   * @param {string} mode - 'perspective' または 'orthographic'
+   */
+  function syncViewModeButtons(mode) {
+    const isPerspective = mode === 'perspective';
+
+    // フローティングウィンドウ内のボタン
+    if (cameraPerspectiveBtn) {
+      cameraPerspectiveBtn.classList.toggle('active', isPerspective);
+    }
+    if (cameraOrthographicBtn) {
+      cameraOrthographicBtn.classList.toggle('active', !isPerspective);
+    }
+
+    // パネル上部の常時表示ボタン
+    if (viewModePerspectiveBtn) {
+      viewModePerspectiveBtn.classList.toggle('active', isPerspective);
+    }
+    if (viewModeOrthographicBtn) {
+      viewModeOrthographicBtn.classList.toggle('active', !isPerspective);
+    }
+
+    // ビュー方向ボタンの表示/非表示
+    if (viewDirectionButtons) {
+      viewDirectionButtons.classList.toggle('hidden', isPerspective);
+    }
+    if (viewDirectionPanel) {
+      viewDirectionPanel.classList.toggle('hidden', isPerspective);
+    }
+  }
+
+  /**
+   * 3D（立体表示）モードに切り替え
+   */
+  function switchToPerspective() {
+    log.info('カメラモード切り替え: 3D（立体表示）');
+    syncViewModeButtons('perspective');
+    setCameraMode(CAMERA_MODES.PERSPECTIVE);
+    setOrthographicView(ORTHOGRAPHIC_VIEWS.ISOMETRIC);
+    scheduleRender();
+  }
+
+  /**
+   * 2D（図面表示）モードに切り替え
+   */
+  function switchToOrthographic() {
+    log.info('カメラモード切り替え: 2D（図面表示）');
+    syncViewModeButtons('orthographic');
+    setCameraMode(CAMERA_MODES.ORTHOGRAPHIC);
+    setOrthographicView(ORTHOGRAPHIC_VIEWS.PLAN);
+    scheduleRender();
+  }
+
+  // フローティングウィンドウ内のボタン
+  if (hasFloatingButtons) {
     // 3Dボタンクリック
     cameraPerspectiveBtn.addEventListener('click', () => {
-      // ボタンのアクティブ状態を切り替え
-      cameraPerspectiveBtn.classList.add('active');
-      cameraOrthographicBtn.classList.remove('active');
-      // ラジオボタンをチェックしてchangeイベントを発火
-      cameraPerspective.checked = true;
-      cameraPerspective.dispatchEvent(new Event('change'));
+      switchToPerspective();
+      // ラジオボタンがある場合は同期
+      if (cameraPerspective) {
+        cameraPerspective.checked = true;
+      }
     });
 
     // 2Dボタンクリック
     cameraOrthographicBtn.addEventListener('click', () => {
-      // ボタンのアクティブ状態を切り替え
-      cameraOrthographicBtn.classList.add('active');
-      cameraPerspectiveBtn.classList.remove('active');
-      // ラジオボタンをチェックしてchangeイベントを発火
-      cameraOrthographic.checked = true;
-      cameraOrthographic.dispatchEvent(new Event('change'));
+      switchToOrthographic();
+      // ラジオボタンがある場合は同期
+      if (cameraOrthographic) {
+        cameraOrthographic.checked = true;
+      }
     });
+  }
+
+  // パネル上部の常時表示ボタン
+  if (hasPanelButtons) {
+    // 立体表示ボタンクリック
+    viewModePerspectiveBtn.addEventListener('click', () => {
+      switchToPerspective();
+      // ラジオボタンがある場合は同期
+      if (cameraPerspective) {
+        cameraPerspective.checked = true;
+      }
+    });
+
+    // 図面表示ボタンクリック
+    viewModeOrthographicBtn.addEventListener('click', () => {
+      switchToOrthographic();
+      // ラジオボタンがある場合は同期
+      if (cameraOrthographic) {
+        cameraOrthographic.checked = true;
+      }
+    });
+  }
+
+  /**
+   * すべてのビュー方向ボタンのアクティブ状態を同期
+   * @param {string} viewType - ビュータイプ（'top', 'front', 'right', 'left', 'iso'）
+   */
+  function syncViewDirectionButtons(viewType) {
+    // パネル上部のビュー方向ボタン
+    const panelBtns = viewDirectionButtons?.querySelectorAll('.view-dir-btn');
+    if (panelBtns) {
+      panelBtns.forEach((b) => b.classList.remove('active'));
+      const activeBtn = viewDirectionButtons?.querySelector(
+        `.view-dir-btn[data-view="${viewType}"]`,
+      );
+      if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    // フローティングウィンドウ内のビュー方向ボタン
+    const floatBtns = document.querySelectorAll('#viewDirectionPanel button[data-view]');
+    floatBtns.forEach((b) => b.classList.remove('active'));
+    const floatActiveBtn = document.querySelector(
+      `#viewDirectionPanel button[data-view="${viewType}"]`,
+    );
+    if (floatActiveBtn) floatActiveBtn.classList.add('active');
+  }
+
+  // フローティングウィンドウ内のビュー方向ボタン
+  const viewButtons = document.querySelectorAll('#viewDirectionPanel button[data-view]');
+  log.debug(
+    `[setupCameraModeListeners] Found ${viewButtons.length} view direction buttons in floating window`,
+  );
+
+  viewButtons.forEach((btn) => {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      const viewType = this.dataset.view;
+      log.info('ビュー方向切り替え（フローティング）:', viewType);
+      syncViewDirectionButtons(viewType);
+      try {
+        setView(viewType, modelBounds);
+        if (scheduleRender) scheduleRender();
+      } catch (error) {
+        log.error('ビュー方向の設定に失敗:', error);
+      }
+    });
+  });
+
+  // パネル上部のビュー方向ボタン
+  const viewDirBtns = viewDirectionButtons?.querySelectorAll('.view-dir-btn');
+  if (viewDirBtns) {
+    log.debug(
+      `[setupCameraModeListeners] Found ${viewDirBtns.length} view direction buttons in panel`,
+    );
+    viewDirBtns.forEach((btn) => {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        const viewType = this.dataset.view;
+        log.info('ビュー方向切り替え（パネル上部）:', viewType);
+        syncViewDirectionButtons(viewType);
+        try {
+          setView(viewType, modelBounds);
+          if (scheduleRender) scheduleRender();
+        } catch (error) {
+          log.error('ビュー方向の設定に失敗:', error);
+        }
+      });
+    });
+  }
+
+  // ラジオボタンがある場合のみリスナーを設定
+  if (!hasRadioButtons) {
+    log.info('[setupCameraModeListeners] Camera mode listeners initialized (panel buttons only)');
+    return;
   }
 
   cameraPerspective.addEventListener('change', function () {
     if (this.checked) {
       log.info('カメラモード切り替え: 3D（立体表示）');
+      syncViewModeButtons('perspective');
       setCameraMode(CAMERA_MODES.PERSPECTIVE);
-      if (viewDirectionPanel) {
-        viewDirectionPanel.classList.add('hidden');
-      }
       // デフォルトで等角投影ビューを設定（初期位置にリセット）
       try {
         setView('iso', modelBounds);
@@ -1636,18 +1895,13 @@ export function setupCameraModeListeners(scheduleRender) {
   cameraOrthographic.addEventListener('change', function () {
     if (this.checked) {
       log.info('カメラモード切り替え: 2D（図面表示）');
+      syncViewModeButtons('orthographic');
       setCameraMode(CAMERA_MODES.ORTHOGRAPHIC);
-      if (viewDirectionPanel) {
-        viewDirectionPanel.classList.remove('hidden');
-      }
       // デフォルトで平面図ビューを設定
       try {
         setView('top', modelBounds);
-        // 平面図ボタンをアクティブに
-        const viewButtons = document.querySelectorAll('button[data-view]');
-        viewButtons.forEach((b) => b.classList.remove('active'));
-        const topBtn = document.querySelector('button[data-view="top"]');
-        if (topBtn) topBtn.classList.add('active');
+        // 平面図ボタンをアクティブに（両方の場所）
+        syncViewDirectionButtons('top');
         log.info('デフォルトビュー: 平面図');
       } catch (error) {
         log.warn('デフォルトビューの設定に失敗:', error);
@@ -1662,32 +1916,5 @@ export function setupCameraModeListeners(scheduleRender) {
     }
   });
 
-  // ビュー方向ボタン
-  const viewButtons = document.querySelectorAll('button[data-view]');
-  log.debug(
-    `[setupCameraModeListeners] Found ${viewButtons.length} view direction buttons`
-  );
-
-  viewButtons.forEach((btn) => {
-    btn.addEventListener('click', function (e) {
-      e.preventDefault(); // フォーム送信を防ぐ
-      const viewType = this.dataset.view;
-      log.info('ビュー方向切り替え:', viewType);
-
-      // アクティブ状態を切り替え
-      viewButtons.forEach((b) => b.classList.remove('active'));
-      this.classList.add('active');
-
-      try {
-        setView(viewType, modelBounds);
-        if (scheduleRender) scheduleRender();
-      } catch (error) {
-        log.error('ビュー方向の設定に失敗:', error);
-      }
-    });
-  });
-
-  log.info(
-    '[setupCameraModeListeners] Camera mode listeners initialized successfully'
-  );
+  log.info('[setupCameraModeListeners] Camera mode listeners initialized successfully');
 }

@@ -77,7 +77,7 @@ export const ERROR_MESSAGES = {
   ERR_UNKNOWN: '予期しないエラーが発生しました',
   ERR_NOT_IMPLEMENTED: 'この機能は実装されていません',
   ERR_PERMISSION_DENIED: '権限がありません',
-  ERR_OPERATION_FAILED: '操作に失敗しました'
+  ERR_OPERATION_FAILED: '操作に失敗しました',
 };
 
 /**
@@ -120,7 +120,7 @@ export function getRecommendedAction(code) {
     ERR_NETWORK_OFFLINE: 'インターネット接続を確認してください',
     ERR_NETWORK_TIMEOUT: '時間を置いて再度お試しください',
     ERR_RENDER_WEBGL: '別のブラウザを使用してください',
-    ERR_NOT_IMPLEMENTED: '将来のバージョンで実装予定です'
+    ERR_NOT_IMPLEMENTED: '将来のバージョンで実装予定です',
   };
 
   return actions[code] || '再度お試しいただくか、サポートにお問い合わせください';

@@ -18,7 +18,7 @@ const DEFAULT_CONFIG = {
   /** 表示領域外に追加でレンダリングするバッファアイテム数 */
   bufferSize: 10,
   /** スクロールイベントのデバウンス時間（ms） */
-  debounceTime: 16
+  debounceTime: 16,
 };
 
 /**
@@ -398,7 +398,7 @@ export class VirtualTreeHelper {
           _depth: depth,
           _key: key,
           _hasChildren: hasChildren,
-          _isExpanded: isExpanded
+          _isExpanded: isExpanded,
         });
       }
 

@@ -11,18 +11,21 @@
  * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('modelLoader:finalizer');
+
 import {
   setGlobalStateForUI,
   updateStorySelector,
   updateAxisSelectors,
-  updateLabelVisibility
+  updateLabelVisibility,
 } from '../ui.js';
 import { initViewModes, updateModelVisibility } from '../viewModes.js';
-import {
-  createOrUpdateGridHelper,
-  adjustCameraToFitModel
-} from '../viewer/index.js';
-import { adjustDepth2DClippingRangeFromModel } from '../ui/clipping2D.js';
+import { createOrUpdateGridHelper, setView, VIEW_DIRECTIONS } from '../viewer/index.js';
+import { setColorMode, COLOR_MODES } from '../colorModes/index.js';
+import { eventBus, ModelEvents } from '../app/events/index.js';
+import { redrawAxesAtStory } from '../ui/events/index.js';
 
 /**
  * Finalize visualization after rendering completion
@@ -31,15 +34,16 @@ import { adjustDepth2DClippingRangeFromModel } from '../ui/clipping2D.js';
  * @param {Object} cameraControls - Camera and controls objects
  * @returns {Object} Finalization result
  */
-export function finalizeVisualization(
-  finalizationData,
-  scheduleRender,
-  cameraControls
-) {
-  const { nodeLabels, stories, axesData, modelBounds, renderingStats } =
-    finalizationData;
-
-  console.log('=== Starting Visualization Finalization ===');
+export function finalizeVisualization(finalizationData, scheduleRender, cameraControls) {
+  const {
+    nodeLabels,
+    stories,
+    axesData,
+    modelBounds,
+    renderingStats,
+    modelADocument,
+    modelBDocument,
+  } = finalizationData;
 
   try {
     // Update global UI state
@@ -51,6 +55,12 @@ export function finalizeVisualization(
     // Update label visibility
     updateLabelDisplay();
 
+    // Set appropriate color mode BEFORE initializing view modes
+    // This ensures the correct color mode is used when elements are redrawn
+    const hasBothModels = !!modelADocument && !!modelBDocument;
+    const targetColorMode = hasBothModels ? COLOR_MODES.DIFF : COLOR_MODES.ELEMENT;
+    setColorMode(targetColorMode);
+
     // Initialize view modes
     initializeViewModes(finalizationData);
 
@@ -60,24 +70,21 @@ export function finalizeVisualization(
     // Setup camera and grid
     setupCameraAndGrid(modelBounds, cameraControls);
 
+    // 通り芯を最終的なmodelBoundsで再描画
+    // 初期描画時は構造要素が追加される前のmodelBoundsを使用しているため、
+    // 全ての構造要素が追加された後に再描画する必要がある
+    redrawAxesAtStory('all');
+    logger.info('Axes redrawn with final model bounds');
+
     // Mark models as loaded
     setModelsLoadedState(true);
 
-    console.log('=== Visualization Finalization Complete ===');
-    console.log('Finalization statistics:', {
-      totalLabels: nodeLabels.length,
-      stories: stories.length,
-      xAxes: axesData.xAxes.length,
-      yAxes: axesData.yAxes.length,
-      renderingErrors: renderingStats.errors
-    });
-
     return {
       success: true,
-      stats: renderingStats
+      stats: renderingStats,
     };
   } catch (error) {
-    console.error('Visualization finalization failed:', error);
+    logger.error('Visualization finalization failed:', error);
     return {
       success: false,
       error: error.message,
@@ -85,8 +92,8 @@ export function finalizeVisualization(
         totalMeshes: 0,
         totalLabels: 0,
         errors: 1,
-        elementTypes: {}
-      }
+        elementTypes: {},
+      },
     };
   }
 }
@@ -98,13 +105,10 @@ export function finalizeVisualization(
  * @param {Object} axesData - Axes data object
  */
 function updateGlobalUIState(nodeLabels, stories, axesData) {
-  console.log('Updating global UI state...');
-
   try {
     setGlobalStateForUI(nodeLabels, stories, axesData);
-    console.log('Global UI state updated successfully');
   } catch (error) {
-    console.error('Failed to update global UI state:', error);
+    logger.error('Failed to update global UI state:', error);
     throw error;
   }
 }
@@ -113,14 +117,11 @@ function updateGlobalUIState(nodeLabels, stories, axesData) {
  * Update UI selectors with current data
  */
 function updateUISelectors() {
-  console.log('Updating UI selectors...');
-
   try {
     updateStorySelector();
     updateAxisSelectors();
-    console.log('UI selectors updated successfully');
   } catch (error) {
-    console.error('Failed to update UI selectors:', error);
+    logger.error('Failed to update UI selectors:', error);
     throw error;
   }
 }
@@ -129,13 +130,10 @@ function updateUISelectors() {
  * Update label display visibility
  */
 function updateLabelDisplay() {
-  console.log('Updating label visibility...');
-
   try {
     updateLabelVisibility();
-    console.log('Label visibility updated successfully');
   } catch (error) {
-    console.error('Failed to update label visibility:', error);
+    logger.error('Failed to update label visibility:', error);
     throw error;
   }
 }
@@ -145,13 +143,10 @@ function updateLabelDisplay() {
  * @param {Object} modelData - Complete model data
  */
 function initializeViewModes(modelData) {
-  console.log('Initializing view modes...');
-
   try {
     initViewModes(modelData);
-    console.log('View modes initialized successfully');
   } catch (error) {
-    console.error('Failed to initialize view modes:', error);
+    logger.error('Failed to initialize view modes:', error);
     throw error;
   }
 }
@@ -162,30 +157,17 @@ function initializeViewModes(modelData) {
  * @param {Object} cameraControls - Camera and controls objects
  */
 function setupCameraAndGrid(modelBounds, cameraControls) {
-  console.log('Setting up camera and grid...');
-
   try {
-    // Create or update grid helper
+    // グリッドヘルパーを更新
     createOrUpdateGridHelper(modelBounds);
-    console.log('Grid helper updated');
 
-    // Adjust camera to fit model
-    if (cameraControls && cameraControls.camera && cameraControls.controls) {
-      adjustCameraToFitModel(
-        modelBounds,
-        cameraControls.camera,
-        cameraControls.controls
-      );
-      console.log('Camera adjusted to fit model');
-    } else {
-      console.warn('Camera controls not available for fitting');
-    }
+    // カメラを「左前斜め上」のISOMETRIC角度に統一
+    setView(VIEW_DIRECTIONS.ISOMETRIC, modelBounds, false);
 
-    // Adjust 2D depth clipping range based on model bounds
-    adjustDepth2DClippingRangeFromModel(modelBounds);
-    console.log('2D depth clipping range adjusted to model bounds');
+    // Adjust 2D depth clipping range based on model bounds (via event)
+    eventBus.emit(ModelEvents.BOUNDS_UPDATED, { modelBounds });
   } catch (error) {
-    console.error('Failed to setup camera and grid:', error);
+    logger.error('Failed to setup camera and grid:', error);
     throw error;
   }
 }
@@ -197,7 +179,6 @@ function setupCameraAndGrid(modelBounds, cameraControls) {
 function setModelsLoadedState(loaded) {
   // This would typically update a global state manager
   // For now, we'll use the existing pattern
-  console.log(`Models loaded state set to: ${loaded}`);
 }
 
 /**
@@ -206,7 +187,7 @@ function setModelsLoadedState(loaded) {
  * @param {Object} cleanupData - Data needed for cleanup
  */
 export function handleFinalizationError(error, cleanupData) {
-  console.error('Finalization error occurred:', error);
+  logger.error('Finalization error occurred:', error);
 
   try {
     // Reset UI state
@@ -218,10 +199,8 @@ export function handleFinalizationError(error, cleanupData) {
 
     // Set models as not loaded
     setModelsLoadedState(false);
-
-    console.log('Cleanup completed after finalization error');
   } catch (cleanupError) {
-    console.error('Error during cleanup:', cleanupError);
+    logger.error('Error during cleanup:', cleanupError);
   }
 }
 
@@ -240,37 +219,32 @@ export function createFinalizationSummary(modelData, renderingStats) {
     nodeMapB = new Map(),
     stories = [],
     axesData = { xAxes: [], yAxes: [] },
-    nodeLabels = []
+    nodeLabels = [],
   } = modelData || {};
 
   // Safely extract rendering stats with defaults
-  const {
-    totalMeshes = 0,
-    totalLabels = 0,
-    errors = 0,
-    elementTypes = {}
-  } = renderingStats || {};
+  const { totalMeshes = 0, totalLabels = 0, errors = 0, elementTypes = {} } = renderingStats || {};
 
   return {
     models: {
       hasModelA: !!modelADocument,
       hasModelB: !!modelBDocument,
       nodesA: nodeMapA ? nodeMapA.size : 0,
-      nodesB: nodeMapB ? nodeMapB.size : 0
+      nodesB: nodeMapB ? nodeMapB.size : 0,
     },
     structure: {
       stories: stories ? stories.length : 0,
       xAxes: axesData && axesData.xAxes ? axesData.xAxes.length : 0,
       yAxes: axesData && axesData.yAxes ? axesData.yAxes.length : 0,
-      labels: nodeLabels ? nodeLabels.length : 0
+      labels: nodeLabels ? nodeLabels.length : 0,
     },
     rendering: {
       totalMeshes,
       totalLabels,
       errors,
-      elementTypes: elementTypes ? Object.keys(elementTypes).length : 0
+      elementTypes: elementTypes ? Object.keys(elementTypes).length : 0,
     },
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 }
 
@@ -283,16 +257,10 @@ export function validateFinalizationData(finalizationData) {
   const validation = {
     isValid: true,
     errors: [],
-    warnings: []
+    warnings: [],
   };
 
-  const requiredFields = [
-    'nodeLabels',
-    'stories',
-    'axesData',
-    'modelBounds',
-    'renderingStats'
-  ];
+  const requiredFields = ['nodeLabels', 'stories', 'axesData', 'modelBounds', 'renderingStats'];
 
   for (const field of requiredFields) {
     if (!finalizationData.hasOwnProperty(field)) {
@@ -302,10 +270,7 @@ export function validateFinalizationData(finalizationData) {
   }
 
   // Validate specific field types
-  if (
-    finalizationData.nodeLabels &&
-    !Array.isArray(finalizationData.nodeLabels)
-  ) {
+  if (finalizationData.nodeLabels && !Array.isArray(finalizationData.nodeLabels)) {
     validation.errors.push('nodeLabels must be an array');
     validation.isValid = false;
   }
@@ -315,10 +280,7 @@ export function validateFinalizationData(finalizationData) {
     validation.isValid = false;
   }
 
-  if (
-    finalizationData.axesData &&
-    typeof finalizationData.axesData !== 'object'
-  ) {
+  if (finalizationData.axesData && typeof finalizationData.axesData !== 'object') {
     validation.errors.push('axesData must be an object');
     validation.isValid = false;
   }
@@ -328,13 +290,8 @@ export function validateFinalizationData(finalizationData) {
     validation.warnings.push('No node labels found');
   }
 
-  if (
-    finalizationData.renderingStats &&
-    finalizationData.renderingStats.errors > 0
-  ) {
-    validation.warnings.push(
-      `${finalizationData.renderingStats.errors} rendering errors occurred`
-    );
+  if (finalizationData.renderingStats && finalizationData.renderingStats.errors > 0) {
+    validation.warnings.push(`${finalizationData.renderingStats.errors} rendering errors occurred`);
   }
 
   return validation;

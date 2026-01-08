@@ -8,6 +8,8 @@
  * - 厳密モード（完全一致のみ）の設定
  */
 
+import { storageHelper } from '../utils/storageHelper.js';
+
 /**
  * 許容差設定のデフォルト値
  * @type {Object}
@@ -17,62 +19,40 @@ export const DEFAULT_TOLERANCE_CONFIG = {
   basePoint: {
     x: 10.0,
     y: 10.0,
-    z: 10.0
+    z: 10.0,
   },
 
   // オフセット値の許容差 (mm)
   offset: {
     x: 5.0,
     y: 5.0,
-    z: 5.0
+    z: 5.0,
   },
 
   // 許容差機能の有効/無効
   enabled: true,
 
   // 厳密モード（許容差を使用しない）
-  strictMode: false
+  strictMode: false,
 };
 
-// LocalStorageのキー
-const STORAGE_KEY = 'stbDiffViewer_toleranceConfig';
+// StorageHelperのキー
+const STORAGE_KEY = 'toleranceConfig';
 
 /**
- * LocalStorageから設定を読み込む
+ * storageHelperから設定を読み込む
  * @returns {Object|null} 保存された設定、または存在しない場合はnull
  */
 function loadConfigFromStorage() {
-  // Node.js環境ではlocalStorageが存在しないため、ブラウザ環境のみで実行
-  if (typeof localStorage === 'undefined') {
-    return null;
-  }
-
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.warn('Failed to load tolerance config from localStorage:', error);
-  }
-  return null;
+  return storageHelper.get(STORAGE_KEY);
 }
 
 /**
- * LocalStorageに設定を保存する
+ * storageHelperに設定を保存する
  * @param {Object} config - 保存する設定
  */
 function saveConfigToStorage(config) {
-  // Node.js環境ではlocalStorageが存在しないため、ブラウザ環境のみで実行
-  if (typeof localStorage === 'undefined') {
-    return;
-  }
-
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-  } catch (error) {
-    console.warn('Failed to save tolerance config to localStorage:', error);
-  }
+  storageHelper.set(STORAGE_KEY, config);
 }
 
 /**
@@ -89,7 +69,7 @@ export function getToleranceConfig() {
   return {
     ...currentToleranceConfig,
     basePoint: { ...currentToleranceConfig.basePoint },
-    offset: { ...currentToleranceConfig.offset }
+    offset: { ...currentToleranceConfig.offset },
   };
 }
 
@@ -101,14 +81,14 @@ export function setToleranceConfig(config) {
   if (config.basePoint) {
     currentToleranceConfig.basePoint = {
       ...currentToleranceConfig.basePoint,
-      ...config.basePoint
+      ...config.basePoint,
     };
   }
 
   if (config.offset) {
     currentToleranceConfig.offset = {
       ...currentToleranceConfig.offset,
-      ...config.offset
+      ...config.offset,
     };
   }
 
@@ -132,7 +112,7 @@ export function resetToleranceConfig() {
     basePoint: { ...DEFAULT_TOLERANCE_CONFIG.basePoint },
     offset: { ...DEFAULT_TOLERANCE_CONFIG.offset },
     enabled: DEFAULT_TOLERANCE_CONFIG.enabled,
-    strictMode: DEFAULT_TOLERANCE_CONFIG.strictMode
+    strictMode: DEFAULT_TOLERANCE_CONFIG.strictMode,
   };
 
   // LocalStorageに保存
@@ -175,6 +155,6 @@ export function validateToleranceConfig(config) {
 
   return {
     valid: errors.length === 0,
-    errors
+    errors,
   };
 }

@@ -2,22 +2,17 @@
  * ElementColorManager - 部材別色管理
  *
  * 各要素タイプ（柱、梁、壁など）の色を管理します。
+ * 色定義は colorConfig.js から取得します。
  */
 
 import { BaseColorStateManager } from './baseColorStateManager.js';
+import { DEFAULT_ELEMENT_COLORS as CONFIG_ELEMENT_COLORS } from '../../config/colorConfig.js';
 
-// 部材タイプ
-const ELEMENT_TYPES = ['Column', 'Girder', 'Beam', 'Slab', 'Wall', 'Node'];
+// 部材タイプ（colorConfigに含まれるすべてのタイプ）
+const ELEMENT_TYPES = Object.keys(CONFIG_ELEMENT_COLORS);
 
-// デフォルト色設定
-const DEFAULT_ELEMENT_COLORS = {
-  Column: '#D2691E',    // サドルブラウン（柱）
-  Girder: '#4169E1',    // ロイヤルブルー（大梁）
-  Beam: '#32CD32',      // ライムグリーン（小梁）
-  Slab: '#708090',      // スレートグレー（スラブ）
-  Wall: '#CD853F',      // ペルー（壁）
-  Node: '#FF6347'      // トマト色（節点）
-};
+// デフォルト色設定（colorConfig.jsから取得）
+const DEFAULT_ELEMENT_COLORS = { ...CONFIG_ELEMENT_COLORS };
 
 /**
  * ElementColorManagerクラス

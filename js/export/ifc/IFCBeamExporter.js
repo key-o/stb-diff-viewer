@@ -4,6 +4,9 @@
  */
 
 import { IFCExporterBase, generateIfcGuid } from './IFCExporterBase.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('IFCBeamExporter');
 
 /**
  * 線形要素をIFCファイルとしてエクスポートするクラス
@@ -27,10 +30,19 @@ export class IFCBeamExporter extends IFCExporterBase {
    * @param {string} [beamData.placementMode='center'] - 配置モード ('center' | 'top-aligned')
    * @param {number} [beamData.sectionHeight=0] - 断面高さ（mm）天端基準配置用
    * @returns {number|null} 梁エンティティID（未対応の場合はnull）
+   * @throws {TypeError} If beamData is not a valid object
    */
   addBeam(beamData) {
     this._ensureInitialized();
     const w = this.writer;
+
+    // Validate beamData
+    if (!beamData || typeof beamData !== 'object' || Array.isArray(beamData)) {
+      const error = new TypeError('beamData must be a non-null object');
+      log.error('Validation failed:', error);
+      return null;
+    }
+
     const {
       name = 'Beam',
       startPoint,
@@ -38,13 +50,56 @@ export class IFCBeamExporter extends IFCExporterBase {
       profile,
       rotation = 0,
       placementMode = 'center',
-      sectionHeight = 0
+      sectionHeight = 0,
     } = beamData;
+
+    // Validate name
+    if (typeof name !== 'string') {
+      log.warn(`[IFC Export] beamData.name must be a string, using default "Beam"`);
+    }
 
     // 必須パラメータのチェック
     if (!startPoint || !endPoint || !profile) {
-      console.warn(`[IFC Export] 梁 "${name}" をスキップ: 必須パラメータ（startPoint, endPoint, profile）が不足しています`);
+      const error = new Error('Required parameters missing: startPoint, endPoint, and profile are required');
+      log.error(`[IFC Export] 梁 "${name}" をスキップ:`, error);
       return null;
+    }
+
+    // Validate point objects
+    if (typeof startPoint !== 'object' || typeof startPoint.x !== 'number' ||
+        typeof startPoint.y !== 'number' || typeof startPoint.z !== 'number') {
+      const error = new TypeError('startPoint must be an object with numeric x, y, z properties');
+      log.error(`[IFC Export] 梁 "${name}" をスキップ:`, error);
+      return null;
+    }
+
+    if (typeof endPoint !== 'object' || typeof endPoint.x !== 'number' ||
+        typeof endPoint.y !== 'number' || typeof endPoint.z !== 'number') {
+      const error = new TypeError('endPoint must be an object with numeric x, y, z properties');
+      log.error(`[IFC Export] 梁 "${name}" をスキップ:`, error);
+      return null;
+    }
+
+    // Validate profile
+    if (typeof profile !== 'object' || !profile.type) {
+      const error = new TypeError('profile must be an object with a type property');
+      log.error(`[IFC Export] 梁 "${name}" をスキップ:`, error);
+      return null;
+    }
+
+    // Validate rotation
+    if (typeof rotation !== 'number' || !isFinite(rotation)) {
+      log.warn(`[IFC Export] 梁 "${name}": rotation must be a finite number, using 0`);
+    }
+
+    // Validate placementMode
+    if (placementMode !== 'center' && placementMode !== 'top-aligned') {
+      log.warn(`[IFC Export] 梁 "${name}": invalid placementMode "${placementMode}", using "center"`);
+    }
+
+    // Validate sectionHeight
+    if (typeof sectionHeight !== 'number' || !isFinite(sectionHeight) || sectionHeight < 0) {
+      log.warn(`[IFC Export] 梁 "${name}": sectionHeight must be a non-negative finite number, using 0`);
     }
 
     // 梁の長さを計算 (mm)
@@ -55,7 +110,7 @@ export class IFCBeamExporter extends IFCExporterBase {
 
     // 長さが0の場合はスキップ
     if (length < 1e-6) {
-      console.warn(`[IFC Export] 梁 "${name}" をスキップ: 長さが0です`);
+      log.warn(`[IFC Export] 梁 "${name}" をスキップ: 長さが0です`);
       return null;
     }
 
@@ -67,7 +122,9 @@ export class IFCBeamExporter extends IFCExporterBase {
     // プロファイルを作成
     const profileId = this._createProfileId(profile, false);
     if (profileId === null) {
-      console.warn(`[IFC Export] 梁 "${name}" をスキップ: 未対応のプロファイルタイプ "${profile.type}"`);
+      log.warn(
+        `[IFC Export] 梁 "${name}" をスキップ: 未対応のプロファイルタイプ "${profile.type}"`,
+      );
       return null;
     }
 
@@ -80,7 +137,7 @@ export class IFCBeamExporter extends IFCExporterBase {
       // xAxis = globalUp × beamAxis（水平方向）
       // yAxis = beamAxis × xAxis（せい方向=上向き）
       // globalUp = (0, 0, 1)
-      const crossX = 0 * dirZ - 1 * dirY;  // globalUp × dir
+      const crossX = 0 * dirZ - 1 * dirY; // globalUp × dir
       const crossY = 1 * dirX - 0 * dirZ;
       const crossZ = 0 * dirY - 0 * dirX;
       const crossLen = Math.sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ);
@@ -106,6 +163,8 @@ export class IFCBeamExporter extends IFCExporterBase {
     }
 
     // 天端基準配置の場合、配置点をローカルY軸方向に -sectionHeight/2 シフト
+    // localY軸方向(せい方向、上向き)に対して負の方向にシフトすることで、
+    // 天端座標を保持したまま、梁の中心を配置する
     let adjustedStartX = startPoint.x;
     let adjustedStartY = startPoint.y;
     let adjustedStartZ = startPoint.z;
@@ -119,19 +178,21 @@ export class IFCBeamExporter extends IFCExporterBase {
 
     // 梁の配置点（天端基準調整後）(mm)
     const beamOrigin = w.createEntity('IFCCARTESIANPOINT', [
-      [adjustedStartX, adjustedStartY, adjustedStartZ]
+      [adjustedStartX, adjustedStartY, adjustedStartZ],
     ]);
 
     // 梁の軸方向
     const beamAxisDir = w.createEntity('IFCDIRECTION', [[dirX, dirY, dirZ]]);
 
-    // 梁のZ方向（上方向）- 梁軸と直交する方向を計算
+    // 梁の参照方向（RefDirection）- 梁軸と直交する方向を計算
+    // localXと同じ計算（Three.js GeometryCalculator.calculateBeamBasis と整合）
     let baseRefDirX, baseRefDirY, baseRefDirZ;
     if (Math.abs(dirZ) < 0.99) {
-      // 水平に近い梁: Z方向を参照方向とする
-      const crossX = dirY * 1 - dirZ * 0;
-      const crossY = dirZ * 0 - dirX * 1;
-      const crossZ = dirX * 0 - dirY * 0;
+      // 水平に近い梁: globalUp × beamAxis（水平方向）
+      // globalUp = (0, 0, 1)
+      const crossX = 0 * dirZ - 1 * dirY; // = -dirY
+      const crossY = 1 * dirX - 0 * dirZ; // = dirX
+      const crossZ = 0 * dirY - 0 * dirX; // = 0
       const crossLen = Math.sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ);
       if (crossLen > 1e-6) {
         baseRefDirX = crossX / crossLen;
@@ -143,9 +204,9 @@ export class IFCBeamExporter extends IFCExporterBase {
         baseRefDirZ = 1;
       }
     } else {
-      // 垂直に近い梁: Y方向を参照方向とする
-      baseRefDirX = 0;
-      baseRefDirY = 1;
+      // 垂直に近い梁: X方向を参照方向とする
+      baseRefDirX = 1;
+      baseRefDirY = 0;
       baseRefDirZ = 0;
     }
 
@@ -184,13 +245,13 @@ export class IFCBeamExporter extends IFCExporterBase {
     const beamPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
       `#${beamOrigin}`,
       `#${beamAxisDir}`,
-      `#${beamRefDir}`
+      `#${beamRefDir}`,
     ]);
 
-    // 梁のローカル配置
+    // 梁のローカル配置（柱と同様にグローバル座標系を使用）
     const beamLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
-      `#${this._refs.storeyPlacement}`,
-      `#${beamPlacement3D}`
+      null, // PlacementRelTo: グローバル配置
+      `#${beamPlacement3D}`,
     ]);
 
     // 押出方向（ローカル座標系のZ方向）
@@ -201,7 +262,7 @@ export class IFCBeamExporter extends IFCExporterBase {
     const extrudePlacement = w.createEntity('IFCAXIS2PLACEMENT3D', [
       `#${extrudeOrigin}`,
       null,
-      null
+      null,
     ]);
 
     // 押出形状を作成 (mm)
@@ -209,35 +270,35 @@ export class IFCBeamExporter extends IFCExporterBase {
       `#${profileId}`,
       `#${extrudePlacement}`,
       `#${extrudeDir}`,
-      length
+      length,
     ]);
 
     // 形状表現
     const shapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
-      `#${this._refs.bodyContext}`,      // ContextOfItems
-      'Body',                            // RepresentationIdentifier
-      'SweptSolid',                      // RepresentationType
-      [`#${solidId}`]                    // Items
+      `#${this._refs.bodyContext}`, // ContextOfItems
+      'Body', // RepresentationIdentifier
+      'SweptSolid', // RepresentationType
+      [`#${solidId}`], // Items
     ]);
 
     // 製品定義形状
     const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
-      null,                              // Name
-      null,                              // Description
-      [`#${shapeRep}`]                   // Representations
+      null, // Name
+      null, // Description
+      [`#${shapeRep}`], // Representations
     ]);
 
     // 梁エンティティ
     const beamId = w.createEntity('IFCBEAM', [
-      generateIfcGuid(),                 // GlobalId
-      null,                              // OwnerHistory
-      name,                              // Name
-      null,                              // Description
-      null,                              // ObjectType
-      `#${beamLocalPlacement}`,          // ObjectPlacement
-      `#${productShape}`,                // Representation
-      null,                              // Tag
-      '.BEAM.'                           // PredefinedType
+      generateIfcGuid(), // GlobalId
+      null, // OwnerHistory
+      name, // Name
+      null, // Description
+      null, // ObjectType
+      `#${beamLocalPlacement}`, // ObjectPlacement
+      `#${productShape}`, // Representation
+      null, // Tag
+      '.BEAM.', // PredefinedType
     ]);
 
     // 梁を階に所属させる（天端基準配置調整後のZ座標で適切な階を決定）
@@ -270,25 +331,26 @@ export class IFCBeamExporter extends IFCExporterBase {
       endPoint,
       sections,
       rotation = 0,
-      placementMode = 'center'
+      placementMode = 'center',
     } = beamData;
 
     // 必須パラメータのチェック
     if (!startPoint || !endPoint || !sections || sections.length < 2) {
-      console.warn(`[IFC Export] テーパー梁 "${name}" をスキップ: 必須パラメータ（startPoint, endPoint, sections>=2）が不足しています`);
+      log.warn(
+        `[IFC Export] テーパー梁 "${name}" をスキップ: 必須パラメータ（startPoint, endPoint, sections>=2）が不足しています`,
+      );
       return null;
     }
 
-    // 各断面の頂点数をチェック
     const vertexCount = sections[0].vertices?.length;
     if (!vertexCount || vertexCount < 3) {
-      console.warn(`[IFC Export] テーパー梁 "${name}" をスキップ: 断面の頂点が不足しています`);
+      log.warn(`[IFC Export] テーパー梁 "${name}" をスキップ: 断面の頂点が不足しています`);
       return null;
     }
 
     for (const section of sections) {
       if (!section.vertices || section.vertices.length !== vertexCount) {
-        console.warn(`[IFC Export] テーパー梁 "${name}" をスキップ: 断面の頂点数が一致しません`);
+        log.warn(`[IFC Export] テーパー梁 "${name}" をスキップ: 断面の頂点数が一致しません`);
         return null;
       }
     }
@@ -300,7 +362,7 @@ export class IFCBeamExporter extends IFCExporterBase {
     const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
     if (length < 1e-6) {
-      console.warn(`[IFC Export] テーパー梁 "${name}" をスキップ: 長さが0です`);
+      log.warn(`[IFC Export] テーパー梁 "${name}" をスキップ: 長さが0です`);
       return null;
     }
 
@@ -313,11 +375,35 @@ export class IFCBeamExporter extends IFCExporterBase {
     let localXX, localXY, localXZ;
     let localYX, localYY, localYZ;
 
-    if (Math.abs(dirZ) < 0.99) {
-      // 水平に近い梁
+    // 天端基準配置の場合、水平梁ではlocalYを真下向きに固定
+    const isHorizontalBeam = Math.abs(dirZ) < 0.1; // 勾配10%未満を水平とみなす
+    const useTopAligned = placementMode === 'top-aligned' && isHorizontalBeam;
+
+    if (useTopAligned) {
+      // 天端基準配置: localYは真下向き（0, 0, -1）
+      // localXは梁軸に垂直かつ水平
       const crossX = -dirY;
       const crossY = dirX;
-      const crossZ = 0;
+      const crossLen = Math.sqrt(crossX * crossX + crossY * crossY);
+      if (crossLen > 1e-6) {
+        localXX = crossX / crossLen;
+        localXY = crossY / crossLen;
+        localXZ = 0;
+      } else {
+        // Y軸方向の梁の場合
+        localXX = 1;
+        localXY = 0;
+        localXZ = 0;
+      }
+      // localYは真上向き（頂点のy=0が天端、y=-Hが底なのでlocalYは上向き）
+      localYX = 0;
+      localYY = 0;
+      localYZ = 1;
+    } else if (Math.abs(dirZ) < 0.99) {
+      // 通常の水平梁（中心基準）または傾斜梁
+      const crossX = -dirY;
+      const crossY = dirX;
+      // const crossZ = 0;
       const crossLen = Math.sqrt(crossX * crossX + crossY * crossY);
       if (crossLen > 1e-6) {
         localXX = crossX / crossLen;
@@ -328,13 +414,21 @@ export class IFCBeamExporter extends IFCExporterBase {
         localYY = dirZ * localXX - dirX * localXZ;
         localYZ = dirX * localXY - dirY * localXX;
       } else {
-        localXX = 1; localXY = 0; localXZ = 0;
-        localYX = 0; localYY = 0; localYZ = 1;
+        localXX = 1;
+        localXY = 0;
+        localXZ = 0;
+        localYX = 0;
+        localYY = 0;
+        localYZ = 1;
       }
     } else {
       // 垂直に近い梁
-      localXX = 1; localXY = 0; localXZ = 0;
-      localYX = 0; localYY = 1; localYZ = 0;
+      localXX = 1;
+      localXY = 0;
+      localXZ = 0;
+      localYX = 0;
+      localYY = 1;
+      localYZ = 0;
     }
 
     // 回転を適用
@@ -350,8 +444,12 @@ export class IFCBeamExporter extends IFCExporterBase {
       const newYY = -localXY * sinR + localYY * cosR;
       const newYZ = -localXZ * sinR + localYZ * cosR;
 
-      localXX = newXX; localXY = newXY; localXZ = newXZ;
-      localYX = newYX; localYY = newYY; localYZ = newYZ;
+      localXX = newXX;
+      localXY = newXY;
+      localXZ = newXZ;
+      localYX = newYX;
+      localYY = newYY;
+      localYZ = newYZ;
     }
 
     // 断面をposでソート
@@ -400,7 +498,12 @@ export class IFCBeamExporter extends IFCExporterBase {
         // 四角形面を2つの三角形に分割、または四角形として
         // IFCでは四角形面が使えるのでそのまま使用
         const loop = w.createEntity('IFCPOLYLOOP', [
-          [`#${currSection[i1]}`, `#${currSection[i2]}`, `#${nextSection[i2]}`, `#${nextSection[i1]}`]
+          [
+            `#${currSection[i1]}`,
+            `#${currSection[i2]}`,
+            `#${nextSection[i2]}`,
+            `#${nextSection[i1]}`,
+          ],
         ]);
         const bound = w.createEntity('IFCFACEOUTERBOUND', [`#${loop}`, '.T.']);
         const face = w.createEntity('IFCFACE', [[`#${bound}`]]);
@@ -413,7 +516,7 @@ export class IFCBeamExporter extends IFCExporterBase {
       const firstSection = pointIds[0];
       // 面の向きを反転（外向き）
       const reversedPoints = [...firstSection].reverse();
-      const loop = w.createEntity('IFCPOLYLOOP', [reversedPoints.map(id => `#${id}`)]);
+      const loop = w.createEntity('IFCPOLYLOOP', [reversedPoints.map((id) => `#${id}`)]);
       const bound = w.createEntity('IFCFACEOUTERBOUND', [`#${loop}`, '.T.']);
       const face = w.createEntity('IFCFACE', [[`#${bound}`]]);
       faceIds.push(face);
@@ -422,28 +525,25 @@ export class IFCBeamExporter extends IFCExporterBase {
     // 終端面（最後の断面）
     {
       const lastSection = pointIds[pointIds.length - 1];
-      const loop = w.createEntity('IFCPOLYLOOP', [lastSection.map(id => `#${id}`)]);
+      const loop = w.createEntity('IFCPOLYLOOP', [lastSection.map((id) => `#${id}`)]);
       const bound = w.createEntity('IFCFACEOUTERBOUND', [`#${loop}`, '.T.']);
       const face = w.createEntity('IFCFACE', [[`#${bound}`]]);
       faceIds.push(face);
     }
 
     // IFCCLOSEDSHELLを作成
-    const shellId = w.createEntity('IFCCLOSEDSHELL', [faceIds.map(id => `#${id}`)]);
+    const shellId = w.createEntity('IFCCLOSEDSHELL', [faceIds.map((id) => `#${id}`)]);
 
     // IFCFACETEDBREPを作成
     const brepId = w.createEntity('IFCFACETEDBREP', [`#${shellId}`]);
 
     // 配置点
     const beamOrigin = w.createEntity('IFCCARTESIANPOINT', [[0, 0, 0]]);
-    const beamPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
-      `#${beamOrigin}`,
-      null,
-      null
-    ]);
+    const beamPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [`#${beamOrigin}`, null, null]);
+    // 梁のローカル配置（柱と同様にグローバル座標系を使用）
     const beamLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
-      `#${this._refs.storeyPlacement}`,
-      `#${beamPlacement3D}`
+      null, // PlacementRelTo: グローバル配置
+      `#${beamPlacement3D}`,
     ]);
 
     // 形状表現
@@ -451,14 +551,14 @@ export class IFCBeamExporter extends IFCExporterBase {
       `#${this._refs.bodyContext}`,
       'Body',
       'Brep',
-      [`#${brepId}`]
+      [`#${brepId}`],
     ]);
 
     // 製品定義形状
     const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
       null,
       null,
-      [`#${shapeRep}`]
+      [`#${shapeRep}`],
     ]);
 
     // 梁エンティティ
@@ -471,7 +571,7 @@ export class IFCBeamExporter extends IFCExporterBase {
       `#${beamLocalPlacement}`,
       `#${productShape}`,
       null,
-      '.BEAM.'
+      '.BEAM.',
     ]);
 
     // 階に所属
@@ -480,7 +580,6 @@ export class IFCBeamExporter extends IFCExporterBase {
 
     return beamId;
   }
-
 
   /**
    * 柱を追加
@@ -494,16 +593,65 @@ export class IFCBeamExporter extends IFCExporterBase {
    * @param {number} [columnData.rotation=0] - 断面の回転角度（度）
    * @param {boolean} [columnData.isReferenceDirection=true] - 基準方向フラグ（falseの場合90度回転追加）
    * @returns {number|null} 柱エンティティID（未対応の場合はnull）
+   * @throws {TypeError} If columnData is not a valid object
    */
   addColumn(columnData) {
     this._ensureInitialized();
     const w = this.writer;
-    const { name = 'Column', bottomPoint, topPoint, profile, rotation = 0, isReferenceDirection = true } = columnData;
+
+    // Validate columnData
+    if (!columnData || typeof columnData !== 'object' || Array.isArray(columnData)) {
+      const error = new TypeError('columnData must be a non-null object');
+      log.error('Validation failed:', error);
+      return null;
+    }
+
+    const {
+      name = 'Column',
+      bottomPoint,
+      topPoint,
+      profile,
+      rotation = 0,
+      isReferenceDirection = true,
+    } = columnData;
 
     // 必須パラメータのチェック
     if (!bottomPoint || !topPoint || !profile) {
-      console.warn(`[IFC Export] 柱 "${name}" をスキップ: 必須パラメータ（bottomPoint, topPoint, profile）が不足しています`);
+      const error = new Error('Required parameters missing: bottomPoint, topPoint, and profile are required');
+      log.error(`[IFC Export] 柱 "${name}" をスキップ:`, error);
       return null;
+    }
+
+    // Validate point objects
+    if (typeof bottomPoint !== 'object' || typeof bottomPoint.x !== 'number' ||
+        typeof bottomPoint.y !== 'number' || typeof bottomPoint.z !== 'number') {
+      const error = new TypeError('bottomPoint must be an object with numeric x, y, z properties');
+      log.error(`[IFC Export] 柱 "${name}" をスキップ:`, error);
+      return null;
+    }
+
+    if (typeof topPoint !== 'object' || typeof topPoint.x !== 'number' ||
+        typeof topPoint.y !== 'number' || typeof topPoint.z !== 'number') {
+      const error = new TypeError('topPoint must be an object with numeric x, y, z properties');
+      log.error(`[IFC Export] 柱 "${name}" をスキップ:`, error);
+      return null;
+    }
+
+    // Validate profile
+    if (typeof profile !== 'object' || !profile.type) {
+      const error = new TypeError('profile must be an object with a type property');
+      log.error(`[IFC Export] 柱 "${name}" をスキップ:`, error);
+      return null;
+    }
+
+    // Validate rotation
+    if (typeof rotation !== 'number' || !isFinite(rotation)) {
+      log.warn(`[IFC Export] 柱 "${name}": rotation must be a finite number, using 0`);
+    }
+
+    // Validate isReferenceDirection
+    if (typeof isReferenceDirection !== 'boolean') {
+      log.warn(`[IFC Export] 柱 "${name}": isReferenceDirection must be a boolean, using true`);
     }
 
     // 柱の長さを計算 (mm)
@@ -513,32 +661,45 @@ export class IFCBeamExporter extends IFCExporterBase {
     const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
     if (length < 1e-6) {
-      console.warn(`[IFC Export] 柱 "${name}" をスキップ: 長さが0です`);
+      log.warn(`[IFC Export] 柱 "${name}" をスキップ: 長さが0です`);
       return null;
     }
 
     // プロファイルを作成（Position は null）
     const profileId = this._createProfileId(profile, true);
     if (profileId === null) {
-      console.warn(`[IFC Export] 柱 "${name}" をスキップ: 未対応のプロファイルタイプ "${profile.type}"`);
+      log.warn(
+        `[IFC Export] 柱 "${name}" をスキップ: 未対応のプロファイルタイプ "${profile.type}"`,
+      );
       return null;
     }
+
+    // 柱の中心点を計算（Three.jsと同じ中心基準配置）
+    const centerX = (bottomPoint.x + topPoint.x) / 2;
+    const centerY = (bottomPoint.y + topPoint.y) / 2;
+    const centerZ = (bottomPoint.z + topPoint.z) / 2;
 
     // 押出方向（垂直: Z方向）
     const extrudeDir = w.createEntity('IFCDIRECTION', [[0.0, 0.0, 1.0]]);
 
+    // プロファイルの位置（中心基準にするため、-length/2 から開始）
+    const extrudeOrigin = w.createEntity('IFCCARTESIANPOINT', [[0.0, 0.0, -length / 2]]);
+    const extrudePosition = w.createEntity('IFCAXIS2PLACEMENT3D', [
+      `#${extrudeOrigin}`,
+      null,
+      null,
+    ]);
+
     // 押出形状を作成 (mm)
     const solidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
       `#${profileId}`,
-      null,                // Position: デフォルト（原点）
+      `#${extrudePosition}`, // Position: Z = -length/2 から開始（中心基準）
       `#${extrudeDir}`,
-      length
+      length,
     ]);
 
-    // 柱の配置点（底部）(mm)
-    const columnOrigin = w.createEntity('IFCCARTESIANPOINT', [
-      [bottomPoint.x, bottomPoint.y, bottomPoint.z]
-    ]);
+    // 柱の配置点（中心）(mm) - Three.jsと同じ配置方法
+    const columnOrigin = w.createEntity('IFCCARTESIANPOINT', [[centerX, centerY, centerZ]]);
 
     // 回転角度を計算（度 → ラジアン）
     // isReferenceDirection=false の場合は90度追加（H型配置）
@@ -559,14 +720,14 @@ export class IFCBeamExporter extends IFCExporterBase {
     // 配置座標系（軸・参照方向を設定）
     const columnPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
       `#${columnOrigin}`,
-      `#${axisDir}`,       // Axis: Z方向
-      `#${refDir}`         // RefDirection: 回転を反映
+      `#${axisDir}`, // Axis: Z方向
+      `#${refDir}`, // RefDirection: 回転を反映
     ]);
 
     // 柱のローカル配置
     const columnLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
-      null,                // PlacementRelTo: グローバル配置
-      `#${columnPlacement3D}`
+      null, // PlacementRelTo: グローバル配置
+      `#${columnPlacement3D}`,
     ]);
 
     // 形状表現
@@ -574,33 +735,176 @@ export class IFCBeamExporter extends IFCExporterBase {
       `#${this._refs.bodyContext}`,
       'Body',
       'SweptSolid',
-      [`#${solidId}`]
+      [`#${solidId}`],
     ]);
 
     // 製品定義形状
     const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
       null,
       null,
-      [`#${shapeRep}`]
+      [`#${shapeRep}`],
     ]);
 
     // 柱エンティティ（PredefinedType は null でシンプルに）
     const columnId = w.createEntity('IFCCOLUMN', [
       generateIfcGuid(),
-      null,                // OwnerHistory
+      null, // OwnerHistory
       name,
-      null,                // Description
-      null,                // ObjectType
+      null, // Description
+      null, // ObjectType
       `#${columnLocalPlacement}`,
       `#${productShape}`,
-      null,                // Tag
-      null                 // PredefinedType: null でシンプルに
+      null, // Tag
+      null, // PredefinedType: null でシンプルに
     ]);
 
     // 柱を階に所属させる（底部Z座標で適切な階を決定）
     this._addToStorey(columnId, bottomPoint.z);
 
     return columnId;
+  }
+
+  /**
+   * 間柱を追加
+   * @param {Object} postData - 間柱データ
+   * @param {string} postData.name - 間柱名
+   * @param {Object} postData.bottomPoint - 底部座標 {x, y, z} (mm)
+   * @param {Object} postData.topPoint - 頂部座標 {x, y, z} (mm)
+   * @param {Object} postData.profile - プロファイル情報
+   * @param {string} postData.profile.type - プロファイルタイプ ('H', 'BOX', 'PIPE', 'RECTANGLE')
+   * @param {Object} postData.profile.params - プロファイルパラメータ
+   * @param {number} [postData.rotation=0] - 断面の回転角度（度）
+   * @param {boolean} [postData.isReferenceDirection=true] - 基準方向フラグ（falseの場合90度回転追加）
+   * @returns {number|null} 間柱エンティティID（未対応の場合はnull）
+   */
+  addPost(postData) {
+    this._ensureInitialized();
+    const w = this.writer;
+    const {
+      name = 'Post',
+      bottomPoint,
+      topPoint,
+      profile,
+      rotation = 0,
+      isReferenceDirection = true,
+    } = postData;
+
+    // 必須パラメータのチェック
+    if (!bottomPoint || !topPoint || !profile) {
+      log.warn(
+        `[IFC Export] 間柱 "${name}" をスキップ: 必須パラメータ（bottomPoint, topPoint, profile）が不足しています`,
+      );
+      return null;
+    }
+
+    // 間柱の長さを計算 (mm)
+    const dx = topPoint.x - bottomPoint.x;
+    const dy = topPoint.y - bottomPoint.y;
+    const dz = topPoint.z - bottomPoint.z;
+    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+    if (length < 1e-6) {
+      log.warn(`[IFC Export] 間柱 "${name}" をスキップ: 長さが0です`);
+      return null;
+    }
+
+    // プロファイルを作成（Position は null）
+    const profileId = this._createProfileId(profile, true);
+    if (profileId === null) {
+      log.warn(
+        `[IFC Export] 間柱 "${name}" をスキップ: 未対応のプロファイルタイプ "${profile.type}"`,
+      );
+      return null;
+    }
+
+    // 間柱の中心点を計算（Three.jsと同じ中心基準配置）
+    const centerX = (bottomPoint.x + topPoint.x) / 2;
+    const centerY = (bottomPoint.y + topPoint.y) / 2;
+    const centerZ = (bottomPoint.z + topPoint.z) / 2;
+
+    // 押出方向（垂直: Z方向）
+    const extrudeDir = w.createEntity('IFCDIRECTION', [[0.0, 0.0, 1.0]]);
+
+    // プロファイルの位置（中心基準にするため、-length/2 から開始）
+    const extrudeOrigin = w.createEntity('IFCCARTESIANPOINT', [[0.0, 0.0, -length / 2]]);
+    const extrudePosition = w.createEntity('IFCAXIS2PLACEMENT3D', [
+      `#${extrudeOrigin}`,
+      null,
+      null,
+    ]);
+
+    // 押出形状を作成 (mm)
+    const solidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
+      `#${profileId}`,
+      `#${extrudePosition}`, // Position: Z = -length/2 から開始（中心基準）
+      `#${extrudeDir}`,
+      length,
+    ]);
+
+    // 間柱の配置点（中心）(mm)
+    const postOrigin = w.createEntity('IFCCARTESIANPOINT', [[centerX, centerY, centerZ]]);
+
+    // 回転角度を計算（度 → ラジアン）
+    // isReferenceDirection=false の場合は90度追加（H型配置）
+    let effectiveRotationDeg = rotation;
+    if (!isReferenceDirection) {
+      effectiveRotationDeg += 90;
+    }
+    const effectiveRotationRad = (effectiveRotationDeg * Math.PI) / 180;
+
+    // Z軸（垂直方向）
+    const axisDir = w.createEntity('IFCDIRECTION', [[0.0, 0.0, 1.0]]);
+
+    // 参照方向（XY平面上の回転）
+    const cosVal = Math.cos(effectiveRotationRad);
+    const sinVal = Math.sin(effectiveRotationRad);
+    const refDir = w.createEntity('IFCDIRECTION', [[cosVal, sinVal, 0.0]]);
+
+    // 配置座標系（軸・参照方向を設定）
+    const postPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
+      `#${postOrigin}`,
+      `#${axisDir}`, // Axis: Z方向
+      `#${refDir}`, // RefDirection: 回転を反映
+    ]);
+
+    // 間柱のローカル配置
+    const postLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
+      null, // PlacementRelTo: グローバル配置
+      `#${postPlacement3D}`,
+    ]);
+
+    // 形状表現
+    const shapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
+      `#${this._refs.bodyContext}`,
+      'Body',
+      'SweptSolid',
+      [`#${solidId}`],
+    ]);
+
+    // 製品定義形状
+    const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
+      null,
+      null,
+      [`#${shapeRep}`],
+    ]);
+
+    // 間柱エンティティ（IFCCOLUMNとして出力、ObjectTypeで区別）
+    const postId = w.createEntity('IFCCOLUMN', [
+      generateIfcGuid(),
+      null, // OwnerHistory
+      name,
+      'Post', // Description: 間柱であることを示す
+      'Post', // ObjectType: 間柱であることを示す
+      `#${postLocalPlacement}`,
+      `#${productShape}`,
+      null, // Tag
+      null, // PredefinedType
+    ]);
+
+    // 間柱を階に所属させる（底部Z座標で適切な階を決定）
+    this._addToStorey(postId, bottomPoint.z);
+
+    return postId;
   }
 
   /**
@@ -612,16 +916,53 @@ export class IFCBeamExporter extends IFCExporterBase {
    * @param {Object} braceData.profile - プロファイル情報
    * @param {number} [braceData.rotation=0] - 断面の回転角度（度）、軸周りの回転
    * @returns {number|null} ブレースエンティティID（未対応の場合はnull）
+   * @throws {TypeError} If braceData is not a valid object
    */
   addBrace(braceData) {
     this._ensureInitialized();
     const w = this.writer;
+
+    // Validate braceData
+    if (!braceData || typeof braceData !== 'object' || Array.isArray(braceData)) {
+      const error = new TypeError('braceData must be a non-null object');
+      log.error('Validation failed:', error);
+      return null;
+    }
+
     const { name = 'Brace', startPoint, endPoint, profile, rotation = 0 } = braceData;
 
     // 必須パラメータのチェック
     if (!startPoint || !endPoint || !profile) {
-      console.warn(`[IFC Export] ブレース "${name}" をスキップ: 必須パラメータ（startPoint, endPoint, profile）が不足しています`);
+      const error = new Error('Required parameters missing: startPoint, endPoint, and profile are required');
+      log.error(`[IFC Export] ブレース "${name}" をスキップ:`, error);
       return null;
+    }
+
+    // Validate point objects
+    if (typeof startPoint !== 'object' || typeof startPoint.x !== 'number' ||
+        typeof startPoint.y !== 'number' || typeof startPoint.z !== 'number') {
+      const error = new TypeError('startPoint must be an object with numeric x, y, z properties');
+      log.error(`[IFC Export] ブレース "${name}" をスキップ:`, error);
+      return null;
+    }
+
+    if (typeof endPoint !== 'object' || typeof endPoint.x !== 'number' ||
+        typeof endPoint.y !== 'number' || typeof endPoint.z !== 'number') {
+      const error = new TypeError('endPoint must be an object with numeric x, y, z properties');
+      log.error(`[IFC Export] ブレース "${name}" をスキップ:`, error);
+      return null;
+    }
+
+    // Validate profile
+    if (typeof profile !== 'object' || !profile.type) {
+      const error = new TypeError('profile must be an object with a type property');
+      log.error(`[IFC Export] ブレース "${name}" をスキップ:`, error);
+      return null;
+    }
+
+    // Validate rotation
+    if (typeof rotation !== 'number' || !isFinite(rotation)) {
+      log.warn(`[IFC Export] ブレース "${name}": rotation must be a finite number, using 0`);
     }
 
     // ブレースの長さを計算 (mm)
@@ -631,7 +972,7 @@ export class IFCBeamExporter extends IFCExporterBase {
     const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
     if (length < 1e-6) {
-      console.warn(`[IFC Export] ブレース "${name}" をスキップ: 長さが0です`);
+      log.warn(`[IFC Export] ブレース "${name}" をスキップ: 長さが0です`);
       return null;
     }
 
@@ -643,13 +984,15 @@ export class IFCBeamExporter extends IFCExporterBase {
     // プロファイルを作成（シンプル版、Position = null）
     const profileId = this._createProfileId(profile, true);
     if (profileId === null) {
-      console.warn(`[IFC Export] ブレース "${name}" をスキップ: 未対応のプロファイルタイプ "${profile.type}"`);
+      log.warn(
+        `[IFC Export] ブレース "${name}" をスキップ: 未対応のプロファイルタイプ "${profile.type}"`,
+      );
       return null;
     }
 
     // ブレースの配置点（始点）(mm)
     const braceOrigin = w.createEntity('IFCCARTESIANPOINT', [
-      [startPoint.x, startPoint.y, startPoint.z]
+      [startPoint.x, startPoint.y, startPoint.z],
     ]);
 
     // ブレースの軸方向（押出方向と同じ）
@@ -712,13 +1055,13 @@ export class IFCBeamExporter extends IFCExporterBase {
     const bracePlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
       `#${braceOrigin}`,
       `#${braceAxisDir}`,
-      `#${braceRefDir}`
+      `#${braceRefDir}`,
     ]);
 
     // ローカル配置（グローバル基準）
     const braceLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
-      null,                // PlacementRelTo: グローバル配置
-      `#${bracePlacement3D}`
+      null, // PlacementRelTo: グローバル配置
+      `#${bracePlacement3D}`,
     ]);
 
     // 押出方向（ローカル座標系のZ方向 = 軸方向）
@@ -727,9 +1070,9 @@ export class IFCBeamExporter extends IFCExporterBase {
     // 押出形状 (mm)
     const solidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
       `#${profileId}`,
-      null,                // Position: デフォルト
+      null, // Position: デフォルト
       `#${extrudeDir}`,
-      length
+      length,
     ]);
 
     // 形状表現
@@ -737,27 +1080,27 @@ export class IFCBeamExporter extends IFCExporterBase {
       `#${this._refs.bodyContext}`,
       'Body',
       'SweptSolid',
-      [`#${solidId}`]
+      [`#${solidId}`],
     ]);
 
     // 製品定義形状
     const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
       null,
       null,
-      [`#${shapeRep}`]
+      [`#${shapeRep}`],
     ]);
 
     // ブレースエンティティ（IFCMEMBER）
     const braceId = w.createEntity('IFCMEMBER', [
       generateIfcGuid(),
-      null,                // OwnerHistory
+      null, // OwnerHistory
       name,
-      null,                // Description
-      null,                // ObjectType
+      null, // Description
+      null, // ObjectType
       `#${braceLocalPlacement}`,
       `#${productShape}`,
-      null,                // Tag
-      '.BRACE.'            // PredefinedType
+      null, // Tag
+      '.BRACE.', // PredefinedType
     ]);
 
     // 階に所属させる（Z座標で適切な階を決定）
@@ -777,7 +1120,7 @@ export class IFCBeamExporter extends IFCExporterBase {
     return super.generate({
       fileName: options.fileName || 'beam_export.ifc',
       description: options.description || 'Single Beam IFC Export',
-      ...options
+      ...options,
     });
   }
 }
@@ -786,12 +1129,17 @@ export class IFCBeamExporter extends IFCExporterBase {
  * 簡易エクスポート関数
  * @param {Object} beamData - 梁データ
  * @returns {string} IFCファイル内容
+ * @throws {TypeError} If beamData is not a valid object
  */
 export function exportSingleBeamToIFC(beamData) {
+  // Validate beamData
+  if (!beamData || typeof beamData !== 'object' || Array.isArray(beamData)) {
+    const error = new TypeError('beamData must be a non-null object');
+    log.error('Validation failed:', error);
+    throw error;
+  }
+
   const exporter = new IFCBeamExporter();
   exporter.addBeam(beamData);
   return exporter.generate();
 }
-
-// Re-export for backward compatibility
-export { generateIfcGuid } from './IFCExporterBase.js';

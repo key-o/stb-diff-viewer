@@ -111,7 +111,7 @@ resetToleranceConfig();
 ### 座標比較
 
 ```javascript
-import { compareCoordinatesWithTolerance } from './stb-diff-viewer/js/core/toleranceComparison.js';
+import { compareCoordinatesWithTolerance } from './stb-diff-viewer/js/app/toleranceComparison.js';
 
 const result = compareCoordinatesWithTolerance(
   { x: 100, y: 200, z: 300 },

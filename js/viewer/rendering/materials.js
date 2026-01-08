@@ -15,15 +15,90 @@
 
 import * as THREE from 'three';
 import { renderer } from '../core/core.js';
-import {
-  getCurrentColorMode,
-  getMaterialForElement,
-  COLOR_MODES
-} from '../../colorModes.js';
-import { IMPORTANCE_LEVELS } from '../../core/importanceManager.js';
-import { IMPORTANCE_COLORS } from '../../config/importanceConfig.js';
+import { getCurrentColorMode, COLOR_MODES } from '../../colorModes/index.js';
+import { IMPORTANCE_LEVELS } from '../../constants/importanceLevels.js';
 import { colorManager } from './colorManager.js';
-import { THREE_COLORS, LAYOUT_COLORS, UI_COLORS } from '../../config/colorPalette.js';
+import elementColorManager from './elementColorManager.js';
+import { scheduleRender } from '../../utils/renderScheduler.js';
+
+// --- パフォーマンス最適化: 片面/両面マテリアル設定 ---
+// 閉じたジオメトリ（柱、梁、ブレース等）は片面レンダリングで描画ポリゴン数を削減
+// 薄いジオメトリ（壁、スラブ、パラペット等）は両面レンダリングが必要
+
+/**
+ * 要素タイプに応じたマテリアルのside設定
+ * @type {Object<string, number>}
+ */
+export const ELEMENT_MATERIAL_SIDE = {
+  // 閉じたジオメトリ - 片面レンダリング（約50%の描画削減）
+  Column: THREE.FrontSide,
+  Post: THREE.FrontSide,
+  Girder: THREE.FrontSide,
+  Beam: THREE.FrontSide,
+  Brace: THREE.FrontSide,
+  Pile: THREE.FrontSide,
+  Footing: THREE.FrontSide,
+  FoundationColumn: THREE.FrontSide,
+  StripFooting: THREE.FrontSide,
+  Joint: THREE.FrontSide,
+
+  // 薄いジオメトリ - 両面レンダリング（裏面が見える可能性がある）
+  Slab: THREE.DoubleSide,
+  Wall: THREE.DoubleSide,
+  Parapet: THREE.DoubleSide,
+
+  // その他/デフォルト - 両面レンダリング（安全側）
+  Node: THREE.DoubleSide,
+  Axis: THREE.DoubleSide,
+  Story: THREE.DoubleSide,
+};
+
+/**
+ * 要素タイプに応じたマテリアルのsideを取得
+ * @param {string} elementType - 要素タイプ
+ * @returns {number} THREE.FrontSide または THREE.DoubleSide
+ */
+export function getMaterialSideForElement(elementType) {
+  return ELEMENT_MATERIAL_SIDE[elementType] ?? THREE.DoubleSide;
+}
+
+/**
+ * 片面マテリアル最適化が有効かどうか
+ */
+let singleSidedOptimizationEnabled = true;
+
+/**
+ * 片面マテリアル最適化の有効/無効を設定
+ * @param {boolean} enabled
+ */
+export function setSingleSidedOptimizationEnabled(enabled) {
+  singleSidedOptimizationEnabled = enabled;
+}
+
+/**
+ * 片面マテリアル最適化が有効かどうかを取得
+ * @returns {boolean}
+ */
+export function isSingleSidedOptimizationEnabled() {
+  return singleSidedOptimizationEnabled;
+}
+
+/**
+ * 要素タイプに応じた最適なマテリアルを作成
+ * @param {Object} baseOptions - 基本マテリアルオプション
+ * @param {string} elementType - 要素タイプ
+ * @returns {THREE.Material}
+ */
+export function createOptimizedMaterial(baseOptions, elementType) {
+  const side = singleSidedOptimizationEnabled
+    ? getMaterialSideForElement(elementType)
+    : THREE.DoubleSide;
+
+  return new THREE.MeshStandardMaterial({
+    ...baseOptions,
+    side,
+  });
+}
 
 // --- 重要度別視覚的スタイル定義 ---
 export const IMPORTANCE_VISUAL_STYLES = {
@@ -31,26 +106,26 @@ export const IMPORTANCE_VISUAL_STYLES = {
     opacity: 1.0,
     outlineWidth: 2.0,
     saturation: 1.0,
-    highlightColor: '#FF0000'
+    highlightColor: '#FF0000',
   },
   [IMPORTANCE_LEVELS.OPTIONAL]: {
     opacity: 0.8,
     outlineWidth: 1.0,
     saturation: 0.7,
-    highlightColor: '#FFA500'
+    highlightColor: '#FFA500',
   },
   [IMPORTANCE_LEVELS.UNNECESSARY]: {
     opacity: 0.4,
     outlineWidth: 0.5,
     saturation: 0.3,
-    highlightColor: '#808080'
+    highlightColor: '#808080',
   },
   [IMPORTANCE_LEVELS.NOT_APPLICABLE]: {
     opacity: 0.1,
     outlineWidth: 0.0,
     saturation: 0.1,
-    highlightColor: '#404040'
-  }
+    highlightColor: '#404040',
+  },
 };
 
 // --- マテリアル定義 (clippingPlanesは後で設定) ---
@@ -61,167 +136,167 @@ export const IMPORTANCE_VISUAL_STYLES = {
 // マテリアルデザイン色に統一: matched=マテリアルグリーン（onlyAと統一）、onlyB=マテリアルレッド
 export const materials = {
   matched: new THREE.MeshStandardMaterial({
-    color: 0x4CAF50, // マテリアルグリーン（一致した要素）- onlyAと統一
+    color: 0x4caf50, // マテリアルグリーン（一致した要素）- onlyAと統一
     roughness: 0.6,
     metalness: 0.1,
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
   }),
   onlyA: new THREE.MeshStandardMaterial({
-    color: 0x4CAF50, // マテリアルグリーン（モデルA専用）
+    color: 0x4caf50, // マテリアルグリーン（モデルA専用）
     roughness: 0.6,
     metalness: 0.1,
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
   }),
   onlyB: new THREE.MeshStandardMaterial({
-    color: 0xF44336, // マテリアルレッド（モデルB専用）
+    color: 0xf44336, // マテリアルレッド（モデルB専用）
     roughness: 0.6,
     metalness: 0.1,
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
   }),
   mismatch: new THREE.MeshStandardMaterial({
-    color: 0xFF9800, // マテリアルオレンジ（位置一致・属性不一致）
+    color: 0xff9800, // マテリアルオレンジ（位置一致・属性不一致）
     roughness: 0.6,
     metalness: 0.1,
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
   }),
   // 立体表示（ProfileBased 生成）用の不透明メッシュマテリアル
   // 既存の matched/onlyA/onlyB と同等だが、用途を明示するため別名を用意
   // ProfileBased*Generatorで作成されたメッシュは、後でColorManagerにより適切なマテリアルに差し替えられます
   matchedMesh: new THREE.MeshStandardMaterial({
-    color: 0x4CAF50, // マテリアルグリーン（一致した要素）- onlyAと統一
+    color: 0x4caf50, // マテリアルグリーン（一致した要素）- onlyAと統一
     roughness: 0.6,
     metalness: 0.1,
     side: THREE.DoubleSide,
     transparent: false,
-    opacity: 1.0
+    opacity: 1.0,
   }),
   onlyAMesh: new THREE.MeshStandardMaterial({
-    color: 0x4CAF50, // マテリアルグリーン（モデルA専用）
+    color: 0x4caf50, // マテリアルグリーン（モデルA専用）
     roughness: 0.6,
     metalness: 0.1,
     side: THREE.DoubleSide,
     transparent: false,
-    opacity: 1.0
+    opacity: 1.0,
   }),
   onlyBMesh: new THREE.MeshStandardMaterial({
-    color: 0xF44336, // マテリアルレッド（モデルB専用）
+    color: 0xf44336, // マテリアルレッド（モデルB専用）
     roughness: 0.6,
     metalness: 0.1,
     side: THREE.DoubleSide,
     transparent: false,
-    opacity: 1.0
+    opacity: 1.0,
   }),
   mismatchMesh: new THREE.MeshStandardMaterial({
-    color: 0xFF9800, // マテリアルオレンジ（位置一致・属性不一致）
+    color: 0xff9800, // マテリアルオレンジ（位置一致・属性不一致）
     roughness: 0.6,
     metalness: 0.1,
     side: THREE.DoubleSide,
     transparent: false,
-    opacity: 1.0
+    opacity: 1.0,
   }),
   // stb-diff-viewer造のRC（コンクリート）部分用半透明マテリアル
   // S造（鉄骨）部分が見えるように半透明で表示
   matchedMeshTransparent: new THREE.MeshStandardMaterial({
-    color: 0xA5D6A7, // 薄いマテリアルグリーン（コンクリート部分）- onlyAと統一
+    color: 0xa5d6a7, // 薄いマテリアルグリーン（コンクリート部分）- onlyAと統一
     roughness: 0.7,
     metalness: 0.0,
     side: THREE.DoubleSide,
     transparent: true,
     opacity: 0.4,
-    depthWrite: false // 透明度を正しく表示するため
+    depthWrite: false, // 透明度を正しく表示するため
   }),
   onlyAMeshTransparent: new THREE.MeshStandardMaterial({
-    color: 0xA5D6A7, // 薄いマテリアルグリーン（コンクリート部分）
+    color: 0xa5d6a7, // 薄いマテリアルグリーン（コンクリート部分）
     roughness: 0.7,
     metalness: 0.0,
     side: THREE.DoubleSide,
     transparent: true,
     opacity: 0.4,
-    depthWrite: false
+    depthWrite: false,
   }),
   onlyBMeshTransparent: new THREE.MeshStandardMaterial({
-    color: 0xEF9A9A, // 薄いマテリアルレッド（コンクリート部分）
+    color: 0xef9a9a, // 薄いマテリアルレッド（コンクリート部分）
     roughness: 0.7,
     metalness: 0.0,
     side: THREE.DoubleSide,
     transparent: true,
     opacity: 0.4,
-    depthWrite: false
+    depthWrite: false,
   }),
-  lineMatched: new THREE.LineBasicMaterial({ color: 0x4CAF50 }), // マテリアルグリーン - onlyAと統一
-  lineOnlyA: new THREE.LineBasicMaterial({ color: 0x4CAF50 }), // マテリアルグリーン
-  lineOnlyB: new THREE.LineBasicMaterial({ color: 0xF44336 }), // マテリアルレッド
-  lineMismatch: new THREE.LineBasicMaterial({ color: 0xFF9800 }), // マテリアルオレンジ（位置一致・属性不一致）
+  lineMatched: new THREE.LineBasicMaterial({ color: 0x4caf50 }), // マテリアルグリーン - onlyAと統一
+  lineOnlyA: new THREE.LineBasicMaterial({ color: 0x4caf50 }), // マテリアルグリーン
+  lineOnlyB: new THREE.LineBasicMaterial({ color: 0xf44336 }), // マテリアルレッド
+  lineMismatch: new THREE.LineBasicMaterial({ color: 0xff9800 }), // マテリアルオレンジ（位置一致・属性不一致）
   polyMatched: new THREE.MeshStandardMaterial({
-    color: 0x4CAF50, // マテリアルグリーン - onlyAと統一
+    color: 0x4caf50, // マテリアルグリーン - onlyAと統一
     roughness: 0.8,
     metalness: 0.1,
     side: THREE.DoubleSide,
     transparent: true,
-    opacity: 0.7
+    opacity: 0.7,
   }),
   polyOnlyA: new THREE.MeshStandardMaterial({
-    color: 0x4CAF50, // マテリアルグリーン
+    color: 0x4caf50, // マテリアルグリーン
     roughness: 0.8,
     metalness: 0.1,
     side: THREE.DoubleSide,
     transparent: true,
-    opacity: 0.7
+    opacity: 0.7,
   }),
   polyOnlyB: new THREE.MeshStandardMaterial({
-    color: 0xF44336, // マテリアルレッド
+    color: 0xf44336, // マテリアルレッド
     roughness: 0.8,
     metalness: 0.1,
     side: THREE.DoubleSide,
     transparent: true,
-    opacity: 0.7
+    opacity: 0.7,
   }),
   polyMismatch: new THREE.MeshStandardMaterial({
-    color: 0xFF9800, // マテリアルオレンジ（位置一致・属性不一致）
+    color: 0xff9800, // マテリアルオレンジ（位置一致・属性不一致）
     roughness: 0.8,
     metalness: 0.1,
     side: THREE.DoubleSide,
     transparent: true,
-    opacity: 0.7
+    opacity: 0.7,
   }),
-  axisLine: new THREE.LineBasicMaterial({ color: 0x888888, linewidth: 1 }), // 通り芯用マテリアル (一点鎖線はジオメトリで実現)
+  axisLine: new THREE.LineBasicMaterial({ color: 0xaaaaaa, linewidth: 1 }), // 通り芯用マテリアル (一点鎖線はジオメトリで実現)
   storyLine: new THREE.LineBasicMaterial({
     color: 0xaaaaaa,
     linewidth: 1,
     transparent: true,
-    opacity: 0.5
+    opacity: 0.5,
   }), // 階表示用マテリアル (線)
   axisPlane: new THREE.MeshBasicMaterial({
     color: 0x888888,
     side: THREE.DoubleSide,
     transparent: true,
     opacity: 0.1,
-    depthWrite: false
+    depthWrite: false,
   }),
   storyPlane: new THREE.MeshBasicMaterial({
     color: 0xaaaaaa,
     side: THREE.DoubleSide,
     transparent: true,
     opacity: 0.08,
-    depthWrite: false
+    depthWrite: false,
   }),
   // ★★★ ハイライト用マテリアル（マテリアルデザインに統一）★★★
   highlightMesh: new THREE.MeshStandardMaterial({
-    color: 0xFFC107, // マテリアルアンバー（ハイライト用）
+    color: 0xffc107, // マテリアルアンバー（ハイライト用）
     roughness: 0.5,
     metalness: 0.2,
     side: THREE.DoubleSide,
-    emissive: 0x554400 // エミッシブ色もアンバー系に調整
+    emissive: 0x554400, // エミッシブ色もアンバー系に調整
   }), // メッシュ要素（節点、スラブ、壁）用
-  highlightLine: new THREE.LineBasicMaterial({ color: 0xFFC107, linewidth: 5 }), // マテリアルアンバー（ハイライト用）
+  highlightLine: new THREE.LineBasicMaterial({ color: 0xffc107, linewidth: 5 }), // マテリアルアンバー（ハイライト用）
   // 立体表示時の配置基準線（軸）用ラインマテリアル
   placementLine: new THREE.LineBasicMaterial({
     color: 0x333333,
     linewidth: 1,
     transparent: true,
     opacity: 0.85,
-    depthTest: false // メッシュ越しでも視認できるように
-  })
+    depthTest: false, // メッシュ越しでも視認できるように
+  }),
 };
 
 /**
@@ -253,7 +328,7 @@ export function getMaterialForElementWithMode(
   isLine = false,
   isPoly = false,
   elementId = null,
-  toleranceState = null
+  toleranceState = null,
 ) {
   const colorMode = getCurrentColorMode();
 
@@ -264,7 +339,7 @@ export function getMaterialForElementWithMode(
     comparisonState,
     isLine,
     isPoly,
-    toleranceState
+    toleranceState,
   };
 
   // 色付けモードに応じてマテリアルモードを決定
@@ -370,7 +445,7 @@ export function createImportanceOutlineMaterial(importance) {
     color: style.highlightColor,
     side: THREE.BackSide,
     transparent: true,
-    opacity: Math.min(style.opacity, 0.8) // アウトラインは少し薄く
+    opacity: Math.min(style.opacity, 0.8), // アウトラインは少し薄く
   });
 
   // クリッピング平面を設定
@@ -395,7 +470,7 @@ export function createElementMaterialWithImportance(
   isLine = false,
   isPoly = false,
   importance = null,
-  elementId = null
+  elementId = null,
 ) {
   // ベースマテリアルを取得
   const baseMaterial = getMaterialForElementWithMode(
@@ -403,21 +478,18 @@ export function createElementMaterialWithImportance(
     comparisonState,
     isLine,
     isPoly,
-    elementId
+    elementId,
   );
 
   // 重要度調整を適用
-  const adjustedMaterial = createImportanceAwareMaterial(
-    baseMaterial,
-    importance
-  );
+  const adjustedMaterial = createImportanceAwareMaterial(baseMaterial, importance);
 
   // アウトライン用マテリアルを作成（必要な場合）
   const outlineMaterial = createImportanceOutlineMaterial(importance);
 
   return {
     material: adjustedMaterial,
-    outlineMaterial
+    outlineMaterial,
   };
 }
 
@@ -462,7 +534,7 @@ class ImportanceMaterialPool {
   getStats() {
     return {
       totalMaterials: this.pool.size,
-      memoryEstimate: this.pool.size * 1024 // 概算
+      memoryEstimate: this.pool.size * 1024, // 概算
     };
   }
 }
@@ -471,14 +543,39 @@ class ImportanceMaterialPool {
 export const importanceMaterialPool = new ImportanceMaterialPool();
 
 /**
+ * 静的マテリアルをすべて破棄する（メモリリーク防止）
+ * アプリケーション終了時またはシーンリセット時に呼び出す
+ */
+export function disposeStaticMaterials() {
+  for (const key in materials) {
+    const material = materials[key];
+    if (material && typeof material.dispose === 'function') {
+      material.dispose();
+    }
+  }
+}
+
+/**
+ * すべてのマテリアルリソースを破棄する
+ * アプリケーションのクリーンアップ時に使用
+ */
+export function disposeAllMaterialResources() {
+  // 静的マテリアルの破棄
+  disposeStaticMaterials();
+
+  // マテリアルプールのクリア
+  importanceMaterialPool.clear();
+
+  // 重要度マテリアルキャッシュのクリア
+  clearImportanceMaterialCache();
+}
+
+/**
  * 重要度フィルタリング用の要素可視性制御
  * @param {THREE.Object3D} object - 制御対象オブジェクト
  * @param {Set<string>} activeImportanceLevels - アクティブな重要度レベル
  */
-export function applyImportanceVisibilityFilter(
-  object,
-  activeImportanceLevels
-) {
+export function applyImportanceVisibilityFilter(object, activeImportanceLevels) {
   const importance = object.userData.importance;
 
   if (importance) {
@@ -503,31 +600,74 @@ export function updateMaterialsForColorMode() {
 // --- 重要度別色分け機能 ---
 
 /**
+ * 高速ハッシュキー生成
+ * @param {string} prefix - プレフィックス
+ * @param {...any} values - 値
+ * @returns {string} ハッシュキー
+ */
+function generateMaterialCacheKey(prefix, ...values) {
+  // FNV-1aハッシュアルゴリズム（高速でキャッシュキー生成に適している）
+  let hash = 2166136261;
+  for (const val of values) {
+    const str = val === undefined || val === null ? '_' : String(val);
+    for (let i = 0; i < str.length; i++) {
+      hash ^= str.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+  }
+  return `${prefix}:${(hash >>> 0).toString(36)}`;
+}
+
+/**
  * 重要度マテリアルキャッシュ
  */
 class ImportanceMaterialCache {
   constructor() {
     this.cache = new Map();
+    this.hits = 0;
+    this.misses = 0;
   }
 
   getMaterial(importanceLevel, options = {}) {
-    // キャッシュキーに要素タイプも含める
-    const key = `${importanceLevel}_${
-      options.elementType || 'default'
-    }_${JSON.stringify({
-      wireframe: options.wireframe,
-      transparent: options.transparent,
-      opacity: options.opacity
-    })}`;
+    // ハッシュベースの高速キー生成（JSON.stringifyより約10倍高速）
+    const key = generateMaterialCacheKey(
+      'imp',
+      importanceLevel,
+      options.elementType || 'default',
+      options.wireframe ? 'w' : '',
+      options.transparent ? 't' : '',
+      options.opacity,
+    );
 
-    if (!this.cache.has(key)) {
-      this.cache.set(key, createImportanceMaterial(importanceLevel, options));
+    if (this.cache.has(key)) {
+      this.hits++;
+      return this.cache.get(key);
     }
-    return this.cache.get(key);
+
+    this.misses++;
+    const material = createImportanceMaterial(importanceLevel, options);
+    this.cache.set(key, material);
+    return material;
   }
 
   clear() {
     this.cache.clear();
+    this.hits = 0;
+    this.misses = 0;
+  }
+
+  /**
+   * キャッシュ統計情報を取得
+   * @returns {Object} 統計情報
+   */
+  getStats() {
+    const total = this.hits + this.misses;
+    return {
+      size: this.cache.size,
+      hits: this.hits,
+      misses: this.misses,
+      hitRate: total > 0 ? ((this.hits / total) * 100).toFixed(1) + '%' : '0%',
+    };
   }
 }
 
@@ -547,7 +687,7 @@ export function createImportanceMaterial(importanceLevel, options = {}) {
     importanceLevel: importanceLevel,
     wireframe: options.wireframe,
     isLine: false,
-    isPoly: false
+    isPoly: false,
   };
 
   const material = colorManager.getMaterial('importance', materialParams);
@@ -564,19 +704,21 @@ export function applyImportanceColorMode(object, options = {}) {
   try {
     const importance = object.userData.importance;
     const elementType = object.userData.elementType;
+
+    // デバッグ: スラブの処理を追跡
+    if (elementType === 'Slab') {
+    }
+
     if (object.isMesh) {
       // 重要度が設定されている場合
       if (importance) {
         // 要素タイプ情報をオプションに含める
         const materialOptions = {
           ...options,
-          elementType: elementType
+          elementType: elementType,
         };
 
-        const material = importanceMaterialCache.getMaterial(
-          importance,
-          materialOptions
-        );
+        const material = importanceMaterialCache.getMaterial(importance, materialOptions);
         if (material) {
           object.material = material;
           object.material.needsUpdate = true;
@@ -585,18 +727,25 @@ export function applyImportanceColorMode(object, options = {}) {
         // 重要度情報がない場合は明示的にデフォルト（必須）として扱う
         const materialOptions = {
           ...options,
-          elementType: elementType
+          elementType: elementType,
         };
 
         const defaultMaterial = importanceMaterialCache.getMaterial(
           IMPORTANCE_LEVELS.REQUIRED,
-          materialOptions
+          materialOptions,
         );
         if (defaultMaterial) {
+          // デバッグ: マテリアル適用を追跡
+          if (elementType === 'Slab') {
+          }
           object.material = defaultMaterial;
           object.material.needsUpdate = true;
           // userDataにもデフォルト重要度を設定
           object.userData.importance = IMPORTANCE_LEVELS.REQUIRED;
+        } else if (elementType === 'Slab') {
+          console.warn(
+            `[applyImportanceColorMode] Failed to get default material for Slab: id=${object.userData?.id}`,
+          );
         }
       }
     }
@@ -643,10 +792,7 @@ export function applyImportanceColorModeBatch(objects, options = {}) {
     } else {
       // 全バッチ完了時の処理
       // 再描画をリクエスト
-      const scheduleRender = getState('rendering.scheduleRender');
-      if (scheduleRender) {
-        scheduleRender();
-      }
+      scheduleRender();
     }
   };
 
@@ -664,7 +810,7 @@ export function getImportanceRenderingStats() {
     runtimeColorsActive: !!window.runtimeImportanceColors,
     runtimeColorCount: window.runtimeImportanceColors
       ? Object.keys(window.runtimeImportanceColors).length
-      : 0
+      : 0,
   };
 
   return stats;
@@ -680,3 +826,29 @@ export function clearMaterialCache() {
   // ColorManagerのキャッシュもクリア
   colorManager.clearMaterialCache();
 }
+
+/**
+ * マテリアルキャッシュの統計情報を取得
+ * @returns {Object} 統計情報
+ */
+export function getMaterialCacheStats() {
+  return {
+    importanceMaterialCache: importanceMaterialCache.getStats(),
+    importanceMaterialPool: importanceMaterialPool.getStats(),
+  };
+}
+
+// --- 静的マテリアルの動的更新設定 ---
+// ElementColorManagerの変更を監視して静的マテリアルを更新
+elementColorManager.onColorChange((newColor, oldColor, elementType) => {
+  if (elementType === 'Axis') {
+    const hex = parseInt(newColor.replace('#', ''), 16);
+    materials.axisLine.color.setHex(hex);
+    scheduleRender();
+  } else if (elementType === 'Story') {
+    const hex = parseInt(newColor.replace('#', ''), 16);
+    materials.storyLine.color.setHex(hex);
+    materials.storyPlane.color.setHex(hex);
+    scheduleRender();
+  }
+});

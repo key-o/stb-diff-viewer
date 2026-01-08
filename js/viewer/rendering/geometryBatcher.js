@@ -7,6 +7,7 @@
  */
 
 import * as THREE from 'three';
+import { globalGeometryCache } from './geometryCache.js';
 
 /**
  * ライン要素のバッチ処理クラス
@@ -57,7 +58,7 @@ export class LineBatcher {
     this.segments.push({
       startIndex,
       endIndex: startIndex + 1,
-      userData
+      userData,
     });
   }
 
@@ -70,16 +71,10 @@ export class LineBatcher {
   build(material) {
     const geometry = new THREE.BufferGeometry();
 
-    geometry.setAttribute(
-      'position',
-      new THREE.Float32BufferAttribute(this.positions, 3)
-    );
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(this.positions, 3));
 
     if (this.useVertexColors && this.colors.length > 0) {
-      geometry.setAttribute(
-        'color',
-        new THREE.Float32BufferAttribute(this.colors, 3)
-      );
+      geometry.setAttribute('color', new THREE.Float32BufferAttribute(this.colors, 3));
       material.vertexColors = true;
     }
 
@@ -89,7 +84,7 @@ export class LineBatcher {
     lineSegments.userData = {
       isBatched: true,
       segmentCount: this.segments.length,
-      segments: this.segments
+      segments: this.segments,
     };
 
     return lineSegments;
@@ -121,7 +116,11 @@ export class LineBatcher {
  * InstancedMeshまたはマージされたBufferGeometryを生成できます。
  */
 export class MeshBatcher {
-  constructor() {
+  /**
+   * @param {Object} [options={}] - オプション設定
+   * @param {boolean} [options.useCache=true] - ジオメトリキャッシュを使用するか
+   */
+  constructor(options = {}) {
     /** @type {THREE.BufferGeometry[]} マージ対象のジオメトリ */
     this.geometries = [];
 
@@ -130,6 +129,12 @@ export class MeshBatcher {
 
     /** @type {THREE.Matrix4[]} 各ジオメトリの変換行列 */
     this.matrices = [];
+
+    /** @type {boolean} ジオメトリキャッシュを使用するか */
+    this.useCache = options.useCache !== false;
+
+    /** @type {string[]} キャッシュキー（参照管理用） */
+    this.cacheKeys = [];
   }
 
   /**
@@ -140,6 +145,7 @@ export class MeshBatcher {
    * @param {Object} [userData={}] - 関連付けるユーザーデータ
    */
   addGeometry(geometry, matrix = null, userData = {}) {
+    // 変換行列が指定されている場合はクローンが必要（元のジオメトリを変更しないため）
     const clonedGeometry = geometry.clone();
 
     if (matrix) {
@@ -147,6 +153,34 @@ export class MeshBatcher {
     }
 
     this.geometries.push(clonedGeometry);
+    this.matrices.push(matrix || new THREE.Matrix4());
+    this.userDataList.push(userData);
+  }
+
+  /**
+   * キャッシュされたジオメトリを使用して追加（メモリ効率が高い）
+   *
+   * @param {string} cacheKey - キャッシュキー
+   * @param {Function} createFn - ジオメトリ生成関数
+   * @param {THREE.Matrix4} [matrix=null] - 変換行列
+   * @param {Object} [userData={}] - 関連付けるユーザーデータ
+   */
+  addCachedGeometry(cacheKey, createFn, matrix = null, userData = {}) {
+    // キャッシュから取得または作成
+    const baseGeometry = globalGeometryCache.getOrCreate(cacheKey, createFn);
+    this.cacheKeys.push(cacheKey);
+
+    // 変換行列が必要な場合のみクローン
+    let targetGeometry;
+    if (matrix) {
+      targetGeometry = baseGeometry.clone();
+      targetGeometry.applyMatrix4(matrix);
+    } else {
+      // 変換なしの場合は参照を使用（後でmergeGeometriesでクローンされる）
+      targetGeometry = baseGeometry;
+    }
+
+    this.geometries.push(targetGeometry);
     this.matrices.push(matrix || new THREE.Matrix4());
     this.userDataList.push(userData);
   }
@@ -166,7 +200,7 @@ export class MeshBatcher {
     matrix.compose(
       position,
       rotation || new THREE.Quaternion(),
-      scale || new THREE.Vector3(1, 1, 1)
+      scale || new THREE.Vector3(1, 1, 1),
     );
 
     this.addGeometry(geometry, matrix, userData);
@@ -191,7 +225,7 @@ export class MeshBatcher {
     mesh.userData = {
       isBatched: true,
       meshCount: this.geometries.length,
-      meshDataList: this.userDataList
+      meshDataList: this.userDataList,
     };
 
     return mesh;
@@ -206,11 +240,7 @@ export class MeshBatcher {
    * @returns {THREE.InstancedMesh}
    */
   static buildInstanced(geometry, material, instances) {
-    const instancedMesh = new THREE.InstancedMesh(
-      geometry,
-      material,
-      instances.length
-    );
+    const instancedMesh = new THREE.InstancedMesh(geometry, material, instances.length);
 
     instances.forEach((instance, i) => {
       instancedMesh.setMatrixAt(i, instance.matrix);
@@ -222,72 +252,107 @@ export class MeshBatcher {
       isBatched: true,
       isInstanced: true,
       instanceCount: instances.length,
-      instances: instances.map((inst) => inst.userData)
+      instances: instances.map((inst) => inst.userData),
     };
 
     return instancedMesh;
   }
 
   /**
-   * ジオメトリをマージ（BufferGeometryUtils.mergeGeometriesの簡易実装）
+   * ジオメトリをマージ（最適化版）
+   * 事前にサイズを計算し、TypedArrayに直接書き込むことで高速化
    *
    * @private
    * @param {THREE.BufferGeometry[]} geometries
    * @returns {THREE.BufferGeometry}
    */
   mergeGeometries(geometries) {
-    const mergedPositions = [];
-    const mergedNormals = [];
-    const mergedIndices = [];
-    let indexOffset = 0;
+    if (geometries.length === 0) {
+      return new THREE.BufferGeometry();
+    }
+
+    if (geometries.length === 1) {
+      return geometries[0].clone();
+    }
+
+    // Phase 1: サイズを事前計算
+    let totalPositions = 0;
+    let totalNormals = 0;
+    let totalIndices = 0;
+    let hasNormals = true;
+    let hasIndices = true;
 
     for (const geometry of geometries) {
       const positions = geometry.getAttribute('position');
       const normals = geometry.getAttribute('normal');
       const indices = geometry.getIndex();
 
-      // 頂点位置をコピー
-      for (let i = 0; i < positions.count; i++) {
-        mergedPositions.push(
-          positions.getX(i),
-          positions.getY(i),
-          positions.getZ(i)
-        );
+      totalPositions += positions.count * 3;
+
+      if (normals) {
+        totalNormals += normals.count * 3;
+      } else {
+        hasNormals = false;
       }
 
-      // 法線をコピー（存在する場合）
-      if (normals) {
-        for (let i = 0; i < normals.count; i++) {
-          mergedNormals.push(normals.getX(i), normals.getY(i), normals.getZ(i));
-        }
+      if (indices) {
+        totalIndices += indices.count;
+      } else {
+        hasIndices = false;
+      }
+    }
+
+    // Phase 2: TypedArrayを事前確保
+    const mergedPositions = new Float32Array(totalPositions);
+    const mergedNormals = hasNormals ? new Float32Array(totalNormals) : null;
+    const mergedIndices = hasIndices ? new Uint32Array(totalIndices) : null;
+
+    // Phase 3: 直接書き込み
+    let positionOffset = 0;
+    let normalOffset = 0;
+    let indexOffset = 0;
+    let vertexOffset = 0;
+
+    for (const geometry of geometries) {
+      const positions = geometry.getAttribute('position');
+      const normals = geometry.getAttribute('normal');
+      const indices = geometry.getIndex();
+
+      // 頂点位置をコピー（TypedArrayのsetを使用）
+      const posArray = positions.array;
+      mergedPositions.set(posArray, positionOffset);
+      positionOffset += posArray.length;
+
+      // 法線をコピー
+      if (mergedNormals && normals) {
+        const normArray = normals.array;
+        mergedNormals.set(normArray, normalOffset);
+        normalOffset += normArray.length;
       }
 
       // インデックスをコピー（オフセット付き）
-      if (indices) {
-        for (let i = 0; i < indices.count; i++) {
-          mergedIndices.push(indices.getX(i) + indexOffset);
+      if (mergedIndices && indices) {
+        const indexArray = indices.array;
+        for (let i = 0; i < indexArray.length; i++) {
+          mergedIndices[indexOffset + i] = indexArray[i] + vertexOffset;
         }
+        indexOffset += indexArray.length;
       }
 
-      indexOffset += positions.count;
+      vertexOffset += positions.count;
     }
 
+    // Phase 4: BufferGeometryを構築
     const mergedGeometry = new THREE.BufferGeometry();
 
-    mergedGeometry.setAttribute(
-      'position',
-      new THREE.Float32BufferAttribute(mergedPositions, 3)
-    );
+    mergedGeometry.setAttribute('position', new THREE.BufferAttribute(mergedPositions, 3));
 
-    if (mergedNormals.length > 0) {
-      mergedGeometry.setAttribute(
-        'normal',
-        new THREE.Float32BufferAttribute(mergedNormals, 3)
-      );
+    if (mergedNormals) {
+      mergedGeometry.setAttribute('normal', new THREE.BufferAttribute(mergedNormals, 3));
     }
 
-    if (mergedIndices.length > 0) {
-      mergedGeometry.setIndex(mergedIndices);
+    if (mergedIndices) {
+      mergedGeometry.setIndex(new THREE.BufferAttribute(mergedIndices, 1));
     }
 
     return mergedGeometry;
@@ -297,10 +362,25 @@ export class MeshBatcher {
    * バッチデータをクリア
    */
   clear() {
-    this.geometries.forEach((g) => g.dispose());
+    // キャッシュされていないジオメトリのみdispose
+    this.geometries.forEach((g, i) => {
+      // キャッシュキーがない場合（直接追加された場合）のみdispose
+      if (!this.cacheKeys[i]) {
+        g.dispose();
+      }
+    });
+
+    // キャッシュ参照を解放
+    this.cacheKeys.forEach((key) => {
+      if (key) {
+        globalGeometryCache.release(key);
+      }
+    });
+
     this.geometries = [];
     this.userDataList = [];
     this.matrices = [];
+    this.cacheKeys = [];
   }
 
   /**
@@ -393,3 +473,10 @@ export class BatcherManager {
     this.meshBatchers.clear();
   }
 }
+
+// キャッシュユーティリティの再エクスポート
+export {
+  globalGeometryCache,
+  GeometryKeyGenerator,
+  logGeometryCacheStats,
+} from './geometryCache.js';

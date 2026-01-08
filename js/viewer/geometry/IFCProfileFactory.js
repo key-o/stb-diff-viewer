@@ -16,15 +16,14 @@ import * as THREE from 'three';
 import {
   IFC_PROFILE_TYPES as MAP_IFC_PROFILE_TYPES,
   mapToIFCProfileType,
-  mapToIFCParams,
-  createIFCProfileFromSTB
-} from '../../common/profileExtractor.js';
-import { normalizeSectionType } from '../../common/sectionTypeUtil.js';
+  createIFCProfileFromSTB,
+} from '../../data/accessors/profileExtractor.js';
+import { normalizeSectionType } from '../../common-stb/section/sectionTypeUtil.js';
 import {
   calculate2LBackToBackProfile,
   calculate2LFaceToFaceProfile,
   calculate2CBackToBackProfile,
-  calculate2CFaceToFaceProfile
+  calculate2CFaceToFaceProfile,
 } from './core/ProfileCalculator.js';
 
 /**
@@ -58,7 +57,7 @@ export class IFCProfileFactory {
         ProfileType: profileType,
         ProfileName: `STB_${profileType}_${stbSteelShape?.name || 'Custom'}`,
         ProfileParameters: ifcProfile.ProfileParameters,
-        CombinationType: combinationType
+        CombinationType: combinationType,
       };
     }
 
@@ -96,56 +95,34 @@ export class IFCProfileFactory {
    */
   static createGeometryFromProfile(ifcProfile, originType = 'center') {
     // 組み合わせ断面の処理
-    if (ifcProfile.ProfileType?.includes('_BACKTOBACK') ||
-        ifcProfile.ProfileType?.includes('_FACETOFACE')) {
-      return this.createCombinedSectionGeometry(
-        ifcProfile,
-        originType
-      );
+    if (
+      ifcProfile.ProfileType?.includes('_BACKTOBACK') ||
+      ifcProfile.ProfileType?.includes('_FACETOFACE')
+    ) {
+      return this.createCombinedSectionGeometry(ifcProfile, originType);
     }
 
     switch (ifcProfile.ProfileType) {
       case IFC_PROFILE_TYPES.I_SHAPE:
-        return this.createIShapeGeometry(
-          ifcProfile.ProfileParameters,
-          originType
-        );
+        return this.createIShapeGeometry(ifcProfile.ProfileParameters, originType);
 
       case IFC_PROFILE_TYPES.HOLLOW_RECTANGLE:
-        return this.createHollowRectGeometry(
-          ifcProfile.ProfileParameters,
-          originType
-        );
+        return this.createHollowRectGeometry(ifcProfile.ProfileParameters, originType);
 
       case IFC_PROFILE_TYPES.CIRCULAR_HOLLOW:
-        return this.createCircularHollowGeometry(
-          ifcProfile.ProfileParameters,
-          originType
-        );
+        return this.createCircularHollowGeometry(ifcProfile.ProfileParameters, originType);
 
       case IFC_PROFILE_TYPES.L_SHAPE:
-        return this.createLShapeGeometry(
-          ifcProfile.ProfileParameters,
-          originType
-        );
+        return this.createLShapeGeometry(ifcProfile.ProfileParameters, originType);
 
       case IFC_PROFILE_TYPES.U_SHAPE:
-        return this.createUShapeGeometry(
-          ifcProfile.ProfileParameters,
-          originType
-        );
+        return this.createUShapeGeometry(ifcProfile.ProfileParameters, originType);
 
       case IFC_PROFILE_TYPES.RECTANGLE:
-        return this.createRectangleGeometry(
-          ifcProfile.ProfileParameters,
-          originType
-        );
+        return this.createRectangleGeometry(ifcProfile.ProfileParameters, originType);
 
       case IFC_PROFILE_TYPES.CIRCLE:
-        return this.createCircleGeometry(
-          ifcProfile.ProfileParameters,
-          originType
-        );
+        return this.createCircleGeometry(ifcProfile.ProfileParameters, originType);
 
       default:
         console.warn(`Unsupported IFC profile type: ${ifcProfile.ProfileType}`);
@@ -169,7 +146,7 @@ export class IFCProfileFactory {
         depth: params.Depth,
         width: params.Width,
         thickness: params.Thickness,
-        gap: 0
+        gap: 0,
       });
       return this.createShapeFromVertices(profileData, originType);
     }
@@ -179,7 +156,7 @@ export class IFCProfileFactory {
         depth: params.Depth,
         width: params.Width,
         thickness: params.Thickness,
-        gap: 0
+        gap: 0,
       });
       return this.createShapeFromVertices(profileData, originType);
     }
@@ -191,7 +168,7 @@ export class IFCProfileFactory {
         flangeWidth: params.FlangeWidth,
         webThickness: params.WebThickness,
         flangeThickness: params.FlangeThickness,
-        gap: 0
+        gap: 0,
       });
       return this.createShapeFromVertices(profileData, originType);
     }
@@ -202,7 +179,7 @@ export class IFCProfileFactory {
         flangeWidth: params.FlangeWidth,
         webThickness: params.WebThickness,
         flangeThickness: params.FlangeThickness,
-        gap: 0
+        gap: 0,
       });
       return this.createShapeFromVertices(profileData, originType);
     }
@@ -217,7 +194,7 @@ export class IFCProfileFactory {
    * @param {string} originType - Origin type
    * @returns {THREE.Shape} Generated shape
    */
-  static createShapeFromVertices(profileData, originType) {
+  static createShapeFromVertices(profileData, _originType) {
     const shape = new THREE.Shape();
     const { vertices, holes = [] } = profileData;
 
@@ -254,21 +231,10 @@ export class IFCProfileFactory {
    * @returns {THREE.Shape} Generated shape
    */
   static createIShapeGeometry(params, originType) {
-    const {
-      OverallWidth,
-      OverallDepth,
-      WebThickness,
-      FlangeThickness,
-      FilletRadius = 0
-    } = params;
+    const { OverallWidth, OverallDepth, WebThickness, FlangeThickness } = params;
 
     if (
-      !this.validatePositiveNumbers([
-        OverallWidth,
-        OverallDepth,
-        WebThickness,
-        FlangeThickness
-      ])
+      !this.validatePositiveNumbers([OverallWidth, OverallDepth, WebThickness, FlangeThickness])
     ) {
       return null;
     }
@@ -389,10 +355,7 @@ export class IFCProfileFactory {
     }
 
     const shape = new THREE.Shape();
-    const yOffset = this.calculateOriginOffset(
-      originType,
-      Math.max(Depth, Width)
-    );
+    const yOffset = this.calculateOriginOffset(originType, Math.max(Depth, Width));
 
     // L-shape starting from origin, extending in positive X and Y
     shape.moveTo(0, 0 + yOffset);
@@ -415,14 +378,7 @@ export class IFCProfileFactory {
   static createUShapeGeometry(params, originType) {
     const { Depth, FlangeWidth, WebThickness, FlangeThickness } = params;
 
-    if (
-      !this.validatePositiveNumbers([
-        Depth,
-        FlangeWidth,
-        WebThickness,
-        FlangeThickness
-      ])
-    ) {
+    if (!this.validatePositiveNumbers([Depth, FlangeWidth, WebThickness, FlangeThickness])) {
       return null;
     }
 
@@ -538,7 +494,7 @@ export class IFCProfileFactory {
       // Create STB steel shape format from dimensions
       const stbSteelShape = {
         name: `${sectionType}_profile`,
-        ...dimensions
+        ...dimensions,
       };
 
       // Use existing method to create IFC profile
@@ -553,12 +509,26 @@ export class IFCProfileFactory {
 
       switch (ifcProfile.ProfileType) {
         case IFC_PROFILE_TYPES.CIRCULAR_HOLLOW:
-          // For circular hollow (PIPE), create circle points
-          const radius = dimensions.outerDiameter
-            ? dimensions.outerDiameter / 2
-            : dimensions.radius || dimensions.D || 500;
+        case IFC_PROFILE_TYPES.CIRCLE: {
+          // For circular (PIPE or solid CIRCLE), create circle points
+          // 半径の取得: radius > outerDiameter/2 > D/2 > diameter/2 の優先順位
+          let radius;
+          if (dimensions.radius !== undefined && dimensions.radius !== null) {
+            // 半径が直接指定されている場合はそのまま使用
+            radius = dimensions.radius;
+          } else if (dimensions.outerDiameter) {
+            // 外径が指定されている場合は2で割る
+            radius = dimensions.outerDiameter / 2;
+          } else if (dimensions.D || dimensions.diameter) {
+            // 直径（D または diameter）が指定されている場合は2で割る
+            radius = (dimensions.D || dimensions.diameter) / 2;
+          } else {
+            // デフォルト値
+            radius = 250;
+          }
           points = this._createCirclePoints(radius, 64); // More points for smooth circle
           break;
+        }
 
         case IFC_PROFILE_TYPES.RECTANGLE:
           // For rectangle, create rectangle points
@@ -569,10 +539,7 @@ export class IFCProfileFactory {
 
         default:
           // For other types, try to get points from profile parameters
-          if (
-            ifcProfile.ProfileParameters &&
-            ifcProfile.ProfileParameters.points
-          ) {
+          if (ifcProfile.ProfileParameters && ifcProfile.ProfileParameters.points) {
             points = ifcProfile.ProfileParameters.points;
           } else {
             return null;
@@ -583,14 +550,11 @@ export class IFCProfileFactory {
         points: points,
         metadata: {
           profileType: ifcProfile.ProfileType,
-          profileName: ifcProfile.ProfileName
-        }
+          profileName: ifcProfile.ProfileName,
+        },
       };
     } catch (error) {
-      console.warn(
-        `IFCProfileFactory.createProfile failed for ${sectionType}:`,
-        error
-      );
+      console.warn(`IFCProfileFactory.createProfile failed for ${sectionType}:`, error);
       return null;
     }
   }
@@ -606,9 +570,7 @@ export class IFCProfileFactory {
     const points = [];
     for (let i = 0; i <= segments; i++) {
       const angle = (i / segments) * Math.PI * 2;
-      points.push(
-        new THREE.Vector2(Math.cos(angle) * radius, Math.sin(angle) * radius)
-      );
+      points.push(new THREE.Vector2(Math.cos(angle) * radius, Math.sin(angle) * radius));
     }
     return points;
   }
@@ -627,7 +589,7 @@ export class IFCProfileFactory {
       new THREE.Vector2(-halfWidth, -halfHeight),
       new THREE.Vector2(halfWidth, -halfHeight),
       new THREE.Vector2(halfWidth, halfHeight),
-      new THREE.Vector2(-halfWidth, halfHeight)
+      new THREE.Vector2(-halfWidth, halfHeight),
     ];
   }
 }
@@ -646,13 +608,13 @@ export class IFCExtrusionEngine {
   static extrudeLinear(
     profileShape,
     extrusionLength,
-    extrusionDirection = new THREE.Vector3(0, 0, 1)
+    extrusionDirection = new THREE.Vector3(0, 0, 1),
   ) {
     const extrudeSettings = {
       depth: extrusionLength,
       bevelEnabled: false,
       steps: 1,
-      extrudePath: null // Linear extrusion doesn't need path
+      extrudePath: null, // Linear extrusion doesn't need path
     };
 
     const geometry = new THREE.ExtrudeGeometry(profileShape, extrudeSettings);
@@ -663,10 +625,7 @@ export class IFCExtrusionEngine {
     // Apply rotation if extrusion direction is not Z-axis
     if (!extrusionDirection.equals(new THREE.Vector3(0, 0, 1))) {
       const quaternion = new THREE.Quaternion();
-      quaternion.setFromUnitVectors(
-        new THREE.Vector3(0, 0, 1),
-        extrusionDirection
-      );
+      quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), extrusionDirection);
       geometry.applyQuaternion(quaternion);
     }
 
@@ -684,7 +643,7 @@ export class IFCExtrusionEngine {
     const extrudeSettings = {
       steps: steps,
       bevelEnabled: false,
-      extrudePath: extrusionPath
+      extrudePath: extrusionPath,
     };
 
     return new THREE.ExtrudeGeometry(profileShape, extrudeSettings);
@@ -730,7 +689,7 @@ export class STBToIFCConverter {
     stbSectionData,
     startNode,
     endNode,
-    originType = 'center'
+    originType = 'center',
   ) {
     // Step 1: Determine shape type from STB section
     const shapeType = this.determineSTBShapeType(stbSectionData);
@@ -738,14 +697,11 @@ export class STBToIFCConverter {
     // Step 2: Create IFC profile from STB data
     const ifcProfile = IFCProfileFactory.createProfileFromSTB(
       stbSectionData.shape || stbSectionData,
-      shapeType
+      shapeType,
     );
 
     // Step 3: Generate profile geometry
-    const profileShape = IFCProfileFactory.createGeometryFromProfile(
-      ifcProfile,
-      originType
-    );
+    const profileShape = IFCProfileFactory.createGeometryFromProfile(ifcProfile, originType);
     if (!profileShape) {
       return null;
     }
@@ -759,7 +715,7 @@ export class STBToIFCConverter {
     const geometry = IFCExtrusionEngine.extrudeLinear(
       profileShape,
       extrusionLength,
-      extrusionDirection
+      extrusionDirection,
     );
 
     return geometry;

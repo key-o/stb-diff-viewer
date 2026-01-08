@@ -31,7 +31,6 @@ export class IFCExporterBase {
     if (stories && Array.isArray(stories) && stories.length > 0) {
       // 高さでソート
       this._storiesData = [...stories].sort((a, b) => a.height - b.height);
-      console.log(`[IFC Export] ${this._storiesData.length}階が設定されました`);
     }
   }
 
@@ -71,133 +70,145 @@ export class IFCExporterBase {
     this._refs.worldCoordSystem = w.createEntity('IFCAXIS2PLACEMENT3D', [
       `#${this._refs.origin}`,
       `#${this._refs.dirZ}`,
-      `#${this._refs.dirX}`
+      `#${this._refs.dirX}`,
     ]);
 
     // 2D座標系（プロファイル用）
     this._refs.profilePlacement = w.createEntity('IFCAXIS2PLACEMENT2D', [
       `#${this._refs.origin2d}`,
-      `#${this._refs.dir2dX}`
+      `#${this._refs.dir2dX}`,
     ]);
 
     // ===== 単位系 =====
     // 長さ: ミリメートル (STBデータと同じ)
-    this._refs.unitLength = w.createEntity('IFCSIUNIT', ['*', '.LENGTHUNIT.', '.MILLI.', '.METRE.']);
+    this._refs.unitLength = w.createEntity('IFCSIUNIT', [
+      '*',
+      '.LENGTHUNIT.',
+      '.MILLI.',
+      '.METRE.',
+    ]);
     // 面積: 平方メートル
     this._refs.unitArea = w.createEntity('IFCSIUNIT', ['*', '.AREAUNIT.', null, '.SQUARE_METRE.']);
     // 体積: 立方メートル
-    this._refs.unitVolume = w.createEntity('IFCSIUNIT', ['*', '.VOLUMEUNIT.', null, '.CUBIC_METRE.']);
+    this._refs.unitVolume = w.createEntity('IFCSIUNIT', [
+      '*',
+      '.VOLUMEUNIT.',
+      null,
+      '.CUBIC_METRE.',
+    ]);
     // 角度: ラジアン
     this._refs.unitAngle = w.createEntity('IFCSIUNIT', ['*', '.PLANEANGLEUNIT.', null, '.RADIAN.']);
 
     // 単位割当
-    this._refs.unitAssignment = w.createEntity('IFCUNITASSIGNMENT', [[
-      `#${this._refs.unitLength}`,
-      `#${this._refs.unitArea}`,
-      `#${this._refs.unitVolume}`,
-      `#${this._refs.unitAngle}`
-    ]]);
+    this._refs.unitAssignment = w.createEntity('IFCUNITASSIGNMENT', [
+      [
+        `#${this._refs.unitLength}`,
+        `#${this._refs.unitArea}`,
+        `#${this._refs.unitVolume}`,
+        `#${this._refs.unitAngle}`,
+      ],
+    ]);
 
     // ===== コンテキスト =====
     // 幾何表現コンテキスト
     this._refs.geometricContext = w.createEntity('IFCGEOMETRICREPRESENTATIONCONTEXT', [
-      null,                              // ContextIdentifier
-      'Model',                           // ContextType
-      3,                                 // CoordinateSpaceDimension
-      1.0e-5,                           // Precision
+      null, // ContextIdentifier
+      'Model', // ContextType
+      3, // CoordinateSpaceDimension
+      1.0e-5, // Precision
       `#${this._refs.worldCoordSystem}`, // WorldCoordinateSystem
-      null                               // TrueNorth
+      null, // TrueNorth
     ]);
 
     // サブコンテキスト（Body用）
     this._refs.bodyContext = w.createEntity('IFCGEOMETRICREPRESENTATIONSUBCONTEXT', [
-      'Body',                            // ContextIdentifier
-      'Model',                           // ContextType
-      '*',                               // CoordinateSpaceDimension (inherited)
-      '*',                               // Precision (inherited)
-      '*',                               // WorldCoordinateSystem (inherited)
-      '*',                               // TrueNorth (inherited)
+      'Body', // ContextIdentifier
+      'Model', // ContextType
+      '*', // CoordinateSpaceDimension (inherited)
+      '*', // Precision (inherited)
+      '*', // WorldCoordinateSystem (inherited)
+      '*', // TrueNorth (inherited)
       `#${this._refs.geometricContext}`, // ParentContext
-      null,                              // TargetScale
-      '.MODEL_VIEW.',                    // TargetView
-      null                               // UserDefinedTargetView
+      null, // TargetScale
+      '.MODEL_VIEW.', // TargetView
+      null, // UserDefinedTargetView
     ]);
 
     // ===== プロジェクト =====
     this._refs.project = w.createEntity('IFCPROJECT', [
-      generateIfcGuid(),                 // GlobalId
-      null,                              // OwnerHistory
-      'STB Export Project',              // Name
-      'Exported from StbDiffViewer',     // Description
-      null,                              // ObjectType
-      null,                              // LongName
-      null,                              // Phase
+      generateIfcGuid(), // GlobalId
+      null, // OwnerHistory
+      'STB Export Project', // Name
+      'Exported from StbDiffViewer', // Description
+      null, // ObjectType
+      null, // LongName
+      null, // Phase
       [`#${this._refs.geometricContext}`], // RepresentationContexts
-      `#${this._refs.unitAssignment}`    // UnitsInContext
+      `#${this._refs.unitAssignment}`, // UnitsInContext
     ]);
 
     // ===== サイト =====
     this._refs.sitePlacement = w.createEntity('IFCLOCALPLACEMENT', [
-      null,                              // PlacementRelTo
-      `#${this._refs.worldCoordSystem}`  // RelativePlacement
+      null, // PlacementRelTo
+      `#${this._refs.worldCoordSystem}`, // RelativePlacement
     ]);
 
     this._refs.site = w.createEntity('IFCSITE', [
-      generateIfcGuid(),                 // GlobalId
-      null,                              // OwnerHistory
-      'Default Site',                    // Name
-      null,                              // Description
-      null,                              // ObjectType
-      `#${this._refs.sitePlacement}`,    // ObjectPlacement
-      null,                              // Representation
-      null,                              // LongName
-      '.ELEMENT.',                       // CompositionType
-      null,                              // RefLatitude
-      null,                              // RefLongitude
-      null,                              // RefElevation
-      null,                              // LandTitleNumber
-      null                               // SiteAddress
+      generateIfcGuid(), // GlobalId
+      null, // OwnerHistory
+      'Default Site', // Name
+      null, // Description
+      null, // ObjectType
+      `#${this._refs.sitePlacement}`, // ObjectPlacement
+      null, // Representation
+      null, // LongName
+      '.ELEMENT.', // CompositionType
+      null, // RefLatitude
+      null, // RefLongitude
+      null, // RefElevation
+      null, // LandTitleNumber
+      null, // SiteAddress
     ]);
 
     // プロジェクト → サイト 関係
     this._refs.relProjectSite = w.createEntity('IFCRELAGGREGATES', [
-      generateIfcGuid(),                 // GlobalId
-      null,                              // OwnerHistory
-      null,                              // Name
-      null,                              // Description
-      `#${this._refs.project}`,          // RelatingObject
-      [`#${this._refs.site}`]            // RelatedObjects
+      generateIfcGuid(), // GlobalId
+      null, // OwnerHistory
+      null, // Name
+      null, // Description
+      `#${this._refs.project}`, // RelatingObject
+      [`#${this._refs.site}`], // RelatedObjects
     ]);
 
     // ===== 建物 =====
     this._refs.buildingPlacement = w.createEntity('IFCLOCALPLACEMENT', [
-      `#${this._refs.sitePlacement}`,    // PlacementRelTo
-      `#${this._refs.worldCoordSystem}`  // RelativePlacement
+      `#${this._refs.sitePlacement}`, // PlacementRelTo
+      `#${this._refs.worldCoordSystem}`, // RelativePlacement
     ]);
 
     this._refs.building = w.createEntity('IFCBUILDING', [
-      generateIfcGuid(),                 // GlobalId
-      null,                              // OwnerHistory
-      'Default Building',                // Name
-      null,                              // Description
-      null,                              // ObjectType
+      generateIfcGuid(), // GlobalId
+      null, // OwnerHistory
+      'Default Building', // Name
+      null, // Description
+      null, // ObjectType
       `#${this._refs.buildingPlacement}`, // ObjectPlacement
-      null,                              // Representation
-      null,                              // LongName
-      '.ELEMENT.',                       // CompositionType
-      null,                              // ElevationOfRefHeight
-      null,                              // ElevationOfTerrain
-      null                               // BuildingAddress
+      null, // Representation
+      null, // LongName
+      '.ELEMENT.', // CompositionType
+      null, // ElevationOfRefHeight
+      null, // ElevationOfTerrain
+      null, // BuildingAddress
     ]);
 
     // サイト → 建物 関係
     this._refs.relSiteBuilding = w.createEntity('IFCRELAGGREGATES', [
-      generateIfcGuid(),                 // GlobalId
-      null,                              // OwnerHistory
-      null,                              // Name
-      null,                              // Description
-      `#${this._refs.site}`,             // RelatingObject
-      [`#${this._refs.building}`]        // RelatedObjects
+      generateIfcGuid(), // GlobalId
+      null, // OwnerHistory
+      null, // Name
+      null, // Description
+      `#${this._refs.site}`, // RelatingObject
+      [`#${this._refs.building}`], // RelatedObjects
     ]);
 
     // ===== 階 =====
@@ -222,7 +233,6 @@ export class IFCExporterBase {
       }
       // デフォルトの階（最初の階）を設定
       this._refs.storey = this._storeyMap.get(this._storiesData[0].id);
-      console.log(`[IFC Export] ${this._storiesData.length}階のIFCエンティティを作成しました`);
     } else {
       // フォールバック: 階データがない場合は単一の1Fを作成
       const storeyId = this._createSingleStorey(w, '1F', 0.0);
@@ -234,12 +244,12 @@ export class IFCExporterBase {
 
     // 建物 → 階 関係
     this._refs.relBuildingStorey = w.createEntity('IFCRELAGGREGATES', [
-      generateIfcGuid(),                 // GlobalId
-      null,                              // OwnerHistory
-      null,                              // Name
-      null,                              // Description
-      `#${this._refs.building}`,         // RelatingObject
-      storeyIds                          // RelatedObjects
+      generateIfcGuid(), // GlobalId
+      null, // OwnerHistory
+      null, // Name
+      null, // Description
+      `#${this._refs.building}`, // RelatingObject
+      storeyIds, // RelatedObjects
     ]);
   }
 
@@ -257,11 +267,11 @@ export class IFCExporterBase {
     const storeyAxis2Placement = w.createEntity('IFCAXIS2PLACEMENT3D', [
       `#${storeyOrigin}`,
       `#${this._refs.dirZ}`,
-      `#${this._refs.dirX}`
+      `#${this._refs.dirX}`,
     ]);
     const storeyPlacement = w.createEntity('IFCLOCALPLACEMENT', [
       `#${this._refs.buildingPlacement}`, // PlacementRelTo
-      `#${storeyAxis2Placement}`          // RelativePlacement
+      `#${storeyAxis2Placement}`, // RelativePlacement
     ]);
 
     // 最初の階の配置をデフォルトとして保持
@@ -270,16 +280,16 @@ export class IFCExporterBase {
     }
 
     const storeyId = w.createEntity('IFCBUILDINGSTOREY', [
-      generateIfcGuid(),                 // GlobalId
-      null,                              // OwnerHistory
-      name,                              // Name
-      null,                              // Description
-      null,                              // ObjectType
-      `#${storeyPlacement}`,             // ObjectPlacement
-      null,                              // Representation
-      null,                              // LongName
-      '.ELEMENT.',                       // CompositionType
-      elevation                          // Elevation
+      generateIfcGuid(), // GlobalId
+      null, // OwnerHistory
+      name, // Name
+      null, // Description
+      null, // ObjectType
+      `#${storeyPlacement}`, // ObjectPlacement
+      null, // Representation
+      null, // LongName
+      '.ELEMENT.', // CompositionType
+      elevation, // Elevation
     ]);
 
     return storeyId;
@@ -305,20 +315,20 @@ export class IFCExporterBase {
       overallWidth = 200,
       webThickness = 8,
       flangeThickness = 13,
-      filletRadius = 0
+      filletRadius = 0,
     } = params;
 
     return w.createEntity('IFCISHAPEPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'H-Shape',                         // ProfileName
+      '.AREA.', // ProfileType
+      'H-Shape', // ProfileName
       `#${this._refs.profilePlacement}`, // Position
-      overallWidth,                      // OverallWidth (mm)
-      overallDepth,                      // OverallDepth (mm)
-      webThickness,                      // WebThickness (mm)
-      flangeThickness,                   // FlangeThickness (mm)
-      filletRadius > 0 ? filletRadius : null,  // FilletRadius (mm)
-      null,                              // FlangeEdgeRadius (optional)
-      null                               // FlangeSlope (optional)
+      overallWidth, // OverallWidth (mm)
+      overallDepth, // OverallDepth (mm)
+      webThickness, // WebThickness (mm)
+      flangeThickness, // FlangeThickness (mm)
+      filletRadius > 0 ? filletRadius : null, // FilletRadius (mm)
+      null, // FlangeEdgeRadius (optional)
+      null, // FlangeSlope (optional)
     ]);
   }
 
@@ -335,11 +345,11 @@ export class IFCExporterBase {
     const { width = 400, height = 600 } = params;
 
     return w.createEntity('IFCRECTANGLEPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'Rectangle',                       // ProfileName
+      '.AREA.', // ProfileType
+      'Rectangle', // ProfileName
       `#${this._refs.profilePlacement}`, // Position
-      width,                             // XDim (mm)
-      height                             // YDim (mm)
+      width, // XDim (mm)
+      height, // YDim (mm)
     ]);
   }
 
@@ -357,14 +367,14 @@ export class IFCExporterBase {
     const { width = 200, height = 200, wallThickness = 9 } = params;
 
     return w.createEntity('IFCRECTANGLEHOLLOWPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'Box',                             // ProfileName
+      '.AREA.', // ProfileType
+      'Box', // ProfileName
       `#${this._refs.profilePlacement}`, // Position
-      width,                             // XDim (mm)
-      height,                            // YDim (mm)
-      wallThickness,                     // WallThickness (mm)
-      null,                              // InnerFilletRadius
-      null                               // OuterFilletRadius
+      width, // XDim (mm)
+      height, // YDim (mm)
+      wallThickness, // WallThickness (mm)
+      null, // InnerFilletRadius
+      null, // OuterFilletRadius
     ]);
   }
 
@@ -381,11 +391,11 @@ export class IFCExporterBase {
     const { diameter = 200, wallThickness = 6 } = params;
 
     return w.createEntity('IFCCIRCLEHOLLOWPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'Pipe',                            // ProfileName
+      '.AREA.', // ProfileType
+      'Pipe', // ProfileName
       `#${this._refs.profilePlacement}`, // Position
-      diameter / 2,                      // Radius (mm)
-      wallThickness                      // WallThickness (mm)
+      diameter / 2, // Radius (mm)
+      wallThickness, // WallThickness (mm)
     ]);
   }
 
@@ -401,10 +411,10 @@ export class IFCExporterBase {
     const { diameter = 60 } = params;
 
     return w.createEntity('IFCCIRCLEPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'Circle',                          // ProfileName
+      '.AREA.', // ProfileType
+      'Circle', // ProfileName
       `#${this._refs.profilePlacement}`, // Position
-      diameter / 2                       // Radius (mm)
+      diameter / 2, // Radius (mm)
     ]);
   }
 
@@ -420,10 +430,10 @@ export class IFCExporterBase {
     const { diameter = 60 } = params;
 
     return w.createEntity('IFCCIRCLEPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'Circle',                          // ProfileName
-      null,                              // Position: null でデフォルト
-      diameter / 2                       // Radius (mm)
+      '.AREA.', // ProfileType
+      'Circle', // ProfileName
+      null, // Position: null でデフォルト
+      diameter / 2, // Radius (mm)
     ]);
   }
 
@@ -442,15 +452,15 @@ export class IFCExporterBase {
     const { depth = 75, width = 75, thickness = 6, filletRadius = 0 } = params;
 
     return w.createEntity('IFCLSHAPEPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'L-Shape',                         // ProfileName
+      '.AREA.', // ProfileType
+      'L-Shape', // ProfileName
       `#${this._refs.profilePlacement}`, // Position
-      depth,                             // Depth (mm)
-      width,                             // Width (mm)
-      thickness,                         // Thickness (mm)
-      filletRadius > 0 ? filletRadius : null,  // FilletRadius (mm)
-      null,                              // EdgeRadius
-      null                               // LegSlope (傾斜角度)
+      depth, // Depth (mm)
+      width, // Width (mm)
+      thickness, // Thickness (mm)
+      filletRadius > 0 ? filletRadius : null, // FilletRadius (mm)
+      null, // EdgeRadius
+      null, // LegSlope (傾斜角度)
     ]);
   }
 
@@ -467,19 +477,25 @@ export class IFCExporterBase {
   createUShapeProfile(params) {
     this._ensureInitialized();
     const w = this.writer;
-    const { depth = 200, flangeWidth = 80, webThickness = 7.5, flangeThickness = 11, filletRadius = 0 } = params;
+    const {
+      depth = 200,
+      flangeWidth = 80,
+      webThickness = 7.5,
+      flangeThickness = 11,
+      filletRadius = 0,
+    } = params;
 
     return w.createEntity('IFCUSHAPEPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'U-Shape',                         // ProfileName
+      '.AREA.', // ProfileType
+      'U-Shape', // ProfileName
       `#${this._refs.profilePlacement}`, // Position
-      depth,                             // Depth (mm)
-      flangeWidth,                       // FlangeWidth (mm)
-      webThickness,                      // WebThickness (mm)
-      flangeThickness,                   // FlangeThickness (mm)
-      filletRadius > 0 ? filletRadius : null,  // FilletRadius (mm)
-      null,                              // EdgeRadius
-      null                               // FlangeSlope
+      depth, // Depth (mm)
+      flangeWidth, // FlangeWidth (mm)
+      webThickness, // WebThickness (mm)
+      flangeThickness, // FlangeThickness (mm)
+      filletRadius > 0 ? filletRadius : null, // FilletRadius (mm)
+      null, // EdgeRadius
+      null, // FlangeSlope
     ]);
   }
 
@@ -491,19 +507,25 @@ export class IFCExporterBase {
   createUShapeProfileSimple(params) {
     this._ensureInitialized();
     const w = this.writer;
-    const { depth = 200, flangeWidth = 80, webThickness = 7.5, flangeThickness = 11, filletRadius = 0 } = params;
+    const {
+      depth = 200,
+      flangeWidth = 80,
+      webThickness = 7.5,
+      flangeThickness = 11,
+      filletRadius = 0,
+    } = params;
 
     return w.createEntity('IFCUSHAPEPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'U-Shape',                         // ProfileName
-      null,                              // Position: null でデフォルト
-      depth,                             // Depth (mm)
-      flangeWidth,                       // FlangeWidth (mm)
-      webThickness,                      // WebThickness (mm)
-      flangeThickness,                   // FlangeThickness (mm)
-      filletRadius > 0 ? filletRadius : null,  // FilletRadius (mm)
-      null,                              // EdgeRadius
-      null                               // FlangeSlope
+      '.AREA.', // ProfileType
+      'U-Shape', // ProfileName
+      null, // Position: null でデフォルト
+      depth, // Depth (mm)
+      flangeWidth, // FlangeWidth (mm)
+      webThickness, // WebThickness (mm)
+      flangeThickness, // FlangeThickness (mm)
+      filletRadius > 0 ? filletRadius : null, // FilletRadius (mm)
+      null, // EdgeRadius
+      null, // FlangeSlope
     ]);
   }
 
@@ -518,15 +540,15 @@ export class IFCExporterBase {
     const { depth = 75, width = 75, thickness = 6, filletRadius = 0 } = params;
 
     return w.createEntity('IFCLSHAPEPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'L-Shape',                         // ProfileName
-      null,                              // Position: null でデフォルト
-      depth,                             // Depth (mm)
-      width,                             // Width (mm)
-      thickness,                         // Thickness (mm)
-      filletRadius > 0 ? filletRadius : null,  // FilletRadius (mm)
-      null,                              // EdgeRadius
-      null                               // LegSlope (傾斜角度)
+      '.AREA.', // ProfileType
+      'L-Shape', // ProfileName
+      null, // Position: null でデフォルト
+      depth, // Depth (mm)
+      width, // Width (mm)
+      thickness, // Thickness (mm)
+      filletRadius > 0 ? filletRadius : null, // FilletRadius (mm)
+      null, // EdgeRadius
+      null, // LegSlope (傾斜角度)
     ]);
   }
 
@@ -543,20 +565,20 @@ export class IFCExporterBase {
       overallWidth = 200,
       webThickness = 8,
       flangeThickness = 13,
-      filletRadius = 0
+      filletRadius = 0,
     } = params;
 
     return w.createEntity('IFCISHAPEPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'H-Shape',                         // ProfileName
-      null,                              // Position: null でデフォルト
-      overallWidth,                      // OverallWidth (mm)
-      overallDepth,                      // OverallDepth (mm)
-      webThickness,                      // WebThickness (mm)
-      flangeThickness,                   // FlangeThickness (mm)
-      filletRadius > 0 ? filletRadius : null,  // FilletRadius (mm)
-      null,                              // FlangeEdgeRadius (optional)
-      null                               // FlangeSlope (optional)
+      '.AREA.', // ProfileType
+      'H-Shape', // ProfileName
+      null, // Position: null でデフォルト
+      overallWidth, // OverallWidth (mm)
+      overallDepth, // OverallDepth (mm)
+      webThickness, // WebThickness (mm)
+      flangeThickness, // FlangeThickness (mm)
+      filletRadius > 0 ? filletRadius : null, // FilletRadius (mm)
+      null, // FlangeEdgeRadius (optional)
+      null, // FlangeSlope (optional)
     ]);
   }
 
@@ -571,11 +593,11 @@ export class IFCExporterBase {
     const { width = 300, height = 600 } = params;
 
     return w.createEntity('IFCRECTANGLEPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'Rectangle',                       // ProfileName
-      null,                              // Position: null でデフォルト
-      width,                             // XDim (mm)
-      height                             // YDim (mm)
+      '.AREA.', // ProfileType
+      'Rectangle', // ProfileName
+      null, // Position: null でデフォルト
+      width, // XDim (mm)
+      height, // YDim (mm)
     ]);
   }
 
@@ -587,17 +609,23 @@ export class IFCExporterBase {
   createHollowRectangleProfileSimple(params) {
     this._ensureInitialized();
     const w = this.writer;
-    const { width = 200, height = 200, wallThickness = 9, innerFilletRadius = null, outerFilletRadius = null } = params;
+    const {
+      width = 200,
+      height = 200,
+      wallThickness = 9,
+      innerFilletRadius = null,
+      outerFilletRadius = null,
+    } = params;
 
     return w.createEntity('IFCRECTANGLEHOLLOWPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'Box',                             // ProfileName
-      null,                              // Position: null でデフォルト
-      width,                             // XDim (mm)
-      height,                            // YDim (mm)
-      wallThickness,                     // WallThickness (mm)
-      innerFilletRadius,                 // InnerFilletRadius (optional)
-      outerFilletRadius                  // OuterFilletRadius (optional)
+      '.AREA.', // ProfileType
+      'Box', // ProfileName
+      null, // Position: null でデフォルト
+      width, // XDim (mm)
+      height, // YDim (mm)
+      wallThickness, // WallThickness (mm)
+      innerFilletRadius, // InnerFilletRadius (optional)
+      outerFilletRadius, // OuterFilletRadius (optional)
     ]);
   }
 
@@ -612,11 +640,11 @@ export class IFCExporterBase {
     const { diameter = 200, wallThickness = 6 } = params;
 
     return w.createEntity('IFCCIRCLEHOLLOWPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'Pipe',                            // ProfileName
-      null,                              // Position: null でデフォルト
-      diameter / 2,                      // Radius (mm)
-      wallThickness                      // WallThickness (mm)
+      '.AREA.', // ProfileType
+      'Pipe', // ProfileName
+      null, // Position: null でデフォルト
+      diameter / 2, // Radius (mm)
+      wallThickness, // WallThickness (mm)
     ]);
   }
 
@@ -638,21 +666,21 @@ export class IFCExporterBase {
       flangeWidth = 150,
       webThickness = 8,
       flangeThickness = 12,
-      filletRadius = 0
+      filletRadius = 0,
     } = params;
 
     return w.createEntity('IFCTSHAPEPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'T-Shape',                         // ProfileName
+      '.AREA.', // ProfileType
+      'T-Shape', // ProfileName
       `#${this._refs.profilePlacement}`, // Position
-      depth,                             // Depth (ウェブ高さ) (mm)
-      flangeWidth,                       // FlangeWidth (mm)
-      webThickness,                      // WebThickness (mm)
-      flangeThickness,                   // FlangeThickness (mm)
-      filletRadius > 0 ? filletRadius : null,  // FilletRadius (mm)
-      null,                              // FlangeEdgeRadius
-      null,                              // WebEdgeRadius
-      null                               // WebSlope
+      depth, // Depth (ウェブ高さ) (mm)
+      flangeWidth, // FlangeWidth (mm)
+      webThickness, // WebThickness (mm)
+      flangeThickness, // FlangeThickness (mm)
+      filletRadius > 0 ? filletRadius : null, // FilletRadius (mm)
+      null, // FlangeEdgeRadius
+      null, // WebEdgeRadius
+      null, // WebSlope
     ]);
   }
 
@@ -669,21 +697,21 @@ export class IFCExporterBase {
       flangeWidth = 150,
       webThickness = 8,
       flangeThickness = 12,
-      filletRadius = 0
+      filletRadius = 0,
     } = params;
 
     return w.createEntity('IFCTSHAPEPROFILEDEF', [
-      '.AREA.',                          // ProfileType
-      'T-Shape',                         // ProfileName
-      null,                              // Position: null でデフォルト
-      depth,                             // Depth (ウェブ高さ) (mm)
-      flangeWidth,                       // FlangeWidth (mm)
-      webThickness,                      // WebThickness (mm)
-      flangeThickness,                   // FlangeThickness (mm)
-      filletRadius > 0 ? filletRadius : null,  // FilletRadius (mm)
-      null,                              // FlangeEdgeRadius
-      null,                              // WebEdgeRadius
-      null                               // WebSlope
+      '.AREA.', // ProfileType
+      'T-Shape', // ProfileName
+      null, // Position: null でデフォルト
+      depth, // Depth (ウェブ高さ) (mm)
+      flangeWidth, // FlangeWidth (mm)
+      webThickness, // WebThickness (mm)
+      flangeThickness, // FlangeThickness (mm)
+      filletRadius > 0 ? filletRadius : null, // FilletRadius (mm)
+      null, // FlangeEdgeRadius
+      null, // WebEdgeRadius
+      null, // WebSlope
     ]);
   }
 
@@ -701,9 +729,7 @@ export class IFCExporterBase {
     switch (profileType) {
       case 'H':
       case 'I':
-        return useSimple
-          ? this.createIShapeProfileSimple(p)
-          : this.createIShapeProfile(p);
+        return useSimple ? this.createIShapeProfileSimple(p) : this.createIShapeProfile(p);
 
       case 'BOX':
         return useSimple
@@ -716,21 +742,17 @@ export class IFCExporterBase {
           : this.createCircularHollowProfile(p);
 
       case 'L':
-        return useSimple
-          ? this.createLShapeProfileSimple(p)
-          : this.createLShapeProfile(p);
+        return useSimple ? this.createLShapeProfileSimple(p) : this.createLShapeProfile(p);
 
       case 'C':
       case 'U':
-        return useSimple
-          ? this.createUShapeProfileSimple(p)
-          : this.createUShapeProfile(p);
+        return useSimple ? this.createUShapeProfileSimple(p) : this.createUShapeProfile(p);
 
       case 'FB': {
         // フラットバーは矩形プロファイルとして扱う
         const fbParams = {
           width: p.width || p.A || 100,
-          height: p.thickness || p.t || 9
+          height: p.thickness || p.t || 9,
         };
         return useSimple
           ? this.createRectangleProfileSimple(fbParams)
@@ -752,22 +774,23 @@ export class IFCExporterBase {
           flangeWidth: p.flangeWidth || p.B || 150,
           webThickness: p.webThickness || p.t1 || p.tw || 8,
           flangeThickness: p.flangeThickness || p.t2 || p.tf || 12,
-          filletRadius: p.filletRadius || p.r || 0
+          filletRadius: p.filletRadius || p.r || 0,
         };
         return useSimple
           ? this.createTShapeProfileSimple(tParams)
           : this.createTShapeProfile(tParams);
       }
 
-      case 'stb-diff-viewer': {
-        // stb-diff-viewer（鉄骨鉄筋コンクリート）は外形コンクリート寸法で矩形として出力
-        const stbDiffViewerParams = {
+      case 'SRC':
+      case 'STB-DIFF-VIEWER': {
+        // SRC（鉄骨鉄筋コンクリート）は外形コンクリート寸法で矩形として出力
+        const srcParams = {
           width: p.width || p.width_X || p.B || 800,
-          height: p.height || p.width_Y || p.A || 800
+          height: p.height || p.width_Y || p.A || 800,
         };
         return useSimple
-          ? this.createRectangleProfileSimple(stbDiffViewerParams)
-          : this.createRectangleProfile(stbDiffViewerParams);
+          ? this.createRectangleProfileSimple(srcParams)
+          : this.createRectangleProfile(srcParams);
       }
 
       case 'CFT': {
@@ -775,17 +798,17 @@ export class IFCExporterBase {
         const cftParams = {
           width: p.width || p.outer_width || p.B || 200,
           height: p.height || p.outer_height || p.A || 200,
-          wallThickness: p.wallThickness || p.t || 9
+          wallThickness: p.wallThickness || p.t || 9,
         };
         return useSimple
           ? this.createHollowRectangleProfileSimple(cftParams)
           : this.createHollowRectangleProfile(cftParams);
       }
 
+      case 'RECT':
+      case 'RC':
       case 'RECTANGLE':
-        return useSimple
-          ? this.createRectangleProfileSimple(p)
-          : this.createRectangleProfile(p);
+        return useSimple ? this.createRectangleProfileSimple(p) : this.createRectangleProfile(p);
 
       default:
         return null;
@@ -806,10 +829,10 @@ export class IFCExporterBase {
     const dirRef = direction || this._refs.dirX;
 
     return w.createEntity('IFCEXTRUDEDAREASOLID', [
-      `#${profileId}`,                   // SweptArea
+      `#${profileId}`, // SweptArea
       `#${this._refs.worldCoordSystem}`, // Position
-      `#${dirRef}`,                      // ExtrudedDirection
-      length                             // Depth (mm)
+      `#${dirRef}`, // ExtrudedDirection
+      length, // Depth (mm)
     ]);
   }
 
@@ -872,12 +895,12 @@ export class IFCExporterBase {
     for (const [storeyId, elements] of this._storeyElements) {
       if (elements && elements.length > 0) {
         this.writer.createEntity('IFCRELCONTAINEDINSPATIALSTRUCTURE', [
-          generateIfcGuid(),               // GlobalId
-          null,                            // OwnerHistory
-          null,                            // Name
-          null,                            // Description
-          elements,                        // RelatedElements
-          `#${storeyId}`                   // RelatingStructure
+          generateIfcGuid(), // GlobalId
+          null, // OwnerHistory
+          null, // Name
+          null, // Description
+          elements, // RelatedElements
+          `#${storeyId}`, // RelatingStructure
         ]);
       }
     }
@@ -885,12 +908,12 @@ export class IFCExporterBase {
     // デフォルトの要素リスト（互換性のため）
     if (this._refs.containedElements && this._refs.containedElements.length > 0) {
       this.writer.createEntity('IFCRELCONTAINEDINSPATIALSTRUCTURE', [
-        generateIfcGuid(),               // GlobalId
-        null,                            // OwnerHistory
-        null,                            // Name
-        null,                            // Description
-        this._refs.containedElements,    // RelatedElements
-        `#${this._refs.storey}`          // RelatingStructure
+        generateIfcGuid(), // GlobalId
+        null, // OwnerHistory
+        null, // Name
+        null, // Description
+        this._refs.containedElements, // RelatedElements
+        `#${this._refs.storey}`, // RelatingStructure
       ]);
     }
   }
@@ -908,7 +931,7 @@ export class IFCExporterBase {
     return this.writer.generate({
       fileName: options.fileName || 'export.ifc',
       description: options.description || 'IFC Export',
-      ...options
+      ...options,
     });
   }
 

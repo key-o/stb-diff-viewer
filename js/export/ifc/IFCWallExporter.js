@@ -4,7 +4,10 @@
  * 開口（IfcOpeningElement）にも対応
  */
 
+import { createLogger } from '../../utils/logger.js';
 import { IFCExporterBase, generateIfcGuid } from './IFCExporterBase.js';
+
+const log = createLogger('export:ifc-wall');
 
 /**
  * 壁要素をIFCファイルとしてエクスポートするクラス
@@ -38,12 +41,12 @@ export class IFCWallExporter extends IFCExporterBase {
       height = 3000,
       thickness = 200,
       predefinedType = 'STANDARD',
-      openings = []
+      openings = [],
     } = wallData;
 
     // 必須パラメータチェック
     if (!startPoint || !endPoint) {
-      console.warn(`[IFC Export] 壁 "${name}" をスキップ: 始点・終点が不足しています`);
+      log.warn(`壁 "${name}" をスキップ: 始点・終点が不足しています`);
       return null;
     }
 
@@ -53,12 +56,12 @@ export class IFCWallExporter extends IFCExporterBase {
     const wallLength = Math.sqrt(dx * dx + dy * dy);
 
     if (wallLength < 1) {
-      console.warn(`[IFC Export] 壁 "${name}" をスキップ: 長さが不足しています`);
+      log.warn(`壁 "${name}" をスキップ: 長さが不足しています`);
       return null;
     }
 
     if (height <= 0 || thickness <= 0) {
-      console.warn(`[IFC Export] 壁 "${name}" をスキップ: 高さまたは厚さが不正です`);
+      log.warn(`壁 "${name}" をスキップ: 高さまたは厚さが不正です`);
       return null;
     }
 
@@ -69,11 +72,11 @@ export class IFCWallExporter extends IFCExporterBase {
     // 1. 矩形プロファイル（長さ x 厚さ）- XY平面上で壁の平面形状
     // X方向 = 壁の長さ、Y方向 = 壁の厚さ
     const profileId = w.createEntity('IFCRECTANGLEPROFILEDEF', [
-      '.AREA.',           // ProfileType
-      'WallProfile',      // ProfileName
-      null,               // Position: デフォルト
-      wallLength,         // XDim: 壁の長さ (mm)
-      thickness           // YDim: 壁の厚さ (mm)
+      '.AREA.', // ProfileType
+      'WallProfile', // ProfileName
+      null, // Position: デフォルト
+      wallLength, // XDim: 壁の長さ (mm)
+      thickness, // YDim: 壁の厚さ (mm)
     ]);
 
     // 2. 押出方向: Z軸（上向き）
@@ -81,10 +84,10 @@ export class IFCWallExporter extends IFCExporterBase {
 
     // 3. 押出形状（Position = null でデフォルト原点から）
     const solidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
-      `#${profileId}`,        // SweptArea
-      null,                   // Position: デフォルト
-      `#${extrudeDirId}`,     // ExtrudedDirection
-      height                  // Depth: 壁の高さ (mm)
+      `#${profileId}`, // SweptArea
+      null, // Position: デフォルト
+      `#${extrudeDirId}`, // ExtrudedDirection
+      height, // Depth: 壁の高さ (mm)
     ]);
 
     // 4. 壁の中心点を計算（始点と終点の中間）
@@ -92,9 +95,7 @@ export class IFCWallExporter extends IFCExporterBase {
     const centerY = (startPoint.y + endPoint.y) / 2;
 
     // 壁の配置原点
-    const wallOrigin = w.createEntity('IFCCARTESIANPOINT', [
-      [centerX, centerY, startPoint.z]
-    ]);
+    const wallOrigin = w.createEntity('IFCCARTESIANPOINT', [[centerX, centerY, startPoint.z]]);
 
     // 壁の向き: Z軸はデフォルト（上向き）、X軸は壁の長さ方向
     const wallRefDir = w.createEntity('IFCDIRECTION', [[dirX, dirY, 0.0]]);
@@ -102,14 +103,14 @@ export class IFCWallExporter extends IFCExporterBase {
     // 配置座標系
     const wallPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
       `#${wallOrigin}`,
-      null,               // Axis: デフォルト（Z方向）
-      `#${wallRefDir}`    // RefDirection: 壁の長さ方向
+      null, // Axis: デフォルト（Z方向）
+      `#${wallRefDir}`, // RefDirection: 壁の長さ方向
     ]);
 
     // ローカル配置
     const wallLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
-      null,               // PlacementRelTo: グローバル配置
-      `#${wallPlacement3D}`
+      null, // PlacementRelTo: グローバル配置
+      `#${wallPlacement3D}`,
     ]);
 
     // 5. 形状表現
@@ -117,27 +118,27 @@ export class IFCWallExporter extends IFCExporterBase {
       `#${this._refs.bodyContext}`,
       'Body',
       'SweptSolid',
-      [`#${solidId}`]
+      [`#${solidId}`],
     ]);
 
     // 製品定義形状
     const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
       null,
       null,
-      [`#${shapeRep}`]
+      [`#${shapeRep}`],
     ]);
 
     // 6. 壁エンティティ
     const wallId = w.createEntity('IFCWALL', [
-      generateIfcGuid(),      // GlobalId
-      null,                   // OwnerHistory
-      name,                   // Name
-      null,                   // Description
-      null,                   // ObjectType
+      generateIfcGuid(), // GlobalId
+      null, // OwnerHistory
+      name, // Name
+      null, // Description
+      null, // ObjectType
       `#${wallLocalPlacement}`, // ObjectPlacement
-      `#${productShape}`,     // Representation
-      null,                   // Tag
-      `.${predefinedType}.`   // PredefinedType
+      `#${productShape}`, // Representation
+      null, // Tag
+      `.${predefinedType}.`, // PredefinedType
     ]);
 
     // 壁を階に所属させる（Z座標で適切な階を決定）
@@ -152,7 +153,7 @@ export class IFCWallExporter extends IFCExporterBase {
         startPoint,
         dirX,
         dirY,
-        wallLocalPlacement
+        wallLocalPlacement,
       });
     }
 
@@ -167,7 +168,7 @@ export class IFCWallExporter extends IFCExporterBase {
    */
   _addOpeningsToWall(wallId, openings, wallContext) {
     const w = this.writer;
-    const { wallLength, height, thickness, startPoint, dirX, dirY, wallLocalPlacement } = wallContext;
+    const { wallLength, thickness, wallLocalPlacement } = wallContext;
 
     for (const opening of openings) {
       const openingWidth = opening.width;
@@ -175,7 +176,7 @@ export class IFCWallExporter extends IFCExporterBase {
 
       // 開口サイズが有効か確認
       if (openingWidth <= 0 || openingHeight <= 0) {
-        console.warn(`[IFC Export] 開口 "${opening.id}" をスキップ: サイズが不正です`);
+        log.warn(`開口 "${opening.id}" をスキップ: サイズが不正です`);
         continue;
       }
 
@@ -187,8 +188,8 @@ export class IFCWallExporter extends IFCExporterBase {
         '.AREA.',
         'OpeningProfile',
         null,
-        openingWidth,     // 開口幅
-        thickness + 100   // 厚さ方向に少し大きくして完全に貫通させる
+        openingWidth, // 開口幅
+        thickness + 100, // 厚さ方向に少し大きくして完全に貫通させる
       ]);
 
       // 押出方向（Z軸）
@@ -199,30 +200,32 @@ export class IFCWallExporter extends IFCExporterBase {
         `#${openingProfileId}`,
         null,
         `#${extrudeDirId}`,
-        openingHeight
+        openingHeight,
       ]);
 
       // 開口の位置計算（壁ローカル座標系での位置）
       // STBでは position_X は壁の左端からの距離、position_Y は下端からの高さ
       // 壁の中心が原点なので、オフセットを計算
       const openingCenterX = opening.positionX + openingWidth / 2 - wallLength / 2;
-      const openingCenterY = 0; // 壁厚方向は中央
+      // const openingCenterY = 0; // 壁厚方向は中央
       const openingCenterZ = opening.positionY; // 壁下端からの高さ
 
       // 開口の配置（壁ローカル座標系内）
+      // 開口プロファイルは原点を中心とするため、Y=0で壁の中心に配置
+      // プロファイルのYDimは thickness+100 なので、壁を完全に貫通する
       const openingOrigin = w.createEntity('IFCCARTESIANPOINT', [
-        [openingCenterX, openingCenterY - thickness / 2 - 50, openingCenterZ] // 厚さ方向に少しオフセット
+        [openingCenterX, 0, openingCenterZ],
       ]);
 
       const openingPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
         `#${openingOrigin}`,
         null,
-        null
+        null,
       ]);
 
       const openingLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
         `#${wallLocalPlacement}`, // 壁を親とする
-        `#${openingPlacement3D}`
+        `#${openingPlacement3D}`,
       ]);
 
       // 形状表現
@@ -230,13 +233,13 @@ export class IFCWallExporter extends IFCExporterBase {
         `#${this._refs.bodyContext}`,
         'Body',
         'SweptSolid',
-        [`#${openingSolidId}`]
+        [`#${openingSolidId}`],
       ]);
 
       const openingProductShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
         null,
         null,
-        [`#${openingShapeRep}`]
+        [`#${openingShapeRep}`],
       ]);
 
       // IfcOpeningElementを作成
@@ -249,7 +252,7 @@ export class IFCWallExporter extends IFCExporterBase {
         `#${openingLocalPlacement}`,
         `#${openingProductShape}`,
         null,
-        '.OPENING.' // PredefinedType
+        '.OPENING.', // PredefinedType
       ]);
 
       // IfcRelVoidsElementで壁と開口を関連付け
@@ -258,11 +261,9 @@ export class IFCWallExporter extends IFCExporterBase {
         null,
         null,
         null,
-        `#${wallId}`,      // RelatingBuildingElement (壁)
-        `#${openingId}`    // RelatedOpeningElement (開口)
+        `#${wallId}`, // RelatingBuildingElement (壁)
+        `#${openingId}`, // RelatedOpeningElement (開口)
       ]);
-
-      console.log(`[IFC Export] 開口 "${openingName}" を壁に追加しました`);
     }
   }
 
@@ -277,7 +278,7 @@ export class IFCWallExporter extends IFCExporterBase {
   addWallFromSTB(wallElement, nodes, wallSections, openingElements = null) {
     const nodeIds = wallElement.node_ids;
     if (!nodeIds || nodeIds.length < 4) {
-      console.warn(`[IFC Export] 壁 "${wallElement.id}" をスキップ: ノードが4点未満です`);
+      log.warn(`壁 "${wallElement.id}" をスキップ: ノードが4点未満です`);
       return null;
     }
 
@@ -288,7 +289,9 @@ export class IFCWallExporter extends IFCExporterBase {
     for (const nodeId of nodeIds) {
       const node = nodes.get(nodeId);
       if (!node) {
-        console.warn(`[IFC Export] 壁 "${wallElement.id}" をスキップ: ノード ${nodeId} が見つかりません`);
+        log.warn(
+          `壁 "${wallElement.id}" をスキップ: ノード ${nodeId} が見つかりません`,
+        );
         return null;
       }
 
@@ -300,7 +303,7 @@ export class IFCWallExporter extends IFCExporterBase {
       vertices.push({
         x: node.x + offsetX,
         y: node.y + offsetY,
-        z: node.z + offsetZ
+        z: node.z + offsetZ,
       });
     }
 
@@ -321,7 +324,7 @@ export class IFCWallExporter extends IFCExporterBase {
     const height = topZ - bottomZ;
 
     if (height <= 0) {
-      console.warn(`[IFC Export] 壁 "${wallElement.id}" をスキップ: 高さが0以下です`);
+      log.warn(`壁 "${wallElement.id}" をスキップ: 高さが0以下です`);
       return null;
     }
 
@@ -330,11 +333,12 @@ export class IFCWallExporter extends IFCExporterBase {
     if (wallSections) {
       const sectionData = wallSections.get(wallElement.id_section);
       if (sectionData) {
-        thickness = sectionData.t ||
-                    sectionData.thickness ||
-                    sectionData.dimensions?.t ||
-                    sectionData.dimensions?.thickness ||
-                    200;
+        thickness =
+          sectionData.t ||
+          sectionData.thickness ||
+          sectionData.dimensions?.t ||
+          sectionData.dimensions?.thickness ||
+          200;
       }
     }
 
@@ -356,7 +360,7 @@ export class IFCWallExporter extends IFCExporterBase {
       height,
       thickness,
       predefinedType,
-      openings
+      openings,
     });
   }
 
@@ -369,26 +373,49 @@ export class IFCWallExporter extends IFCExporterBase {
   _getOpeningsForWall(wallElement, openingElements) {
     const openings = [];
 
-    if (!openingElements || !wallElement.open_ids || wallElement.open_ids.length === 0) {
+    if (!openingElements || openingElements.size === 0) {
       return openings;
     }
 
-    for (const openId of wallElement.open_ids) {
-      const opening = openingElements.get(openId);
-      if (opening) {
-        openings.push({
-          id: opening.id,
-          name: opening.name,
-          // 壁ローカル座標系での位置
-          positionX: opening.position_X,
-          positionY: opening.position_Y,
-          // 開口の寸法
-          width: opening.length_X,
-          height: opening.length_Y,
-          rotate: opening.rotate
-        });
-      } else {
-        console.warn(`[IFC Export] 壁 "${wallElement.id}": 開口 ${openId} が見つかりません`);
+    // STB 2.0.2の場合: 壁のopen_idsを使用
+    if (wallElement.open_ids && wallElement.open_ids.length > 0) {
+      for (const openId of wallElement.open_ids) {
+        const opening = openingElements.get(openId);
+        if (opening) {
+          openings.push({
+            id: opening.id,
+            name: opening.name,
+            // 壁ローカル座標系での位置
+            positionX: opening.position_X,
+            positionY: opening.position_Y,
+            // 開口の寸法
+            width: opening.length_X,
+            height: opening.length_Y,
+            rotate: opening.rotate,
+          });
+        } else {
+          log.warn(`壁 "${wallElement.id}": 開口 ${openId} が見つかりません`);
+        }
+      }
+    } else {
+      // STB 2.1.0の場合: id_memberを使用して壁と開口を関連付け
+      for (const [_openId, opening] of openingElements) {
+        if (
+          opening.kind_member === 'WALL' &&
+          String(opening.id_member) === String(wallElement.id)
+        ) {
+          openings.push({
+            id: opening.id,
+            name: opening.name,
+            // 壁ローカル座標系での位置
+            positionX: opening.position_X,
+            positionY: opening.position_Y,
+            // 開口の寸法
+            width: opening.length_X,
+            height: opening.length_Y,
+            rotate: opening.rotate,
+          });
+        }
       }
     }
 
@@ -404,7 +431,7 @@ export class IFCWallExporter extends IFCExporterBase {
     return super.generate({
       fileName: options.fileName || 'wall_export.ifc',
       description: options.description || 'Wall IFC Export',
-      ...options
+      ...options,
     });
   }
 }
@@ -419,5 +446,3 @@ export function exportSingleWallToIFC(wallData) {
   exporter.addWall(wallData);
   return exporter.generate();
 }
-
-export { generateIfcGuid } from './IFCExporterBase.js';

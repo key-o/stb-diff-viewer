@@ -1,0 +1,15 @@
+--- a/globalState.js
++++ b/globalState.js
+@@ -31,6 +31,8 @@ class ApplicationState {
+         nodeMapB: new Map(),
++        // 荷重データ（StbCalData）
++        calDataA: null,
++        calDataB: null,
+         // IFC変換用: 生の座標データ（THREE.Vector3変換前）
+         nodeMapRawA: new Map(),
+@@ -315,6 +317,8 @@ class ApplicationState {
+         nodeMapB: new Map(),
++        // 荷重データ（StbCalData）
++        calDataA: null,
++        calDataB: null,
+         nodeMapRawA: new Map(),

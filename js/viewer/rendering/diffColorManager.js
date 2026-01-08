@@ -9,20 +9,30 @@
 import { BaseColorStateManager } from './baseColorStateManager.js';
 import {
   DIFF_COLORS,
-  TOLERANCE_DIFF_COLORS as PALETTE_TOLERANCE_COLORS
-} from '../../config/colorPalette.js';
+  TOLERANCE_DIFF_COLORS as CONFIG_TOLERANCE_COLORS,
+} from '../../config/colorConfig.js';
 
-// 差分状態タイプ（4段階 - mismatch追加）
-const DIFF_STATES = ['matched', 'mismatch', 'onlyA', 'onlyB'];
+// 差分状態タイプ（6カテゴリ）
+// - 存在差分: matched, onlyA, onlyB
+// - 内容差分: positionTolerance, attributeMismatch, combined
+const DIFF_STATES = [
+  'matched',
+  'onlyA',
+  'onlyB',
+  'positionTolerance',
+  'attributeMismatch',
+  'combined',
+  'mismatch', // レガシー互換
+];
 
-// 許容差対応の5段階分類状態タイプ
+// 許容差対応の分類状態タイプ（内部使用）
 const TOLERANCE_DIFF_STATES = ['exact', 'withinTolerance', 'mismatch', 'onlyA', 'onlyB'];
 
-// デフォルト色設定（3段階）- colorPaletteから取得
+// デフォルト色設定（6カテゴリ）- colorConfigから取得
 const DEFAULT_DIFF_COLORS = { ...DIFF_COLORS };
 
-// デフォルト色設定（5段階 - 許容差対応）- colorPaletteから取得
-const DEFAULT_TOLERANCE_DIFF_COLORS = { ...PALETTE_TOLERANCE_COLORS };
+// デフォルト色設定（許容差対応 - 内部使用）- colorConfigから取得
+const DEFAULT_TOLERANCE_DIFF_COLORS = { ...CONFIG_TOLERANCE_COLORS };
 
 /**
  * DiffColorManagerクラス
@@ -33,7 +43,7 @@ class DiffColorManager extends BaseColorStateManager {
 
     // 5段階分類用の色設定を別途管理
     this.toleranceColors = new Map();
-    TOLERANCE_DIFF_STATES.forEach(state => {
+    TOLERANCE_DIFF_STATES.forEach((state) => {
       this.toleranceColors.set(state, DEFAULT_TOLERANCE_DIFF_COLORS[state]);
     });
   }
@@ -99,7 +109,6 @@ class DiffColorManager extends BaseColorStateManager {
     this._executeColorChangeCallbacks(state, color);
 
     if (this.debugMode) {
-      console.log(`[DiffColorManager] Tolerance diff color set: ${state} = ${color}`);
     }
 
     return true;
@@ -111,7 +120,7 @@ class DiffColorManager extends BaseColorStateManager {
    */
   getAllToleranceDiffColors() {
     const colors = {};
-    TOLERANCE_DIFF_STATES.forEach(state => {
+    TOLERANCE_DIFF_STATES.forEach((state) => {
       colors[state] = this.toleranceColors.get(state);
     });
     return colors;
@@ -121,13 +130,12 @@ class DiffColorManager extends BaseColorStateManager {
    * 許容差対応差分色をデフォルトにリセット
    */
   resetToleranceColorsToDefault() {
-    TOLERANCE_DIFF_STATES.forEach(state => {
+    TOLERANCE_DIFF_STATES.forEach((state) => {
       this.toleranceColors.set(state, DEFAULT_TOLERANCE_DIFF_COLORS[state]);
     });
     this._executeColorChangeCallbacks(null, null);
 
     if (this.debugMode) {
-      console.log('[DiffColorManager] Tolerance diff colors reset to default');
     }
   }
 }
@@ -141,6 +149,6 @@ export {
   DIFF_STATES,
   TOLERANCE_DIFF_STATES,
   DEFAULT_DIFF_COLORS,
-  DEFAULT_TOLERANCE_DIFF_COLORS
+  DEFAULT_TOLERANCE_DIFF_COLORS,
 };
 export default diffColorManager;

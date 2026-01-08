@@ -15,10 +15,15 @@ import {
   parseSearchPattern,
   matchesSectionSearch,
   highlightSearchMatch,
-  DEFAULT_SECTION_TARGET_FILTER
+  DEFAULT_SECTION_TARGET_FILTER,
 } from './treeSearch.js';
 import { showContextMenu, initializeContextMenu } from './contextMenu.js';
 import { VirtualScrollManager } from './virtualScroll.js';
+import { SECTION_LABELS } from '../config/elementLabels.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('sectionTreeView');
+import { VIRTUAL_SCROLL_CONFIG } from '../config/virtualScrollConfig.js';
 
 /**
  * ツリーコンテナーのDOM要素
@@ -80,25 +85,14 @@ let currentSectionsData = null;
  */
 let sectionStats = { total: 0, filtered: 0 };
 
-// 仮想スクロール関連
+// 仮想スクロール関連（SSOT: virtualScrollConfig.js）
 /** @type {Map<string, VirtualScrollManager>} */
 const virtualScrollManagers = new Map(); // sectionId -> VirtualScrollManager
-const VIRTUAL_SCROLL_THRESHOLD = 1000; // 仮想スクロールを有効にする閾値
-const VIRTUAL_ITEM_HEIGHT = 28; // アイテムの高さ（px）
+const VIRTUAL_SCROLL_THRESHOLD = VIRTUAL_SCROLL_CONFIG.THRESHOLD;
+const VIRTUAL_ITEM_HEIGHT = VIRTUAL_SCROLL_CONFIG.ITEM_HEIGHT.section;
 
-/**
- * 断面タイプの日本語名マップ
- */
-const SECTION_TYPE_NAMES = {
-  'Column': '柱断面',
-  'Girder': '大梁断面',
-  'Beam': '小梁断面',
-  'Brace': 'ブレース断面',
-  'Slab': 'スラブ断面',
-  'Wall': '壁断面',
-  'Foundation': '基礎断面',
-  'Pile': '杭断面'
-};
+// 断面タイプの日本語名マップ - elementLabels.jsからインポートしたSECTION_LABELSを使用
+const SECTION_TYPE_NAMES = SECTION_LABELS;
 
 /**
  * 断面ツリービューを初期化
@@ -110,7 +104,7 @@ const SECTION_TYPE_NAMES = {
 export function initializeSectionTreeView(containerId, onElementSelect, options = {}) {
   treeContainer = document.getElementById(containerId);
   if (!treeContainer) {
-    console.error(`Container with id '${containerId}' not found`);
+    log.error(`Container with id '${containerId}' not found`);
     return;
   }
   onElementSelectCallback = onElementSelect;
@@ -122,7 +116,7 @@ export function initializeSectionTreeView(containerId, onElementSelect, options 
   // 検索UIを初期化
   initializeSearchUI();
 
-  console.log('Section tree view initialized');
+  log.info('Section tree view initialized');
 }
 
 /**
@@ -132,9 +126,9 @@ export function initializeSectionTreeView(containerId, onElementSelect, options 
 export function setGroupingMode(mode) {
   if (['floor', 'code'].includes(mode)) {
     groupingMode = mode;
-    console.log(`Grouping mode set to: ${mode}`);
+    log.info(`Grouping mode set to: ${mode}`);
   } else {
-    console.warn(`Invalid grouping mode: ${mode}`);
+    log.warn(`Invalid grouping mode: ${mode}`);
   }
 }
 
@@ -157,7 +151,7 @@ export function clearSectionTree() {
  */
 export function buildSectionTree(comparisonResult, sectionsData) {
   if (!treeContainer) {
-    console.error('Tree container not initialized');
+    log.error('Tree container not initialized');
     return;
   }
 
@@ -166,7 +160,7 @@ export function buildSectionTree(comparisonResult, sectionsData) {
   currentSectionsData = sectionsData;
 
   if (!sectionsData) {
-    console.warn('sectionsData is null or undefined');
+    log.warn('sectionsData is null or undefined');
     clearSectionTreeContent();
 
     // 空のメッセージを表示
@@ -190,14 +184,14 @@ export function buildSectionTree(comparisonResult, sectionsData) {
   // 断面の使用状況マップを作成
   const sectionUsageMap = createSectionUsageMap(comparisonResult);
 
-  console.log('Section usage map:', sectionUsageMap);
+  log.info('Section usage map:', sectionUsageMap);
 
   // 断面タイプごとにツリーノードを作成
   const sectionTypes = ['Column', 'Girder', 'Beam', 'Brace', 'Slab', 'Wall'];
 
   sectionStats = { total: 0, filtered: 0 };
 
-  sectionTypes.forEach(elementType => {
+  sectionTypes.forEach((elementType) => {
     const sectionMapKey = `${elementType.toLowerCase()}Sections`;
     const sectionMap = sectionsData[sectionMapKey];
 
@@ -211,7 +205,7 @@ export function buildSectionTree(comparisonResult, sectionsData) {
         usedSections.push({
           sectionId,
           sectionData,
-          elements: usage
+          elements: usage,
         });
       }
     });
@@ -222,8 +216,8 @@ export function buildSectionTree(comparisonResult, sectionsData) {
     sectionStats.total += usedSections.length;
 
     // 検索フィルタリングを適用
-    const filteredSections = usedSections.filter(section =>
-      matchesSectionSearch(section, searchPattern, currentTargetFilter)
+    const filteredSections = usedSections.filter((section) =>
+      matchesSectionSearch(section, searchPattern, currentTargetFilter),
     );
 
     sectionStats.filtered += filteredSections.length;
@@ -237,7 +231,7 @@ export function buildSectionTree(comparisonResult, sectionsData) {
 
   // ツリーが空の場合、メッセージを表示
   const hasContent = Array.from(treeContainer.children).some(
-    child => !child.classList.contains('tree-search-container')
+    (child) => !child.classList.contains('tree-search-container'),
   );
 
   if (!hasContent) {
@@ -265,13 +259,13 @@ function createSectionUsageMap(comparisonResult) {
   const usageMap = {};
 
   if (!comparisonResult) {
-    console.warn('comparisonResult is null or undefined');
+    log.warn('comparisonResult is null or undefined');
     return usageMap;
   }
 
   // matched要素を処理
   if (comparisonResult.matched) {
-    comparisonResult.matched.forEach(item => {
+    comparisonResult.matched.forEach((item) => {
       const elementA = item.elementA || item;
       const elementB = item.elementB;
       const elementType = item.elementType;
@@ -284,7 +278,7 @@ function createSectionUsageMap(comparisonResult) {
           modelSource: 'matched',
           name: elementA.name,
           guid: elementA.guid,
-          coords: elementA.startCoords || elementA.coords
+          coords: elementA.startCoords || elementA.coords,
         });
       }
     });
@@ -292,7 +286,7 @@ function createSectionUsageMap(comparisonResult) {
 
   // onlyA要素を処理
   if (comparisonResult.onlyA) {
-    comparisonResult.onlyA.forEach(item => {
+    comparisonResult.onlyA.forEach((item) => {
       const element = item.element || item;
       const elementType = item.elementType;
 
@@ -303,7 +297,7 @@ function createSectionUsageMap(comparisonResult) {
           modelSource: 'onlyA',
           name: item.name,
           guid: item.guid,
-          coords: item.coords
+          coords: item.coords,
         });
       }
     });
@@ -311,7 +305,7 @@ function createSectionUsageMap(comparisonResult) {
 
   // onlyB要素を処理
   if (comparisonResult.onlyB) {
-    comparisonResult.onlyB.forEach(item => {
+    comparisonResult.onlyB.forEach((item) => {
       const element = item.element || item;
       const elementType = item.elementType;
 
@@ -322,7 +316,7 @@ function createSectionUsageMap(comparisonResult) {
           modelSource: 'onlyB',
           name: item.name,
           guid: item.guid,
-          coords: item.coords
+          coords: item.coords,
         });
       }
     });
@@ -391,7 +385,13 @@ function createSectionTypeNode(elementType, usedSections, searchPattern = null) 
 
   // 各断面ノードを作成
   usedSections.forEach(({ sectionId, sectionData, elements }) => {
-    const sectionNode = createSectionNode(elementType, sectionId, sectionData, elements, searchPattern);
+    const sectionNode = createSectionNode(
+      elementType,
+      sectionId,
+      sectionData,
+      elements,
+      searchPattern,
+    );
     sectionsContainer.appendChild(sectionNode);
   });
 
@@ -503,7 +503,7 @@ function createSectionNode(elementType, sectionId, sectionData, elements, search
           threshold: VIRTUAL_SCROLL_THRESHOLD,
           itemHeight: VIRTUAL_ITEM_HEIGHT,
           bufferSize: 10,
-          renderItem: (elem) => createElementNode(elem, elementType)
+          renderItem: (elem) => createElementNode(elem, elementType),
         });
 
         // 仮想スクロールマネージャーを保存
@@ -511,7 +511,7 @@ function createSectionNode(elementType, sectionId, sectionData, elements, search
         virtualScrollManagers.set(managerId, virtualManager);
       } else {
         // 直接要素を追加
-        groupElements.forEach(elem => {
+        groupElements.forEach((elem) => {
           const elemNode = createElementNode(elem, elementType);
           elementsContainer.appendChild(elemNode);
         });
@@ -527,17 +527,17 @@ function createSectionNode(elementType, sectionId, sectionData, elements, search
     if (e.ctrlKey || e.metaKey) {
       if (onElementSelectCallback && elements.length > 0) {
         // 全要素の情報を収集
-        const selectedElements = elements.map(elem => ({
+        const selectedElements = elements.map((elem) => ({
           elementType: elementType,
           elementId: elem.displayId || elem.id,
-          modelSource: elem.modelSource
+          modelSource: elem.modelSource,
         }));
 
         onElementSelectCallback({
           multiSelect: true,
           selectedElements: selectedElements,
           sectionId: sectionId,
-          sectionName: sectionData?.name || sectionData?.shapeName || sectionId
+          sectionName: sectionData?.name || sectionData?.shapeName || sectionId,
         });
       }
       return;
@@ -576,7 +576,7 @@ function createSectionNode(elementType, sectionId, sectionData, elements, search
 function groupElements(elements) {
   const groups = {};
 
-  elements.forEach(elem => {
+  elements.forEach((elem) => {
     let groupKey;
 
     if (groupingMode === 'floor') {
@@ -706,7 +706,7 @@ function createGroupNode(groupKey, elements, elementType) {
       threshold: VIRTUAL_SCROLL_THRESHOLD,
       itemHeight: VIRTUAL_ITEM_HEIGHT,
       bufferSize: 10,
-      renderItem: (elem) => createElementNode(elem, elementType)
+      renderItem: (elem) => createElementNode(elem, elementType),
     });
 
     // 仮想スクロールマネージャーを保存
@@ -714,7 +714,7 @@ function createGroupNode(groupKey, elements, elementType) {
     virtualScrollManagers.set(managerId, virtualManager);
   } else {
     // 各要素ノードを作成
-    elements.forEach(elem => {
+    elements.forEach((elem) => {
       const elemNode = createElementNode(elem, elementType);
       elementsContainer.appendChild(elemNode);
     });
@@ -786,9 +786,8 @@ function createElementNode(elementInfo, elementType) {
   if (elementInfo.guid) {
     const guidSpan = document.createElement('div');
     guidSpan.className = 'tree-element-guid';
-    const guidText = elementInfo.guid.length > 20
-      ? elementInfo.guid.substring(0, 20) + '...'
-      : elementInfo.guid;
+    const guidText =
+      elementInfo.guid.length > 20 ? elementInfo.guid.substring(0, 20) + '...' : elementInfo.guid;
     guidSpan.textContent = `GUID: ${guidText}`;
     guidSpan.title = elementInfo.guid;
     elementInfoDiv.appendChild(guidSpan);
@@ -804,7 +803,7 @@ function createElementNode(elementInfo, elementType) {
       onElementSelectCallback({
         elementType: elementType,
         elementId: elementInfo.elementId,
-        modelSource: elementInfo.modelSource
+        modelSource: elementInfo.modelSource,
       });
     }
   });
@@ -832,7 +831,7 @@ function initializeSearchUI() {
     targetOptions: [
       { key: 'sectionId', label: '断面ID' },
       { key: 'sectionName', label: '断面名' },
-      { key: 'shapeName', label: '形状名' }
+      { key: 'shapeName', label: '形状名' },
     ],
     defaultTargetFilter: DEFAULT_SECTION_TARGET_FILTER,
     onSearch: (searchText, statusFilter, targetFilter) => {
@@ -846,7 +845,7 @@ function initializeSearchUI() {
     onClear: () => {
       currentSearchText = '';
       currentTargetFilter = { ...DEFAULT_SECTION_TARGET_FILTER };
-    }
+    },
   });
 
   // コンテナの先頭に検索UIを追加
@@ -868,7 +867,7 @@ function clearSectionTreeContent() {
 
   // 検索UI以外の要素を削除
   const children = Array.from(treeContainer.children);
-  children.forEach(child => {
+  children.forEach((child) => {
     if (!child.classList.contains('tree-search-container')) {
       treeContainer.removeChild(child);
     }
@@ -917,20 +916,20 @@ function showSectionContextMenu(x, y, sectionId, sectionData, elements, elementT
       label: 'この断面の要素をすべて選択',
       icon: '☑️',
       action: () => handleSelectAllSectionElements(sectionId, sectionData, elements, elementType),
-      disabled: elements.length === 0
+      disabled: elements.length === 0,
     },
     { separator: true },
     {
       label: '断面情報をコピー',
       icon: '📋',
-      action: () => handleCopySectionInfo(sectionId, sectionData, elements)
+      action: () => handleCopySectionInfo(sectionId, sectionData, elements),
     },
     { separator: true },
     {
       label: `使用要素数: ${elements.length}`,
       icon: '📊',
-      disabled: true
-    }
+      disabled: true,
+    },
   ];
 
   showContextMenu(x, y, menuItems);
@@ -951,13 +950,13 @@ function handleSelectAllSectionElements(sectionId, sectionData, elements, elemen
   // 選択上限チェック（100件）
   const limitedElements = elements.slice(0, 100);
   if (elements.length > 100) {
-    console.warn(`選択上限（100要素）を超えました。最初の100要素のみ選択されます。`);
+    log.warn(`選択上限（100要素）を超えました。最初の100要素のみ選択されます。`);
   }
 
-  const selectedElements = limitedElements.map(elem => ({
+  const selectedElements = limitedElements.map((elem) => ({
     elementType: elementType,
     elementId: elem.displayId || elem.id,
-    modelSource: elem.modelSource
+    modelSource: elem.modelSource,
   }));
 
   if (onElementSelectCallback) {
@@ -965,11 +964,11 @@ function handleSelectAllSectionElements(sectionId, sectionData, elements, elemen
       multiSelect: true,
       selectedElements: selectedElements,
       sectionId: sectionId,
-      sectionName: sectionData?.name || sectionData?.shapeName || sectionId
+      sectionName: sectionData?.name || sectionData?.shapeName || sectionId,
     });
   }
 
-  console.log(`断面「${sectionId}」の要素を${selectedElements.length}個選択しました`);
+  log.info(`断面「${sectionId}」の要素を${selectedElements.length}個選択しました`);
 }
 
 /**
@@ -980,10 +979,10 @@ function handleSelectAllSectionElements(sectionId, sectionData, elements, elemen
  */
 function handleCopySectionInfo(sectionId, sectionData, elements) {
   const info = {
-    '断面ID': sectionId,
-    '断面名': sectionData?.name || sectionData?.shapeName || '-',
-    '断面タイプ': sectionData?.section_type || sectionData?.kind || '-',
-    '使用要素数': elements.length
+    断面ID: sectionId,
+    断面名: sectionData?.name || sectionData?.shapeName || '-',
+    断面タイプ: sectionData?.section_type || sectionData?.kind || '-',
+    使用要素数: elements.length,
   };
 
   // 詳細情報があれば追加
@@ -1003,17 +1002,20 @@ function handleCopySectionInfo(sectionId, sectionData, elements) {
     .map(([key, value]) => `${key}: ${value}`)
     .join('\n');
 
-  navigator.clipboard.writeText(text).then(() => {
-    console.log('断面情報をクリップボードにコピーしました');
-    if (onContextMenuActionCallback) {
-      onContextMenuActionCallback({
-        action: 'copySectionInfo',
-        success: true,
-        sectionId: sectionId,
-        info: info
-      });
-    }
-  }).catch(err => {
-    console.error('クリップボードへのコピーに失敗しました:', err);
-  });
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      log.info('断面情報をクリップボードにコピーしました');
+      if (onContextMenuActionCallback) {
+        onContextMenuActionCallback({
+          action: 'copySectionInfo',
+          success: true,
+          sectionId: sectionId,
+          info: info,
+        });
+      }
+    })
+    .catch((err) => {
+      log.error('クリップボードへのコピーに失敗しました:', err);
+    });
 }

@@ -107,9 +107,17 @@
 
 /* ビュー・表示設定ウィンドウ */
 #element-settings-float {
-  left: calc(50% - 160px); /* 中央寄せ (min-widthの半分) */
-  min-width: 320px;
-  max-width: 400px;
+  left: calc(50% - 220px); /* 中央寄せ (min-widthの半分) */
+  min-width: 440px;
+  max-width: 90vw;
+  resize: both;
+  overflow: hidden; /* コンテンツ側でスクロールさせるため */
+}
+
+#element-settings-float .float-window-content {
+  max-height: none;
+  height: calc(100% - 42px); /* ヘッダー高さを引く */
+  overflow-y: auto;
 }
 
 /* 色付けモード設定ウィンドウ */
@@ -169,7 +177,7 @@
   user-select: none;
 }
 
-/* リサイズハンドル（将来の拡張用） */
+/* リサイズハンドル */
 .resize-handle {
   position: absolute;
   right: 0;
@@ -177,6 +185,19 @@
   width: 16px;
   height: 16px;
   cursor: se-resize;
+  background: linear-gradient(135deg, transparent 0%, transparent 50%, var(--color-primary, #0066cc) 50%, var(--color-primary, #0066cc) 100%);
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+  z-index: 10;
+}
+
+.resize-handle:hover {
+  opacity: 1;
+}
+
+.floating-window.resizing {
+  opacity: 0.95;
+  box-shadow: var(--shadow-xl);
 }
 
 /* ========================================

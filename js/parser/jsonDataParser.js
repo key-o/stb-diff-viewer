@@ -11,7 +11,10 @@
  * - 3Dレンダリング用データ構造への変換
  */
 
-import { ensureUnifiedSectionType } from '../common/sectionTypeUtil.js';
+/* global AbortController */
+
+import { createLogger } from '../utils/logger.js';
+import { ensureUnifiedSectionType } from '../common-stb/section/sectionTypeUtil.js';
 import {
   deriveDimensionsFromAttributes,
   extractDimensions,
@@ -21,8 +24,15 @@ import {
   getRadius,
   isCircularProfile,
   isRectangularProfile,
-  validateDimensions
-} from '../common/dimensionNormalizer.js';
+  validateDimensions,
+} from '../common-stb/data/dimensionNormalizer.js';
+
+const log = createLogger('parser/jsonDataParser');
+
+// セキュリティ制限
+const MAX_JSON_SIZE = 100 * 1024 * 1024; // 100MB
+const MAX_JSON_DEPTH = 50;
+const FETCH_TIMEOUT_MS = 60000; // 60秒
 
 /**
  * JSON統合データパーサークラス
@@ -38,14 +48,14 @@ export class JsonDataParser {
       walls: [],
       slabs: [],
       footings: [],
-      piles: []
+      piles: [],
     };
     this.statistics = {
       totalElements: 0,
       elementCounts: {},
       parseTime: 0,
       errors: [],
-      warnings: []
+      warnings: [],
     };
   }
 
@@ -55,29 +65,63 @@ export class JsonDataParser {
    * @returns {Promise<Object>} 解析結果
    */
   async parseFromFile(input) {
-    console.log('JsonDataParser: Starting JSON file parsing...');
     const startTime = performance.now();
 
     try {
       let jsonContent;
 
       if (input instanceof File) {
+        // ファイルサイズチェック
+        if (input.size > MAX_JSON_SIZE) {
+          throw new Error(
+            `ファイルサイズが大きすぎます: ${(input.size / 1024 / 1024).toFixed(1)}MB (最大: ${MAX_JSON_SIZE / 1024 / 1024}MB)`,
+          );
+        }
         jsonContent = await this._readFileContent(input);
       } else if (typeof input === 'string') {
-        // URLまたはファイルパスからの読み込み
-        const response = await fetch(input);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch JSON file: ${response.status}`);
+        // URLまたはファイルパスからの読み込み（タイムアウト付き）
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+        try {
+          const response = await fetch(input, { signal: controller.signal });
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch JSON file: ${response.status}`);
+          }
+
+          // Content-Lengthチェック
+          const contentLength = response.headers.get('content-length');
+          if (contentLength && parseInt(contentLength, 10) > MAX_JSON_SIZE) {
+            throw new Error(
+              `ファイルサイズが大きすぎます: ${(parseInt(contentLength, 10) / 1024 / 1024).toFixed(1)}MB`,
+            );
+          }
+
+          jsonContent = await response.text();
+        } catch (error) {
+          clearTimeout(timeoutId);
+          if (error.name === 'AbortError') {
+            throw new Error(
+              `ファイルダウンロードがタイムアウトしました (${FETCH_TIMEOUT_MS / 1000}秒)`,
+            );
+          }
+          throw error;
         }
-        jsonContent = await response.text();
       } else {
+        throw new Error('Invalid input type. Expected File object or string path.');
+      }
+
+      // ファイルサイズの最終チェック
+      if (jsonContent.length > MAX_JSON_SIZE) {
         throw new Error(
-          'Invalid input type. Expected File object or string path.'
+          `JSONコンテンツが大きすぎます: ${(jsonContent.length / 1024 / 1024).toFixed(1)}MB`,
         );
       }
 
-      // JSON解析
-      this.jsonData = JSON.parse(jsonContent);
+      // JSON解析（プロトタイプ汚染対策付き）
+      this.jsonData = this._safeJsonParse(jsonContent);
 
       // データ検証
       this._validateJsonStructure();
@@ -92,19 +136,10 @@ export class JsonDataParser {
       this.statistics.parseTime = performance.now() - startTime;
       this.statistics.totalElements = this._calculateTotalElements();
 
-      console.log(
-        `JsonDataParser: Parsing completed in ${this.statistics.parseTime.toFixed(
-          1
-        )}ms`
-      );
-      console.log(
-        `JsonDataParser: Found ${this.statistics.totalElements} structural elements`
-      );
-
       return this._createParsingResult();
     } catch (error) {
       this.statistics.errors.push(`JSON parsing failed: ${error.message}`);
-      console.error('JsonDataParser: Parsing failed:', error);
+      log.error('JsonDataParser: Parsing failed:', error);
       throw new Error(`JSON data parsing failed: ${error.message}`);
     }
   }
@@ -113,9 +148,29 @@ export class JsonDataParser {
    * JSONオブジェクトから直接解析（テスト用）
    * @param {Object} jsonObject - JSONオブジェクト
    * @returns {Object} 解析結果
+   * @throws {TypeError} If jsonObject is not a valid object
+   * @throws {Error} If JSON structure validation fails
    */
   parseFromObject(jsonObject) {
-    console.log('JsonDataParser: Parsing from JSON object...');
+    // Input validation
+    if (jsonObject === null || jsonObject === undefined) {
+      const error = new TypeError('jsonObject must not be null or undefined');
+      log.error('Validation failed:', error);
+      throw error;
+    }
+
+    if (typeof jsonObject !== 'object') {
+      const error = new TypeError('jsonObject must be an object');
+      log.error('Validation failed:', error);
+      throw error;
+    }
+
+    if (Array.isArray(jsonObject)) {
+      const error = new TypeError('jsonObject must be an object, not an array');
+      log.error('Validation failed:', error);
+      throw error;
+    }
+
     const startTime = performance.now();
 
     try {
@@ -128,20 +183,47 @@ export class JsonDataParser {
       this.statistics.parseTime = performance.now() - startTime;
       this.statistics.totalElements = this._calculateTotalElements();
 
-      console.log(
-        `JsonDataParser: Object parsing completed in ${this.statistics.parseTime.toFixed(
-          1
-        )}ms`
-      );
-
       return this._createParsingResult();
     } catch (error) {
-      this.statistics.errors.push(
-        `JSON object parsing failed: ${error.message}`
-      );
-      console.error('JsonDataParser: Object parsing failed:', error);
+      this.statistics.errors.push(`JSON object parsing failed: ${error.message}`);
+      log.error('JsonDataParser: Object parsing failed:', error);
       throw new Error(`JSON object parsing failed: ${error.message}`);
     }
+  }
+
+  /**
+   * 安全なJSON解析（プロトタイプ汚染対策と深度チェック付き）
+   * @private
+   * @param {string} jsonContent - JSON文字列
+   * @returns {Object} 解析されたオブジェクト
+   */
+  _safeJsonParse(jsonContent) {
+    let currentDepth = 0;
+    let maxObservedDepth = 0;
+
+    const result = JSON.parse(jsonContent, (key, value) => {
+      // プロトタイプ汚染対策
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        log.warn(`[JsonDataParser] 危険なキーを無視: ${key}`);
+        return undefined;
+      }
+
+      // 深度チェック（オブジェクトまたは配列の場合）
+      if (typeof value === 'object' && value !== null) {
+        currentDepth++;
+        maxObservedDepth = Math.max(maxObservedDepth, currentDepth);
+
+        if (currentDepth > MAX_JSON_DEPTH) {
+          throw new Error(
+            `JSONのネストが深すぎます (最大: ${MAX_JSON_DEPTH}層) - JSON bomb攻撃の可能性があります`,
+          );
+        }
+      }
+
+      return value;
+    });
+
+    return result;
   }
 
   /**
@@ -149,14 +231,12 @@ export class JsonDataParser {
    * @returns {Object} STB互換形式データ
    */
   toStbCompatibleFormat() {
-    console.log('JsonDataParser: Converting to STB compatible format...');
-
     const stbData = {
       // STB XML風のメタデータ
       projectInfo: {
         name: this.metadata?.description || 'JSON Imported Model',
         version: this.metadata?.version || '1.0',
-        timestamp: this.metadata?.timestamp || new Date().toISOString()
+        timestamp: this.metadata?.timestamp || new Date().toISOString(),
       },
 
       // ノード情報（JSONでは直接座標を使用するため、仮想ノードマップを作成）
@@ -168,14 +248,10 @@ export class JsonDataParser {
       braces: this._convertToStbFormat(this.parsedElements.braces, 'brace'),
       walls: this._convertToStbFormat(this.parsedElements.walls, 'wall'),
       slabs: this._convertToStbFormat(this.parsedElements.slabs, 'slab'),
-      footings: this._convertToStbFormat(
-        this.parsedElements.footings,
-        'footing'
-      ),
-      piles: this._convertToStbFormat(this.parsedElements.piles, 'pile')
+      footings: this._convertToStbFormat(this.parsedElements.footings, 'footing'),
+      piles: this._convertToStbFormat(this.parsedElements.piles, 'pile'),
     };
 
-    console.log('JsonDataParser: STB conversion completed');
     return stbData;
   }
 
@@ -187,8 +263,7 @@ export class JsonDataParser {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = (event) => resolve(event.target.result);
-      reader.onerror = (error) =>
-        reject(new Error(`File reading failed: ${error}`));
+      reader.onerror = (error) => reject(new Error(`File reading failed: ${error}`));
       reader.readAsText(file, 'utf-8');
     });
   }
@@ -205,21 +280,16 @@ export class JsonDataParser {
     // Python生成のJSON構造 (直接ルートに要素配列) または JS期待構造 (elements内) をサポート
     const hasElementsWrapper = this.jsonData.elements;
     const hasDirectElements =
-      this.jsonData.beam_defs ||
-      this.jsonData.column_defs ||
-      this.jsonData.brace_defs;
+      this.jsonData.beam_defs || this.jsonData.column_defs || this.jsonData.brace_defs;
 
     if (!hasElementsWrapper && !hasDirectElements) {
       throw new Error(
-        'Missing structural element data. Expected either "elements" field or direct element arrays'
+        'Missing structural element data. Expected either "elements" field or direct element arrays',
       );
     }
 
     // Python生成JSON構造の場合、elements wrapperを作成
     if (!hasElementsWrapper && hasDirectElements) {
-      console.log(
-        'JsonDataParser: Detected Python-generated JSON structure, creating elements wrapper'
-      );
       this.jsonData = {
         elements: {
           beam_defs: this.jsonData.beam_defs || [],
@@ -228,9 +298,9 @@ export class JsonDataParser {
           wall_defs: this.jsonData.wall_defs || [],
           slab_defs: this.jsonData.slab_defs || [],
           footing_defs: this.jsonData.footing_defs || [],
-          pile_defs: this.jsonData.pile_defs || []
+          pile_defs: this.jsonData.pile_defs || [],
         },
-        metadata: this.jsonData.metadata || {}
+        metadata: this.jsonData.metadata || {},
       };
     }
 
@@ -238,15 +308,9 @@ export class JsonDataParser {
     if (this.jsonData.metadata) {
       const metadata = this.jsonData.metadata;
       if (metadata.version && !this._isValidVersion(metadata.version)) {
-        this.statistics.warnings.push(
-          `Potentially incompatible version: ${metadata.version}`
-        );
+        this.statistics.warnings.push(`Potentially incompatible version: ${metadata.version}`);
       }
     }
-
-    console.log(
-      'JsonDataParser: JSON structure validation and normalization completed'
-    );
   }
 
   /**
@@ -255,13 +319,6 @@ export class JsonDataParser {
    */
   _extractMetadata() {
     this.metadata = this.jsonData.metadata || {};
-
-    console.log('JsonDataParser: Extracted metadata:', {
-      source: this.metadata.source,
-      version: this.metadata.version,
-      totalElements: this.metadata.total_elements,
-      description: this.metadata.description
-    });
   }
 
   /**
@@ -269,39 +326,16 @@ export class JsonDataParser {
    * @private
    */
   _parseAllElements() {
-    console.log('JsonDataParser: Parsing all structural elements...');
-
     const elements = this.jsonData.elements;
 
     // 各要素タイプの解析
-    this.parsedElements.columns = this._parseElementArray(
-      elements.column_defs || [],
-      'column'
-    );
-    this.parsedElements.beams = this._parseElementArray(
-      elements.beam_defs || [],
-      'beam'
-    );
-    this.parsedElements.braces = this._parseElementArray(
-      elements.brace_defs || [],
-      'brace'
-    );
-    this.parsedElements.walls = this._parseElementArray(
-      elements.wall_defs || [],
-      'wall'
-    );
-    this.parsedElements.slabs = this._parseElementArray(
-      elements.slab_defs || [],
-      'slab'
-    );
-    this.parsedElements.footings = this._parseElementArray(
-      elements.footing_defs || [],
-      'footing'
-    );
-    this.parsedElements.piles = this._parseElementArray(
-      elements.pile_defs || [],
-      'pile'
-    );
+    this.parsedElements.columns = this._parseElementArray(elements.column_defs || [], 'column');
+    this.parsedElements.beams = this._parseElementArray(elements.beam_defs || [], 'beam');
+    this.parsedElements.braces = this._parseElementArray(elements.brace_defs || [], 'brace');
+    this.parsedElements.walls = this._parseElementArray(elements.wall_defs || [], 'wall');
+    this.parsedElements.slabs = this._parseElementArray(elements.slab_defs || [], 'slab');
+    this.parsedElements.footings = this._parseElementArray(elements.footing_defs || [], 'footing');
+    this.parsedElements.piles = this._parseElementArray(elements.pile_defs || [], 'pile');
 
     // 統計更新
     this.statistics.elementCounts = {
@@ -311,13 +345,8 @@ export class JsonDataParser {
       walls: this.parsedElements.walls.length,
       slabs: this.parsedElements.slabs.length,
       footings: this.parsedElements.footings.length,
-      piles: this.parsedElements.piles.length
+      piles: this.parsedElements.piles.length,
     };
-
-    console.log(
-      'JsonDataParser: Element parsing summary:',
-      this.statistics.elementCounts
-    );
   }
 
   /**
@@ -335,12 +364,9 @@ export class JsonDataParser {
         }
       } catch (error) {
         this.statistics.errors.push(
-          `Failed to parse ${elementType} at index ${index}: ${error.message}`
+          `Failed to parse ${elementType} at index ${index}: ${error.message}`,
         );
-        console.warn(
-          `JsonDataParser: Skipping ${elementType} at index ${index}:`,
-          error
-        );
+        log.warn(`JsonDataParser: Skipping ${elementType} at index ${index}:`, error);
       }
     });
 
@@ -395,7 +421,7 @@ export class JsonDataParser {
       isJsonInput: true,
 
       // 元データ参照
-      originalData: element
+      originalData: element,
     };
 
     return parsedElement;
@@ -413,40 +439,22 @@ export class JsonDataParser {
 
     // 可変断面（テーパー要素）の処理
     if (element.section_start && element.section_end) {
-      // 開始断面を使用（ProfileBased生成器は単一断面を期待）
-      console.log(
-        `JsonDataParser: ${elementType} "${
-          element.name || element.id
-        }" - タペッド要素検出、開始断面を使用`
-      );
       return element.section_start;
     }
 
     // 開始断面のみの場合
     if (element.section_start) {
-      console.log(
-        `JsonDataParser: ${elementType} "${
-          element.name || element.id
-        }" - 開始断面のみ検出`
-      );
       return element.section_start;
     }
 
     // 終了断面のみの場合
     if (element.section_end) {
-      console.log(
-        `JsonDataParser: ${elementType} "${
-          element.name || element.id
-        }" - 終了断面のみ検出`
-      );
       return element.section_end;
     }
 
     // 断面データが見つからない場合
-    console.warn(
-      `JsonDataParser: ${elementType} "${
-        element.name || element.id
-      }" - 断面データが見つかりません`
+    log.warn(
+      `JsonDataParser: ${elementType} "${element.name || element.id}" - 断面データが見つかりません`,
     );
     return null;
   }
@@ -462,21 +470,13 @@ export class JsonDataParser {
     if (geometry.start_point) {
       normalized.start_point = Array.isArray(geometry.start_point)
         ? geometry.start_point
-        : [
-          geometry.start_point.x || 0,
-          geometry.start_point.y || 0,
-          geometry.start_point.z || 0
-        ];
+        : [geometry.start_point.x || 0, geometry.start_point.y || 0, geometry.start_point.z || 0];
     }
 
     if (geometry.end_point) {
       normalized.end_point = Array.isArray(geometry.end_point)
         ? geometry.end_point
-        : [
-          geometry.end_point.x || 0,
-          geometry.end_point.y || 0,
-          geometry.end_point.z || 0
-        ];
+        : [geometry.end_point.x || 0, geometry.end_point.y || 0, geometry.end_point.z || 0];
     }
 
     // 長さの計算（提供されていない場合）
@@ -489,16 +489,6 @@ export class JsonDataParser {
 
     // 回転角の正規化
     normalized.rotation = geometry.rotation ?? 0;
-
-    // 座標系の確認（mm単位であることをログ出力）
-    if (
-      normalized.start_point &&
-      normalized.start_point.some((coord) => Math.abs(coord) > 100)
-    ) {
-      console.debug(
-        'JsonDataParser: Detected coordinates in mm scale (Python JSON format)'
-      );
-    }
 
     return normalized;
   }
@@ -527,36 +517,17 @@ export class JsonDataParser {
         // 既存の寸法データとマージ（正規化された値を優先）
         normalized.dimensions = {
           ...section.dimensions,
-          ...normalizedDims
+          ...normalizedDims,
         };
 
         // 寸法データの検証
         const validation = validateDimensions(normalized.dimensions);
         if (!validation.valid) {
-          console.warn(
-            `JsonDataParser: Section dimension validation failed:`,
-            validation.errors
-          );
-        }
-
-        // デバッグ情報（開発時のみ）
-        if (validation.warnings.length > 0) {
-          console.debug(
-            `JsonDataParser: Section dimension warnings:`,
-            validation.warnings
-          );
+          log.warn(`JsonDataParser: Section dimension validation failed:`, validation.errors);
         }
       }
 
       // 単位はmm単位を前提（Python JSONと同一）
-      const dimensionKeys = Object.keys(normalized.dimensions);
-      if (dimensionKeys.length > 0) {
-        console.debug(
-          `JsonDataParser: Section dimensions normalized: ${dimensionKeys.join(
-            ', '
-          )}`
-        );
-      }
     }
 
     // isReferenceDirectionの正規化（S造・stb-diff-viewer造柱の基準方向）
@@ -586,7 +557,7 @@ export class JsonDataParser {
             nodeMap.set(`virtual_node_${nodeMap.size + 1}`, {
               x: element.geometry.start_point[0],
               y: element.geometry.start_point[1],
-              z: element.geometry.start_point[2]
+              z: element.geometry.start_point[2],
             });
             processedNodes.add(nodeKey);
           }
@@ -598,7 +569,7 @@ export class JsonDataParser {
             nodeMap.set(`virtual_node_${nodeMap.size + 1}`, {
               x: element.geometry.end_point[0],
               y: element.geometry.end_point[1],
-              z: element.geometry.end_point[2]
+              z: element.geometry.end_point[2],
             });
             processedNodes.add(nodeKey);
           }
@@ -606,7 +577,6 @@ export class JsonDataParser {
       });
     });
 
-    console.log(`JsonDataParser: Created ${nodeMap.size} virtual nodes`);
     return nodeMap;
   }
 
@@ -634,7 +604,7 @@ export class JsonDataParser {
       isJsonInput: undefined,
       // STB互換フィールドの追加
       stbElementType: elementType,
-      convertedFromJson: true
+      convertedFromJson: true,
     }));
   }
 
@@ -652,10 +622,7 @@ export class JsonDataParser {
    * @private
    */
   _calculateTotalElements() {
-    return Object.values(this.statistics.elementCounts).reduce(
-      (sum, count) => sum + count,
-      0
-    );
+    return Object.values(this.statistics.elementCounts).reduce((sum, count) => sum + count, 0);
   }
 
   /**
@@ -686,7 +653,7 @@ export class JsonDataParser {
       getElementById: (elementId) => {
         const allElements = this.getAllElements();
         return allElements.find((element) => element.id === elementId);
-      }
+      },
     };
   }
 
@@ -697,7 +664,7 @@ export class JsonDataParser {
     return {
       ...this.statistics,
       hasErrors: this.statistics.errors.length > 0,
-      hasWarnings: this.statistics.warnings.length > 0
+      hasWarnings: this.statistics.warnings.length > 0,
     };
   }
 
@@ -728,14 +695,14 @@ export class JsonDataParser {
       walls: [],
       slabs: [],
       footings: [],
-      piles: []
+      piles: [],
     };
     this.statistics = {
       totalElements: 0,
       elementCounts: {},
       parseTime: 0,
       errors: [],
-      warnings: []
+      warnings: [],
     };
   }
 }
@@ -750,12 +717,27 @@ export class JsonParserUtils {
    * @returns {boolean} JSON統合形式かどうか
    */
   static isJsonStructuralData(data) {
-    return (
-      data &&
-      typeof data === 'object' &&
-      data.elements &&
-      typeof data.elements === 'object'
-    );
+    // Null/undefined check
+    if (!data) {
+      return false;
+    }
+
+    // Type validation
+    if (typeof data !== 'object') {
+      return false;
+    }
+
+    // Array check
+    if (Array.isArray(data)) {
+      return false;
+    }
+
+    // Structure validation
+    if (!data.elements || typeof data.elements !== 'object' || Array.isArray(data.elements)) {
+      return false;
+    }
+
+    return true;
   }
 
   /**
@@ -763,15 +745,7 @@ export class JsonParserUtils {
    * @returns {Array<string>} サポート要素タイプ
    */
   static getSupportedElementTypes() {
-    return [
-      'columns',
-      'beams',
-      'braces',
-      'walls',
-      'slabs',
-      'footings',
-      'piles'
-    ];
+    return ['columns', 'beams', 'braces', 'walls', 'slabs', 'footings', 'piles'];
   }
 
   /**
@@ -779,16 +753,38 @@ export class JsonParserUtils {
    * @param {Array} elements - JSON要素配列
    * @param {string} elementType - 要素タイプ
    * @returns {Array} 3Dレンダリング用要素配列
+   * @throws {TypeError} If elements is not an array
+   * @throws {TypeError} If elementType is not a string
    */
   static convertForRendering(elements, elementType) {
+    // Validate elements parameter
+    if (!Array.isArray(elements)) {
+      const error = new TypeError('elements must be an array');
+      log.error('Validation failed:', error);
+      throw error;
+    }
+
+    // Validate elementType parameter
+    if (typeof elementType !== 'string') {
+      const error = new TypeError('elementType must be a string');
+      log.error('Validation failed:', error);
+      throw error;
+    }
+
+    if (!elementType || elementType.trim().length === 0) {
+      const error = new Error('elementType must be a non-empty string');
+      log.error('Validation failed:', error);
+      throw error;
+    }
+
     return elements.map((element) => ({
       ...element,
       // 3Dレンダリング用のフラグ追加
       renderingInfo: {
         elementType: elementType,
         isJsonInput: true,
-        requiresConversion: false
-      }
+        requiresConversion: false,
+      },
     }));
   }
 
@@ -797,8 +793,36 @@ export class JsonParserUtils {
    * @param {File} file - 検証対象ファイル
    * @param {number} maxSizeMB - 最大サイズ（MB）
    * @returns {boolean} サイズが適切かどうか
+   * @throws {TypeError} If file is not a File object
+   * @throws {RangeError} If maxSizeMB is negative or not finite
    */
   static validateFileSize(file, maxSizeMB = 50) {
+    // Validate file parameter
+    if (!file) {
+      const error = new TypeError('file must not be null or undefined');
+      log.error('Validation failed:', error);
+      throw error;
+    }
+
+    if (!(file instanceof File)) {
+      const error = new TypeError('file must be a File object');
+      log.error('Validation failed:', error);
+      throw error;
+    }
+
+    // Validate maxSizeMB parameter
+    if (typeof maxSizeMB !== 'number' || !isFinite(maxSizeMB)) {
+      const error = new TypeError('maxSizeMB must be a finite number');
+      log.error('Validation failed:', error);
+      throw error;
+    }
+
+    if (maxSizeMB <= 0) {
+      const error = new RangeError('maxSizeMB must be positive');
+      log.error('Validation failed:', error);
+      throw error;
+    }
+
     const maxSizeBytes = maxSizeMB * 1024 * 1024;
     return file.size <= maxSizeBytes;
   }
@@ -807,8 +831,28 @@ export class JsonParserUtils {
    * JSONファイルの拡張子確認
    * @param {File} file - 確認対象ファイル
    * @returns {boolean} JSON拡張子かどうか
+   * @throws {TypeError} If file is not a File object
    */
   static isJsonFile(file) {
+    // Validate file parameter
+    if (!file) {
+      const error = new TypeError('file must not be null or undefined');
+      log.error('Validation failed:', error);
+      throw error;
+    }
+
+    if (!(file instanceof File)) {
+      const error = new TypeError('file must be a File object');
+      log.error('Validation failed:', error);
+      throw error;
+    }
+
+    if (!file.name || typeof file.name !== 'string') {
+      const error = new Error('file.name must be a non-empty string');
+      log.error('Validation failed:', error);
+      throw error;
+    }
+
     return file.name.toLowerCase().endsWith('.json');
   }
 }

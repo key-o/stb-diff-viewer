@@ -35,15 +35,10 @@ import { calculateProfile } from './core/ProfileCalculator.js';
 import {
   calculateColumnPlacement,
   calculateBeamPlacement,
-  inferSectionTypeFromDimensions
+  inferSectionTypeFromDimensions,
 } from './core/GeometryCalculator.js';
-import {
-  convertProfileToThreeShape,
-  createExtrudeGeometry,
-  applyPlacementToMesh,
-  attachPlacementAxisLine
-} from './core/ThreeJSConverter.js';
-import { ensureUnifiedSectionType } from '../../common/sectionTypeUtil.js';
+import { convertProfileToThreeShape, attachPlacementAxisLine } from './core/ThreeJSConverter.js';
+import { ensureUnifiedSectionType } from '../../common-stb/section/sectionTypeUtil.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('viewer:geometry:utils');
@@ -83,15 +78,13 @@ export class ElementGeometryUtils {
       const node = nodes ? nodes.get(nodeId) : null;
 
       if (!node) {
-        log.warn(
-          `1node element ${element.id}: node not found (${config.node1Key}=${nodeId})`
-        );
+        log.warn(`1node element ${element.id}: node not found (${config.node1Key}=${nodeId})`);
       }
 
       return {
         type: '1node',
         node: node,
-        valid: !!node
+        valid: !!node,
       };
     } else if (nodeType === '2node-vertical') {
       // 柱、杭などの垂直要素（bottom/top）
@@ -102,7 +95,7 @@ export class ElementGeometryUtils {
 
       if (!bottomNode || !topNode) {
         log.warn(
-          `2node-vertical element ${element.id}: nodes not found (${config.node1KeyStart}=${bottomNodeId}, ${config.node1KeyEnd}=${topNodeId})`
+          `2node-vertical element ${element.id}: nodes not found (${config.node1KeyStart}=${bottomNodeId}, ${config.node1KeyEnd}=${topNodeId})`,
         );
       }
 
@@ -112,7 +105,7 @@ export class ElementGeometryUtils {
         endNode: topNode,
         bottomNode: bottomNode,
         topNode: topNode,
-        valid: !!(bottomNode && topNode)
+        valid: !!(bottomNode && topNode),
       };
     } else if (nodeType === '2node-horizontal') {
       // 梁、ブレースなどの水平要素（start/end）
@@ -123,7 +116,7 @@ export class ElementGeometryUtils {
 
       if (!startNode || !endNode) {
         log.warn(
-          `2node-horizontal element ${element.id}: nodes not found (${config.node1KeyStart}=${startNodeId}, ${config.node1KeyEnd}=${endNodeId})`
+          `2node-horizontal element ${element.id}: nodes not found (${config.node1KeyStart}=${startNodeId}, ${config.node1KeyEnd}=${endNodeId})`,
         );
       }
 
@@ -131,7 +124,7 @@ export class ElementGeometryUtils {
         type: '2node-horizontal',
         startNode: startNode,
         endNode: endNode,
-        valid: !!(startNode && endNode)
+        valid: !!(startNode && endNode),
       };
     }
 
@@ -161,7 +154,7 @@ export class ElementGeometryUtils {
       return {
         type: '1node',
         node: this._arrayOrObjectToVector3(point),
-        valid: true
+        valid: true,
       };
     } else {
       // 2ノード要素
@@ -169,9 +162,7 @@ export class ElementGeometryUtils {
       const endPoint = geometry.end_point;
 
       if (!startPoint || !endPoint) {
-        log.warn(
-          `JSON 2node element ${element.id}: missing start_point or end_point`
-        );
+        log.warn(`JSON 2node element ${element.id}: missing start_point or end_point`);
         return { valid: false };
       }
 
@@ -179,7 +170,7 @@ export class ElementGeometryUtils {
         type: config.nodeType,
         startNode: this._arrayOrObjectToVector3(startPoint),
         endNode: this._arrayOrObjectToVector3(endPoint),
-        valid: true
+        valid: true,
       };
     }
   }
@@ -218,8 +209,8 @@ export class ElementGeometryUtils {
       }
     } else {
       // STB形式: id_section を使ってマップから取得
-      const sectionId = element.id_section;
-      if (!sectionId) {
+      const rawSectionId = element.id_section;
+      if (!rawSectionId) {
         log.warn(`STB element ${element.id}: no id_section`);
         return null;
       }
@@ -227,11 +218,13 @@ export class ElementGeometryUtils {
         log.warn(`STB element ${element.id}: sections map is null`);
         return null;
       }
+      // 型統一: sectionExtractorは数値IDを整数として保存するため、
+      // id_sectionが文字列の場合は整数に変換してからMapを検索
+      const parsedId = parseInt(rawSectionId, 10);
+      const sectionId = isNaN(parsedId) ? rawSectionId : parsedId;
       sectionData = sections.get(sectionId);
       if (!sectionData) {
-        log.warn(
-          `STB element ${element.id}: section not found (id_section=${sectionId})`
-        );
+        log.warn(`STB element ${element.id}: section not found (id_section=${sectionId})`);
       }
     }
 
@@ -270,29 +263,25 @@ export class ElementGeometryUtils {
       const ifcProfile = IFCProfileFactory.createProfile(sectionType, dims);
 
       if (ifcProfile) {
-        log.debug(
-          `Element ${element?.id}: profile created via IFCProfileFactory (${sectionType})`
-        );
+        log.debug(`Element ${element?.id}: profile created via IFCProfileFactory (${sectionType})`);
         return {
           shape: convertProfileToThreeShape({
             vertices: ifcProfile.points,
-            _meta: { type: sectionType === 'PIPE' ? 'circular' : 'polygon' }
+            _meta: { type: sectionType === 'PIPE' ? 'circular' : 'polygon' },
           }),
           meta: {
             profileSource: 'IFCProfileFactory',
             profileType: sectionType,
-            ...ifcProfile.metadata
-          }
+            ...ifcProfile.metadata,
+          },
         };
       } else {
         log.debug(
-          `Element ${element?.id}: IFCProfileFactory returned null for sectionType=${sectionType}, dims=${dimsStr}`
+          `Element ${element?.id}: IFCProfileFactory returned null for sectionType=${sectionType}, dims=${dimsStr}`,
         );
       }
     } catch (error) {
-      log.warn(
-        `Element ${element?.id}: IFCProfileFactory failed - ${error.message}`
-      );
+      log.warn(`Element ${element?.id}: IFCProfileFactory failed - ${error.message}`);
     }
 
     // 2. フォールバック: ProfileCalculator を使用
@@ -316,9 +305,7 @@ export class ElementGeometryUtils {
           (profilePoints.vertices && profilePoints.vertices.length > 0));
 
       if (hasVertices) {
-        log.debug(
-          `Element ${element?.id}: profile created via ProfileCalculator (${sectionType})`
-        );
+        log.debug(`Element ${element?.id}: profile created via ProfileCalculator (${sectionType})`);
 
         const profileData = Array.isArray(profilePoints)
           ? { vertices: profilePoints }
@@ -329,23 +316,19 @@ export class ElementGeometryUtils {
           meta: {
             profileSource: 'ProfileCalculator',
             profileType: sectionType,
-            ...(profileData._meta ? { _meta: profileData._meta } : {})
-          }
+            ...(profileData._meta ? { _meta: profileData._meta } : {}),
+          },
         };
       } else {
         log.debug(
-          `Element ${element?.id}: ProfileCalculator returned empty for sectionType=${sectionType}, dims=${dimsStr}`
+          `Element ${element?.id}: ProfileCalculator returned empty for sectionType=${sectionType}, dims=${dimsStr}`,
         );
       }
     } catch (error) {
-      log.warn(
-        `Element ${element?.id}: ProfileCalculator failed - ${error.message}`
-      );
+      log.warn(`Element ${element?.id}: ProfileCalculator failed - ${error.message}`);
     }
 
-    log.error(
-      `Element ${element?.id}: Failed to create profile for section type ${sectionType}`
-    );
+    log.error(`Element ${element?.id}: Failed to create profile for section type ${sectionType}`);
     return null;
   }
 
@@ -373,7 +356,7 @@ export class ElementGeometryUtils {
     return calculateColumnPlacement(startPlain, endPlain, {
       bottomOffset: options.startOffset || { x: 0, y: 0 },
       topOffset: options.endOffset || { x: 0, y: 0 },
-      rollAngle: options.rollAngle || 0
+      rollAngle: options.rollAngle || 0,
     });
   }
 
@@ -395,9 +378,7 @@ export class ElementGeometryUtils {
     const startPlain = startNode.isVector3
       ? { x: startNode.x, y: startNode.y, z: startNode.z }
       : startNode;
-    const endPlain = endNode.isVector3
-      ? { x: endNode.x, y: endNode.y, z: endNode.z }
-      : endNode;
+    const endPlain = endNode.isVector3 ? { x: endNode.x, y: endNode.y, z: endNode.z } : endNode;
 
     // GeometryCalculatorの梁用配置計算を使用
     const placement = calculateBeamPlacement(startPlain, endPlain, {
@@ -405,59 +386,56 @@ export class ElementGeometryUtils {
       endOffset: options.endOffset || { x: 0, y: 0, z: 0 },
       rollAngle: options.rollAngle || 0,
       placementMode: options.placementMode || 'center',
-      sectionHeight: options.sectionHeight || 0
+      sectionHeight: options.sectionHeight || 0,
     });
 
     // THREE.js用に変換
     return {
-      center: new THREE.Vector3(
-        placement.center.x,
-        placement.center.y,
-        placement.center.z
-      ),
+      center: new THREE.Vector3(placement.center.x, placement.center.y, placement.center.z),
       length: placement.length,
       direction: new THREE.Vector3(
         placement.direction.x,
         placement.direction.y,
-        placement.direction.z
+        placement.direction.z,
       ),
       rotation: new THREE.Quaternion(
         placement.rotation.x,
         placement.rotation.y,
         placement.rotation.z,
-        placement.rotation.w
+        placement.rotation.w,
       ),
       adjustedStart: new THREE.Vector3(
         placement.adjustedStart.x,
         placement.adjustedStart.y,
-        placement.adjustedStart.z
+        placement.adjustedStart.z,
       ),
       adjustedEnd: new THREE.Vector3(
         placement.adjustedEnd.x,
         placement.adjustedEnd.y,
-        placement.adjustedEnd.z
+        placement.adjustedEnd.z,
       ),
       basis: placement.basis
         ? {
-          xAxis: new THREE.Vector3(
-            placement.basis.xAxis.x,
-            placement.basis.xAxis.y,
-            placement.basis.xAxis.z
-          ),
-          yAxis: new THREE.Vector3(
-            placement.basis.yAxis.x,
-            placement.basis.yAxis.y,
-            placement.basis.yAxis.z
-          ),
-          zAxis: new THREE.Vector3(
-            placement.basis.zAxis.x,
-            placement.basis.zAxis.y,
-            placement.basis.zAxis.z
-          )
-        }
+            xAxis: new THREE.Vector3(
+              placement.basis.xAxis.x,
+              placement.basis.xAxis.y,
+              placement.basis.xAxis.z,
+            ),
+            yAxis: new THREE.Vector3(
+              placement.basis.yAxis.x,
+              placement.basis.yAxis.y,
+              placement.basis.yAxis.z,
+            ),
+            zAxis: new THREE.Vector3(
+              placement.basis.zAxis.x,
+              placement.basis.zAxis.y,
+              placement.basis.zAxis.z,
+            ),
+          }
         : null,
       placementMode: placement.placementMode,
-      sectionHeight: placement.sectionHeight
+      sectionHeight: placement.sectionHeight,
+      rollAngle: placement.rollAngle, // 材軸回りの断面回転角度（ラジアン）
     };
   }
 
@@ -500,7 +478,7 @@ export class ElementGeometryUtils {
       bottomZ: bottomZ,
       topZ: topZ,
       nodePosition: node,
-      offset: options.offset || { x: 0, y: 0 }
+      offset: options.offset || { x: 0, y: 0 },
     };
   }
 
@@ -535,7 +513,7 @@ export class ElementGeometryUtils {
       sectionType: config.sectionType,
       profileBased: true,
       profileMeta: config.profileMeta || { profileSource: 'unknown' },
-      sectionDataOriginal: config.sectionData
+      sectionDataOriginal: config.sectionData,
     };
 
     // 要素固有データを保存
@@ -545,7 +523,7 @@ export class ElementGeometryUtils {
     log.debug(
       `Mesh created for ${config.elementType} ${
         elementData.id
-      }: length=${config.length?.toFixed(1)}mm`
+      }: length=${config.length?.toFixed(1)}mm`,
     );
 
     return mesh;
@@ -562,14 +540,9 @@ export class ElementGeometryUtils {
   static attachPlacementLine(mesh, length, material, userData) {
     try {
       attachPlacementAxisLine(mesh, length, material, userData);
-      log.debug(
-        `Placement line attached for ${userData.elementType} ${userData.elementId}`
-      );
+      log.debug(`Placement line attached for ${userData.elementType} ${userData.elementId}`);
     } catch (error) {
-      log.warn(
-        `Failed to attach placement line for ${userData.elementId}:`,
-        error
-      );
+      log.warn(`Failed to attach placement line for ${userData.elementId}:`, error);
     }
   }
 
@@ -593,9 +566,7 @@ export class ElementGeometryUtils {
     }
 
     // 寸法から推定
-    const inferred = inferSectionTypeFromDimensions(
-      sectionData.dimensions || sectionData
-    );
+    const inferred = inferSectionTypeFromDimensions(sectionData.dimensions || sectionData);
     log.debug(`Section type inferred: ${inferred}`);
     return inferred;
   }
@@ -612,20 +583,27 @@ export class ElementGeometryUtils {
    * @param {string} config.nodeType - ノードタイプ
    * @returns {Object} { startOffset, endOffset, rollAngle }
    */
-  static getOffsetAndRotation(element, config) {
+  static getOffsetAndRotation(element, _config) {
     // デフォルト値
     const result = {
       startOffset: { x: 0, y: 0 },
       endOffset: { x: 0, y: 0 },
-      rollAngle: 0
+      rollAngle: 0,
     };
 
     // STB形式の場合、オフセット属性を取得
+    // 2ノード形式 (offset_X_start/end) または 1ノード形式 (offset_X/Y) をサポート
     if (element.offset_X_start !== undefined) {
       result.startOffset.x = element.offset_X_start;
+    } else if (element.offset_X !== undefined) {
+      // 1ノード形式 (基礎、杭など)
+      result.startOffset.x = element.offset_X;
     }
     if (element.offset_Y_start !== undefined) {
       result.startOffset.y = element.offset_Y_start;
+    } else if (element.offset_Y !== undefined) {
+      // 1ノード形式 (基礎、杭など)
+      result.startOffset.y = element.offset_Y;
     }
     if (element.offset_X_end !== undefined) {
       result.endOffset.x = element.offset_X_end;
@@ -633,8 +611,11 @@ export class ElementGeometryUtils {
     if (element.offset_Y_end !== undefined) {
       result.endOffset.y = element.offset_Y_end;
     }
+    // 回転角度: roll_angle または rotate をサポート
     if (element.roll_angle !== undefined) {
       result.rollAngle = element.roll_angle;
+    } else if (element.rotate !== undefined) {
+      result.rollAngle = element.rotate;
     }
 
     return result;
@@ -650,40 +631,27 @@ export class ElementGeometryUtils {
     const result = {
       startOffset: { x: 0, y: 0, z: 0 },
       endOffset: { x: 0, y: 0, z: 0 },
-      rollAngle: 0
+      rollAngle: 0,
     };
 
     // STB形式: offset_start_X, offset_start_Y, offset_start_Z, etc.
-    // （旧形式 offset_X_start も後方互換でサポート）
     if (element.offset_start_X !== undefined) {
       result.startOffset.x = Number(element.offset_start_X) || 0;
-    } else if (element.offset_X_start !== undefined) {
-      result.startOffset.x = Number(element.offset_X_start) || 0;
     }
     if (element.offset_start_Y !== undefined) {
       result.startOffset.y = Number(element.offset_start_Y) || 0;
-    } else if (element.offset_Y_start !== undefined) {
-      result.startOffset.y = Number(element.offset_Y_start) || 0;
     }
     if (element.offset_start_Z !== undefined) {
       result.startOffset.z = Number(element.offset_start_Z) || 0;
-    } else if (element.offset_Z_start !== undefined) {
-      result.startOffset.z = Number(element.offset_Z_start) || 0;
     }
     if (element.offset_end_X !== undefined) {
       result.endOffset.x = Number(element.offset_end_X) || 0;
-    } else if (element.offset_X_end !== undefined) {
-      result.endOffset.x = Number(element.offset_X_end) || 0;
     }
     if (element.offset_end_Y !== undefined) {
       result.endOffset.y = Number(element.offset_end_Y) || 0;
-    } else if (element.offset_Y_end !== undefined) {
-      result.endOffset.y = Number(element.offset_Y_end) || 0;
     }
     if (element.offset_end_Z !== undefined) {
       result.endOffset.z = Number(element.offset_end_Z) || 0;
-    } else if (element.offset_Z_end !== undefined) {
-      result.endOffset.z = Number(element.offset_Z_end) || 0;
     }
 
     // 回転角度（度 → ラジアン変換は呼び出し側で行う）
@@ -724,7 +692,7 @@ export class ElementGeometryUtils {
       dims.height,
       dims.outer_height,
       dims.A,
-      dims.depth
+      dims.depth,
     ];
 
     for (const candidate of heightCandidates) {

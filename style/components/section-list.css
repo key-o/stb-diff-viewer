@@ -1,0 +1,522 @@
+/**
+ * RC柱断面リストパネル用スタイル
+ */
+
+/* フローティングウィンドウ */
+.column-section-list-window {
+  width: 900px;
+  max-width: 95vw;
+  height: 80vh;
+  max-height: 800px;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  /* リサイズ対応 */
+  min-width: 400px;
+  min-height: 300px;
+}
+
+.column-section-list-window .float-window-content {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 40px);
+  overflow: hidden;
+}
+
+/* ツールバー */
+.section-list-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-secondary, #f5f5f5);
+  border-bottom: 1px solid var(--border-color, #ddd);
+  flex-shrink: 0;
+}
+
+.section-list-source-selector {
+  display: flex;
+  gap: 12px;
+}
+
+.section-list-source-selector label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.section-list-info {
+  font-size: 12px;
+  color: var(--text-secondary, #666);
+}
+
+/* テーブルコンテナ */
+.section-list-table-wrapper {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+}
+
+/* テーブル */
+.column-section-list-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 11px;
+  background: white;
+}
+
+.column-section-list-table th,
+.column-section-list-table td {
+  border: 1px solid var(--border-color, #ccc);
+  padding: 8px;
+  vertical-align: top;
+}
+
+/* ヘッダー */
+.section-list-header-floor,
+.section-list-header-symbol,
+.section-list-header-section {
+  background: var(--bg-tertiary, #e8e8e8);
+  font-weight: bold;
+  text-align: center;
+  padding: 10px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.section-list-header-floor {
+  width: 70px;
+  min-width: 70px;
+}
+
+.section-list-header-symbol {
+  width: 60px;
+  min-width: 60px;
+}
+
+.section-list-header-section {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* 階セル */
+.section-list-floor-cell {
+  background: var(--bg-secondary, #f5f5f5);
+  font-weight: bold;
+  text-align: center;
+  vertical-align: middle;
+  width: 70px;
+  min-width: 70px;
+}
+
+/* 符号セル */
+.section-list-symbol-cell {
+  background: var(--bg-secondary, #f5f5f5);
+  font-weight: bold;
+  text-align: center;
+  vertical-align: middle;
+  width: 60px;
+  min-width: 60px;
+}
+
+/* 断面セル */
+.section-list-section-cell {
+  min-width: 160px;
+  text-align: center;
+}
+
+.section-cell-empty {
+  color: var(--text-disabled, #999);
+  padding: 20px;
+}
+
+/* 断面セル内容 */
+.section-cell-name {
+  font-weight: bold;
+  font-size: 10px;
+  margin-bottom: 4px;
+  color: var(--text-primary, #333);
+  background: var(--bg-secondary, #f0f0f0);
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+.section-cell-diagram {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0;
+}
+
+.section-cell-diagram svg {
+  max-width: 120px;
+  max-height: 120px;
+}
+
+/* 仕様テーブル */
+.section-cell-specs {
+  text-align: left;
+}
+
+.section-specs-table {
+  width: 100%;
+  font-size: 10px;
+  border-collapse: collapse;
+}
+
+.section-specs-table td {
+  padding: 2px 4px;
+  border: none;
+  vertical-align: top;
+}
+
+.section-specs-table .spec-label {
+  color: var(--text-secondary, #666);
+  white-space: nowrap;
+  width: 60px;
+}
+
+.section-specs-table .spec-value {
+  color: var(--text-primary, #333);
+  word-break: break-word;
+}
+
+/* ボタン */
+.section-list-export-btn,
+.section-list-refresh-btn {
+  font-size: 11px;
+  padding: 2px 8px;
+  margin-right: 4px;
+}
+
+/* ローディング・エラー・空状態 */
+.section-list-loading,
+.section-list-error,
+.section-list-empty {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary, #666);
+}
+
+.section-list-error {
+  color: var(--color-error, #c00);
+}
+
+/* 印刷用スタイル */
+@media print {
+  .column-section-list-window {
+    position: static;
+    width: 100%;
+    height: auto;
+    max-width: none;
+    max-height: none;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .section-list-toolbar {
+    display: none;
+  }
+
+  .section-list-table-wrapper {
+    overflow: visible;
+    padding: 0;
+  }
+
+  .column-section-list-table th,
+  .column-section-list-table td {
+    page-break-inside: avoid;
+  }
+
+  .section-list-floor-cell {
+    writing-mode: horizontal-tb;
+  }
+}
+
+/* ダークテーマ対応 */
+[data-theme="dark"] .column-section-list-table {
+  background: var(--bg-primary);
+}
+
+[data-theme="dark"] .section-list-header-floor,
+[data-theme="dark"] .section-list-header-symbol {
+  background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .section-list-floor-cell {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .section-cell-diagram svg rect:first-child {
+  fill: var(--bg-primary);
+}
+
+/* ===== グリッド表示用スタイル ===== */
+
+/* 横スクロールコンテナ（グリッドモード） */
+.section-list-table-wrapper.grid-mode {
+  overflow-x: auto;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.section-list-table-wrapper.grid-mode::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+}
+
+.section-list-table-wrapper.grid-mode::-webkit-scrollbar-track {
+  background: var(--bg-secondary, #f5f5f5);
+}
+
+.section-list-table-wrapper.grid-mode::-webkit-scrollbar-thumb {
+  background: var(--border-color, #ccc);
+  border-radius: 6px;
+}
+
+.section-list-table-wrapper.grid-mode::-webkit-scrollbar-thumb:hover {
+  background: var(--border-color-hover, #999);
+}
+
+/* グリッドテーブル */
+.column-section-grid-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: auto;
+  min-width: 100%;
+  font-size: 11px;
+  background: white;
+  table-layout: fixed;
+}
+
+.column-section-grid-table th,
+.column-section-grid-table td {
+  border: 1px solid var(--border-color, #ccc);
+  padding: 8px;
+  vertical-align: top;
+  box-sizing: border-box;
+}
+
+/* 各行の高さを内容に応じて自動調整 */
+.column-section-grid-table tbody tr {
+  height: auto;
+}
+
+.column-section-grid-table tbody td {
+  height: auto;
+  vertical-align: top;
+}
+
+/* グリッドヘッダー（列） */
+.section-grid-header-floor,
+.section-grid-header-symbol {
+  background: var(--bg-tertiary, #e8e8e8);
+  font-weight: bold;
+  text-align: center;
+  padding: 10px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-bottom: 2px solid var(--border-color, #999);
+}
+
+/* 階ヘッダー（左上角の固定セル） */
+.section-grid-header-floor {
+  left: 0;
+  z-index: 20;
+  min-width: 70px;
+  width: 70px;
+}
+
+/* 符号ヘッダー（各列） */
+.section-grid-header-symbol {
+  min-width: 180px;
+  max-width: 220px;
+  width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* グリッド階セル（各行の左端固定列） */
+.section-grid-floor-cell {
+  background: var(--bg-secondary, #f5f5f5);
+  font-weight: bold;
+  text-align: center;
+  vertical-align: middle;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  min-width: 70px;
+  width: 70px;
+  border-right: 2px solid var(--border-color, #999);
+}
+
+/* グリッド断面セル */
+.section-grid-section-cell {
+  min-width: 180px;
+  max-width: 220px;
+  width: 200px;
+  text-align: center;
+  background: white;
+  vertical-align: top;
+  padding: 6px;
+}
+
+/* セル内をflexbox縦配置でレイアウト */
+.section-grid-section-cell .section-cell-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* セル内レイアウト（グリッドモード用） */
+.section-grid-section-cell .section-cell-name,
+.section-grid-section-cell .section-cell-diagram,
+.section-grid-section-cell .section-cell-specs {
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+/* 断面名（符号）- 固定高さ */
+.section-grid-section-cell .section-cell-name {
+  height: 22px;
+  line-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 断面図エリア - 固定高さ */
+.section-grid-section-cell .section-cell-diagram {
+  height: 130px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0;
+}
+
+.section-grid-section-cell .section-cell-diagram svg {
+  max-width: 120px;
+  max-height: 120px;
+}
+
+/* 詳細情報テーブル - 内容に応じた高さ */
+.section-grid-section-cell .section-cell-specs {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.section-grid-section-cell .section-specs-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.section-grid-section-cell .section-specs-table td {
+  padding: 2px 4px;
+  line-height: 1.3;
+  vertical-align: top;
+}
+
+.section-grid-section-cell .section-specs-table .spec-label {
+  width: 55px;
+  min-width: 55px;
+}
+
+.section-grid-section-cell.empty {
+  background: var(--bg-secondary, #fafafa);
+  color: var(--text-disabled, #999);
+  font-style: italic;
+}
+
+/* グリッド用の空セル表示 */
+.section-list-table-wrapper.grid-mode .section-cell-empty {
+  color: var(--text-disabled, #999);
+  padding: 0;
+  font-size: 16px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 250px;
+}
+
+/* レスポンシブ対応（大画面） */
+@media screen and (min-width: 1920px) {
+  .column-section-grid-table {
+    font-size: 10px;
+  }
+
+  .section-grid-header-symbol,
+  .section-grid-section-cell {
+    min-width: 160px;
+    max-width: 200px;
+    width: 180px;
+  }
+}
+
+/* レスポンシブ対応（小画面） */
+@media screen and (max-width: 1280px) {
+  .section-grid-header-symbol,
+  .section-grid-section-cell {
+    min-width: 200px;
+    max-width: 240px;
+    width: 220px;
+  }
+}
+
+/* グリッド印刷用スタイル */
+@media print {
+  .section-list-table-wrapper.grid-mode {
+    overflow: visible;
+    padding: 0;
+  }
+
+  .column-section-grid-table {
+    page-break-inside: auto;
+  }
+
+  .column-section-grid-table tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  .section-grid-header-floor,
+  .section-grid-header-symbol,
+  .section-grid-floor-cell {
+    position: static;
+  }
+
+  @page {
+    size: A3 landscape;
+    margin: 10mm;
+  }
+}
+
+/* ダークテーマ対応（グリッド） */
+[data-theme="dark"] .column-section-grid-table {
+  background: var(--bg-primary);
+}
+
+[data-theme="dark"] .section-grid-header-floor,
+[data-theme="dark"] .section-grid-header-symbol {
+  background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .section-grid-floor-cell {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .section-grid-section-cell {
+  background: var(--bg-primary);
+}
+
+[data-theme="dark"] .section-grid-section-cell.empty {
+  background: var(--bg-secondary);
+}

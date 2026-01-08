@@ -5,9 +5,40 @@
  *   - ?log=debug&ns=*
  *   - localStorage.setItem('stbviewer.log.level','info')
  *   - localStorage.setItem('stbviewer.log.namespaces','*, -noisy:*')
+ *
+ * 警告カテゴリ（検索用プレフィックス）:
+ *   [IFC Export] - IFC変換時の警告
+ *   [Data]       - データ検証・パース警告
+ *   [Render]     - 描画・Three.js関連警告
+ *   [UI]         - UI操作関連警告
+ *   [Config]     - 設定・環境関連警告
+ *   [Perf]       - パフォーマンス警告
  */
 
 const LEVELS = { silent: 0, error: 1, warn: 2, info: 3, debug: 4, trace: 5 };
+
+/**
+ * 統一警告カテゴリ
+ * 検索しやすいように固定プレフィックスを使用
+ */
+export const WarnCategory = {
+  IFC_EXPORT: '[IFC Export]',
+  DATA: '[Data]',
+  RENDER: '[Render]',
+  UI: '[UI]',
+  CONFIG: '[Config]',
+  PERF: '[Perf]',
+};
+
+/**
+ * 統一ログカテゴリ（イベント・処理ログ用）
+ * 重要な操作・処理の開始/完了を記録
+ */
+export const LogCategory = {
+  EVENT: '[Event]', // ユーザー操作（ボタン、ファイル選択）
+  PROCESS: '[Process]', // 処理開始/完了（解析、比較、エクスポート）
+  LOAD: '[Load]', // ファイル読み込み
+};
 
 function readConfig() {
   try {
@@ -94,7 +125,7 @@ export function createLogger(namespace) {
         onceKeys.add(namespace + ':' + key);
         baseLog('info', namespace, args);
       }
-    }
+    },
   };
 }
 
@@ -104,15 +135,10 @@ export const Logger = {
     localStorage.setItem('stbviewer.log.level', CONFIG.level);
   },
   enable(patterns) {
-    const arr = Array.isArray(patterns)
-      ? patterns
-      : (patterns || '*').split(',');
+    const arr = Array.isArray(patterns) ? patterns : (patterns || '*').split(',');
     CONFIG.namespaces = arr.map((s) => s.trim()).filter(Boolean);
     nsRules = CONFIG.namespaces.map(patternToRegex);
-    localStorage.setItem(
-      'stbviewer.log.namespaces',
-      CONFIG.namespaces.join(',')
-    );
+    localStorage.setItem('stbviewer.log.namespaces', CONFIG.namespaces.join(','));
   },
   getLevel() {
     return CONFIG.level;
@@ -125,7 +151,7 @@ export const Logger = {
   },
   clearHistory() {
     HISTORY.length = 0;
-  }
+  },
 };
 
 // デバッグ用にグローバル公開

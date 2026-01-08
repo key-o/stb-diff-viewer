@@ -3,15 +3,20 @@
  *
  * このモジュールは既存のレンダリングシステムと段階的ローディングを統合し、
  * パフォーマンスを向上させます。
+ *
+ * Adapter層統合:
+ * - convertToDiffRenderModel()を使用して比較結果をDiffRenderModelに変換
+ * - DiffRenderModelの統計情報をログ出力に活用
  */
 
 import * as THREE from 'three';
-import { ELEMENT_PRIORITY } from '../core/progressiveLoader.js';
+import { createLogger } from '../utils/logger.js';
+import { ELEMENT_PRIORITY } from '../app/progressiveLoader.js';
 import {
   getLoadingIndicator,
   showLoading,
   hideLoading,
-  completeLoading
+  completeLoading,
 } from '../ui/loadingIndicator.js';
 import {
   materials,
@@ -24,8 +29,11 @@ import {
   shouldUseBatchRendering,
   drawAxes,
   drawStories,
-  getActiveCamera
+  getActiveCamera,
 } from '../viewer/index.js';
+import { convertToDiffRenderModel, getDiffStatistics } from '../adapters/index.js';
+
+const log = createLogger('modelLoader/progressiveRendering');
 
 /**
  * 段階的レンダリングを有効にするかどうかのフラグ
@@ -75,7 +83,7 @@ export function isProgressiveRenderingEnabled() {
  *
  * @param {Map} comparisonResults - 比較結果
  * @param {THREE.Box3} modelBounds - モデル境界
- * @param {Object} globalData - グローバルデータ（stories, axesData）
+ * @param {Object} globalData - グローバルデータ（stories, axesData, nodeMapA, nodeMapB）
  * @param {function} scheduleRender - 再描画関数
  * @returns {Promise<Object>} レンダリング結果
  */
@@ -83,16 +91,22 @@ export async function orchestrateProgressiveRendering(
   comparisonResults,
   modelBounds,
   globalData,
-  scheduleRender
+  scheduleRender,
 ) {
   // 段階的レンダリングが無効な場合は従来の方法を使用
   if (!progressiveRenderingEnabled) {
-    return orchestrateSynchronousRendering(
-      comparisonResults,
-      modelBounds,
-      globalData
-    );
+    return orchestrateSynchronousRendering(comparisonResults, modelBounds, globalData);
   }
+
+  // Adapter層: 比較結果をDiffRenderModelに変換
+  // 現時点では統計情報の取得に利用、将来的には描画関数に直接渡す
+  const diffRenderModel = convertToDiffRenderModel(comparisonResults, {
+    nodeMapA: globalData.nodeMapA,
+    nodeMapB: globalData.nodeMapB,
+  });
+
+  // DiffRenderModelの統計情報をログ出力
+  const diffStats = getDiffStatistics(diffRenderModel);
 
   const indicator = getLoadingIndicator();
   indicator.show('3Dモデルを描画中...');
@@ -100,26 +114,23 @@ export async function orchestrateProgressiveRendering(
   const renderingResults = {
     nodeLabels: [],
     renderedElements: new Map(),
-    errors: []
+    errors: [],
+    diffRenderModel, // DiffRenderModelを結果に含める（将来の参照用）
   };
 
   // 要素タイプを優先度順にソート
-  const sortedElementTypes = Array.from(comparisonResults.keys()).sort(
-    (a, b) => {
-      const priorityA = ELEMENT_PRIORITY[`Stb${a}`] || ELEMENT_PRIORITY[a] || 99;
-      const priorityB = ELEMENT_PRIORITY[`Stb${b}`] || ELEMENT_PRIORITY[b] || 99;
-      return priorityA - priorityB;
-    }
-  );
+  const sortedElementTypes = Array.from(comparisonResults.keys()).sort((a, b) => {
+    const priorityA = ELEMENT_PRIORITY[`Stb${a}`] || ELEMENT_PRIORITY[a] || 99;
+    const priorityB = ELEMENT_PRIORITY[`Stb${b}`] || ELEMENT_PRIORITY[b] || 99;
+    return priorityA - priorityB;
+  });
 
   // 総要素数を計算
   let totalElements = 0;
   let processedElements = 0;
   for (const result of comparisonResults.values()) {
     totalElements +=
-      (result.matched?.length || 0) +
-      (result.onlyA?.length || 0) +
-      (result.onlyB?.length || 0);
+      (result.matched?.length || 0) + (result.onlyA?.length || 0) + (result.onlyB?.length || 0);
   }
 
   // フェーズごとに処理
@@ -136,7 +147,7 @@ export async function orchestrateProgressiveRendering(
     indicator.update(
       Math.round((processedElements / totalElements) * 100),
       `描画中: ${elementType}`,
-      `${processedElements}/${totalElements} 要素`
+      `${processedElements}/${totalElements} 要素`,
     );
 
     try {
@@ -144,7 +155,7 @@ export async function orchestrateProgressiveRendering(
         elementType,
         comparisonResult,
         modelBounds,
-        globalData
+        globalData,
       );
 
       renderingResults.renderedElements.set(elementType, elementRenderResult);
@@ -158,10 +169,10 @@ export async function orchestrateProgressiveRendering(
         scheduleRender();
       }
     } catch (error) {
-      console.error(`Error rendering ${elementType}:`, error);
+      log.error(`Error rendering ${elementType}:`, error);
       renderingResults.errors.push({
         elementType,
-        error: error.message
+        error: error.message,
       });
     }
 
@@ -178,10 +189,10 @@ export async function orchestrateProgressiveRendering(
       scheduleRender();
     }
   } catch (error) {
-    console.error('Error rendering auxiliary elements:', error);
+    log.error('Error rendering auxiliary elements:', error);
     renderingResults.errors.push({
       elementType: 'auxiliary',
-      error: error.message
+      error: error.message,
     });
   }
 
@@ -198,17 +209,11 @@ export async function orchestrateProgressiveRendering(
  * @param {Object} globalData - グローバルデータ
  * @returns {Object} レンダリング結果
  */
-function orchestrateSynchronousRendering(
-  comparisonResults,
-  modelBounds,
-  globalData
-) {
-  console.log('=== Starting Synchronous Element Rendering ===');
-
+function orchestrateSynchronousRendering(comparisonResults, modelBounds, globalData) {
   const renderingResults = {
     nodeLabels: [],
     renderedElements: new Map(),
-    errors: []
+    errors: [],
   };
 
   for (const [elementType, comparisonResult] of comparisonResults.entries()) {
@@ -217,7 +222,7 @@ function orchestrateSynchronousRendering(
         elementType,
         comparisonResult,
         modelBounds,
-        globalData
+        globalData,
       );
 
       renderingResults.renderedElements.set(elementType, elementRenderResult);
@@ -226,18 +231,16 @@ function orchestrateSynchronousRendering(
         renderingResults.nodeLabels.push(...elementRenderResult.labels);
       }
     } catch (error) {
-      console.error(`Error rendering ${elementType}:`, error);
+      log.error(`Error rendering ${elementType}:`, error);
       renderingResults.errors.push({
         elementType,
-        error: error.message
+        error: error.message,
       });
     }
   }
 
   // 補助要素を描画
   renderAuxiliaryElementsSync(globalData, renderingResults, modelBounds);
-
-  console.log('=== Synchronous Element Rendering Complete ===');
 
   return renderingResults;
 }
@@ -251,19 +254,9 @@ function orchestrateSynchronousRendering(
  * @param {Object} globalData - グローバルデータ
  * @returns {Promise<Object>} レンダリング結果
  */
-async function renderElementTypeAsync(
-  elementType,
-  comparisonResult,
-  modelBounds,
-  globalData
-) {
+async function renderElementTypeAsync(elementType, comparisonResult, modelBounds, globalData) {
   // 基本的には同期処理と同じだが、大量要素の場合はバッチ処理
-  return renderElementTypeSync(
-    elementType,
-    comparisonResult,
-    modelBounds,
-    globalData
-  );
+  return renderElementTypeSync(elementType, comparisonResult, modelBounds, globalData);
 }
 
 /**
@@ -275,12 +268,7 @@ async function renderElementTypeAsync(
  * @param {Object} globalData - グローバルデータ
  * @returns {Object} レンダリング結果
  */
-function renderElementTypeSync(
-  elementType,
-  comparisonResult,
-  modelBounds,
-  _globalData
-) {
+function renderElementTypeSync(elementType, comparisonResult, modelBounds, _globalData) {
   const group = elementGroups[elementType];
   if (!group) {
     throw new Error(`Element group not found for type: ${elementType}`);
@@ -291,21 +279,18 @@ function renderElementTypeSync(
   const result = {
     meshCount: 0,
     labels: [],
-    groupVisible: group.visible
+    groupVisible: group.visible,
   };
 
   if (comparisonResult.error) {
-    console.warn(
-      `Skipping rendering for ${elementType} due to comparison error`
-    );
+    log.warn(`[Render] ${elementType}: 比較エラーのためスキップ`);
     return result;
   }
 
   const createLabels = true;
 
   // バッチ処理を使用するかどうかを判定
-  const useBatch =
-    batchRenderingEnabled && shouldUseBatchRendering(comparisonResult);
+  const useBatch = batchRenderingEnabled && shouldUseBatchRendering(comparisonResult);
 
   switch (elementType) {
     case 'Node':
@@ -316,16 +301,10 @@ function renderElementTypeSync(
           materials,
           group,
           createLabels,
-          modelBounds
+          modelBounds,
         );
       } else {
-        result.labels = drawNodes(
-          comparisonResult,
-          materials,
-          group,
-          createLabels,
-          modelBounds
-        );
+        result.labels = drawNodes(comparisonResult, materials, group, createLabels, modelBounds);
       }
       break;
 
@@ -336,7 +315,10 @@ function renderElementTypeSync(
     case 'Brace':
     case 'Pile':
     case 'Footing':
+    case 'StripFooting':
     case 'FoundationColumn':
+    case 'Joint':
+    case 'Parapet':
       // 要素数が多い場合はバッチ処理を使用
       if (useBatch) {
         result.labels = drawLineElementsBatched(
@@ -345,7 +327,7 @@ function renderElementTypeSync(
           group,
           elementType,
           createLabels,
-          modelBounds
+          modelBounds,
         );
       } else {
         result.labels = drawLineElements(
@@ -354,7 +336,7 @@ function renderElementTypeSync(
           group,
           elementType,
           createLabels,
-          modelBounds
+          modelBounds,
         );
       }
       break;
@@ -366,12 +348,18 @@ function renderElementTypeSync(
         materials,
         group,
         createLabels,
-        modelBounds
+        modelBounds,
       );
       break;
 
+    case 'Undefined':
+      // StbSecUndefinedを参照する要素は常にライン表示
+      // viewModes.jsのredrawUndefinedElementsForViewModeで処理されるため、ここでは何もしない
+      result.labels = [];
+      break;
+
     default:
-      console.warn(`Unknown element type for rendering: ${elementType}`);
+      log.warn(`[Render] 不明な要素タイプ: ${elementType}`);
   }
 
   result.meshCount = countMeshesInGroup(group);
@@ -386,11 +374,7 @@ function renderElementTypeSync(
  * @param {Object} renderingResults - レンダリング結果
  * @param {THREE.Box3} modelBounds - モデル境界
  */
-async function renderAuxiliaryElementsAsync(
-  globalData,
-  renderingResults,
-  modelBounds
-) {
+async function renderAuxiliaryElementsAsync(globalData, renderingResults, modelBounds) {
   renderAuxiliaryElementsSync(globalData, renderingResults, modelBounds);
 }
 
@@ -412,25 +396,20 @@ function renderAuxiliaryElementsSync(globalData, renderingResults, modelBounds) 
         elementGroups['Axis'],
         modelBounds,
         true,
-        getActiveCamera()
+        getActiveCamera(),
       );
       renderingResults.nodeLabels.push(...axisLabels);
     } catch (error) {
-      console.error('Error rendering axes:', error);
+      log.error('Error rendering axes:', error);
     }
   }
 
   if (stories && stories.length > 0) {
     try {
-      const storyLabels = drawStories(
-        stories,
-        elementGroups['Story'],
-        modelBounds,
-        true
-      );
+      const storyLabels = drawStories(stories, elementGroups['Story'], modelBounds, true);
       renderingResults.nodeLabels.push(...storyLabels);
     } catch (error) {
-      console.error('Error rendering stories:', error);
+      log.error('Error rendering stories:', error);
     }
   }
 }

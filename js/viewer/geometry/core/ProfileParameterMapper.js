@@ -15,8 +15,8 @@ import {
   getHeight,
   getDiameter,
   getRadius,
-  getThickness
-} from '../../../common/dimensionNormalizer.js';
+  getThickness,
+} from '../../../common-stb/data/dimensionNormalizer.js';
 
 /**
  * 断面タイプに応じたプロファイルパラメータを準備
@@ -96,7 +96,7 @@ function mapHSectionParams(dims) {
     overallWidth: dims.overall_width || dims.B || getWidth(dims) || 200.0,
     webThickness: dims.web_thickness || dims.t1 || dims.tw || 9.0,
     flangeThickness: dims.flange_thickness || dims.t2 || dims.tf || 14.0,
-    filletRadius: dims.fillet_radius || dims.r || 13.0
+    filletRadius: dims.fillet_radius || dims.r || 13.0,
   };
 }
 
@@ -108,7 +108,7 @@ function mapBoxParams(dims) {
   return {
     width: getWidth(dims) || dims.outer_width || dims.B || 150.0,
     height: getHeight(dims) || dims.outer_height || dims.A || 150.0,
-    wallThickness: dims.wall_thickness || getThickness(dims) || dims.t || 9.0
+    wallThickness: dims.wall_thickness || getThickness(dims) || dims.t || 9.0,
   };
 }
 
@@ -120,7 +120,7 @@ function mapPipeParams(dims) {
   return {
     outerDiameter: getDiameter(dims) || dims.outer_diameter || dims.A || 150.0,
     wallThickness: getThickness(dims) || dims.wall_thickness || dims.t || 6.0,
-    segments: dims.segments || 32
+    segments: dims.segments || 32,
   };
 }
 
@@ -131,7 +131,7 @@ function mapPipeParams(dims) {
 function mapRectangleParams(dims) {
   return {
     width: getWidth(dims) || 400.0,
-    height: getHeight(dims) || 400.0
+    height: getHeight(dims) || 400.0,
   };
 }
 
@@ -145,7 +145,7 @@ function mapCircleParams(dims) {
 
   return {
     radius: radius || (diameter ? diameter / 2 : 100.0),
-    segments: dims.segments || 32
+    segments: dims.segments || 32,
   };
 }
 
@@ -158,7 +158,7 @@ function mapChannelParams(dims) {
     overallDepth: dims.overall_depth || dims.H || getHeight(dims) || dims.A || 300.0,
     flangeWidth: dims.flange_width || dims.B || getWidth(dims) || 90.0,
     webThickness: dims.web_thickness || dims.t1 || dims.tw || 9.0,
-    flangeThickness: dims.flange_thickness || dims.t2 || dims.tf || 13.0
+    flangeThickness: dims.flange_thickness || dims.t2 || dims.tf || 13.0,
   };
 }
 
@@ -170,7 +170,7 @@ function mapLShapeParams(dims) {
   return {
     depth: dims.overall_depth || dims.depth || dims.A || 65.0,
     width: dims.flange_width || getWidth(dims) || dims.B || 65.0,
-    thickness: dims.web_thickness || getThickness(dims) || dims.t || 6.0
+    thickness: dims.web_thickness || getThickness(dims) || dims.t || 6.0,
   };
 }
 
@@ -183,7 +183,7 @@ function mapTShapeParams(dims) {
     overallDepth: dims.overall_depth || dims.H || getHeight(dims) || 200.0,
     flangeWidth: dims.flange_width || dims.B || getWidth(dims) || 150.0,
     webThickness: dims.web_thickness || dims.t1 || dims.tw || 8.0,
-    flangeThickness: dims.flange_thickness || dims.t2 || dims.tf || 12.0
+    flangeThickness: dims.flange_thickness || dims.t2 || dims.tf || 12.0,
   };
 }
 

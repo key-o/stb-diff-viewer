@@ -5,11 +5,17 @@
  * タブ別の要素表示、重要度レベル変更、CSV入出力機能を提供します。
  */
 
-import { getImportanceManager, IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES, STB_ELEMENT_TABS } from '../core/importanceManager.js';
+import { getImportanceManager, STB_ELEMENT_TABS } from '../app/importanceManager.js';
+import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../constants/importanceLevels.js';
 import { IMPORTANCE_COLORS } from '../config/importanceConfig.js';
-import { getState, setState } from '../core/globalState.js';
-import { updateComparisonResultImportance } from '../comparator.js';
+import { getState, setState } from '../app/globalState.js';
+import { comparisonController } from '../app/controllers/comparisonController.js';
 import { floatingWindowManager } from './floatingWindowManager.js';
+import { eventBus, ImportanceEvents, ComparisonEvents, RenderEvents } from '../app/events/index.js';
+import { showSuccess, showError, showWarning } from './toast.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('importancePanel');
 
 /**
  * 重要度設定パネルクラス
@@ -31,13 +37,13 @@ class ImportancePanel {
    * イベントリスナーを設定する
    */
   setupEventListeners() {
-    // 重要度設定変更イベント
-    window.addEventListener('importanceSettingsChanged', (event) => {
+    // 重要度設定変更イベント（EventBus経由）
+    eventBus.on(ImportanceEvents.SETTINGS_CHANGED, (data) => {
       this.updateStatistics();
       this.refreshCurrentTab();
 
       // 自動再描画を実行
-      this.triggerAutoRedraw(event.detail);
+      this.triggerAutoRedraw(data);
     });
   }
 
@@ -47,7 +53,7 @@ class ImportancePanel {
    */
   async triggerAutoRedraw(changeDetails = {}) {
     try {
-      console.log('Starting auto-redraw after importance change:', changeDetails);
+      log.info('Starting auto-redraw after importance change:', changeDetails);
 
       // 比較結果の重要度情報を更新
       await this.updateVisualizationWithImportance();
@@ -58,28 +64,23 @@ class ImportancePanel {
       // 統計情報を更新
       this.updateComparisonStatistics();
 
-      console.log('Auto-redraw completed successfully');
+      log.info('Auto-redraw completed successfully');
 
-      // 成功の通知イベントを発行
-      window.dispatchEvent(new CustomEvent('importanceAutoRedrawCompleted', {
-        detail: {
-          success: true,
-          changeDetails,
-          timestamp: new Date().toISOString()
-        }
-      }));
-
+      // 成功の通知イベントを発行（EventBus経由）
+      eventBus.emit(ImportanceEvents.AUTO_REDRAW_COMPLETED, {
+        success: true,
+        changeDetails,
+        timestamp: new Date().toISOString(),
+      });
     } catch (error) {
-      console.error('Auto-redraw failed:', error);
+      log.error('Auto-redraw failed:', error);
 
-      // エラーの通知イベントを発行
-      window.dispatchEvent(new CustomEvent('importanceAutoRedrawError', {
-        detail: {
-          error: error.message,
-          changeDetails,
-          timestamp: new Date().toISOString()
-        }
-      }));
+      // エラーの通知イベントを発行（EventBus経由）
+      eventBus.emit(ImportanceEvents.AUTO_REDRAW_ERROR, {
+        error: error.message,
+        changeDetails,
+        timestamp: new Date().toISOString(),
+      });
     }
   }
 
@@ -89,31 +90,31 @@ class ImportancePanel {
   async updateVisualizationWithImportance() {
     const currentResults = getState('comparisonResults');
     if (!currentResults) {
-      console.log('No comparison results available for importance update');
+      log.info('No comparison results available for importance update');
       return;
     }
 
-    console.log('Updating visualization with importance settings...');
+    log.info('Updating visualization with importance settings...');
 
     // 各要素タイプの比較結果を重要度で更新
     for (const [elementType, result] of currentResults.entries()) {
       try {
-        const updatedResult = updateComparisonResultImportance(result, elementType);
+        const updatedResult = comparisonController.updateImportance(result, elementType);
         currentResults.set(elementType, updatedResult);
-        console.log(`Updated importance for ${elementType}:`, {
+        log.info(`Updated importance for ${elementType}:`, {
           matched: updatedResult.matched.length,
           onlyA: updatedResult.onlyA.length,
-          onlyB: updatedResult.onlyB.length
+          onlyB: updatedResult.onlyB.length,
         });
       } catch (error) {
-        console.error(`Failed to update importance for ${elementType}:`, error);
+        log.error(`Failed to update importance for ${elementType}:`, error);
       }
     }
 
     // 更新された結果をグローバル状態に保存
     setState('comparisonResults', currentResults);
 
-    console.log('Visualization importance update completed');
+    log.info('Visualization importance update completed');
   }
 
   /**
@@ -121,7 +122,7 @@ class ImportancePanel {
    */
   rerenderElements() {
     try {
-      console.log('Rerendering 3D elements...');
+      log.info('Rerendering 3D elements...');
 
       // 3Dビューアーの再描画を要求
       const viewer = getState('viewer');
@@ -129,18 +130,15 @@ class ImportancePanel {
         viewer.requestRender();
       }
 
-      // カスタム再描画イベントを発行（他のモジュールが対応できるように）
-      window.dispatchEvent(new CustomEvent('requestElementRerender', {
-        detail: {
-          reason: 'importanceChange',
-          timestamp: new Date().toISOString()
-        }
-      }));
+      // カスタム再描画イベントを発行（EventBus経由）
+      eventBus.emit(RenderEvents.REQUEST_ELEMENT_RERENDER, {
+        reason: 'importanceChange',
+        timestamp: new Date().toISOString(),
+      });
 
-      console.log('Element rerender request completed');
-
+      log.info('Element rerender request completed');
     } catch (error) {
-      console.error('Failed to rerender elements:', error);
+      log.error('Failed to rerender elements:', error);
       throw error;
     }
   }
@@ -150,32 +148,29 @@ class ImportancePanel {
    */
   updateComparisonStatistics() {
     try {
-      console.log('Updating comparison statistics...');
+      log.info('Updating comparison statistics...');
 
       const currentResults = getState('comparisonResults');
       if (!currentResults) {
         return;
       }
 
-      // 統計更新イベントを発行
-      window.dispatchEvent(new CustomEvent('updateComparisonStatistics', {
-        detail: {
-          comparisonResults: currentResults,
-          reason: 'importanceChange',
-          timestamp: new Date().toISOString()
-        }
-      }));
+      // 統計更新イベントを発行（EventBus経由）
+      eventBus.emit(ComparisonEvents.UPDATE_STATISTICS, {
+        comparisonResults: currentResults,
+        reason: 'importanceChange',
+        timestamp: new Date().toISOString(),
+      });
 
-      console.log('Comparison statistics update completed');
-
+      log.info('Comparison statistics update completed');
     } catch (error) {
-      console.error('Failed to update comparison statistics:', error);
+      log.error('Failed to update comparison statistics:', error);
     }
   }
 
   /**
    * パネルを初期化する
-  * @param {HTMLElement} containerElement - パネルを配置するコンテナー要素
+   * @param {HTMLElement} containerElement - パネルを配置するコンテナー要素
    */
   initialize(containerElement) {
     this.containerElement = containerElement;
@@ -189,7 +184,7 @@ class ImportancePanel {
     // 初期表示でCommonタブを選択
     this.switchTab('StbCommon');
 
-    console.log('ImportancePanel initialized');
+    log.info('ImportancePanel initialized');
   }
 
   /**
@@ -212,7 +207,7 @@ class ImportancePanel {
       onHide: () => {
         this.isVisible = false;
         setState('ui.importancePanelVisible', false);
-      }
+      },
     });
   }
 
@@ -265,11 +260,13 @@ class ImportancePanel {
         
         <div class="panel-tabs">
           <div id="importance-tab-buttons" class="tab-buttons">
-            ${STB_ELEMENT_TABS.map(tab => `
+            ${STB_ELEMENT_TABS.map(
+              (tab) => `
               <button class="tab-button" data-tab="${tab.id}" title="${tab.name}">
                 ${tab.name}
               </button>
-            `).join('')}
+            `,
+            ).join('')}
           </div>
         </div>
         
@@ -335,7 +332,7 @@ class ImportancePanel {
     });
 
     // タブボタン
-    document.querySelectorAll('.tab-button').forEach(button => {
+    document.querySelectorAll('.tab-button').forEach((button) => {
       button.addEventListener('click', (e) => {
         const tabId = e.target.dataset.tab;
         this.switchTab(tabId);
@@ -372,7 +369,7 @@ class ImportancePanel {
     this.currentTab = tabId;
 
     // タブボタンのアクティブ状態を更新
-    document.querySelectorAll('.tab-button').forEach(button => {
+    document.querySelectorAll('.tab-button').forEach((button) => {
       button.classList.toggle('active', button.dataset.tab === tabId);
     });
 
@@ -397,7 +394,7 @@ class ImportancePanel {
    * @returns {string[]} フィルタリング済みの要素パス
    */
   filterElementPaths(elementPaths) {
-    return elementPaths.filter(path => {
+    return elementPaths.filter((path) => {
       // テキストフィルター
       if (this.filterText && !path.toLowerCase().includes(this.filterText.toLowerCase())) {
         return false;
@@ -425,29 +422,35 @@ class ImportancePanel {
       return;
     }
 
-    const elementsHTML = elementPaths.map(path => {
-      const importance = this.manager.getImportanceLevel(path);
-      const importanceName = IMPORTANCE_LEVEL_NAMES[importance];
-      const color = IMPORTANCE_COLORS[importance];
+    const elementsHTML = elementPaths
+      .map((path) => {
+        const importance = this.manager.getImportanceLevel(path);
+        const importanceName = IMPORTANCE_LEVEL_NAMES[importance];
+        const color = IMPORTANCE_COLORS[importance];
 
-      return `
+        return `
         <div class="element-item" data-path="${path}">
           <div class="element-path" title="${path}">
             ${this.formatElementPath(path)}
           </div>
           <div class="element-importance">
             <select class="importance-select" data-path="${path}">
-              ${Object.entries(IMPORTANCE_LEVELS).map(([key, value]) => `
+              ${Object.entries(IMPORTANCE_LEVELS)
+                .map(
+                  ([key, value]) => `
                 <option value="${value}" ${value === importance ? 'selected' : ''}>
                   ${IMPORTANCE_LEVEL_NAMES[value]}
                 </option>
-              `).join('')}
+              `,
+                )
+                .join('')}
             </select>
             <div class="importance-indicator" style="background-color: ${color};" title="${importanceName}"></div>
           </div>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     this.elementContainer.innerHTML = `
       <div class="elements-header">
@@ -459,7 +462,7 @@ class ImportancePanel {
     `;
 
     // 重要度変更イベントを関連付け
-    this.elementContainer.querySelectorAll('.importance-select').forEach(select => {
+    this.elementContainer.querySelectorAll('.importance-select').forEach((select) => {
       select.addEventListener('change', (e) => {
         const path = e.target.dataset.path;
         const oldImportance = select.dataset.previousValue;
@@ -475,17 +478,15 @@ class ImportancePanel {
         indicator.style.backgroundColor = IMPORTANCE_COLORS[newImportance];
         indicator.title = IMPORTANCE_LEVEL_NAMES[newImportance];
 
-        // 詳細な変更情報をイベントで通知
-        window.dispatchEvent(new CustomEvent('importanceSettingsChanged', {
-          detail: {
-            type: 'single',
-            path: path,
-            oldImportance: oldImportance,
-            newImportance: newImportance,
-            tab: this.currentTab,
-            timestamp: new Date().toISOString()
-          }
-        }));
+        // 詳細な変更情報をイベントで通知（EventBus経由）
+        eventBus.emit(ImportanceEvents.SETTINGS_CHANGED, {
+          type: 'single',
+          path: path,
+          oldImportance: oldImportance,
+          newImportance: newImportance,
+          tab: this.currentTab,
+          timestamp: new Date().toISOString(),
+        });
       });
 
       // 初期値を記録
@@ -551,7 +552,7 @@ class ImportancePanel {
   applyBulkImportance() {
     const bulkLevel = document.getElementById('importance-bulk-level').value;
     if (!bulkLevel) {
-      alert('重要度レベルを選択してください。');
+      showWarning('重要度レベルを選択してください。');
       return;
     }
 
@@ -559,7 +560,7 @@ class ImportancePanel {
     const filteredPaths = this.filterElementPaths(elementPaths);
 
     if (filteredPaths.length === 0) {
-      alert('適用対象の要素がありません。');
+      showWarning('適用対象の要素がありません。');
       return;
     }
 
@@ -568,24 +569,22 @@ class ImportancePanel {
       return;
     }
 
-    filteredPaths.forEach(path => {
+    filteredPaths.forEach((path) => {
       this.manager.setImportanceLevel(path, bulkLevel);
     });
 
-    // 一括変更の詳細情報をイベントで通知
-    window.dispatchEvent(new CustomEvent('importanceSettingsChanged', {
-      detail: {
-        type: 'bulk',
-        paths: filteredPaths,
-        newImportance: bulkLevel,
-        tab: this.currentTab,
-        count: filteredPaths.length,
-        timestamp: new Date().toISOString()
-      }
-    }));
+    // 一括変更の詳細情報をイベントで通知（EventBus経由）
+    eventBus.emit(ImportanceEvents.SETTINGS_CHANGED, {
+      type: 'bulk',
+      paths: filteredPaths,
+      newImportance: bulkLevel,
+      tab: this.currentTab,
+      count: filteredPaths.length,
+      timestamp: new Date().toISOString(),
+    });
 
     this.refreshCurrentTab();
-    alert(`${filteredPaths.length}個の要素の重要度を変更しました。`);
+    showSuccess(`${filteredPaths.length}個の要素の重要度を変更しました。`);
   }
 
   /**
@@ -599,17 +598,20 @@ class ImportancePanel {
 
       const url = URL.createObjectURL(blob);
       link.setAttribute('href', url);
-      link.setAttribute('download', `importance_settings_${new Date().toISOString().slice(0, 10)}.csv`);
+      link.setAttribute(
+        'download',
+        `importance_settings_${new Date().toISOString().slice(0, 10)}.csv`,
+      );
       link.style.visibility = 'hidden';
 
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
 
-      alert('重要度設定をCSVファイルに出力しました。');
+      showSuccess('重要度設定をCSVファイルに出力しました。');
     } catch (error) {
-      console.error('CSV export failed:', error);
-      alert('CSVファイルの出力に失敗しました。');
+      log.error('CSV export failed:', error);
+      showError('CSVファイルの出力に失敗しました。');
     }
   }
 
@@ -626,13 +628,13 @@ class ImportancePanel {
 
       if (success) {
         this.refreshCurrentTab();
-        alert('重要度設定をCSVファイルから読み込みました。');
+        showSuccess('重要度設定をCSVファイルから読み込みました。');
       } else {
-        alert('CSVファイルの読み込みに失敗しました。');
+        showError('CSVファイルの読み込みに失敗しました。');
       }
     } catch (error) {
-      console.error('CSV import failed:', error);
-      alert('CSVファイルの読み込み中にエラーが発生しました。');
+      log.error('CSV import failed:', error);
+      showError('CSVファイルの読み込み中にエラーが発生しました。');
     }
   }
 
@@ -661,16 +663,14 @@ class ImportancePanel {
 
     this.manager.resetToDefaults();
 
-    // リセットの詳細情報をイベントで通知
-    window.dispatchEvent(new CustomEvent('importanceSettingsChanged', {
-      detail: {
-        type: 'reset',
-        timestamp: new Date().toISOString()
-      }
-    }));
+    // リセットの詳細情報をイベントで通知（EventBus経由）
+    eventBus.emit(ImportanceEvents.SETTINGS_CHANGED, {
+      type: 'reset',
+      timestamp: new Date().toISOString(),
+    });
 
     this.refreshCurrentTab();
-    alert('重要度設定をデフォルトに戻しました。');
+    showSuccess('重要度設定をデフォルトに戻しました。');
   }
 
   /**

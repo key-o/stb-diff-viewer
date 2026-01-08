@@ -11,7 +11,7 @@
 #color-mode-controls {
   background-color: #f8f9fa;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--border-radius);
   border: 1px solid #dee2e6;
 }
 
@@ -21,8 +21,8 @@
 
 .color-legend-container {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 4px;
   margin-top: 5px;
 }
 
@@ -30,31 +30,47 @@
   display: flex;
   align-items: center;
   font-size: 0.85em;
-  margin-bottom: 8px;
-  padding: 4px;
-  border-radius: 4px;
-  transition: background-color 0.2s;
+  margin-bottom: 4px;
+  padding: 6px 8px;
+  border-radius: var(--border-radius);
+  transition: background-color var(--transition-fast);
+  background-color: rgba(0, 0, 0, 0.02);
 }
 
 .legend-item:hover {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
-.legend-color-box {
-  width: 24px;
-  height: 24px;
-  border: 2px solid #555;
-  margin-right: 8px;
-  display: inline-block;
-  border-radius: 4px;
+/* リスト表示ボタン */
+.legend-list-btn {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 0.75em;
+  background-color: #e0e0e0;
+  border: 1px solid #bdbdbd;
+  border-radius: var(--border-radius-sm);
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: #424242;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
 }
 
-.legend-color-box:hover {
-  border-color: #333;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+.legend-list-btn:hover {
+  background-color: #bdbdbd;
+  border-color: #9e9e9e;
 }
+
+.legend-list-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 正常要素以外のカテゴリ行を視覚的に区別 */
+.legend-item[data-has-issues="true"] {
+  background-color: rgba(255, 152, 0, 0.08);
+}
+
+/* .legend-color-box はforms.cssで統一定義済み */
 
 .legend-label {
   white-space: nowrap;
@@ -81,7 +97,7 @@
   margin-top: 10px;
   padding: 10px;
   background-color: #f8f9fa;
-  border-radius: 6px;
+  border-radius: var(--border-radius-lg);
   border: 1px solid #e9ecef;
 }
 
@@ -101,33 +117,39 @@
 }
 
 /* ========================================
-   色プレビュー
+   差分比較用凡例色（colorConfig.jsのDIFF_COLORSと同期）
+   6カテゴリ: 存在差分(3) + 内容差分(3)
    ======================================== */
 
-.color-preview {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
-  margin-left: 8px;
-  display: inline-block;
-}
-
-/* ========================================
-   差分比較用凡例色
-   ======================================== */
-
+/* 存在差分 */
 .legend-color-matched {
-  background-color: #00aaff;
+  background-color: #4CAF50; /* マテリアルグリーン - 完全一致 */
 }
 
 .legend-color-onlya {
-  background-color: #00ff00;
+  background-color: #2196F3; /* マテリアルブルー - モデルAのみ */
 }
 
 .legend-color-onlyb {
-  background-color: #ff0000;
+  background-color: #F44336; /* マテリアルレッド - モデルBのみ */
+}
+
+/* 内容差分（両方に存在する要素の詳細分類） */
+.legend-color-positiontolerance {
+  background-color: #FFC107; /* マテリアルアンバー - 位置許容差内 */
+}
+
+.legend-color-attributemismatch {
+  background-color: #FF9800; /* マテリアルオレンジ - 属性不一致 */
+}
+
+.legend-color-combined {
+  background-color: #9C27B0; /* マテリアルパープル - 複合差分 */
+}
+
+/* レガシー互換 */
+.legend-color-mismatch {
+  background-color: #FF9800; /* マテリアルオレンジ - 属性不一致（後方互換） */
 }
 
 /* ========================================
@@ -136,4 +158,211 @@
 
 .margin-left-8 {
   margin-left: 8px;
+}
+
+/* ========================================
+   スキーマエラーリストスタイル（共通）
+   ======================================== */
+
+.schema-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.schema-list-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: var(--spacing-xl);
+  font-style: italic;
+}
+
+/* 要素リストアイテム */
+.schema-list-item {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-sm) 12px;
+  border-radius: var(--border-radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: var(--border-width) solid transparent;
+}
+
+.schema-list-item:hover {
+  transform: translateX(4px);
+}
+
+/* ステータス色（スキーマエラー用） */
+.schema-list-item.status-info {
+  background-color: #e3f2fd;
+  border-color: #90caf9;
+}
+
+.schema-list-item.status-info:hover {
+  background-color: #bbdefb;
+}
+
+.schema-list-item.status-warning {
+  background-color: #fff3e0;
+  border-color: #ffcc80;
+}
+
+.schema-list-item.status-warning:hover {
+  background-color: #ffe0b2;
+}
+
+.schema-list-item.status-error {
+  background-color: #ffebee;
+  border-color: #ef9a9a;
+}
+
+.schema-list-item.status-error:hover {
+  background-color: #ffcdd2;
+}
+
+.schema-list-item-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-xs);
+}
+
+.schema-list-item-type {
+  font-size: var(--font-size-xs);
+  padding: 2px 6px;
+  border-radius: var(--border-radius-sm);
+  background-color: rgba(0, 0, 0, 0.1);
+  color: var(--text-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.schema-list-item-id {
+  font-weight: var(--font-weight-medium);
+  color: var(--text-heading);
+  font-size: var(--font-size-md);
+}
+
+.schema-list-item-messages {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-top: var(--spacing-xs);
+  padding-left: var(--spacing-xs);
+}
+
+.schema-list-item-message {
+  margin-bottom: 2px;
+  line-height: 1.4;
+}
+
+.schema-list-item-message::before {
+  content: "• ";
+  color: var(--text-muted);
+}
+
+/* ========================================
+   スキーマエラーリストフローティングウィンドウ
+   ======================================== */
+
+#schema-error-list-float {
+  width: 450px;
+  max-width: 90vw;
+  max-height: 70vh;
+  min-height: 200px;
+}
+
+#schema-error-list-float .float-window-content {
+  padding: 12px;
+  overflow-y: auto;
+  max-height: calc(70vh - 50px);
+}
+
+#schema-error-list-float .schema-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+#schema-error-list-float .schema-list-empty {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: var(--spacing-xl);
+  font-style: italic;
+}
+
+/* ========================================
+   差分フィルタ設定
+   ======================================== */
+
+.diff-filter-settings {
+  display: none;
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: var(--border-radius-lg);
+  border: 1px solid #e9ecef;
+}
+
+.diff-filter-presets {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.diff-filter-presets .preset-btn {
+  background-color: var(--bg-body);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  font-size: 0.85em;
+}
+
+.diff-filter-presets .preset-btn:hover {
+  background-color: var(--bg-panel);
+  border-color: var(--color-primary);
+}
+
+.diff-filter-presets .preset-btn.active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--text-white);
+}
+
+/* 差分フィルタ項目 */
+.diff-filter-item {
+  cursor: pointer;
+}
+
+.diff-filter-item .legend-color-box {
+  pointer-events: none;
+}
+
+.diff-filter-checkbox {
+  margin-right: 8px;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+}
+
+/* チェックボックスがオフの場合、行をグレーアウト */
+.diff-filter-item:has(.diff-filter-checkbox:not(:checked)) {
+  opacity: 0.5;
+}
+
+.diff-filter-item:has(.diff-filter-checkbox:not(:checked)) .legend-color-box {
+  opacity: 0.3;
+}
+
+/* 差分フィルタサマリー */
+.diff-filter-summary {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background-color: rgba(0, 0, 0, 0.03);
+  border-radius: var(--border-radius);
+  font-size: 0.85em;
+  color: var(--text-secondary);
+}
+
+.diff-filter-summary strong {
+  color: var(--color-success);
 }

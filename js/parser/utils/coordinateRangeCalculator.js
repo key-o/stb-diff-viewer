@@ -19,7 +19,7 @@ export function calculateCoordinateRange(coords) {
   return {
     x: calculateRange(coords.map((c) => c.x)),
     y: calculateRange(coords.map((c) => c.y)),
-    z: calculateRange(coords.map((c) => c.z))
+    z: calculateRange(coords.map((c) => c.z)),
   };
 }
 
@@ -42,7 +42,7 @@ export function calculateRange(values) {
 
   return {
     min: Math.min(...validValues),
-    max: Math.max(...validValues)
+    max: Math.max(...validValues),
   };
 }
 
@@ -86,5 +86,5 @@ export default {
   calculateCoordinateRange,
   calculateRange,
   formatCoordinateRange,
-  getCoordinateRangeString
+  getCoordinateRangeString,
 };

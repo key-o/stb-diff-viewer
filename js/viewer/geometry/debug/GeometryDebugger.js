@@ -26,7 +26,7 @@ export function dumpGeometryInfo(mesh) {
     vertexCount: position.count,
     triangleCount: geometry.index ? geometry.index.count / 3 : 0,
     boundingBox: null,
-    vertices: []
+    vertices: [],
   };
 
   // バウンディングボックスを計算
@@ -35,18 +35,18 @@ export function dumpGeometryInfo(mesh) {
     min: {
       x: geometry.boundingBox.min.x,
       y: geometry.boundingBox.min.y,
-      z: geometry.boundingBox.min.z
+      z: geometry.boundingBox.min.z,
     },
     max: {
       x: geometry.boundingBox.max.x,
       y: geometry.boundingBox.max.y,
-      z: geometry.boundingBox.max.z
+      z: geometry.boundingBox.max.z,
     },
     size: {
       x: geometry.boundingBox.max.x - geometry.boundingBox.min.x,
       y: geometry.boundingBox.max.y - geometry.boundingBox.min.y,
-      z: geometry.boundingBox.max.z - geometry.boundingBox.min.z
-    }
+      z: geometry.boundingBox.max.z - geometry.boundingBox.min.z,
+    },
   };
 
   // 最初と最後の10頂点を記録
@@ -56,7 +56,7 @@ export function dumpGeometryInfo(mesh) {
       index: i,
       x: position.getX(i),
       y: position.getY(i),
-      z: position.getZ(i)
+      z: position.getZ(i),
     });
   }
 
@@ -66,16 +66,10 @@ export function dumpGeometryInfo(mesh) {
         index: i,
         x: position.getX(i),
         y: position.getY(i),
-        z: position.getZ(i)
+        z: position.getZ(i),
       });
     }
   }
-
-  console.log('=== Geometry Info ===');
-  console.log(`Vertices: ${info.vertexCount}`);
-  console.log(`Triangles: ${info.triangleCount}`);
-  console.log('Bounding Box:', info.boundingBox);
-  console.log('Sample Vertices:', info.vertices);
 
   return info;
 }
@@ -96,15 +90,10 @@ export function findMultiSectionMeshes(scene) {
           id: object.userData.id,
           elementType: object.userData.elementType,
           mesh: object,
-          meta: meta
+          meta: meta,
         });
       }
     }
-  });
-
-  console.log(`=== Found ${multiSectionMeshes.length} multi-section meshes ===`);
-  multiSectionMeshes.forEach((item, idx) => {
-    console.log(`[${idx}] ${item.elementType} ${item.id}:`, item.meta);
   });
 
   return multiSectionMeshes;
@@ -140,7 +129,6 @@ export function getSectionHeightAtZ(geometry, zPosition, tolerance = 1) {
   }
 
   const height = maxY - minY;
-  console.log(`Section at z=${zPosition.toFixed(1)}: minY=${minY.toFixed(1)}, maxY=${maxY.toFixed(1)}, height=${height.toFixed(1)} (${count} vertices)`);
 
   return { minY, maxY, height, vertexCount: count };
 }
@@ -156,13 +144,11 @@ export function verifyTopEdgePlacement(mesh, length) {
     return;
   }
 
-  console.log('=== 天端配置検証 ===');
-
   // 始端、中央、終端での断面高さを調査
   const positions = [
     { name: '始端', z: -length / 2 },
     { name: '中央', z: 0 },
-    { name: '終端', z: length / 2 }
+    { name: '終端', z: length / 2 },
   ];
 
   const results = [];
@@ -173,29 +159,19 @@ export function verifyTopEdgePlacement(mesh, length) {
         name: pos.name,
         z: pos.z,
         ...section,
-        topEdgeY: section.maxY
+        topEdgeY: section.maxY,
       });
     }
   }
 
   // 天端が揃っているか確認
   if (results.length >= 2) {
-    const topEdges = results.map(r => r.topEdgeY);
+    const topEdges = results.map((r) => r.topEdgeY);
     const minTop = Math.min(...topEdges);
     const maxTop = Math.max(...topEdges);
     const deviation = maxTop - minTop;
 
-    console.log('');
-    console.log('天端位置の比較:');
-    results.forEach(r => {
-      console.log(`  ${r.name} (z=${r.z.toFixed(1)}): 天端 y=${r.topEdgeY.toFixed(1)}, 高さ=${r.height.toFixed(1)}`);
-    });
-    console.log('');
-    console.log(`天端のずれ: ${deviation.toFixed(3)}mm`);
-
-    if (deviation < 0.1) {
-      console.log('✅ 天端が正しく揃っています');
-    } else {
+    if (deviation >= 0.1) {
       console.warn(`⚠️ 天端がずれています（許容値: 0.1mm）`);
     }
   }
@@ -209,7 +185,6 @@ if (typeof window !== 'undefined') {
     dumpGeometryInfo,
     findMultiSectionMeshes,
     getSectionHeightAtZ,
-    verifyTopEdgePlacement
+    verifyTopEdgePlacement,
   };
-  console.log('GeometryDebugger loaded. Use window.GeometryDebugger to access debug functions.');
 }

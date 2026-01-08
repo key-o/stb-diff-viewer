@@ -61,7 +61,7 @@ export class EventListenerHelper {
     this.registeredListeners.push({
       element,
       event,
-      handler: boundHandler
+      handler: boundHandler,
     });
 
     return true;
@@ -115,7 +115,7 @@ export class EventListenerHelper {
     const configs = Object.entries(mappings).map(([elementId, handler]) => ({
       elementId,
       event: 'click',
-      handler
+      handler,
     }));
     return this.registerAll(configs);
   }

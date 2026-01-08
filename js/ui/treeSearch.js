@@ -15,7 +15,7 @@
 export const DEFAULT_STATUS_FILTER = {
   matched: true,
   onlyA: true,
-  onlyB: true
+  onlyB: true,
 };
 
 /**
@@ -24,7 +24,7 @@ export const DEFAULT_STATUS_FILTER = {
 export const DEFAULT_ELEMENT_TARGET_FILTER = {
   id: true,
   name: true,
-  guid: true
+  guid: true,
 };
 
 /**
@@ -33,7 +33,7 @@ export const DEFAULT_ELEMENT_TARGET_FILTER = {
 export const DEFAULT_SECTION_TARGET_FILTER = {
   sectionId: true,
   sectionName: true,
-  shapeName: true
+  shapeName: true,
 };
 
 /**
@@ -48,7 +48,7 @@ export function parseSearchPattern(searchText) {
     return {
       isRegex: false,
       pattern: '',
-      error: null
+      error: null,
     };
   }
 
@@ -62,14 +62,14 @@ export function parseSearchPattern(searchText) {
       return {
         isRegex: true,
         pattern: new RegExp(regexMatch[1], flags),
-        error: null
+        error: null,
       };
     } catch (e) {
       // 無効な正規表現の場合はエラーを返す
       return {
         isRegex: true,
         pattern: null,
-        error: `無効な正規表現: ${e.message}`
+        error: `無効な正規表現: ${e.message}`,
       };
     }
   }
@@ -78,7 +78,7 @@ export function parseSearchPattern(searchText) {
   return {
     isRegex: false,
     pattern: trimmed.toLowerCase(),
-    error: null
+    error: null,
   };
 }
 
@@ -96,7 +96,12 @@ export function parseSearchPattern(searchText) {
  * @param {Object} targetFilter - 検索対象フィルタ {id: bool, name: bool, guid: bool}
  * @returns {boolean} マッチする場合true
  */
-export function matchesSearch(element, searchPattern, statusFilter = DEFAULT_STATUS_FILTER, targetFilter = DEFAULT_ELEMENT_TARGET_FILTER) {
+export function matchesSearch(
+  element,
+  searchPattern,
+  statusFilter = DEFAULT_STATUS_FILTER,
+  targetFilter = DEFAULT_ELEMENT_TARGET_FILTER,
+) {
   // 差分ステータスフィルタ
   if (statusFilter) {
     const modelSource = element.modelSource || 'matched';
@@ -110,8 +115,10 @@ export function matchesSearch(element, searchPattern, statusFilter = DEFAULT_STA
     return true;
   }
 
-  if (!searchPattern.pattern ||
-      (typeof searchPattern.pattern === 'string' && searchPattern.pattern === '')) {
+  if (
+    !searchPattern.pattern ||
+    (typeof searchPattern.pattern === 'string' && searchPattern.pattern === '')
+  ) {
     return true;
   }
 
@@ -137,7 +144,7 @@ export function matchesSearch(element, searchPattern, statusFilter = DEFAULT_STA
 
   // 正規表現検索
   if (searchPattern.isRegex && searchPattern.pattern instanceof RegExp) {
-    return searchFields.some(field => {
+    return searchFields.some((field) => {
       try {
         return searchPattern.pattern.test(field);
       } catch {
@@ -148,9 +155,7 @@ export function matchesSearch(element, searchPattern, statusFilter = DEFAULT_STA
 
   // 通常のテキスト検索（部分一致、大文字小文字無視）
   const lowerPattern = searchPattern.pattern;
-  return searchFields.some(field =>
-    field.toLowerCase().includes(lowerPattern)
-  );
+  return searchFields.some((field) => field.toLowerCase().includes(lowerPattern));
 }
 
 /**
@@ -163,14 +168,20 @@ export function matchesSearch(element, searchPattern, statusFilter = DEFAULT_STA
  * @param {Object} targetFilter - 検索対象フィルタ {sectionId: bool, sectionName: bool, shapeName: bool}
  * @returns {boolean} マッチする場合true
  */
-export function matchesSectionSearch(section, searchPattern, targetFilter = DEFAULT_SECTION_TARGET_FILTER) {
+export function matchesSectionSearch(
+  section,
+  searchPattern,
+  targetFilter = DEFAULT_SECTION_TARGET_FILTER,
+) {
   // 検索パターンが無効または空の場合は全マッチ
   if (!searchPattern || searchPattern.error) {
     return true;
   }
 
-  if (!searchPattern.pattern ||
-      (typeof searchPattern.pattern === 'string' && searchPattern.pattern === '')) {
+  if (
+    !searchPattern.pattern ||
+    (typeof searchPattern.pattern === 'string' && searchPattern.pattern === '')
+  ) {
     return true;
   }
 
@@ -202,7 +213,7 @@ export function matchesSectionSearch(section, searchPattern, targetFilter = DEFA
 
   // 正規表現検索
   if (searchPattern.isRegex && searchPattern.pattern instanceof RegExp) {
-    return searchFields.some(field => {
+    return searchFields.some((field) => {
       try {
         return searchPattern.pattern.test(field);
       } catch {
@@ -213,9 +224,7 @@ export function matchesSectionSearch(section, searchPattern, targetFilter = DEFA
 
   // 通常のテキスト検索
   const lowerPattern = searchPattern.pattern;
-  return searchFields.some(field =>
-    field.toLowerCase().includes(lowerPattern)
-  );
+  return searchFields.some((field) => field.toLowerCase().includes(lowerPattern));
 }
 
 /**
@@ -259,9 +268,9 @@ export function createSearchUI(options = {}) {
     targetOptions = [
       { key: 'id', label: 'ID' },
       { key: 'name', label: '名前' },
-      { key: 'guid', label: 'GUID' }
+      { key: 'guid', label: 'GUID' },
     ],
-    defaultTargetFilter = DEFAULT_ELEMENT_TARGET_FILTER
+    defaultTargetFilter = DEFAULT_ELEMENT_TARGET_FILTER,
   } = options;
 
   // コンテナ
@@ -334,6 +343,9 @@ export function createSearchUI(options = {}) {
   let filterDropdown = null;
   let filterBtn = null;
 
+  // ドキュメントクリックハンドラーの参照（クリーンアップ用）
+  let documentClickHandler = null;
+
   if (showStatusFilter) {
     filterBtn = document.createElement('button');
     filterBtn.className = 'tree-filter-btn';
@@ -353,11 +365,12 @@ export function createSearchUI(options = {}) {
     });
 
     // 外部クリックでドロップダウンを閉じる
-    document.addEventListener('click', () => {
+    documentClickHandler = () => {
       if (filterDropdown) {
         filterDropdown.style.display = 'none';
       }
-    });
+    };
+    document.addEventListener('click', documentClickHandler);
   }
 
   // 結果表示
@@ -417,7 +430,11 @@ export function createSearchUI(options = {}) {
      * @param {number} totalCount - 全体数
      */
     updateResultCount: (matchCount, totalCount) => {
-      if (searchInput.value || !isAllStatusEnabled(statusFilter) || !isAllTargetEnabled(targetFilter, targetOptions)) {
+      if (
+        searchInput.value ||
+        !isAllStatusEnabled(statusFilter) ||
+        !isAllTargetEnabled(targetFilter, targetOptions)
+      ) {
         resultCount.textContent = `結果: ${matchCount}件 / 全${totalCount}件`;
         resultCount.style.display = 'block';
       } else {
@@ -454,13 +471,22 @@ export function createSearchUI(options = {}) {
       }
       // 検索対象チェックボックスをリセット
       const targetCheckboxes = targetFilterContainer.querySelectorAll('input[type="checkbox"]');
-      targetCheckboxes.forEach(checkbox => {
+      targetCheckboxes.forEach((checkbox) => {
         const key = checkbox.dataset.targetKey;
         if (key && defaultTargetFilter.hasOwnProperty(key)) {
           checkbox.checked = defaultTargetFilter[key];
         }
       });
-    }
+    },
+    /**
+     * リソースを解放する（イベントリスナーのクリーンアップ）
+     */
+    destroy: () => {
+      if (documentClickHandler) {
+        document.removeEventListener('click', documentClickHandler);
+        documentClickHandler = null;
+      }
+    },
   };
 }
 
@@ -476,7 +502,7 @@ function createFilterDropdown(statusFilter, onChange) {
   const filters = [
     { key: 'matched', label: '一致', color: '#12b886' },
     { key: 'onlyA', label: 'A専用', color: '#37b24d' },
-    { key: 'onlyB', label: 'B専用', color: '#f03e3e' }
+    { key: 'onlyB', label: 'B専用', color: '#f03e3e' },
   ];
 
   filters.forEach(({ key, label, color }) => {
@@ -520,7 +546,7 @@ function createFilterDropdown(statusFilter, onChange) {
  */
 function updateFilterDropdownUI(dropdown, statusFilter) {
   const checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
-  checkboxes.forEach(checkbox => {
+  checkboxes.forEach((checkbox) => {
     const key = checkbox.dataset.filterKey;
     if (key && statusFilter.hasOwnProperty(key)) {
       checkbox.checked = statusFilter[key];
@@ -582,9 +608,13 @@ export function highlightSearchMatch(text, searchPattern) {
       const match = text.substring(index, index + lowerPattern.length);
       const after = text.substring(index + lowerPattern.length);
 
-      return escapeHtml(before) +
-             '<span class="search-highlight">' + escapeHtml(match) + '</span>' +
-             escapeHtml(after);
+      return (
+        escapeHtml(before) +
+        '<span class="search-highlight">' +
+        escapeHtml(match) +
+        '</span>' +
+        escapeHtml(after)
+      );
     }
   } catch {
     return escapeHtml(text);

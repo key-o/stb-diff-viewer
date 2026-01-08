@@ -8,9 +8,14 @@
  * - 境界計算とカメラフィッティング
  *
  * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
+ *
+ * Adapter層統合:
+ * - convertToDiffRenderModel()を使用して比較結果をDiffRenderModelに変換
+ * - DiffRenderModelの統計情報をログ出力に活用
  */
 
 import * as THREE from 'three';
+import { createLogger } from '../utils/logger.js';
 import {
   materials,
   elementGroups,
@@ -19,11 +24,12 @@ import {
   drawPolyElements,
   drawAxes,
   drawStories,
-  getActiveCamera
+  getActiveCamera,
 } from '../viewer/index.js';
-import { PileGenerator } from '../viewer/geometry/PileGenerator.js';
-import { FootingGenerator } from '../viewer/geometry/FootingGenerator.js';
-import { ProfileBasedColumnGenerator } from '../viewer/geometry/ProfileBasedColumnGenerator.js';
+import { convertToDiffRenderModel, getDiffStatistics } from '../adapters/index.js';
+import { getElementRegistry } from '../viewer/utils/ElementRegistry.js';
+
+const log = createLogger('modelLoader/renderingOrchestrator');
 
 /**
  * Orchestrate rendering of all compared elements
@@ -32,27 +38,33 @@ import { ProfileBasedColumnGenerator } from '../viewer/geometry/ProfileBasedColu
  * @param {Object} globalData - Global data (stories, axes, etc.)
  * @returns {Object} Rendering result
  */
-export function orchestrateElementRendering(
-  comparisonResults,
-  modelBounds,
-  globalData
-) {
-  console.log('=== Starting Element Rendering ===');
+export function orchestrateElementRendering(comparisonResults, modelBounds, globalData) {
+  // Adapter層: 比較結果をDiffRenderModelに変換
+  // 現時点では統計情報の取得に利用、将来的には描画関数に直接渡す
+  const diffRenderModel = convertToDiffRenderModel(comparisonResults, {
+    nodeMapA: globalData.nodeMapA,
+    nodeMapB: globalData.nodeMapB,
+  });
+
+  // DiffRenderModelの統計情報をログ出力
+  const diffStats = getDiffStatistics(diffRenderModel);
 
   const renderingResults = {
     nodeLabels: [],
     renderedElements: new Map(),
-    errors: []
+    errors: [],
+    diffRenderModel, // DiffRenderModelを結果に含める（将来の参照用）
   };
 
   // Process each element type for rendering
+  // 現時点ではcomparisonResultsを直接使用（段階的移行）
   for (const [elementType, comparisonResult] of comparisonResults.entries()) {
     try {
       const elementRenderResult = renderElementType(
         elementType,
         comparisonResult,
         modelBounds,
-        globalData
+        globalData,
       );
 
       renderingResults.renderedElements.set(elementType, elementRenderResult);
@@ -61,16 +73,11 @@ export function orchestrateElementRendering(
       if (elementRenderResult.labels) {
         renderingResults.nodeLabels.push(...elementRenderResult.labels);
       }
-
-      console.log(`${elementType} rendering complete:`, {
-        meshesCreated: elementRenderResult.meshCount,
-        labelsCreated: elementRenderResult.labels?.length || 0
-      });
     } catch (error) {
-      console.error(`Error rendering ${elementType}:`, error);
+      log.error(`Error rendering ${elementType}:`, error);
       renderingResults.errors.push({
         elementType,
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -79,17 +86,41 @@ export function orchestrateElementRendering(
   try {
     renderAuxiliaryElements(globalData, renderingResults, modelBounds);
   } catch (error) {
-    console.error('Error rendering auxiliary elements:', error);
+    log.error('Error rendering auxiliary elements:', error);
     renderingResults.errors.push({
       elementType: 'auxiliary',
-      error: error.message
+      error: error.message,
     });
   }
 
-  console.log('=== Element Rendering Complete ===');
-  console.log('Total labels created:', renderingResults.nodeLabels.length);
+  // ElementRegistryに全要素を登録（高速検索用）
+  registerElementsToRegistry();
 
   return renderingResults;
+}
+
+/**
+ * 全要素グループの要素をElementRegistryに登録
+ * これにより、要素検索がO(n)からO(1)に高速化される
+ */
+function registerElementsToRegistry() {
+  const registry = getElementRegistry();
+
+  // 既存の登録をクリア
+  registry.clear();
+
+  // 全要素グループを走査して登録
+  for (const [elementType, group] of Object.entries(elementGroups)) {
+    if (!group || !group.children) continue;
+
+    group.traverse((child) => {
+      if (child.userData && child.userData.elementType) {
+        registry.register(child);
+      }
+    });
+  }
+
+  const stats = registry.getStats();
 }
 
 /**
@@ -100,12 +131,7 @@ export function orchestrateElementRendering(
  * @param {Object} globalData - Global data
  * @returns {Object} Rendering result for this element type
  */
-function renderElementType(
-  elementType,
-  comparisonResult,
-  modelBounds,
-  globalData
-) {
+function renderElementType(elementType, comparisonResult, modelBounds, globalData) {
   const group = elementGroups[elementType];
   if (!group) {
     throw new Error(`Element group not found for type: ${elementType}`);
@@ -117,14 +143,12 @@ function renderElementType(
   const result = {
     meshCount: 0,
     labels: [],
-    groupVisible: group.visible
+    groupVisible: group.visible,
   };
 
   // Skip rendering if error occurred during comparison
   if (comparisonResult.error) {
-    console.warn(
-      `Skipping rendering for ${elementType} due to comparison error`
-    );
+    log.warn(`[Render] ${elementType}: 比較エラーのためスキップ`);
     return result;
   }
 
@@ -134,13 +158,7 @@ function renderElementType(
   // Render based on element type
   switch (elementType) {
     case 'Node':
-      result.labels = drawNodes(
-        comparisonResult,
-        materials,
-        group,
-        createLabels,
-        modelBounds
-      );
+      result.labels = drawNodes(comparisonResult, materials, group, createLabels, modelBounds);
       break;
 
     case 'Column':
@@ -154,18 +172,27 @@ function renderElementType(
         group,
         elementType,
         createLabels,
-        modelBounds
+        modelBounds,
       );
       break;
 
     case 'Slab':
     case 'Wall':
-      result.labels = drawPolyElements(
+      // Slab/WallはviewModes.jsのredrawSlabsForViewMode/redrawWallsForViewModeで描画される
+      // drawPolyElementsはgroup.clear()を呼ぶため、ここでは何もしない
+      // applyInitialDisplayModesで適切に再描画される
+      break;
+
+    case 'Parapet':
+      // パラペットは2ノード間の線状要素として描画
+      // 3D表示はviewModes.jsで制御される
+      result.labels = drawLineElements(
         comparisonResult,
         materials,
         group,
+        elementType,
         createLabels,
-        modelBounds
+        modelBounds,
       );
       break;
 
@@ -173,19 +200,46 @@ function renderElementType(
     case 'Footing':
     case 'FoundationColumn':
       // 杭・基礎・基礎柱は線分要素として描画
-      // 将来的には専用のジェネレーターを使った3D表示も可能
+      // 3D表示はviewModes.jsで制御される（表示モード切り替え時に再描画）
       result.labels = drawLineElements(
         comparisonResult,
         materials,
         group,
         elementType,
         createLabels,
-        modelBounds
+        modelBounds,
       );
       break;
 
+    case 'Joint':
+      // 継手は梁・柱の端部に配置される接合部品
+      // 3D表示はviewModes.jsで制御される（立体表示モード時のみ描画）
+      // 初期状態では空（solid表示時にJointGeneratorで描画）
+      result.labels = [];
+      break;
+
+    case 'StripFooting':
+      // 布基礎は2ノード間の線状要素として描画
+      // 3D表示はviewModes.jsで制御される
+      result.labels = drawLineElements(
+        comparisonResult,
+        materials,
+        group,
+        elementType,
+        createLabels,
+        modelBounds,
+      );
+      break;
+
+    case 'Undefined':
+      // StbSecUndefinedを参照する要素は常にライン表示（寸法情報がないため）
+      // viewModes.jsのredrawUndefinedElementsForViewModeで描画される
+      // ここでは空を返す（初期レンダリング後にviewModesで描画）
+      result.labels = [];
+      break;
+
     default:
-      console.warn(`Unknown element type for rendering: ${elementType}`);
+      log.warn(`[Render] 不明な要素タイプ: ${elementType}`);
   }
 
   // Count meshes in group
@@ -212,30 +266,21 @@ function renderAuxiliaryElements(globalData, renderingResults, modelBounds) {
         elementGroups['Axis'],
         modelBounds,
         true,
-        getActiveCamera()
+        getActiveCamera(),
       );
       renderingResults.nodeLabels.push(...axisLabels);
-      console.log(
-        `Rendered axes: X=${axesData.xAxes.length}, Y=${axesData.yAxes.length}`
-      );
     } catch (error) {
-      console.error('Error rendering axes:', error);
+      log.error('Error rendering axes:', error);
     }
   }
 
   // Render stories
   if (stories && stories.length > 0) {
     try {
-      const storyLabels = drawStories(
-        stories,
-        elementGroups['Story'],
-        modelBounds,
-        true
-      );
+      const storyLabels = drawStories(stories, elementGroups['Story'], modelBounds, true);
       renderingResults.nodeLabels.push(...storyLabels);
-      console.log(`Rendered ${stories.length} stories`);
     } catch (error) {
-      console.error('Error rendering stories:', error);
+      log.error('Error rendering stories:', error);
     }
   }
 }
@@ -277,7 +322,13 @@ export function calculateRenderingBounds(renderedElements, nodeMapA, nodeMapB) {
   }
 
   // Add bounds from rendered geometry
+  // Story, Axis はレイアウト要素であり、modelBounds を拡大してはいけない
+  // これらを含めると境界が連鎖的に拡大し、通り芯とレベル面がずれる原因となる
+  const excludeFromBounds = ['Story', 'Axis'];
   for (const [elementType, group] of Object.entries(elementGroups)) {
+    if (excludeFromBounds.includes(elementType)) {
+      continue; // レイアウト要素はスキップ
+    }
     if (group && group.children.length > 0) {
       const groupBox = new THREE.Box3().setFromObject(group);
       if (!groupBox.isEmpty()) {
@@ -290,7 +341,7 @@ export function calculateRenderingBounds(renderedElements, nodeMapA, nodeMapB) {
   if (bounds.isEmpty()) {
     bounds.expandByPoint(new THREE.Vector3(-1000, -1000, -1000));
     bounds.expandByPoint(new THREE.Vector3(1000, 1000, 1000));
-    console.warn('Empty bounds detected, using default bounds');
+    log.warn('[Render] 境界: 空のため初期値を使用');
   }
 
   return bounds;
@@ -309,7 +360,7 @@ export function getRenderingStatistics(renderingResults) {
       totalLabels: 0,
       elementTypes: {},
       errors: 0,
-      errorDetails: []
+      errorDetails: [],
     };
   }
 
@@ -318,20 +369,17 @@ export function getRenderingStatistics(renderingResults) {
     totalLabels: (renderingResults.nodeLabels || []).length,
     elementTypes: {},
     errors: (renderingResults.errors || []).length,
-    errorDetails: renderingResults.errors || []
+    errorDetails: renderingResults.errors || [],
   };
 
   // Safely iterate over rendered elements
   if (renderingResults.renderedElements) {
-    for (const [
-      elementType,
-      result
-    ] of renderingResults.renderedElements.entries()) {
+    for (const [elementType, result] of renderingResults.renderedElements.entries()) {
       stats.elementTypes[elementType] = {
         meshCount: result?.meshCount || 0,
         labelCount: result?.labels?.length || 0,
         isVisible: !!result?.groupVisible,
-        hasError: !!result?.error
+        hasError: !!result?.error,
       };
 
       stats.totalMeshes += result?.meshCount || 0;

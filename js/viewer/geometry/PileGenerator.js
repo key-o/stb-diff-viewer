@@ -17,15 +17,15 @@
  */
 
 import * as THREE from 'three';
-import { materials } from '../rendering/materials.js';
-import { ElementGeometryUtils } from './ElementGeometryUtils.js';
+import { calculateCircleProfile } from './core/ProfileCalculator.js';
 import { createExtrudeGeometry } from './core/ThreeJSConverter.js';
 import {
   createTaperedGeometry,
-  createMultiSectionGeometry
+  createMultiSectionGeometry,
 } from './core/TaperedGeometryBuilder.js';
-import { calculateCircleProfile } from './core/ProfileCalculator.js';
-import { isExtendedPile, getExtendedPileSections } from '../../common/dimensionNormalizer.js';
+import { materials } from '../rendering/materials.js';
+import { ElementGeometryUtils } from './ElementGeometryUtils.js';
+import { isExtendedPile } from '../../common-stb/data/dimensionNormalizer.js';
 import { BaseElementGenerator } from './core/BaseElementGenerator.js';
 import { MeshMetadataBuilder } from './core/MeshMetadataBuilder.js';
 
@@ -40,7 +40,7 @@ export class PileGenerator extends BaseElementGenerator {
     return {
       elementName: 'Pile',
       loggerName: 'viewer:geometry:pile',
-      defaultElementType: 'Pile'
+      defaultElementType: 'Pile',
     };
   }
 
@@ -60,7 +60,7 @@ export class PileGenerator extends BaseElementGenerator {
     pileSections,
     steelSections,
     elementType = 'Pile',
-    isJsonInput = false
+    isJsonInput = false,
   ) {
     return this.createMeshes(
       pileElements,
@@ -68,7 +68,7 @@ export class PileGenerator extends BaseElementGenerator {
       pileSections,
       steelSections,
       elementType,
-      isJsonInput
+      isJsonInput,
     );
   }
 
@@ -82,11 +82,7 @@ export class PileGenerator extends BaseElementGenerator {
     const { nodes, sections, elementType, isJsonInput, log } = context;
 
     // 1. 断面データの取得（1-node format時に長さ情報が必要なため先に取得）
-    const sectionData = ElementGeometryUtils.getSectionData(
-      pile,
-      sections,
-      isJsonInput
-    );
+    const sectionData = ElementGeometryUtils.getSectionData(pile, sections, isJsonInput);
 
     if (!this._validateSectionData(sectionData, pile, context)) {
       return null;
@@ -104,23 +100,25 @@ export class PileGenerator extends BaseElementGenerator {
     const dims = sectionData.dimensions || {};
 
     log.debug(
-      `Creating pile ${pile.id}: section_type=${sectionType}, kind=${pile.kind}, pile_type=${dims.pile_type || 'Straight'}`
+      `Creating pile ${pile.id}: section_type=${sectionType}, kind=${pile.kind}, pile_type=${dims.pile_type || 'Straight'}`,
     );
 
     // 4. オフセットと回転の取得（ElementGeometryUtils使用）
     const offsetAndRotation = ElementGeometryUtils.getOffsetAndRotation(pile, {
-      nodeType: '2node-vertical'
+      nodeType: '2node-vertical',
     });
 
     // 5. 配置計算（ElementGeometryUtils使用）
+    // 注: 1ノード形式では_getNodePositionsでオフセットを既に適用済み
     const placement = ElementGeometryUtils.calculateDualNodePlacement(
       nodePositions.bottomNode,
       nodePositions.topNode,
       {
-        startOffset: offsetAndRotation.startOffset,
-        endOffset: offsetAndRotation.endOffset,
-        rollAngle: offsetAndRotation.rollAngle
-      }
+        // オフセットが既に適用されている場合はスキップ（二重適用防止）
+        startOffset: nodePositions.offsetsApplied ? { x: 0, y: 0 } : offsetAndRotation.startOffset,
+        endOffset: nodePositions.offsetsApplied ? { x: 0, y: 0 } : offsetAndRotation.endOffset,
+        rollAngle: offsetAndRotation.rollAngle,
+      },
     );
 
     if (!this._validatePlacement(placement, pile, context)) {
@@ -134,20 +132,16 @@ export class PileGenerator extends BaseElementGenerator {
     let profileMeta = null;
 
     // 拡底杭の判定
-    if (isExtendedPile(dims)) {
+    if (isExtendedPile(dims) && dims.pile_type !== 'Straight') {
       // 拡底杭: テーパージオメトリを生成
       geometry = this._createExtendedPileGeometry(dims, placement.length, pile.id, log);
       profileMeta = {
         profileSource: 'extended-pile',
-        pileType: dims.pile_type
+        pileType: dims.pile_type,
       };
     } else {
       // 通常杭: 単一断面の押し出しジオメトリ
-      const profileResult = ElementGeometryUtils.createProfile(
-        sectionData,
-        sectionType,
-        pile
-      );
+      const profileResult = ElementGeometryUtils.createProfile(sectionData, sectionType, pile);
 
       if (!this._validateProfile(profileResult, pile, context)) {
         return null;
@@ -177,21 +171,16 @@ export class PileGenerator extends BaseElementGenerator {
       profileResult: { shape: null, meta: profileMeta },
       sectionData: sectionData,
       isJsonInput: isJsonInput,
-      pileType: dims.pile_type || 'Straight'
+      pileType: dims.pile_type || 'Straight',
     });
 
     // 10. 配置基準線を添付（ElementGeometryUtils使用）
     try {
-      ElementGeometryUtils.attachPlacementLine(
-        mesh,
-        placement.length,
-        materials.placementLine,
-        {
-          elementType: elementType,
-          elementId: pile.id,
-          modelSource: 'solid'
-        }
-      );
+      ElementGeometryUtils.attachPlacementLine(mesh, placement.length, materials.placementLine, {
+        elementType: elementType,
+        elementId: pile.id,
+        modelSource: 'solid',
+      });
     } catch (e) {
       log.warn(`Pile ${pile.id}: Failed to attach placement axis line`, e);
     }
@@ -216,10 +205,13 @@ export class PileGenerator extends BaseElementGenerator {
       let pileLength = 0;
       const dims = sectionData.dimensions || {};
 
-      if (pile.length_all !== undefined && pile.length_all !== null) {
-        pileLength = parseFloat(pile.length_all);
+      // length_all が有効（0より大きい）場合は使用
+      const lengthAll = parseFloat(pile.length_all);
+      if (pile.length_all !== undefined && pile.length_all !== null && lengthAll > 0) {
+        pileLength = lengthAll;
         log.debug(`Pile ${pile.id}: Using length_all=${pileLength}mm from element attribute`);
-      } else if (dims.length_pile) {
+      } else if (dims.length_pile && dims.length_pile > 0) {
+        // 断面データのlength_pileにフォールバック（鋼管杭・既製杭のセグメント合計長）
         pileLength = parseFloat(dims.length_pile);
         log.debug(`Pile ${pile.id}: Using length_pile=${pileLength}mm from section dimensions`);
       } else if (dims.D || dims.diameter) {
@@ -234,34 +226,38 @@ export class PileGenerator extends BaseElementGenerator {
       const topNodePos = {
         x: topNode.x + (pile.offset_X || 0),
         y: topNode.y + (pile.offset_Y || 0),
-        z: pile.level_top
+        z: pile.level_top,
       };
 
       const bottomNode = {
         x: topNodePos.x,
         y: topNodePos.y,
-        z: topNodePos.z - pileLength
+        z: topNodePos.z - pileLength,
       };
 
-      log.debug(
-        `Pile ${pile.id} (1-node format): length=${pileLength}mm`
-      );
+      log.debug(`Pile ${pile.id} (1-node format): length=${pileLength}mm`);
 
       return {
         type: '2node-vertical',
         bottomNode: bottomNode,
         topNode: topNodePos,
-        valid: true
+        valid: true,
+        offsetsApplied: true, // 1ノード形式ではオフセットを既に適用済み
       };
     }
 
     // 2-node format (id_node_bottom + id_node_top)
-    return ElementGeometryUtils.getNodePositions(pile, nodes, {
+    const result = ElementGeometryUtils.getNodePositions(pile, nodes, {
       nodeType: '2node-vertical',
       isJsonInput: isJsonInput,
       node1KeyStart: 'id_node_bottom',
-      node1KeyEnd: 'id_node_top'
+      node1KeyEnd: 'id_node_top',
     });
+    // 2ノード形式ではオフセットは適用されていない
+    if (result.valid) {
+      result.offsetsApplied = false;
+    }
+    return result;
   }
 
   /**
@@ -283,7 +279,7 @@ export class PileGenerator extends BaseElementGenerator {
     }
 
     log.debug(
-      `Creating extended pile geometry: type=${pileType}, D_axial=${D_axial}, length=${length}`
+      `Creating extended pile geometry: type=${pileType}, D_axial=${D_axial}, length=${length}`,
     );
 
     // 円形プロファイル生成のヘルパー（segments=32で生成）
@@ -312,19 +308,19 @@ export class PileGenerator extends BaseElementGenerator {
 
           log.debug(
             `ExtendedFoot: D_foot=${D_foot}, footLength=${footLength}, ` +
-            `taperAngle=${taperAngle}°, taperLength=${taperLength.toFixed(1)}`
+              `taperAngle=${taperAngle}°, taperLength=${taperLength.toFixed(1)}`,
           );
 
           if (taperLength > 0) {
             const sections = [
               { pos: 'TOP', profile: createCircle(D_axial) },
               { pos: 'CENTER', profile: createCircle(D_axial) },
-              { pos: 'BOTTOM', profile: createCircle(D_foot) }
+              { pos: 'BOTTOM', profile: createCircle(D_foot) },
             ];
 
             return createMultiSectionGeometry(sections, length, {
               start: 0,
-              end: footLength + taperLength
+              end: footLength + taperLength,
             });
           } else {
             const topProfile = createCircle(D_axial);
@@ -349,19 +345,19 @@ export class PileGenerator extends BaseElementGenerator {
           }
 
           log.debug(
-            `ExtendedTop: D_top=${D_top}, taperAngle=${taperAngle}°, taperLength=${taperLength.toFixed(1)}`
+            `ExtendedTop: D_top=${D_top}, taperAngle=${taperAngle}°, taperLength=${taperLength.toFixed(1)}`,
           );
 
           if (taperLength > 0) {
             const sections = [
               { pos: 'TOP', profile: createCircle(D_top) },
               { pos: 'CENTER', profile: createCircle(D_axial) },
-              { pos: 'BOTTOM', profile: createCircle(D_axial) }
+              { pos: 'BOTTOM', profile: createCircle(D_axial) },
             ];
 
             return createMultiSectionGeometry(sections, length, {
               start: taperLength,
-              end: 0
+              end: 0,
             });
           } else {
             const topProfile = createCircle(D_top);
@@ -396,7 +392,7 @@ export class PileGenerator extends BaseElementGenerator {
 
           log.debug(
             `ExtendedTopFoot: D_top=${D_top}, D_foot=${D_foot}, ` +
-            `topTaper=${topTaperLength.toFixed(1)}, footTaper=${footTaperLength.toFixed(1)}`
+              `topTaper=${topTaperLength.toFixed(1)}, footTaper=${footTaperLength.toFixed(1)}`,
           );
 
           const sections = [
@@ -404,12 +400,12 @@ export class PileGenerator extends BaseElementGenerator {
             { pos: 'HAUNCH_S', profile: createCircle(D_axial) },
             { pos: 'CENTER', profile: createCircle(D_axial) },
             { pos: 'HAUNCH_E', profile: createCircle(D_axial) },
-            { pos: 'BOTTOM', profile: createCircle(D_foot) }
+            { pos: 'BOTTOM', profile: createCircle(D_foot) },
           ];
 
           return createMultiSectionGeometry(sections, length, {
             start: topTaperLength,
-            end: footLength + footTaperLength
+            end: footLength + footTaperLength,
           });
         }
 

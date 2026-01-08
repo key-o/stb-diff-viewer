@@ -21,7 +21,7 @@ class BaseColorStateManager extends BaseElementStateManager {
   constructor(colorTypes, defaultColors, managerName = 'BaseColorStateManager') {
     // デフォルト色を保存（リセット用）
     const defaultColorMap = {};
-    colorTypes.forEach(type => {
+    colorTypes.forEach((type) => {
       defaultColorMap[type] = defaultColors[type] || '#888888';
     });
 
@@ -32,7 +32,7 @@ class BaseColorStateManager extends BaseElementStateManager {
     this.defaultColors = defaultColorMap;
 
     // 初期色を設定
-    colorTypes.forEach(type => {
+    colorTypes.forEach((type) => {
       this.states.set(type, defaultColorMap[type]);
     });
 
@@ -107,7 +107,6 @@ class BaseColorStateManager extends BaseElementStateManager {
         this.setColor(colorType, defaultColor);
 
         if (this.debugMode) {
-          console.log(`[${this.managerName}] ${colorType} reset to default: ${defaultColor}`);
         }
       }
     } else {
@@ -120,7 +119,6 @@ class BaseColorStateManager extends BaseElementStateManager {
       this._executeColorChangeCallbacks(null, null);
 
       if (this.debugMode) {
-        console.log(`[${this.managerName}] All colors reset to default`);
       }
     }
   }
@@ -149,7 +147,7 @@ class BaseColorStateManager extends BaseElementStateManager {
    * @private
    */
   _executeColorChangeCallbacks(colorType, color) {
-    this.colorChangeCallbacks.forEach(callback => {
+    this.colorChangeCallbacks.forEach((callback) => {
       try {
         callback(colorType, color);
       } catch (error) {
@@ -168,7 +166,7 @@ class BaseColorStateManager extends BaseElementStateManager {
       ...baseInfo,
       colors: this.getAllColors(),
       defaultColors: { ...this.defaultColors },
-      colorChangeCallbackCount: this.colorChangeCallbacks.length
+      colorChangeCallbackCount: this.colorChangeCallbacks.length,
     };
   }
 }

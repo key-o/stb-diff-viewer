@@ -9,28 +9,28 @@
  * - 幾何学的検証: 要素の妥当性チェック
  */
 
-import { parseElements, buildNodeMap, parseStories, parseAxes } from '../parser/stbXmlParser.js';
-import { validateSectionDataComprehensive } from '../common/sectionDataValidator.js';
+import { parseElements, buildNodeMap, parseStories, parseAxes } from '../common-stb/parser/stbXmlParser.js';
+import { validateSectionDataComprehensive } from '../data/validators/sectionDataValidator.js';
 import { extractAllSections } from '../parser/sectionExtractor.js';
 
 /**
  * バリデーション問題の重要度レベル
  */
 export const SEVERITY = {
-  ERROR: 'error',       // データが使用不可
-  WARNING: 'warning',   // 使用可能だが確認推奨
-  INFO: 'info'         // 情報提供のみ
+  ERROR: 'error', // データが使用不可
+  WARNING: 'warning', // 使用可能だが確認推奨
+  INFO: 'info', // 情報提供のみ
 };
 
 /**
  * バリデーション問題のカテゴリ
  */
 export const CATEGORY = {
-  STRUCTURE: 'structure',     // 構造的な問題
-  REFERENCE: 'reference',     // 参照整合性
-  DATA: 'data',               // データ値の問題
-  GEOMETRY: 'geometry',       // 幾何学的問題
-  DUPLICATE: 'duplicate'     // 重複問題
+  STRUCTURE: 'structure', // 構造的な問題
+  REFERENCE: 'reference', // 参照整合性
+  DATA: 'data', // データ値の問題
+  GEOMETRY: 'geometry', // 幾何学的問題
+  DUPLICATE: 'duplicate', // 重複問題
 };
 
 /**
@@ -68,11 +68,7 @@ export const CATEGORY = {
  * @returns {ValidationReport} バリデーション結果
  */
 export function validateStbDocument(xmlDoc, options = {}) {
-  const {
-    validateReferences = true,
-    validateGeometry = true,
-    includeInfo = false
-  } = options;
+  const { validateReferences = true, validateGeometry = true, includeInfo = false } = options;
 
   const issues = [];
   const statistics = {
@@ -81,7 +77,7 @@ export function validateStbDocument(xmlDoc, options = {}) {
     warningCount: 0,
     infoCount: 0,
     elementCounts: {},
-    repairableCount: 0
+    repairableCount: 0,
   };
 
   const timestamp = new Date();
@@ -93,7 +89,7 @@ export function validateStbDocument(xmlDoc, options = {}) {
       message: 'XMLドキュメントがnullまたはundefinedです',
       elementType: 'Document',
       elementId: '',
-      repairable: false
+      repairable: false,
     });
     return createReport(false, issues, statistics, timestamp);
   }
@@ -135,9 +131,9 @@ export function validateStbDocument(xmlDoc, options = {}) {
   // 情報レベルの除外（オプション）
   const filteredIssues = includeInfo
     ? issues
-    : issues.filter(issue => issue.severity !== SEVERITY.INFO);
+    : issues.filter((issue) => issue.severity !== SEVERITY.INFO);
 
-  const valid = !filteredIssues.some(issue => issue.severity === SEVERITY.ERROR);
+  const valid = !filteredIssues.some((issue) => issue.severity === SEVERITY.ERROR);
 
   return createReport(valid, filteredIssues, statistics, timestamp);
 }
@@ -157,7 +153,7 @@ function validateStructure(xmlDoc, issues) {
       elementId: '',
       value: root?.tagName,
       expected: 'ST_BRIDGE',
-      repairable: false
+      repairable: false,
     });
   }
 
@@ -172,7 +168,7 @@ function validateStructure(xmlDoc, issues) {
       elementId: '',
       attribute: 'version',
       value: version,
-      repairable: false
+      repairable: false,
     });
   }
 
@@ -187,7 +183,7 @@ function validateStructure(xmlDoc, issues) {
         message: `必須要素 ${elementName} が存在しません`,
         elementType: elementName,
         elementId: '',
-        repairable: false
+        repairable: false,
       });
     }
   }
@@ -201,7 +197,7 @@ function validateStructure(xmlDoc, issues) {
       message: 'StbNode要素が存在しません。構造モデルにノードが必要です',
       elementType: 'StbNodes',
       elementId: '',
-      repairable: false
+      repairable: false,
     });
   }
 }
@@ -228,7 +224,7 @@ function validateNodes(xmlDoc, nodeMap, issues, statistics) {
         elementType: 'StbNode',
         elementId: id,
         attribute: 'id',
-        repairable: false
+        repairable: false,
       });
     }
     seenIds.add(id);
@@ -237,7 +233,7 @@ function validateNodes(xmlDoc, nodeMap, issues, statistics) {
     const coords = [
       { name: 'X', value: x },
       { name: 'Y', value: y },
-      { name: 'Z', value: z }
+      { name: 'Z', value: z },
     ];
 
     for (const coord of coords) {
@@ -250,7 +246,7 @@ function validateNodes(xmlDoc, nodeMap, issues, statistics) {
           elementId: id,
           attribute: coord.name,
           repairable: true,
-          repairSuggestion: 'デフォルト値 0 を設定'
+          repairSuggestion: 'デフォルト値 0 を設定',
         });
         continue;
       }
@@ -266,7 +262,7 @@ function validateNodes(xmlDoc, nodeMap, issues, statistics) {
           attribute: coord.name,
           value: coord.value,
           repairable: true,
-          repairSuggestion: '無効な値を0に置換'
+          repairSuggestion: '無効な値を0に置換',
         });
       } else if (!isFinite(numValue)) {
         issues.push({
@@ -278,7 +274,7 @@ function validateNodes(xmlDoc, nodeMap, issues, statistics) {
           attribute: coord.name,
           value: numValue,
           repairable: true,
-          repairSuggestion: '無限大を適切な値に置換'
+          repairSuggestion: '無限大を適切な値に置換',
         });
       } else if (Math.abs(numValue) > 1e9) {
         issues.push({
@@ -289,7 +285,7 @@ function validateNodes(xmlDoc, nodeMap, issues, statistics) {
           elementId: id,
           attribute: coord.name,
           value: numValue,
-          repairable: false
+          repairable: false,
         });
       }
     }
@@ -316,7 +312,7 @@ function validateStories(stories, issues) {
         attribute: 'height',
         value: story.height,
         repairable: true,
-        repairSuggestion: '重複する階を削除またはマージ'
+        repairSuggestion: '重複する階を削除またはマージ',
       });
     }
     seenHeights.set(story.height, story.name);
@@ -331,7 +327,7 @@ function validateStories(stories, issues) {
         elementId: story.id,
         attribute: 'name',
         repairable: true,
-        repairSuggestion: `デフォルト名 "Story_${story.id}" を設定`
+        repairSuggestion: `デフォルト名 "Story_${story.id}" を設定`,
       });
     }
   }
@@ -356,7 +352,7 @@ function validateAxes(axesData, issues) {
           attribute: 'distance',
           value: axis.distance,
           repairable: true,
-          repairSuggestion: '重複する軸を削除'
+          repairSuggestion: '重複する軸を削除',
         });
       }
       seenDistances.set(axis.distance, axis.name);
@@ -371,7 +367,7 @@ function validateAxes(axesData, issues) {
           elementId: axis.id,
           attribute: 'distance',
           value: axis.distance,
-          repairable: false
+          repairable: false,
         });
       }
     }
@@ -393,7 +389,7 @@ function validateElements(xmlDoc, nodeMap, issues, statistics) {
     { name: 'StbBrace', type: 'brace' },
     { name: 'StbPile', type: 'pile' },
     { name: 'StbFooting', type: 'footing' },
-    { name: 'StbFoundationColumn', type: 'foundationColumn' }
+    { name: 'StbFoundationColumn', type: 'foundationColumn' },
   ];
 
   for (const { name, type } of elementTypes) {
@@ -415,7 +411,7 @@ function validateElements(xmlDoc, nodeMap, issues, statistics) {
           elementType: name,
           elementId: id,
           attribute: 'id',
-          repairable: false
+          repairable: false,
         });
       }
       seenIds.add(id);
@@ -433,7 +429,7 @@ function validateElements(xmlDoc, nodeMap, issues, statistics) {
             elementId: id,
             attribute: 'id_section_FD',
             repairable: true,
-            repairSuggestion: '要素を削除またはデフォルト断面を割り当て'
+            repairSuggestion: '要素を削除またはデフォルト断面を割り当て',
           });
         }
       } else if (name !== 'StbFooting') {
@@ -448,7 +444,7 @@ function validateElements(xmlDoc, nodeMap, issues, statistics) {
             elementId: id,
             attribute: 'id_section',
             repairable: true,
-            repairSuggestion: '要素を削除またはデフォルト断面を割り当て'
+            repairSuggestion: '要素を削除またはデフォルト断面を割り当て',
           });
         }
       }
@@ -487,7 +483,7 @@ function validateVerticalElement(element, elementType, nodeMap, issues) {
       elementId: id,
       attribute: 'id_node_bottom',
       repairable: true,
-      repairSuggestion: '要素を削除'
+      repairSuggestion: '要素を削除',
     });
   }
 
@@ -500,7 +496,7 @@ function validateVerticalElement(element, elementType, nodeMap, issues) {
       elementId: id,
       attribute: 'id_node_top',
       repairable: true,
-      repairSuggestion: '要素を削除'
+      repairSuggestion: '要素を削除',
     });
   }
 
@@ -514,7 +510,7 @@ function validateVerticalElement(element, elementType, nodeMap, issues) {
       elementId: id,
       value: idNodeBottom,
       repairable: true,
-      repairSuggestion: '要素を削除（長さゼロの要素）'
+      repairSuggestion: '要素を削除（長さゼロの要素）',
     });
   }
 }
@@ -537,7 +533,7 @@ function validateHorizontalElement(element, elementType, nodeMap, issues) {
       elementId: id,
       attribute: 'id_node_start',
       repairable: true,
-      repairSuggestion: '要素を削除'
+      repairSuggestion: '要素を削除',
     });
   }
 
@@ -550,7 +546,7 @@ function validateHorizontalElement(element, elementType, nodeMap, issues) {
       elementId: id,
       attribute: 'id_node_end',
       repairable: true,
-      repairSuggestion: '要素を削除'
+      repairSuggestion: '要素を削除',
     });
   }
 
@@ -564,7 +560,7 @@ function validateHorizontalElement(element, elementType, nodeMap, issues) {
       elementId: id,
       value: idNodeStart,
       repairable: true,
-      repairSuggestion: '要素を削除（長さゼロの要素）'
+      repairSuggestion: '要素を削除（長さゼロの要素）',
     });
   }
 }
@@ -589,7 +585,7 @@ function validatePileElement(element, elementType, nodeMap, issues) {
         elementType,
         elementId: id,
         repairable: true,
-        repairSuggestion: '要素を削除'
+        repairSuggestion: '要素を削除',
       });
     }
   }
@@ -604,7 +600,7 @@ function validatePileElement(element, elementType, nodeMap, issues) {
         elementId: id,
         attribute: 'level_top',
         repairable: true,
-        repairSuggestion: 'デフォルト深度を設定'
+        repairSuggestion: 'デフォルト深度を設定',
       });
     }
   } else {
@@ -615,7 +611,7 @@ function validatePileElement(element, elementType, nodeMap, issues) {
       elementType,
       elementId: id,
       repairable: true,
-      repairSuggestion: '要素を削除'
+      repairSuggestion: '要素を削除',
     });
   }
 }
@@ -636,7 +632,7 @@ function validateFootingElement(element, elementType, nodeMap, issues) {
       elementId: id,
       attribute: 'id_node',
       repairable: true,
-      repairSuggestion: '要素を削除'
+      repairSuggestion: '要素を削除',
     });
   }
 }
@@ -658,7 +654,7 @@ function validateFoundationColumnElement(element, elementType, nodeMap, issues) 
       elementId: id,
       attribute: 'id_node',
       repairable: true,
-      repairSuggestion: '要素を削除'
+      repairSuggestion: '要素を削除',
     });
   }
 }
@@ -682,7 +678,7 @@ function validateReferenceIntegrity(xmlDoc, nodeMap, issues, statistics) {
         attribute: attributeName,
         value: nodeId,
         repairable: true,
-        repairSuggestion: '要素を削除または参照を修正'
+        repairSuggestion: '要素を削除または参照を修正',
       });
     }
   };
@@ -759,11 +755,17 @@ function validateSectionReferences(xmlDoc, issues) {
   const sectionIds = new Set();
 
   const sectionContainers = [
-    'StbSecColumn_RC', 'StbSecColumn_S', 'StbSecColumn_SRC', 'StbSecColumn_CFT',
-    'StbSecBeam_RC', 'StbSecBeam_S', 'StbSecBeam_SRC',
+    'StbSecColumn_RC',
+    'StbSecColumn_S',
+    'StbSecColumn_SRC',
+    'StbSecColumn_CFT',
+    'StbSecBeam_RC',
+    'StbSecBeam_S',
+    'StbSecBeam_SRC',
     'StbSecBrace_S',
-    'StbSecPile_RC', 'StbSecPile_S',
-    'StbSecFoundation_RC'
+    'StbSecPile_RC',
+    'StbSecPile_S',
+    'StbSecFoundation_RC',
   ];
 
   for (const containerName of sectionContainers) {
@@ -775,8 +777,15 @@ function validateSectionReferences(xmlDoc, issues) {
   }
 
   // 要素からの参照をチェック
-  const elementTypes = ['StbColumn', 'StbPost', 'StbGirder', 'StbBeam', 'StbBrace',
-    'StbPile', 'StbFooting'];
+  const elementTypes = [
+    'StbColumn',
+    'StbPost',
+    'StbGirder',
+    'StbBeam',
+    'StbBrace',
+    'StbPile',
+    'StbFooting',
+  ];
 
   for (const elementType of elementTypes) {
     const elements = parseElements(xmlDoc, elementType);
@@ -794,7 +803,7 @@ function validateSectionReferences(xmlDoc, issues) {
           attribute: 'id_section',
           value: idSection,
           repairable: true,
-          repairSuggestion: '要素を削除またはデフォルト断面を割り当て'
+          repairSuggestion: '要素を削除またはデフォルト断面を割り当て',
         });
       }
     }
@@ -817,7 +826,7 @@ function validateSectionReferences(xmlDoc, issues) {
         attribute: 'id_section_FD',
         value: idSectionFD,
         repairable: true,
-        repairSuggestion: '要素を削除またはデフォルト断面を割り当て'
+        repairSuggestion: '要素を削除またはデフォルト断面を割り当て',
       });
     }
 
@@ -833,7 +842,7 @@ function validateSectionReferences(xmlDoc, issues) {
         attribute: 'id_section_WR',
         value: idSectionWR,
         repairable: true,
-        repairSuggestion: '要素を削除またはデフォルト断面を割り当て'
+        repairSuggestion: '要素を削除またはデフォルト断面を割り当て',
       });
     }
   }
@@ -860,7 +869,7 @@ function validateSections(xmlDoc, issues, statistics) {
             elementType: sectionType,
             elementId: sectionId,
             repairable: true,
-            repairSuggestion: 'デフォルト値を適用または断面を削除'
+            repairSuggestion: 'デフォルト値を適用または断面を削除',
           });
         }
 
@@ -871,7 +880,7 @@ function validateSections(xmlDoc, issues, statistics) {
             message: `断面 ${sectionId}: ${warning}`,
             elementType: sectionType,
             elementId: sectionId,
-            repairable: false
+            repairable: false,
           });
         }
       }
@@ -883,7 +892,7 @@ function validateSections(xmlDoc, issues, statistics) {
       message: `断面情報の抽出中にエラーが発生しました: ${e.message}`,
       elementType: 'Sections',
       elementId: '',
-      repairable: false
+      repairable: false,
     });
   }
 }
@@ -905,11 +914,12 @@ function validateGeometricConstraints(xmlDoc, nodeMap, issues) {
 
       const length = Math.sqrt(
         Math.pow(top.x - bottom.x, 2) +
-        Math.pow(top.y - bottom.y, 2) +
-        Math.pow(top.z - bottom.z, 2)
+          Math.pow(top.y - bottom.y, 2) +
+          Math.pow(top.z - bottom.z, 2),
       );
 
-      if (length < 100) { // 100mm未満
+      if (length < 100) {
+        // 100mm未満
         issues.push({
           severity: SEVERITY.WARNING,
           category: CATEGORY.GEOMETRY,
@@ -918,11 +928,12 @@ function validateGeometricConstraints(xmlDoc, nodeMap, issues) {
           elementId: id,
           value: length,
           repairable: true,
-          repairSuggestion: '長さが100mm未満の要素を削除'
+          repairSuggestion: '長さが100mm未満の要素を削除',
         });
       }
 
-      if (length > 50000) { // 50m超
+      if (length > 50000) {
+        // 50m超
         issues.push({
           severity: SEVERITY.WARNING,
           category: CATEGORY.GEOMETRY,
@@ -930,7 +941,7 @@ function validateGeometricConstraints(xmlDoc, nodeMap, issues) {
           elementType: 'StbColumn',
           elementId: id,
           value: length,
-          repairable: false
+          repairable: false,
         });
       }
     }
@@ -951,8 +962,8 @@ function validateGeometricConstraints(xmlDoc, nodeMap, issues) {
 
         const length = Math.sqrt(
           Math.pow(end.x - start.x, 2) +
-          Math.pow(end.y - start.y, 2) +
-          Math.pow(end.z - start.z, 2)
+            Math.pow(end.y - start.y, 2) +
+            Math.pow(end.z - start.z, 2),
         );
 
         if (length < 100) {
@@ -964,11 +975,12 @@ function validateGeometricConstraints(xmlDoc, nodeMap, issues) {
             elementId: id,
             value: length,
             repairable: true,
-            repairSuggestion: '長さが100mm未満の要素を削除'
+            repairSuggestion: '長さが100mm未満の要素を削除',
           });
         }
 
-        if (length > 30000) { // 30m超
+        if (length > 30000) {
+          // 30m超
           issues.push({
             severity: SEVERITY.WARNING,
             category: CATEGORY.GEOMETRY,
@@ -976,7 +988,7 @@ function validateGeometricConstraints(xmlDoc, nodeMap, issues) {
             elementType: beamType,
             elementId: id,
             value: length,
-            repairable: false
+            repairable: false,
           });
         }
       }
@@ -1015,7 +1027,7 @@ function createReport(valid, issues, statistics, timestamp) {
     valid,
     issues,
     statistics,
-    timestamp
+    timestamp,
   };
 }
 
@@ -1059,7 +1071,7 @@ export function formatValidationReport(report) {
     lines.push('--- 検出された問題 ---');
 
     // エラーを先に表示
-    const errors = report.issues.filter(i => i.severity === SEVERITY.ERROR);
+    const errors = report.issues.filter((i) => i.severity === SEVERITY.ERROR);
     if (errors.length > 0) {
       lines.push('');
       lines.push('[エラー]');
@@ -1075,7 +1087,7 @@ export function formatValidationReport(report) {
     }
 
     // 警告
-    const warnings = report.issues.filter(i => i.severity === SEVERITY.WARNING);
+    const warnings = report.issues.filter((i) => i.severity === SEVERITY.WARNING);
     if (warnings.length > 0) {
       lines.push('');
       lines.push('[警告]');
@@ -1088,7 +1100,7 @@ export function formatValidationReport(report) {
     }
 
     // 情報
-    const infos = report.issues.filter(i => i.severity === SEVERITY.INFO);
+    const infos = report.issues.filter((i) => i.severity === SEVERITY.INFO);
     if (infos.length > 0) {
       lines.push('');
       lines.push('[情報]');
@@ -1113,7 +1125,7 @@ export function formatValidationReport(report) {
  * @returns {ValidationIssue[]} 修復可能な問題の配列
  */
 export function getRepairableIssues(report) {
-  return report.issues.filter(issue => issue.repairable);
+  return report.issues.filter((issue) => issue.repairable);
 }
 
 /**
@@ -1124,7 +1136,7 @@ export function getRepairableIssues(report) {
  * @returns {ValidationIssue[]} 該当する問題の配列
  */
 export function getIssuesByCategory(report, category) {
-  return report.issues.filter(issue => issue.category === category);
+  return report.issues.filter((issue) => issue.category === category);
 }
 
 /**
@@ -1135,5 +1147,5 @@ export function getIssuesByCategory(report, category) {
  * @returns {ValidationIssue[]} 該当する問題の配列
  */
 export function getIssuesByElementType(report, elementType) {
-  return report.issues.filter(issue => issue.elementType === elementType);
+  return report.issues.filter((issue) => issue.elementType === elementType);
 }

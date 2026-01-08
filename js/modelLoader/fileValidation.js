@@ -10,6 +10,8 @@
  * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
+import { notify } from '../app/controllers/notificationController.js';
+
 /**
  * Validate and retrieve files for comparison
  * @returns {Object} File validation result
@@ -17,11 +19,11 @@
 export function validateAndGetFiles() {
   const fileAInput = document.getElementById('fileA');
   const fileBInput = document.getElementById('fileB');
-  const fileA = fileAInput?.files[0];
-  const fileB = fileBInput?.files[0];
+  const fileA = fileAInput?.files[0] || null;
+  const fileB = fileBInput?.files[0] || null;
 
   if (!fileA && !fileB) {
-    alert('表示するモデルファイル（モデルAまたはモデルB）を選択してください。');
+    notify.warning('表示するモデルファイル（モデルAまたはモデルB）を選択してください。');
     return { isValid: false, fileA: null, fileB: null };
   }
 
@@ -30,11 +32,9 @@ export function validateAndGetFiles() {
   if (typeof window !== 'undefined' && window.globalState && window.globalState.set) {
     if (fileA) {
       window.globalState.set('files.originalFileA', fileA);
-      console.log('元のSTBファイルA を保存:', fileA.name);
     }
     if (fileB) {
       window.globalState.set('files.originalFileB', fileB);
-      console.log('元のSTBファイルB を保存:', fileB.name);
     }
   } else {
     // フォールバック: windowオブジェクトに直接保存
@@ -43,11 +43,9 @@ export function validateAndGetFiles() {
     }
     if (fileA) {
       window.originalSTBFiles.fileA = fileA;
-      console.log('元のSTBファイルA をフォールバック保存:', fileA.name);
     }
     if (fileB) {
       window.originalSTBFiles.fileB = fileB;
-      console.log('元のSTBファイルB をフォールバック保存:', fileB.name);
     }
   }
 
@@ -60,12 +58,9 @@ export function validateAndGetFiles() {
  */
 export function getSelectedElementTypes() {
   const selectedElementTypes = [
-    ...document.querySelectorAll(
-      '#elementSelector input[name="elements"]:checked'
-    )
+    ...document.querySelectorAll('#elementSelector input[name="elements"]:checked'),
   ].map((cb) => cb.value);
 
-  console.log('Selected elements for comparison:', selectedElementTypes);
   if (selectedElementTypes.length === 0) {
     console.warn('表示する要素が選択されていません。');
   }
@@ -78,9 +73,7 @@ export function getSelectedElementTypes() {
  * @param {boolean} isLoading - Whether loading is in progress
  */
 export function setLoadingState(isLoading) {
-  const compareButton = document.querySelector(
-    '#overlay button[onclick="compareModels()"]'
-  );
+  const compareButton = document.querySelector('#overlay button[onclick="compareModels()"]');
 
   if (compareButton) {
     if (isLoading) {
@@ -135,6 +128,6 @@ export function validateComparisonParameters(params) {
   return {
     isValid: errors.length === 0,
     errors,
-    warnings: selectedElementTypes.length === 0 ? ['No elements selected'] : []
+    warnings: selectedElementTypes.length === 0 ? ['No elements selected'] : [],
   };
 }

@@ -1,0 +1,152 @@
+/**
+ * @fileoverview アコーディオンUIイベントリスナー
+ *
+ * アコーディオンセクションの展開/折り畳みを処理するイベントリスナー。
+ *
+ * @module ui/events/accordionListeners
+ */
+
+import { storageHelper } from '../../utils/storageHelper.js';
+import { createLogger, LogCategory } from '../../utils/logger.js';
+
+const logger = createLogger('ui:accordion');
+
+/**
+ * Setup accordion event listeners
+ */
+export function setupAccordionListeners() {
+  const accordionHeaders = document.querySelectorAll('.accordion-header');
+
+  accordionHeaders.forEach((header) => {
+    header.addEventListener('click', handleAccordionToggle);
+  });
+
+  // Initialize accordion states
+  initializeAccordionStates();
+}
+
+/**
+ * Handle accordion section toggle
+ * @param {Event} event - Click event
+ */
+function handleAccordionToggle(event) {
+  const header = event.currentTarget;
+  const targetId = header.dataset.target;
+  const content = document.getElementById(targetId);
+
+  if (!content) {
+    logger.warn(`アコーディオン: コンテンツが見つかりません (target=${targetId})`);
+    return;
+  }
+
+  const isCollapsed = content.classList.contains('collapsed');
+
+  if (isCollapsed) {
+    // Expand
+    content.classList.remove('collapsed');
+    header.classList.remove('collapsed');
+    logger.info(`${LogCategory.EVENT} アコーディオン展開: ${targetId}`);
+  } else {
+    // Collapse
+    content.classList.add('collapsed');
+    header.classList.add('collapsed');
+    logger.info(`${LogCategory.EVENT} アコーディオン折畳: ${targetId}`);
+  }
+
+  // Save accordion state to localStorage
+  saveAccordionState(targetId, !isCollapsed);
+}
+
+/**
+ * Initialize accordion states from localStorage or defaults
+ */
+function initializeAccordionStates() {
+  const defaultOpenSections = ['file-loading', 'display-settings', 'element-settings'];
+  const accordionSections = document.querySelectorAll('.accordion-section');
+
+  accordionSections.forEach((section, index) => {
+    const header = section.querySelector('.accordion-header');
+    const content = section.querySelector('.accordion-content');
+
+    if (!header || !content) return;
+
+    const targetId = header.dataset.target;
+    const savedState = getAccordionState(targetId);
+    const shouldBeOpen = savedState !== null ? savedState : defaultOpenSections.includes(targetId);
+
+    if (shouldBeOpen) {
+      content.classList.remove('collapsed');
+      header.classList.remove('collapsed');
+    } else {
+      content.classList.add('collapsed');
+      header.classList.add('collapsed');
+    }
+  });
+}
+
+/**
+ * Save accordion state to storageHelper
+ * @param {string} sectionId - Section identifier
+ * @param {boolean} isOpen - Whether section is open
+ */
+function saveAccordionState(sectionId, isOpen) {
+  const accordionStates = storageHelper.get('accordionStates', {});
+  accordionStates[sectionId] = isOpen;
+  storageHelper.set('accordionStates', accordionStates);
+}
+
+/**
+ * Get accordion state from storageHelper
+ * @param {string} sectionId - Section identifier
+ * @returns {boolean|null} Saved state or null if not found
+ */
+function getAccordionState(sectionId) {
+  const accordionStates = storageHelper.get('accordionStates', {});
+  return accordionStates[sectionId] !== undefined ? accordionStates[sectionId] : null;
+}
+
+/**
+ * Expand all accordion sections
+ */
+export function expandAllAccordions() {
+  const contents = document.querySelectorAll('.accordion-content');
+  const headers = document.querySelectorAll('.accordion-header');
+
+  contents.forEach((content) => content.classList.remove('collapsed'));
+  headers.forEach((header) => header.classList.remove('collapsed'));
+
+  // Save states
+  headers.forEach((header) => {
+    const targetId = header.dataset.target;
+    saveAccordionState(targetId, true);
+  });
+
+  logger.info(`${LogCategory.EVENT} 全アコーディオン展開`);
+}
+
+/**
+ * Collapse all accordion sections
+ */
+export function collapseAllAccordions() {
+  const contents = document.querySelectorAll('.accordion-content');
+  const headers = document.querySelectorAll('.accordion-header');
+
+  contents.forEach((content) => content.classList.add('collapsed'));
+  headers.forEach((header) => header.classList.add('collapsed'));
+
+  // Save states
+  headers.forEach((header) => {
+    const targetId = header.dataset.target;
+    saveAccordionState(targetId, false);
+  });
+
+  logger.info(`${LogCategory.EVENT} 全アコーディオン折畳`);
+}
+
+/**
+ * Get accordion section count
+ * @returns {number} Number of accordion sections
+ */
+export function getAccordionSectionCount() {
+  return document.querySelectorAll('.accordion-section').length;
+}

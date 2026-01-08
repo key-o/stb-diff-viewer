@@ -45,7 +45,7 @@ export class MeshMetadataBuilder {
       profileResult,
       sectionData,
       isJsonInput = false,
-      extraData = {}
+      extraData = {},
     } = params;
 
     // 基本メタデータ
@@ -56,7 +56,7 @@ export class MeshMetadataBuilder {
       sectionType: sectionType || 'UNKNOWN',
       profileBased: true,
       profileMeta: profileResult?.meta || { profileSource: 'unknown' },
-      sectionDataOriginal: sectionData || null
+      sectionDataOriginal: sectionData || null,
     };
 
     // 配置情報がある場合、長さを追加
@@ -90,11 +90,7 @@ export class MeshMetadataBuilder {
    * @returns {Object} userDataオブジェクト
    */
   static buildForBeam(params) {
-    const {
-      sectionHeight,
-      placementMode,
-      ...baseParams
-    } = params;
+    const { sectionHeight, placementMode, ...baseParams } = params;
 
     const userData = this.build(baseParams);
 
@@ -203,8 +199,8 @@ export class MeshMetadataBuilder {
     const userData = this.build({
       ...baseParams,
       profileResult: {
-        meta: { profileSource: 'multi-section' }
-      }
+        meta: { profileSource: 'multi-section' },
+      },
     });
 
     // 多断面固有のプロパティを追加
@@ -240,7 +236,7 @@ export class MeshMetadataBuilder {
   static merge(existingUserData, additionalData) {
     return {
       ...existingUserData,
-      ...additionalData
+      ...additionalData,
     };
   }
 

@@ -20,112 +20,46 @@
  *
  * 比較結果は「一致」「モデルAのみ」「モデルBのみ」の3つに分類され、
  * 3Dビュー上での色分け表示の基礎となります。
+ *
+ * @note このモジュールは以下のサブモジュールに責任を分割しています：
+ * - comparison/keys/CoordinateKeyFactory.js - キー生成
+ * - comparison/strategies/ - 比較戦略
  */
 
-import { getImportanceManager, IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from './core/importanceManager.js';
+import { getImportanceManager } from './app/importanceManager.js';
+import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from './constants/importanceLevels.js';
 import { COMPARISON_KEY_TYPE } from './config/comparisonKeyConfig.js';
 import { getToleranceConfig } from './config/toleranceConfig.js';
-import { compareElementDataWithTolerance } from './core/toleranceComparison.js';
 import { COORDINATE_PRECISION } from './config/geometryConfig.js';
+
+// キー生成関数をCoordinateKeyFactoryから再エクスポート
+import {
+  getNodeCoordKey,
+  getLineElementKey,
+  getPolyElementKey,
+  getGuidKey,
+  getElementKey,
+} from './comparison/keys/CoordinateKeyFactory.js';
+
+// 比較戦略をインポート
+import { BasicComparisonStrategy } from './comparison/strategies/ComparisonStrategy.js';
+import { ToleranceComparisonStrategy } from './comparison/strategies/ToleranceComparisonStrategy.js';
+import {
+  VersionAwareComparisonStrategy,
+  isCrossVersionComparison,
+  filterVersionSpecificDifferences,
+  areAttributesEquivalent,
+  DIFF_TYPE,
+} from './comparison/strategies/VersionAwareComparisonStrategy.js';
 
 // --- 定数 ---
 const PRECISION = COORDINATE_PRECISION; // 座標比較時の精度（共有定数を使用）
 const STB_NAMESPACE = 'https://www.building-smart.or.jp/dl'; // ST-Bridge 名前空間 (stbParserと重複するが、独立性のため保持)
 
-// --- 比較用キー生成関数 ---
-
-/**
- * 座標オブジェクトから比較用のキー文字列を生成する。
- * @param {{x: number, y: number, z: number}} coords - 座標オブジェクト。
- * @param {number} [precision=PRECISION] - キー生成に使用する小数点以下の桁数。
- * @returns {string|null} 生成されたキー文字列、または無効な座標の場合はnull。
- */
-function getNodeCoordKey(coords, precision = PRECISION) {
-  if (
-    !coords ||
-    typeof coords.x !== 'number' ||
-    typeof coords.y !== 'number' ||
-    typeof coords.z !== 'number'
-  ) {
-    console.warn('Invalid coordinates for key generation:', coords);
-    return null;
-  }
-  return `${coords.x.toFixed(precision)},${coords.y.toFixed(
-    precision
-  )},${coords.z.toFixed(precision)}`;
-}
-
-/**
- * 線分要素（始点・終点座標）から比較用のキー文字列を生成する。
- * @param {{x: number, y: number, z: number}} startCoords - 始点座標。
- * @param {{x: number, y: number, z: number}} endCoords - 終点座標。
- * @param {number} [precision=PRECISION] - 座標キー生成に使用する小数点以下の桁数。
- * @returns {string|null} 生成されたキー文字列、または無効な座標の場合はnull。
- */
-function getLineElementKey(startCoords, endCoords, precision = PRECISION) {
-  const startKey = getNodeCoordKey(startCoords, precision);
-  const endKey = getNodeCoordKey(endCoords, precision);
-  if (startKey === null || endKey === null) return null;
-  return [startKey, endKey].sort().join('|');
-}
-
-/**
- * ポリゴン要素（頂点座標リスト、床ID、断面ID）から比較用のキー文字列を生成する。
- * @param {Array<{x: number, y: number, z: number}>} vertexCoordsList - 頂点座標のリスト。
- * @param {string} [floorId=''] - 床ID。
- * @param {string} [sectionId=''] - 断面ID。
- * @param {number} [precision=PRECISION] - 座標キー生成に使用する小数点以下の桁数。
- * @returns {string|null} 生成されたキー文字列、または無効な頂点が含まれる場合はnull。
- */
-function getPolyElementKey(
-  vertexCoordsList,
-  floorId = '',
-  sectionId = '',
-  precision = PRECISION
-) {
-  if (!vertexCoordsList || vertexCoordsList.length === 0) return null;
-  const coordKeys = vertexCoordsList.map((coords) =>
-    getNodeCoordKey(coords, precision)
-  );
-  if (coordKeys.some((key) => key === null)) return null;
-  return coordKeys.sort().join(',') + `|F:${floorId}|S:${sectionId}`;
-}
-
-// --- GUIDベースのキー生成関数 ---
-
-/**
- * 要素のGUID属性からキーを生成する
- * @param {Element} element - XML要素
- * @returns {string|null} GUID文字列、またはGUID属性が無い場合はnull
- */
-function getGuidKey(element) {
-  if (!element || !element.getAttribute) {
-    return null;
-  }
-  const guid = element.getAttribute('guid');
-  return guid && guid.trim() !== '' ? guid.trim() : null;
-}
-
-/**
- * 要素から比較キーを生成する（キータイプに応じて位置ベースまたはGUIDベース）
- * @param {Element} element - XML要素
- * @param {string} keyType - 比較キータイプ（COMPARISON_KEY_TYPE.POSITION_BASED または GUID_BASED）
- * @param {function} positionKeyGenerator - 位置ベースのキー生成関数
- * @returns {string|null} 生成されたキー文字列
- */
-function getElementKey(element, keyType, positionKeyGenerator) {
-  if (keyType === COMPARISON_KEY_TYPE.GUID_BASED) {
-    const guidKey = getGuidKey(element);
-    if (guidKey !== null) {
-      return `guid:${guidKey}`;
-    }
-    // GUIDが無い場合は位置ベースにフォールバック
-    console.warn(`GUID not found for element ${element.getAttribute('id')}, falling back to position-based key`);
-  }
-
-  // 位置ベースのキー生成
-  return positionKeyGenerator();
-}
+// 戦略インスタンス
+const basicStrategy = new BasicComparisonStrategy();
+const toleranceStrategy = new ToleranceComparisonStrategy();
+const versionAwareStrategy = new VersionAwareComparisonStrategy();
 
 // --- 要素比較ロジック ---
 /**
@@ -137,47 +71,9 @@ function getElementKey(element, keyType, positionKeyGenerator) {
  * @param {function(Element, Map): {key: string|null, data: any}} keyExtractor - 要素から比較キーと関連データを抽出する関数。
  * @returns {{matched: Array<{dataA: any, dataB: any}>, onlyA: Array<any>, onlyB: Array<any>}} 比較結果オブジェクト。
  */
-export function compareElements(
-  elementsA,
-  elementsB,
-  nodeMapA,
-  nodeMapB,
-  keyExtractor
-) {
-  const keysA = new Map();
-  const keysB = new Map();
-  const dataA = [];
-  const dataB = [];
-  const matchedData = [];
-
-  for (const elementA of elementsA) {
-    const { key, data } = keyExtractor(elementA, nodeMapA);
-    if (key !== null) {
-      keysA.set(key, data);
-    }
-  }
-
-  for (const elementB of elementsB) {
-    const { key, data } = keyExtractor(elementB, nodeMapB);
-    if (key !== null) {
-      keysB.set(key, data);
-    }
-  }
-
-  for (const [key, dataAItem] of keysA.entries()) {
-    if (keysB.has(key)) {
-      matchedData.push({ dataA: dataAItem, dataB: keysB.get(key) });
-      keysB.delete(key);
-    } else {
-      dataA.push(dataAItem);
-    }
-  }
-
-  for (const dataBItem of keysB.values()) {
-    dataB.push(dataBItem);
-  }
-
-  return { matched: matchedData, onlyA: dataA, onlyB: dataB };
+export function compareElements(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor) {
+  // BasicComparisonStrategyに委譲
+  return basicStrategy.compare(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor);
 }
 
 // --- 要素タイプごとのキー抽出関数 ---
@@ -196,7 +92,7 @@ export function lineElementKeyExtractor(
   nodeMap,
   idStartAttr,
   idEndAttr,
-  keyType = COMPARISON_KEY_TYPE.POSITION_BASED
+  keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
 ) {
   let startId = element.getAttribute(idStartAttr);
   let endId = element.getAttribute(idEndAttr);
@@ -204,11 +100,13 @@ export function lineElementKeyExtractor(
   let startCoords = nodeMap.get(startId);
   let endCoords = nodeMap.get(endId);
 
-  // 1-node format fallback (for Pile/Footing with id_node + level_top)
+  // 1-node format fallback (for Pile with id_node + level_top)
   if ((!startCoords || !endCoords) && !startId && !endId) {
     const idNode = element.getAttribute('id_node');
     const levelTop = element.getAttribute('level_top');
+    const levelBottom = element.getAttribute('level_bottom');
 
+    // Pile: id_node + level_top 形式
     if (idNode && levelTop && nodeMap.has(idNode)) {
       const topNode = nodeMap.get(idNode);
       const offsetX = parseFloat(element.getAttribute('offset_X')) || 0;
@@ -222,14 +120,42 @@ export function lineElementKeyExtractor(
       endCoords = {
         x: topNode.x + offsetX,
         y: topNode.y + offsetY,
-        z: levelTopValue // level_top is the top Z coordinate
+        z: levelTopValue, // level_top is the top Z coordinate
       };
 
       // Calculate bottom node (top - default pile length)
       startCoords = {
         x: endCoords.x,
         y: endCoords.y,
-        z: levelTopValue - defaultPileLength // Bottom is below top
+        z: levelTopValue - defaultPileLength, // Bottom is below top
+      };
+
+      // Use synthetic IDs for 1-node format
+      startId = `${idNode}_bottom`;
+      endId = idNode;
+    }
+    // Footing: id_node + level_bottom 形式
+    else if (idNode && levelBottom !== null && nodeMap.has(idNode)) {
+      const refNode = nodeMap.get(idNode);
+      const offsetX = parseFloat(element.getAttribute('offset_X')) || 0;
+      const offsetY = parseFloat(element.getAttribute('offset_Y')) || 0;
+      const levelBottomValue = parseFloat(levelBottom) || 0;
+
+      // Default footing height for line display
+      // const defaultFootingHeight = 500; // 500mm default - unused
+
+      // Calculate bottom position (level_bottom)
+      startCoords = {
+        x: refNode.x + offsetX,
+        y: refNode.y + offsetY,
+        z: levelBottomValue, // level_bottom is the bottom Z coordinate
+      };
+
+      // Calculate top position (reference node Z or bottom + default height)
+      endCoords = {
+        x: refNode.x + offsetX,
+        y: refNode.y + offsetY,
+        z: refNode.z, // Use the reference node's Z as top
       };
 
       // Use synthetic IDs for 1-node format
@@ -243,7 +169,7 @@ export function lineElementKeyExtractor(
     const elementData = {
       id: elementId,
       [idStartAttr]: startId,
-      [idEndAttr]: endId
+      [idEndAttr]: endId,
     };
 
     // name属性やその他の属性も取得
@@ -261,9 +187,7 @@ export function lineElementKeyExtractor(
     if (guid) elementData.guid = guid;
 
     // キータイプに応じたキー生成
-    const key = getElementKey(element, keyType, () =>
-      getLineElementKey(startCoords, endCoords)
-    );
+    const key = getElementKey(element, keyType, () => getLineElementKey(startCoords, endCoords));
 
     return {
       key,
@@ -271,14 +195,14 @@ export function lineElementKeyExtractor(
         startCoords,
         endCoords,
         id: elementId,
-        name: name || undefined,  // ツリー表示用にトップレベルに追加
-        guid: guid || undefined,  // ツリー表示用にトップレベルに追加
-        element: elementData // 要素データを追加
-      }
+        name: name || undefined, // ツリー表示用にトップレベルに追加
+        guid: guid || undefined, // ツリー表示用にトップレベルに追加
+        element: elementData, // 要素データを追加
+      },
     };
   }
   console.warn(
-    `Missing node coords for line element: Start=${startId}, End=${endId}, ElementID=${elementId}`
+    `[Data] 線分要素: ノード座標が不足 (Start=${startId}, End=${endId}, id=${elementId})`,
   );
   return { key: null, data: null };
 }
@@ -295,32 +219,24 @@ export function polyElementKeyExtractor(
   element,
   nodeMap,
   nodeOrderTag = 'StbNodeIdOrder',
-  keyType = COMPARISON_KEY_TYPE.POSITION_BASED
+  keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
 ) {
   const floorId = element.getAttribute('id_floor') || '';
   const sectionId = element.getAttribute('id_section') || '';
   const elementId = element.getAttribute('id');
-  const orderElem = element.getElementsByTagNameNS(
-    STB_NAMESPACE,
-    nodeOrderTag
-  )[0];
+  const orderElem = element.getElementsByTagNameNS(STB_NAMESPACE, nodeOrderTag)[0];
   if (orderElem && orderElem.textContent) {
     const nodeIds = orderElem.textContent.trim().split(/\s+/);
-    const vertexCoordsList = nodeIds
-      .map((id) => nodeMap.get(id))
-      .filter((coords) => coords);
+    const vertexCoordsList = nodeIds.map((id) => nodeMap.get(id)).filter((coords) => coords);
 
-    if (
-      vertexCoordsList.length === nodeIds.length &&
-      vertexCoordsList.length >= 3
-    ) {
+    if (vertexCoordsList.length === nodeIds.length && vertexCoordsList.length >= 3) {
       // name属性とGUID属性を取得
       const name = element.getAttribute('name');
       const guid = element.getAttribute('guid');
 
       // キータイプに応じたキー生成
       const key = getElementKey(element, keyType, () =>
-        getPolyElementKey(vertexCoordsList, floorId, sectionId)
+        getPolyElementKey(vertexCoordsList, floorId, sectionId),
       );
 
       return {
@@ -328,19 +244,17 @@ export function polyElementKeyExtractor(
         data: {
           vertexCoordsList,
           id: elementId,
-          name: name || undefined,  // ツリー表示用にトップレベルに追加
-          guid: guid || undefined   // ツリー表示用にトップレベルに追加
-        }
+          name: name || undefined, // ツリー表示用にトップレベルに追加
+          guid: guid || undefined, // ツリー表示用にトップレベルに追加
+        },
       };
     } else {
       console.warn(
-        `Missing node coords or insufficient vertices for poly element: ElementID=${elementId}, IDs=${nodeIds}, Found=${vertexCoordsList.length}`
+        `[Data] 面要素: ノード座標または頂点が不足 (id=${elementId}, nodes=${nodeIds.length}, found=${vertexCoordsList.length})`,
       );
     }
   } else {
-    console.warn(
-      `Missing or empty node order tag '${nodeOrderTag}' for poly element: ElementID=${elementId}`
-    );
+    console.warn(`[Data] 面要素: ノード順序タグが不足 (id=${elementId}, tag=${nodeOrderTag})`);
   }
   return { key: null, data: null };
 }
@@ -365,9 +279,9 @@ export function nodeElementKeyExtractor(element, nodeMap) {
       data: {
         coords,
         id: nodeId,
-        name: name || undefined,  // ツリー表示用にトップレベルに追加
-        guid: guid || undefined   // ツリー表示用にトップレベルに追加
-      }
+        name: name || undefined, // ツリー表示用にトップレベルに追加
+        guid: guid || undefined, // ツリー表示用にトップレベルに追加
+      },
     };
   }
   return { key: null, data: null };
@@ -413,24 +327,6 @@ function getElementImportance(element, elementType) {
 }
 
 /**
- * 重要度レベルに基づいて要素をフィルタリングする
- * @param {Array<Element>} elements - 要素リスト
- * @param {string} elementType - 要素タイプ
- * @param {string[]} targetImportanceLevels - 対象とする重要度レベル
- * @returns {Array<Element>} フィルタリング済みの要素リスト
- */
-export function filterElementsByImportance(elements, elementType, targetImportanceLevels) {
-  if (!targetImportanceLevels || targetImportanceLevels.length === 0) {
-    return elements; // フィルタリングなし
-  }
-
-  return elements.filter(element => {
-    const importance = getElementImportance(element, elementType);
-    return targetImportanceLevels.includes(importance);
-  });
-}
-
-/**
  * 重要度を考慮した要素比較（compareElementsの拡張版）
  * @param {Array<Element>} elementsA - モデルAの要素リスト
  * @param {Array<Element>} elementsB - モデルBの要素リスト
@@ -450,12 +346,9 @@ export function compareElementsWithImportance(
   nodeMapB,
   keyExtractor,
   elementType,
-  options = {}
+  options = {},
 ) {
-  const {
-    targetImportanceLevels = null,
-    includeImportanceInfo = true
-  } = options;
+  const { targetImportanceLevels = null, includeImportanceInfo = true } = options;
 
   // 重要度フィルタリング
   let filteredElementsA = elementsA;
@@ -472,13 +365,13 @@ export function compareElementsWithImportance(
     filteredElementsB,
     nodeMapA,
     nodeMapB,
-    keyExtractor
+    keyExtractor,
   );
 
   // 重要度情報を付加
   if (includeImportanceInfo) {
     const addImportanceInfo = (items, modelType) => {
-      return items.map(item => {
+      return items.map((item) => {
         let element;
         if (modelType === 'matched') {
           // matchedの場合、dataAから要素を取得
@@ -488,12 +381,14 @@ export function compareElementsWithImportance(
           element = item.element || null;
         }
 
-        const importance = element ? getElementImportance(element, elementType) : IMPORTANCE_LEVELS.OPTIONAL;
+        const importance = element
+          ? getElementImportance(element, elementType)
+          : IMPORTANCE_LEVELS.OPTIONAL;
 
         return {
           ...item,
           importance,
-          importanceName: IMPORTANCE_LEVEL_NAMES[importance]
+          importanceName: IMPORTANCE_LEVEL_NAMES[importance],
         };
       });
     };
@@ -515,8 +410,8 @@ export function compareElementsWithImportance(
       totalElementsA: elementsA.length,
       totalElementsB: elementsB.length,
       filteredElementsA: filteredElementsA.length,
-      filteredElementsB: filteredElementsB.length
-    }
+      filteredElementsB: filteredElementsB.length,
+    },
   };
 }
 
@@ -534,8 +429,8 @@ function generateImportanceStatistics(comparisonResult, elementType) {
       totalMatched: comparisonResult.matched.length,
       totalOnlyA: comparisonResult.onlyA.length,
       totalOnlyB: comparisonResult.onlyB.length,
-      totalDifferences: comparisonResult.onlyA.length + comparisonResult.onlyB.length
-    }
+      totalDifferences: comparisonResult.onlyA.length + comparisonResult.onlyB.length,
+    },
   };
 
   // 重要度レベル別の初期化
@@ -544,13 +439,13 @@ function generateImportanceStatistics(comparisonResult, elementType) {
       matched: 0,
       onlyA: 0,
       onlyB: 0,
-      differences: 0
+      differences: 0,
     };
   }
 
   // 統計を集計
   const countByImportance = (items, category) => {
-    items.forEach(item => {
+    items.forEach((item) => {
       const importance = item.importance || IMPORTANCE_LEVELS.OPTIONAL;
       stats.byImportance[importance][category]++;
       if (category !== 'matched') {
@@ -578,7 +473,7 @@ export function generateImportanceSummary(comparisonResults) {
     byImportance: {},
     byElementType: {},
     criticalDifferences: 0, // 高重要度の差分
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
 
   // 重要度レベル別の初期化
@@ -587,12 +482,12 @@ export function generateImportanceSummary(comparisonResults) {
       matched: 0,
       differences: 0,
       onlyA: 0,
-      onlyB: 0
+      onlyB: 0,
     };
   }
 
   // 各比較結果を集計
-  comparisonResults.forEach(result => {
+  comparisonResults.forEach((result) => {
     if (!result.importanceStats) {
       return;
     }
@@ -600,8 +495,8 @@ export function generateImportanceSummary(comparisonResults) {
     const elementType = result.elementType;
     summary.byElementType[elementType] = result.importanceStats.summary;
 
-    summary.totalElements += result.importanceStats.summary.totalMatched +
-                           result.importanceStats.summary.totalDifferences;
+    summary.totalElements +=
+      result.importanceStats.summary.totalMatched + result.importanceStats.summary.totalDifferences;
     summary.totalDifferences += result.importanceStats.summary.totalDifferences;
 
     // 重要度別の集計
@@ -630,7 +525,7 @@ export function generateImportanceSummary(comparisonResults) {
 export function updateComparisonResultImportance(comparisonResult, elementType) {
   // 重要度情報を再計算
   const addImportanceInfo = (items, modelType) => {
-    return items.map(item => {
+    return items.map((item) => {
       let element;
       if (modelType === 'matched') {
         element = item.dataA.element || null;
@@ -638,12 +533,14 @@ export function updateComparisonResultImportance(comparisonResult, elementType) 
         element = item.element || null;
       }
 
-      const importance = element ? getElementImportance(element, elementType) : IMPORTANCE_LEVELS.OPTIONAL;
+      const importance = element
+        ? getElementImportance(element, elementType)
+        : IMPORTANCE_LEVELS.OPTIONAL;
 
       return {
         ...item,
         importance,
-        importanceName: IMPORTANCE_LEVEL_NAMES[importance]
+        importanceName: IMPORTANCE_LEVEL_NAMES[importance],
       };
     });
   };
@@ -652,7 +549,7 @@ export function updateComparisonResultImportance(comparisonResult, elementType) 
     ...comparisonResult,
     matched: addImportanceInfo(comparisonResult.matched, 'matched'),
     onlyA: addImportanceInfo(comparisonResult.onlyA, 'onlyA'),
-    onlyB: addImportanceInfo(comparisonResult.onlyB, 'onlyB')
+    onlyB: addImportanceInfo(comparisonResult.onlyB, 'onlyB'),
   };
 
   // 統計情報を再生成
@@ -677,120 +574,35 @@ export function compareElementsWithTolerance(
   nodeMapA,
   nodeMapB,
   keyExtractor,
-  toleranceConfig = null
+  toleranceConfig = null,
 ) {
-  // 許容差設定を取得
-  const config = toleranceConfig || getToleranceConfig();
-
-  const result = {
-    exact: [],
-    withinTolerance: [],
-    mismatch: [],
-    onlyA: [],
-    onlyB: []
-  };
-
-  // 厳密モードまたは許容差無効の場合は従来の比較
-  if (config.strictMode || !config.enabled) {
-    const basicResult = compareElements(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor);
-    result.exact = basicResult.matched;
-    result.onlyA = basicResult.onlyA;
-    result.onlyB = basicResult.onlyB;
-    return result;
-  }
-
-  // 許容差を考慮した比較ロジック
-  const mapA = new Map();
-  const mapB = new Map();
-
-  // モデルAの要素をマッピング
-  for (const elementA of elementsA) {
-    const { key, data } = keyExtractor(elementA, nodeMapA);
-    if (key !== null) {
-      if (!mapA.has(key)) {
-        mapA.set(key, []);
-      }
-      mapA.get(key).push(data);
-    }
-  }
-
-  // モデルBの要素をマッピングし、マッチングを試行
-  for (const elementB of elementsB) {
-    const { key, data } = keyExtractor(elementB, nodeMapB);
-    if (key === null) continue;
-
-    let foundMatch = false;
-
-    // 同じキーの要素を探す（完全一致）
-    if (mapA.has(key)) {
-      const candidatesA = mapA.get(key);
-
-      for (let i = 0; i < candidatesA.length; i++) {
-        const dataA = candidatesA[i];
-        const comparisonResult = compareElementDataWithTolerance(dataA, data, config);
-
-        if (comparisonResult.match && comparisonResult.type === 'exact') {
-          result.exact.push({
-            dataA: dataA,
-            dataB: data,
-            matchType: 'exact',
-            differences: comparisonResult.differences
-          });
-          candidatesA.splice(i, 1);
-          if (candidatesA.length === 0) {
-            mapA.delete(key);
-          }
-          foundMatch = true;
-          break;
-        }
-      }
-    }
-
-    // 完全一致が見つからない場合、許容差内の一致を探す
-    if (!foundMatch) {
-      for (const [keyA, candidatesA] of mapA.entries()) {
-        for (let i = 0; i < candidatesA.length; i++) {
-          const dataA = candidatesA[i];
-          const comparisonResult = compareElementDataWithTolerance(dataA, data, config);
-
-          if (comparisonResult.match && comparisonResult.type === 'withinTolerance') {
-            result.withinTolerance.push({
-              dataA: dataA,
-              dataB: data,
-              matchType: 'withinTolerance',
-              differences: comparisonResult.differences
-            });
-            candidatesA.splice(i, 1);
-            if (candidatesA.length === 0) {
-              mapA.delete(keyA);
-            }
-            foundMatch = true;
-            break;
-          }
-        }
-        if (foundMatch) break;
-      }
-    }
-
-    // マッチが見つからない場合
-    if (!foundMatch) {
-      if (!mapB.has(key)) {
-        mapB.set(key, []);
-      }
-      mapB.get(key).push(data);
-    }
-  }
-
-  // 残りの要素を振り分け
-  for (const candidatesA of mapA.values()) {
-    result.onlyA.push(...candidatesA);
-  }
-
-  for (const candidatesB of mapB.values()) {
-    result.onlyB.push(...candidatesB);
-  }
-
-  return result;
+  // ToleranceComparisonStrategyに委譲
+  return toleranceStrategy.compare(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor, {
+    toleranceConfig: toleranceConfig || getToleranceConfig(),
+  });
 }
 
-// 比較のための追加ユーティリティ関数をここに追加できます。
+// --- バージョン対応比較関数 ---
+
+/**
+ * STBバージョン情報を保持するオブジェクト
+ * @typedef {Object} VersionInfo
+ * @property {string} versionA - モデルAのバージョン ('2.0.2' or '2.1.0')
+ * @property {string} versionB - モデルBのバージョン ('2.0.2' or '2.1.0')
+ */
+
+/**
+ * バージョン対応の比較結果
+ * @typedef {Object} VersionAwareComparisonResult
+ * @property {Array} matched - 一致した要素
+ * @property {Array} onlyA - モデルAのみの要素
+ * @property {Array} onlyB - モデルBのみの要素
+ * @property {Array} versionDifferences - バージョン固有の差異
+ * @property {Object} versionInfo - バージョン情報
+ */
+
+// 以下の関数はVersionAwareComparisonStrategyから再エクスポート
+export { isCrossVersionComparison, filterVersionSpecificDifferences, areAttributesEquivalent };
+
+// エクスポート: DIFF_TYPE定数の再エクスポート
+export { DIFF_TYPE };

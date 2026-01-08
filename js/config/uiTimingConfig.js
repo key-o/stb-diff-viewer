@@ -55,7 +55,7 @@ export const UI_TIMING = {
 
   // === 開発ツール関連 ===
   /** 開発ツール待機時間 */
-  DEVTOOLS_WAIT_MS: 2000
+  DEVTOOLS_WAIT_MS: 2000,
 };
 
 /**
@@ -80,7 +80,7 @@ export function getTimingDescription(key) {
     PROGRESS_HIDE_DELAY_MS: 'プログレス非表示遅延',
     FILTER_APPLY_DELAY_MS: 'フィルタ適用遅延',
     STATISTICS_REFRESH_DELAY_MS: '統計更新遅延',
-    DEVTOOLS_WAIT_MS: '開発ツール待機時間'
+    DEVTOOLS_WAIT_MS: '開発ツール待機時間',
   };
   return descriptions[key] || '不明';
 }

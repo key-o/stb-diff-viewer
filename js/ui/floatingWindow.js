@@ -5,7 +5,7 @@
  */
 
 import { floatingWindowManager } from './floatingWindowManager.js';
-import { updatePlacementPositionOptions } from '../dxfLoader.js';
+import { dxfController } from '../app/controllers/dxfController.js';
 
 /**
  * 動的に生成するウィンドウのテンプレート
@@ -43,20 +43,9 @@ const dynamicWindowTemplates = [
       </div>
     `,
     headerExtra: '',
-    toggleButtonId: 'toggle-tree-view-btn'
+    toggleButtonId: 'toggle-tree-view-btn',
   },
-  {
-    windowId: 'tolerance-settings-float',
-    title: '許容差設定',
-    icon: '⚙️',
-    content: `
-      <div id="tolerance-settings-container">
-        <!-- toleranceSettings.jsによって動的に生成される -->
-      </div>
-    `,
-    headerExtra: '',
-    toggleButtonId: 'toggle-tolerance-settings-btn'
-  }
+  // 許容差設定は色付けモード設定パネル内に統合されたため削除
 ];
 
 /**
@@ -74,7 +63,7 @@ export function initializeFloatingWindow() {
       closeButtonId: `close-${template.windowId}-btn`,
       headerId: `${template.windowId}-header`,
       draggable: true,
-      autoShow: false
+      autoShow: false,
     });
   }
 
@@ -88,7 +77,7 @@ export function initializeFloatingWindow() {
     closeButtonId: 'close-element-settings-btn',
     headerId: 'element-settings-header',
     draggable: true,
-    autoShow: false
+    autoShow: false,
   });
 
   // 要素情報パネル（HTMLに定義済み）
@@ -98,7 +87,7 @@ export function initializeFloatingWindow() {
     closeButtonId: 'close-component-info-btn',
     headerId: 'component-info-header',
     draggable: true,
-    autoShow: false
+    autoShow: false,
   });
 
   // 表示範囲設定ウィンドウ（HTMLに定義済み）
@@ -108,7 +97,7 @@ export function initializeFloatingWindow() {
     closeButtonId: 'close-clipping-settings-btn',
     headerId: 'clipping-settings-header',
     draggable: true,
-    autoShow: false
+    autoShow: false,
   });
 
   // 色付けモード設定ウィンドウ（HTMLに定義済み）
@@ -118,17 +107,7 @@ export function initializeFloatingWindow() {
     closeButtonId: 'close-display-settings-btn',
     headerId: 'display-settings-header',
     draggable: true,
-    autoShow: false
-  });
-
-  // カメラモード設定ウィンドウ（HTMLに定義済み）
-  floatingWindowManager.registerWindow({
-    windowId: 'camera-settings-float',
-    toggleButtonId: 'toggle-camera-settings-btn',
-    closeButtonId: 'close-camera-settings-btn',
-    headerId: 'camera-settings-header',
-    draggable: true,
-    autoShow: false
+    autoShow: false,
   });
 
   // DXFフローティングウィンドウ（HTMLに定義済み）
@@ -141,11 +120,12 @@ export function initializeFloatingWindow() {
     autoShow: false,
     onShow: () => {
       try {
-        updatePlacementPositionOptions();
+        dxfController.updatePlacementOptions();
+        dxfController.updateExportStatus();
       } catch (e) {
         // 無ければ無視
       }
-    }
+    },
   });
   console.log('フローティングウィンドウの初期化が完了しました');
 }
@@ -158,16 +138,16 @@ function initializeTreeViewTabs() {
   const tabPanels = document.querySelectorAll('.tree-tab-panel');
   const groupingModeSelect = document.getElementById('section-grouping-mode');
 
-  tabButtons.forEach(btn => {
+  tabButtons.forEach((btn) => {
     btn.addEventListener('click', () => {
       const targetTab = btn.dataset.tab;
 
       // タブボタンのアクティブ状態を切り替え
-      tabButtons.forEach(b => b.classList.remove('active'));
+      tabButtons.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
 
       // パネルの表示を切り替え
-      tabPanels.forEach(panel => {
+      tabPanels.forEach((panel) => {
         if (panel.id === `${targetTab}-tree-container`) {
           panel.style.display = '';
           panel.classList.add('active');

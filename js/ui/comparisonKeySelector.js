@@ -10,22 +10,18 @@
 import {
   COMPARISON_KEY_TYPE,
   COMPARISON_KEY_TYPE_LABELS,
-  COMPARISON_KEY_TYPE_DESCRIPTIONS
+  COMPARISON_KEY_TYPE_DESCRIPTIONS,
 } from '../config/comparisonKeyConfig.js';
-import comparisonKeyManager from '../core/comparisonKeyManager.js';
-import { COMPARISON_KEY_EVENTS } from './events.js';
+import comparisonKeyManager from '../app/comparisonKeyManager.js';
+import { COMPARISON_KEY_EVENTS } from '../constants/eventTypes.js';
+import { showError } from './toast.js';
 
 /**
  * 比較キー選択UIを初期化する
  * @param {string} containerSelector - UIコンテナーのセレクター
  * @param {function} onKeyTypeChanged - キータイプ変更時のコールバック
  */
-export function initializeComparisonKeySelector(
-  containerSelector,
-  onKeyTypeChanged
-) {
-  console.log(`[ComparisonKeySelector] Initializing with selector: ${containerSelector}`);
-
+export function initializeComparisonKeySelector(containerSelector, onKeyTypeChanged) {
   const container = document.querySelector(containerSelector);
   if (!container) {
     console.warn(`[ComparisonKeySelector] Container not found: ${containerSelector}`);
@@ -34,7 +30,6 @@ export function initializeComparisonKeySelector(
 
   // 現在の設定を取得
   const currentKeyType = comparisonKeyManager.getKeyType();
-  console.log(`[ComparisonKeySelector] Current key type: ${currentKeyType}`);
 
   // UIを作成
   const selectorHTML = createSelectorHTML(currentKeyType);
@@ -42,8 +37,6 @@ export function initializeComparisonKeySelector(
 
   // イベントリスナーを設定
   setupEventListeners(container, onKeyTypeChanged);
-
-  console.log('[ComparisonKeySelector] Initialization complete');
 }
 
 /**
@@ -59,11 +52,11 @@ function createSelectorHTML(currentKeyType) {
       </div>
       <div class="selector-options">
         ${Object.entries(COMPARISON_KEY_TYPE)
-    .map(([key, value]) => {
-      const isChecked = value === currentKeyType ? 'checked' : '';
-      const label = COMPARISON_KEY_TYPE_LABELS[value];
-      const description = COMPARISON_KEY_TYPE_DESCRIPTIONS[value];
-      return `
+          .map(([key, value]) => {
+            const isChecked = value === currentKeyType ? 'checked' : '';
+            const label = COMPARISON_KEY_TYPE_LABELS[value];
+            const description = COMPARISON_KEY_TYPE_DESCRIPTIONS[value];
+            return `
               <div class="selector-option">
                 <label class="radio-label">
                   <input
@@ -79,8 +72,8 @@ function createSelectorHTML(currentKeyType) {
                 </label>
               </div>
             `;
-    })
-    .join('')}
+          })
+          .join('')}
       </div>
       <div class="selector-info">
         <small>
@@ -99,12 +92,9 @@ function createSelectorHTML(currentKeyType) {
 function setupEventListeners(container, onKeyTypeChanged) {
   const radioButtons = container.querySelectorAll('input[name="comparisonKeyType"]');
 
-  console.log(`[ComparisonKeySelector] Setting up listeners for ${radioButtons.length} radio buttons`);
-
   radioButtons.forEach((radio) => {
     radio.addEventListener('change', (event) => {
       const newKeyType = event.target.value;
-      console.log(`[ComparisonKeySelector] Radio button changed: ${newKeyType}`);
       handleKeyTypeChange(newKeyType, onKeyTypeChanged);
     });
   });
@@ -112,11 +102,8 @@ function setupEventListeners(container, onKeyTypeChanged) {
   // グローバルイベントリスナー（他のタブでの変更を監視）
   document.addEventListener(COMPARISON_KEY_EVENTS.KEY_TYPE_CHANGED, (event) => {
     const { newKeyType } = event.detail;
-    console.log(`[ComparisonKeySelector] Global event received: ${newKeyType}`);
     updateUISelection(container, newKeyType);
   });
-
-  console.log('[ComparisonKeySelector] Event listeners setup complete');
 }
 
 /**
@@ -126,8 +113,6 @@ function setupEventListeners(container, onKeyTypeChanged) {
  */
 function handleKeyTypeChange(newKeyType, onKeyTypeChanged) {
   try {
-    console.log(`[ComparisonKeySelector] Key type change requested: ${newKeyType}`);
-
     // ComparisonKeyManagerに設定を保存（これによりイベントが発火される）
     const success = comparisonKeyManager.setKeyType(newKeyType);
 
@@ -135,18 +120,15 @@ function handleKeyTypeChange(newKeyType, onKeyTypeChanged) {
       throw new Error(`Invalid key type: ${newKeyType}`);
     }
 
-    console.log(`[ComparisonKeySelector] Key type changed successfully: ${newKeyType}`);
-
     // コールバックを実行（再比較をトリガー）
     if (typeof onKeyTypeChanged === 'function') {
-      console.log('[ComparisonKeySelector] Executing callback for recomparison...');
       onKeyTypeChanged(newKeyType);
     } else {
       console.warn('[ComparisonKeySelector] No callback provided for key type change');
     }
   } catch (error) {
     console.error('[ComparisonKeySelector] Failed to change key type:', error);
-    alert('比較キータイプの変更に失敗しました。詳細はコンソールを確認してください。');
+    showError('比較キータイプの変更に失敗しました。詳細はコンソールを確認してください。');
   }
 }
 

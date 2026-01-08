@@ -43,7 +43,7 @@ export class StructuredLogger {
     const logData = {
       message,
       context,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
 
     if (error) {
@@ -51,7 +51,7 @@ export class StructuredLogger {
         name: error.name,
         message: error.message,
         stack: error.stack,
-        code: error.code
+        code: error.code,
       };
     }
 
@@ -110,7 +110,7 @@ export class StructuredLogger {
       const duration = performance.now() - startTime;
 
       this.debug(`${functionName} completed`, {
-        duration: `${duration.toFixed(2)}ms`
+        duration: `${duration.toFixed(2)}ms`,
       });
 
       return result;
@@ -118,7 +118,7 @@ export class StructuredLogger {
       const duration = performance.now() - startTime;
       this.error(`${functionName} failed`, error, {
         duration: `${duration.toFixed(2)}ms`,
-        args
+        args,
       });
       throw error;
     }
@@ -140,7 +140,7 @@ export class StructuredLogger {
       const duration = performance.now() - startTime;
 
       this.debug(`${functionName} completed`, {
-        duration: `${duration.toFixed(2)}ms`
+        duration: `${duration.toFixed(2)}ms`,
       });
 
       return result;
@@ -148,7 +148,7 @@ export class StructuredLogger {
       const duration = performance.now() - startTime;
       this.error(`${functionName} failed`, error, {
         duration: `${duration.toFixed(2)}ms`,
-        args
+        args,
       });
       throw error;
     }
@@ -239,7 +239,6 @@ export class DebugConsole {
 
   log(...args) {
     if (this.enabled) {
-      console.log(...args);
     }
   }
 
@@ -257,13 +256,11 @@ export class DebugConsole {
 
   info(...args) {
     if (this.enabled) {
-      console.info(...args);
     }
   }
 
   debug(...args) {
     if (this.enabled) {
-      console.debug(...args);
     }
   }
 
@@ -291,8 +288,7 @@ export class DebugConsole {
  * @returns {boolean}
  */
 function isProduction() {
-  return process.env.NODE_ENV === 'production' ||
-         window.location.hostname !== 'localhost';
+  return process.env.NODE_ENV === 'production' || window.location.hostname !== 'localhost';
 }
 
 // デバッグコンソールのシングルトン

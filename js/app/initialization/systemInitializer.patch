@@ -1,0 +1,29 @@
+    // グローバル状態から荷重データを取得
+    const calDataA = getState('models.calDataA');
+    const calDataB = getState('models.calDataB');
+    const nodeMapA = getState('models.nodeMapA');
+    const nodeMapB = getState('models.nodeMapB');
+    const documentA = getState('models.modelADocument');
+    const documentB = getState('models.modelBDocument');
+
+    // デバッグ情報を出力
+    log.debug('荷重データ取得:', {
+      hasCalDataA: !!calDataA,
+      hasCalDataB: !!calDataB,
+      loadCasesA: calDataA?.loadCases?.length || 0,
+      loadCasesB: calDataB?.loadCases?.length || 0,
+      memberLoadsA: calDataA?.memberLoads?.length || 0,
+      memberLoadsB: calDataB?.memberLoads?.length || 0,
+    });
+
+    // 荷重データがある方を使用（優先：モデルA）
+    const calData = calDataA || calDataB;
+    const nodeMap = calDataA ? nodeMapA : nodeMapB;
+    const modelDocument = calDataA ? documentA : documentB;
+
+    if (!calData) {
+      log.warn('荷重データ（StbCalData）がSTBファイルに含まれていません');
+      log.info('STBファイルに<StbCalData>セクションがあることを確認してください');
+      updateLoadCaseSelector([]);
+      return;
+    }

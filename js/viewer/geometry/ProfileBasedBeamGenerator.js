@@ -16,13 +16,13 @@
  */
 
 import * as THREE from 'three';
-import { materials } from '../rendering/materials.js';
-import { ElementGeometryUtils } from './ElementGeometryUtils.js';
 import { createExtrudeGeometry } from './core/ThreeJSConverter.js';
 import {
   createTaperedGeometry,
-  createMultiSectionGeometry
+  createMultiSectionGeometry,
 } from './core/TaperedGeometryBuilder.js';
+import { materials } from '../rendering/materials.js';
+import { ElementGeometryUtils } from './ElementGeometryUtils.js';
 import { BaseElementGenerator } from './core/BaseElementGenerator.js';
 import { MeshMetadataBuilder } from './core/MeshMetadataBuilder.js';
 
@@ -37,7 +37,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
     return {
       elementName: 'Beam',
       loggerName: 'viewer:profile:beam',
-      defaultElementType: 'Beam'
+      defaultElementType: 'Beam',
     };
   }
 
@@ -57,7 +57,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
     beamSections,
     steelSections,
     elementType = 'Beam',
-    isJsonInput = false
+    isJsonInput = false,
   ) {
     return this.createMeshes(
       beamElements,
@@ -65,7 +65,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       beamSections,
       steelSections,
       elementType,
-      isJsonInput
+      isJsonInput,
     );
   }
 
@@ -83,7 +83,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       nodeType: '2node-horizontal',
       isJsonInput: isJsonInput,
       node1KeyStart: 'id_node_start',
-      node1KeyEnd: 'id_node_end'
+      node1KeyEnd: 'id_node_end',
     });
 
     if (!this._validateNodePositions(nodePositions, beam, context)) {
@@ -91,11 +91,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
     }
 
     // 2. 断面データの取得（ElementGeometryUtils使用）
-    const sectionData = ElementGeometryUtils.getSectionData(
-      beam,
-      sections,
-      isJsonInput
-    );
+    const sectionData = ElementGeometryUtils.getSectionData(beam, sections, isJsonInput);
 
     if (!this._validateSectionData(sectionData, beam, context)) {
       return null;
@@ -105,17 +101,14 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
     const sectionType = this._normalizeSectionType(sectionData);
 
     log.debug(
-      `Creating beam ${beam.id}: section_type=${sectionType}, mode=${sectionData.mode || 'single'}`
+      `Creating beam ${beam.id}: section_type=${sectionType}, mode=${sectionData.mode || 'single'}`,
     );
 
     // 4. オフセットと回転角度の取得（ElementGeometryUtils使用）
     const offsets = ElementGeometryUtils.getHorizontalElementOffsets(beam);
 
     // 5. 断面高さの取得（天端基準用）
-    const sectionHeight = ElementGeometryUtils.getSectionHeight(
-      sectionData,
-      sectionType
-    );
+    const sectionHeight = ElementGeometryUtils.getSectionHeight(sectionData, sectionType);
 
     // 6. 断面モードの判定
     const mode = sectionData.mode || 'single';
@@ -127,11 +120,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
 
     if (mode === 'single') {
       // ===== 単一断面処理 =====
-      const profileResult = ElementGeometryUtils.createProfile(
-        sectionData,
-        sectionType,
-        beam
-      );
+      const profileResult = ElementGeometryUtils.createProfile(sectionData, sectionType, beam);
 
       if (!this._validateProfile(profileResult, beam, context)) {
         return null;
@@ -148,8 +137,8 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
           endOffset: offsets.endOffset,
           rollAngle: (offsets.rollAngle * Math.PI) / 180,
           placementMode: 'center',
-          sectionHeight: 0
-        }
+          sectionHeight: 0,
+        },
       );
 
       if (!this._validatePlacement(tempPlacement, beam, context)) {
@@ -168,8 +157,8 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
           startOffset: offsets.startOffset,
           endOffset: offsets.endOffset,
           placementMode: 'center',
-          sectionHeight: 0
-        }
+          sectionHeight: 0,
+        },
       );
 
       if (!this._validatePlacement(tempPlacement, beam, context)) {
@@ -181,7 +170,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
         beam,
         steelSections,
         tempPlacement.length,
-        log
+        log,
       );
 
       profileMeta = { profileSource: 'multi-section', mode: mode };
@@ -189,6 +178,13 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
 
     if (!this._validateGeometry(geometry, beam, context)) {
       return null;
+    }
+
+    // 7.5. 材軸（Z軸）回りの断面回転をジオメトリに適用
+    // rotate属性は配置基準線（材軸）を中心に断面を回転させる
+    const rollAngleRad = (offsets.rollAngle * Math.PI) / 180;
+    if (rollAngleRad !== 0) {
+      geometry.rotateZ(rollAngleRad);
     }
 
     // 8. 配置計算（ElementGeometryUtils使用）
@@ -200,8 +196,8 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
         endOffset: offsets.endOffset,
         rollAngle: (offsets.rollAngle * Math.PI) / 180,
         placementMode: isMultiSection ? 'center' : 'top-aligned',
-        sectionHeight: isMultiSection ? 0 : sectionHeight
-      }
+        sectionHeight: isMultiSection ? 0 : sectionHeight,
+      },
     );
 
     // 9. メッシュを作成
@@ -221,21 +217,16 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       sectionData: sectionData,
       isJsonInput: isJsonInput,
       sectionHeight: sectionHeight,
-      placementMode: placement.placementMode
+      placementMode: placement.placementMode,
     });
 
     // 12. 配置基準線を添付（ElementGeometryUtils使用）
     try {
-      ElementGeometryUtils.attachPlacementLine(
-        mesh,
-        placement.length,
-        materials.placementLine,
-        {
-          elementType: elementType,
-          elementId: beam.id,
-          modelSource: 'solid'
-        }
-      );
+      ElementGeometryUtils.attachPlacementLine(mesh, placement.length, materials.placementLine, {
+        elementType: elementType,
+        elementId: beam.id,
+        modelSource: 'solid',
+      });
     } catch (e) {
       log.warn(`Beam ${beam.id}: Failed to attach placement axis line`, e);
     }
@@ -243,7 +234,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
     log.debug(
       `Beam ${beam.id}: length=${placement.length.toFixed(1)}mm, ` +
         `sectionHeight=${sectionHeight.toFixed(1)}mm, ` +
-        `placementMode=${placement.placementMode}`
+        `placementMode=${placement.placementMode}`,
     );
 
     // 13. stb-diff-viewer造の場合、RC部分のメッシュも生成して配列で返す
@@ -255,7 +246,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
         sectionHeight,
         elementType,
         isJsonInput,
-        log
+        log,
       );
       if (rcMesh) {
         log.debug(`Beam ${beam.id}: stb-diff-viewer造 - RC部分のメッシュを追加生成`);
@@ -278,7 +269,15 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
    * @param {Object} log - ロガー
    * @returns {THREE.Mesh|null} RC部分のメッシュ
    */
-  static _createStbDiffViewerConcreteGeometry(sectionData, beam, placement, sectionHeight, elementType, isJsonInput, log) {
+  static _createStbDiffViewerConcreteGeometry(
+    sectionData,
+    beam,
+    placement,
+    sectionHeight,
+    elementType,
+    isJsonInput,
+    log,
+  ) {
     const concreteProfile = sectionData.concreteProfile;
     if (!concreteProfile) {
       return null;
@@ -300,12 +299,16 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       width = concreteProfile.width;
       height = concreteProfile.height;
       if (!width || !height) {
-        log.warn(`Beam ${beam.id}: stb-diff-viewer矩形断面の寸法が不明です (width=${width}, height=${height})`);
+        log.warn(
+          `Beam ${beam.id}: stb-diff-viewer矩形断面の寸法が不明です (width=${width}, height=${height})`,
+        );
         return null;
       }
     }
 
-    log.debug(`Beam ${beam.id}: stb-diff-viewer RC部分 - ${concreteProfile.profileType} ${width}x${height}`);
+    log.debug(
+      `Beam ${beam.id}: stb-diff-viewer RC部分 - ${concreteProfile.profileType} ${width}x${height}`,
+    );
 
     // RC部分用の断面データを作成
     const rcSectionData = {
@@ -314,15 +317,15 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
         width: width,
         height: height,
         outer_width: width,
-        outer_height: height
-      }
+        outer_height: height,
+      },
     };
 
     // RC部分のプロファイルを生成
     const rcProfileResult = ElementGeometryUtils.createProfile(
       rcSectionData,
       concreteProfile.profileType,
-      beam
+      beam,
     );
 
     if (!rcProfileResult || !rcProfileResult.shape) {
@@ -338,21 +341,12 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
     }
 
     // RC部分用のメッシュを作成（半透明マテリアル）
-    const rcMesh = new THREE.Mesh(rcGeometry, materials.matchedMeshTransparent || materials.matchedMesh);
-
-    // 配置を適用（天端基準で再計算）
-    const rcSectionHeight = height;
-    const rcPlacement = ElementGeometryUtils.calculateHorizontalElementPlacement(
-      { x: placement.startNode?.x || 0, y: placement.startNode?.y || 0, z: placement.startNode?.z || 0 },
-      { x: placement.endNode?.x || 0, y: placement.endNode?.y || 0, z: placement.endNode?.z || 0 },
-      {
-        startOffset: { x: 0, y: 0, z: 0 },
-        endOffset: { x: 0, y: 0, z: 0 },
-        rollAngle: 0,
-        placementMode: 'top-aligned',
-        sectionHeight: rcSectionHeight
-      }
+    const rcMesh = new THREE.Mesh(
+      rcGeometry,
+      materials.matchedMeshTransparent || materials.matchedMesh,
     );
+
+    // Removed unused rcPlacement calculation
 
     // 同じ位置に配置（元のS造と同じ位置）
     rcMesh.position.copy(placement.center);
@@ -367,8 +361,8 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       profileResult: rcProfileResult,
       sectionData: rcSectionData,
       isJsonInput: isJsonInput,
-      sectionHeight: rcSectionHeight,
-      placementMode: 'top-aligned'
+      sectionHeight: height,
+      placementMode: 'top-aligned',
     });
     rcMesh.userData.isStbDiffViewerConcrete = true;
     rcMesh.userData.stbDiffViewerComponentType = 'RC';
@@ -389,7 +383,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
   static _createMultiSectionGeometry(sectionData, beam, steelSections, length, log) {
     if (!sectionData.shapes || sectionData.shapes.length < 2) {
       log.error(
-        `Beam ${beam.id}: Multi-section geometry requires shapes array with at least 2 elements`
+        `Beam ${beam.id}: Multi-section geometry requires shapes array with at least 2 elements`,
       );
       return null;
     }
@@ -397,7 +391,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
     // 各断面のプロファイルを作成
     const sections = [];
     log.debug(
-      `Beam ${beam.id}: Creating multi-section geometry (${sectionData.shapes.length} sections)`
+      `Beam ${beam.id}: Creating multi-section geometry (${sectionData.shapes.length} sections)`,
     );
 
     for (const shapeInfo of sectionData.shapes) {
@@ -407,7 +401,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       const tempSectionData = {
         shapeName: shapeName,
         section_type: sectionData.section_type,
-        profile_type: sectionData.profile_type
+        profile_type: sectionData.profile_type,
       };
 
       // steelSectionsから寸法情報を取得
@@ -424,21 +418,15 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
 
       log.debug(
         `  Section[${pos}]: shape=${shapeName}, ` +
-          `dims=${JSON.stringify(tempSectionData.dimensions || {}).substring(0, 100)}`
+          `dims=${JSON.stringify(tempSectionData.dimensions || {}).substring(0, 100)}`,
       );
 
       // プロファイルを作成（ElementGeometryUtils使用）
       const sectionType = this._normalizeSectionType(tempSectionData);
-      const prof = ElementGeometryUtils.createProfile(
-        tempSectionData,
-        sectionType,
-        beam
-      );
+      const prof = ElementGeometryUtils.createProfile(tempSectionData, sectionType, beam);
 
       if (!prof || !prof.shape || !prof.shape.extractPoints) {
-        log.warn(
-          `Beam ${beam.id}: Failed to create profile for section ${shapeName} (pos=${pos})`
-        );
+        log.warn(`Beam ${beam.id}: Failed to create profile for section ${shapeName} (pos=${pos})`);
         continue;
       }
 
@@ -447,9 +435,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       const vertices = points.shape;
 
       if (!vertices || vertices.length < 3) {
-        log.warn(
-          `Beam ${beam.id}: Insufficient vertices for section ${shapeName} (pos=${pos})`
-        );
+        log.warn(`Beam ${beam.id}: Insufficient vertices for section ${shapeName} (pos=${pos})`);
         continue;
       }
 
@@ -457,57 +443,43 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       const currentMaxY = Math.max(...vertices.map((v) => v.y));
       const shiftedVertices = vertices.map((v) => ({
         x: v.x,
-        y: v.y - currentMaxY
+        y: v.y - currentMaxY,
       }));
 
-      const tempSectionHeight = ElementGeometryUtils.getSectionHeight(
-        tempSectionData,
-        sectionType
-      );
+      const tempSectionHeight = ElementGeometryUtils.getSectionHeight(tempSectionData, sectionType);
       log.debug(
         `  → Profile created: vertices=${vertices.length}, ` +
           `sectionHeight=${tempSectionHeight?.toFixed(1) || 'N/A'}mm, ` +
-          `shift=${(-currentMaxY).toFixed(1)}mm`
+          `shift=${(-currentMaxY).toFixed(1)}mm`,
       );
 
       sections.push({
         pos: pos,
-        profile: { vertices: shiftedVertices, holes: [] }
+        profile: { vertices: shiftedVertices, holes: [] },
       });
     }
 
     if (sections.length < 2) {
-      log.error(
-        `Beam ${beam.id}: Less than 2 valid profiles (${sections.length})`
-      );
+      log.error(`Beam ${beam.id}: Less than 2 valid profiles (${sections.length})`);
       return null;
     }
 
-    // ハンチ長さの取得
+    // ハンチ/ジョイント長さの取得（両方のパターンに対応）
     const haunchLengths = {
-      start: beam.haunch_start || 0,
-      end: beam.haunch_end || 0
+      start: beam.haunch_start || beam.joint_start || 0,
+      end: beam.haunch_end || beam.joint_end || 0,
     };
 
+    log.debug(
+      `Beam ${beam.id}: haunchLengths = start:${haunchLengths.start}, end:${haunchLengths.end}`,
+    );
+
     // ジオメトリ生成
+    // 2断面以上は常にcreateMultiSectionGeometryを使用（位置情報を正しく反映するため）
     try {
-      if (sections.length === 2) {
-        // 2断面: createTaperedGeometry
-        return createTaperedGeometry(
-          sections[0].profile,
-          sections[1].profile,
-          length,
-          { segments: 1 }
-        );
-      } else {
-        // 3断面以上: createMultiSectionGeometry
-        return createMultiSectionGeometry(sections, length, haunchLengths);
-      }
+      return createMultiSectionGeometry(sections, length, haunchLengths);
     } catch (error) {
-      log.error(
-        `Beam ${beam.id}: Failed to create tapered geometry:`,
-        error
-      );
+      log.error(`Beam ${beam.id}: Failed to create tapered geometry:`, error);
       return null;
     }
   }
@@ -520,7 +492,7 @@ export function createBeamMeshes(
   beamSections,
   steelSections,
   elementType = 'Beam',
-  isJsonInput = false
+  isJsonInput = false,
 ) {
   return ProfileBasedBeamGenerator.createBeamMeshes(
     beamElements,
@@ -528,6 +500,6 @@ export function createBeamMeshes(
     beamSections,
     steelSections,
     elementType,
-    isJsonInput
+    isJsonInput,
   );
 }

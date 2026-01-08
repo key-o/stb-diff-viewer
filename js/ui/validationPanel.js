@@ -4,8 +4,7 @@
  * バリデーション結果の表示と修復オプションの選択UIを提供します。
  */
 
-import { SEVERITY, CATEGORY, formatValidationReport } from '../validation/stbValidator.js';
-import { formatRepairReport } from '../repair/stbRepairEngine.js';
+import { validationController } from '../app/controllers/validationController.js';
 
 /**
  * バリデーションパネルクラス
@@ -93,13 +92,13 @@ export class ValidationPanel {
   bindEvents() {
     // タブ切り替え
     const tabBtns = this.container.querySelectorAll('.tab-btn');
-    tabBtns.forEach(btn => {
+    tabBtns.forEach((btn) => {
       btn.addEventListener('click', () => this.switchTab(btn.dataset.tab));
     });
 
     // フィルターチェックボックス
     const filterCheckboxes = this.container.querySelectorAll('.issues-filter input');
-    filterCheckboxes.forEach(checkbox => {
+    filterCheckboxes.forEach((checkbox) => {
       checkbox.addEventListener('change', () => this.filterIssues());
     });
 
@@ -356,11 +355,11 @@ export class ValidationPanel {
     const tabBtns = this.container.querySelectorAll('.tab-btn');
     const tabContents = this.container.querySelectorAll('.tab-content');
 
-    tabBtns.forEach(btn => {
+    tabBtns.forEach((btn) => {
       btn.classList.toggle('active', btn.dataset.tab === tabId);
     });
 
-    tabContents.forEach(content => {
+    tabContents.forEach((content) => {
       content.classList.toggle('active', content.id === `tab-${tabId}`);
     });
   }
@@ -450,10 +449,10 @@ export class ValidationPanel {
     const showInfo = this.container.querySelector('#filter-info')?.checked;
     const onlyRepairable = this.container.querySelector('#filter-repairable')?.checked;
 
-    const filteredIssues = this.validationReport.issues.filter(issue => {
-      if (issue.severity === SEVERITY.ERROR && !showErrors) return false;
-      if (issue.severity === SEVERITY.WARNING && !showWarnings) return false;
-      if (issue.severity === SEVERITY.INFO && !showInfo) return false;
+    const filteredIssues = this.validationReport.issues.filter((issue) => {
+      if (issue.severity === validationController.SEVERITY.ERROR && !showErrors) return false;
+      if (issue.severity === validationController.SEVERITY.WARNING && !showWarnings) return false;
+      if (issue.severity === validationController.SEVERITY.INFO && !showInfo) return false;
       if (onlyRepairable && !issue.repairable) return false;
       return true;
     });
@@ -463,7 +462,9 @@ export class ValidationPanel {
       return;
     }
 
-    list.innerHTML = filteredIssues.map(issue => `
+    list.innerHTML = filteredIssues
+      .map(
+        (issue) => `
       <div class="issue-item ${issue.severity}">
         <div class="issue-header">
           <span class="issue-severity ${issue.severity}">${issue.severity}</span>
@@ -473,11 +474,17 @@ export class ValidationPanel {
           ${issue.elementType} ${issue.elementId ? `(ID: ${issue.elementId})` : ''}
           ${issue.attribute ? `/ ${issue.attribute}` : ''}
         </div>
-        ${issue.repairable && issue.repairSuggestion ? `
+        ${
+          issue.repairable && issue.repairSuggestion
+            ? `
           <div class="issue-repair">修復提案: ${this.escapeHtml(issue.repairSuggestion)}</div>
-        ` : ''}
+        `
+            : ''
+        }
       </div>
-    `).join('');
+    `,
+      )
+      .join('');
   }
 
   /**
@@ -493,12 +500,16 @@ export class ValidationPanel {
 
     const counts = Object.entries(statistics.elementCounts);
     if (counts.length > 0) {
-      html += counts.map(([type, count]) => `
+      html += counts
+        .map(
+          ([type, count]) => `
         <div class="stat-row">
           <span>${type}</span>
           <span>${count}</span>
         </div>
-      `).join('');
+      `,
+        )
+        .join('');
     } else {
       html += '<p>要素データがありません</p>';
     }
@@ -540,11 +551,11 @@ export class ValidationPanel {
     let text = '';
 
     if (this.validationReport) {
-      text += formatValidationReport(this.validationReport);
+      text += validationController.formatValidationReport(this.validationReport);
     }
 
     if (this.repairReport) {
-      text += '\n\n' + formatRepairReport(this.repairReport);
+      text += '\n\n' + validationController.formatRepairReport(this.repairReport);
     }
 
     content.textContent = text || 'レポートがありません';
@@ -563,8 +574,8 @@ export class ValidationPanel {
       removeInvalid: this.container.querySelector('#opt-remove-invalid')?.checked,
       useDefaults: this.container.querySelector('#opt-use-defaults')?.checked,
       skipCategories: this.container.querySelector('#opt-skip-geometry')?.checked
-        ? [CATEGORY.GEOMETRY]
-        : []
+        ? [validationController.CATEGORY.GEOMETRY]
+        : [],
     };
 
     this.onRepairCallback(options);
@@ -620,7 +631,8 @@ export class ValidationPanel {
     const summary = this.container.querySelector('#validation-summary');
     if (summary) {
       summary.className = 'validation-summary';
-      summary.innerHTML = '<p class="placeholder">ファイルを読み込んでバリデーションを実行してください</p>';
+      summary.innerHTML =
+        '<p class="placeholder">ファイルを読み込んでバリデーションを実行してください</p>';
     }
 
     const list = this.container.querySelector('#issues-list');
@@ -655,9 +667,7 @@ export class ValidationPanel {
  * @returns {ValidationPanel} パネルインスタンス
  */
 export function createValidationPanel(container) {
-  const element = typeof container === 'string'
-    ? document.querySelector(container)
-    : container;
+  const element = typeof container === 'string' ? document.querySelector(container) : container;
 
   if (!element) {
     throw new Error('Container element not found');

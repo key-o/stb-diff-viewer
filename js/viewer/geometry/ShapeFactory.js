@@ -54,12 +54,7 @@ export class SteelShapeFactory {
    * @param {Function} shapeCreator - 形状作成関数
    * @returns {THREE.Shape|null} 生成された形状またはnull
    */
-  static createShapeWithValidation(
-    steelShape,
-    paramNames,
-    originType,
-    shapeCreator
-  ) {
+  static createShapeWithValidation(steelShape, paramNames, originType, shapeCreator) {
     const params = this.parseShapeParams(steelShape, paramNames);
     if (!params) return null;
 
@@ -85,7 +80,7 @@ export class SteelShapeFactory {
         }
 
         return this._createHShapeGeometry(H, B, tw, tf, yOffset);
-      }
+      },
     );
   }
 
@@ -98,21 +93,21 @@ export class SteelShapeFactory {
     const halfB = B / 2;
     const halfH = H / 2;
     const halfTw = tw / 2;
-    const innerH_half = halfH - tf;
+    const innerHHalf = halfH - tf;
 
     // XY平面でH形を定義（X軸：フランジ幅、Y軸：成高）
     shape.moveTo(-halfB, halfH + yOffset);
     shape.lineTo(halfB, halfH + yOffset);
-    shape.lineTo(halfB, innerH_half + yOffset);
-    shape.lineTo(halfTw, innerH_half + yOffset);
-    shape.lineTo(halfTw, -innerH_half + yOffset);
-    shape.lineTo(halfB, -innerH_half + yOffset);
+    shape.lineTo(halfB, innerHHalf + yOffset);
+    shape.lineTo(halfTw, innerHHalf + yOffset);
+    shape.lineTo(halfTw, -innerHHalf + yOffset);
+    shape.lineTo(halfB, -innerHHalf + yOffset);
     shape.lineTo(halfB, -halfH + yOffset);
     shape.lineTo(-halfB, -halfH + yOffset);
-    shape.lineTo(-halfB, -innerH_half + yOffset);
-    shape.lineTo(-halfTw, -innerH_half + yOffset);
-    shape.lineTo(-halfTw, innerH_half + yOffset);
-    shape.lineTo(-halfB, innerH_half + yOffset);
+    shape.lineTo(-halfB, -innerHHalf + yOffset);
+    shape.lineTo(-halfTw, -innerHHalf + yOffset);
+    shape.lineTo(-halfTw, innerHHalf + yOffset);
+    shape.lineTo(-halfB, innerHHalf + yOffset);
     shape.closePath();
 
     return shape;
@@ -125,28 +120,15 @@ export class SteelShapeFactory {
    * @returns {THREE.Shape|null} 生成された形状またはnull
    */
   static createBoxShape(steelShape, originType = 'center') {
-    return this.createShapeWithValidation(
-      steelShape,
-      ['A', 'B'],
-      originType,
-      (params, yOffset) => {
-        const [H, B] = params;
-        const t = parseFloat(steelShape.t);
-        const t1 = parseFloat(steelShape.t1);
-        const t2 = parseFloat(steelShape.t2);
-        const isBuildBox = steelShape.shapeTypeAttr?.includes('Build-BOX');
+    return this.createShapeWithValidation(steelShape, ['A', 'B'], originType, (params, yOffset) => {
+      const [H, B] = params;
+      const t = parseFloat(steelShape.t);
+      const t1 = parseFloat(steelShape.t1);
+      const t2 = parseFloat(steelShape.t2);
+      const isBuildBox = steelShape.shapeTypeAttr?.includes('Build-BOX');
 
-        return this._createBoxShapeGeometry(
-          H,
-          B,
-          t,
-          t1,
-          t2,
-          isBuildBox,
-          yOffset
-        );
-      }
-    );
+      return this._createBoxShapeGeometry(H, B, t, t1, t2, isBuildBox, yOffset);
+    });
   }
 
   /**
@@ -163,21 +145,21 @@ export class SteelShapeFactory {
    */
   static _createBoxShapeGeometry(H, B, t, t1, t2, isBuildBox, yOffset) {
     const shape = new THREE.Shape();
-    const H_half = H / 2;
-    const W_half = B / 2;
-    const topY = H_half + yOffset;
-    const bottomY = -H_half + yOffset;
+    const hHalf = H / 2;
+    const wHalf = B / 2;
+    const topY = hHalf + yOffset;
+    const bottomY = -hHalf + yOffset;
 
     // 外形輪郭の作成（時計回り）
     // 角形鋼管の外周を矩形として定義
-    shape.moveTo(-W_half, topY);
-    shape.lineTo(W_half, topY);
-    shape.lineTo(W_half, bottomY);
-    shape.lineTo(-W_half, bottomY);
+    shape.moveTo(-wHalf, topY);
+    shape.lineTo(wHalf, topY);
+    shape.lineTo(wHalf, bottomY);
+    shape.lineTo(-wHalf, bottomY);
     shape.closePath();
 
     // 内部中空部の追加（反時計回りで穴として定義）
-    this._addBoxHole(shape, H, B, t, t1, t2, isBuildBox, topY, bottomY, W_half);
+    this._addBoxHole(shape, H, B, t, t1, t2, isBuildBox, topY, bottomY, wHalf);
 
     return shape;
   }
@@ -186,35 +168,19 @@ export class SteelShapeFactory {
    * BOX形状に穴を追加
    * @private
    */
-  static _addBoxHole(
-    shape,
-    H,
-    B,
-    t,
-    t1,
-    t2,
-    isBuildBox,
-    topY,
-    bottomY,
-    W_half
-  ) {
+  static _addBoxHole(shape, H, B, t, t1, t2, isBuildBox, topY, bottomY, wHalf) {
     let innerTopY, innerBottomY, innerLeftX, innerRightX;
 
     if (isBuildBox && this.validateParams([t1, t2]) && t1 < B && 2 * t2 < H) {
       innerTopY = topY - t2;
       innerBottomY = bottomY + t2;
-      innerLeftX = -W_half + t1;
-      innerRightX = W_half - t1;
-    } else if (
-      !isBuildBox &&
-      this.validateParams([t]) &&
-      2 * t < H &&
-      2 * t < B
-    ) {
+      innerLeftX = -wHalf + t1;
+      innerRightX = wHalf - t1;
+    } else if (!isBuildBox && this.validateParams([t]) && 2 * t < H && 2 * t < B) {
       innerTopY = topY - t;
       innerBottomY = bottomY + t;
-      innerLeftX = -W_half + t;
-      innerRightX = W_half - t;
+      innerLeftX = -wHalf + t;
+      innerRightX = wHalf - t;
     }
 
     if (innerTopY > innerBottomY && innerRightX > innerLeftX) {
@@ -476,7 +442,7 @@ export class ShapeFactory {
     const geometry = new THREE.ExtrudeGeometry(shape, {
       depth: length,
       bevelEnabled: false,
-      steps: 1
+      steps: 1,
     });
 
     // 押し出し方向の中心調整
@@ -521,11 +487,7 @@ export class ShapeFactory {
       concreteShape.type === 'StbSecColumn_RC_Rect' ||
       concreteShape.type === 'StbSecBeam_RC_Straight'
     ) {
-      geometry = ConcreteShapeFactory.createRectShape(
-        concreteShape,
-        length,
-        originType
-      );
+      geometry = ConcreteShapeFactory.createRectShape(concreteShape, length, originType);
     } else if (
       concreteShape.type === 'StbSecColumn_Circle' ||
       concreteShape.type === 'StbSecColumn_RC_Circle'

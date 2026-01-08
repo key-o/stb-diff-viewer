@@ -10,56 +10,23 @@
  * - 差分ステータスフィルタ（一致/A専用/B専用）
  */
 
-import { getState, setState } from '../core/globalState.js';
+import { getState } from '../app/globalState.js';
 import {
   createSearchUI,
   parseSearchPattern,
   matchesSearch,
   highlightSearchMatch,
   DEFAULT_STATUS_FILTER,
-  DEFAULT_ELEMENT_TARGET_FILTER
+  DEFAULT_ELEMENT_TARGET_FILTER,
 } from './treeSearch.js';
 import { showContextMenu, initializeContextMenu } from './contextMenu.js';
 import { VirtualScrollManager } from './virtualScroll.js';
-
-// 要素タイプのアイコンマッピング
-const ELEMENT_ICONS = {
-  Node: '⚫',
-  Column: '🏛️',
-  Girder: '➖',
-  Beam: '━',
-  Brace: '╱',
-  Post: '│',
-  Slab: '▭',
-  Wall: '▯',
-  Axis: '⊞',
-  Story: '⬜',
-  Pile: '↓',
-  Footing: '⊏',
-  FoundationColumn: '🏛️'
-};
-
-// 要素タイプの表示名
-const ELEMENT_LABELS = {
-  Node: '節点',
-  Column: '柱',
-  Girder: '大梁',
-  Beam: '小梁',
-  Brace: 'ブレース',
-  Post: '間柱',
-  Slab: 'スラブ',
-  Wall: '壁',
-  Axis: '通り芯',
-  Story: '階',
-  Pile: '杭',
-  Footing: '基礎',
-  FoundationColumn: '基礎柱'
-};
+import { ELEMENT_ICONS, ELEMENT_LABELS } from '../config/elementLabels.js';
+import { VIRTUAL_SCROLL_CONFIG } from '../config/virtualScrollConfig.js';
 
 let treeContainer = null;
 let onElementSelectCallback = null;
 let onContextMenuActionCallback = null; // コンテキストメニューアクションのコールバック
-let selectedElementKey = null; // 後方互換のため維持（単一選択の場合）
 /** @type {Set<string>} */
 const selectedElementKeys = new Set(); // 複数選択対応
 let lastClickedElementKey = null; // Shift+クリック範囲選択用
@@ -74,11 +41,11 @@ let currentComparisonResult = null;
 let totalElementCount = 0;
 let filteredElementCount = 0;
 
-// 仮想スクロール関連
+// 仮想スクロール関連（SSOT: virtualScrollConfig.js）
 /** @type {Map<string, VirtualScrollManager>} */
 const virtualScrollManagers = new Map(); // elementType -> VirtualScrollManager
-const VIRTUAL_SCROLL_THRESHOLD = 1000; // 仮想スクロールを有効にする閾値
-const VIRTUAL_ITEM_HEIGHT = 32; // アイテムの高さ（px）
+const VIRTUAL_SCROLL_THRESHOLD = VIRTUAL_SCROLL_CONFIG.THRESHOLD;
+const VIRTUAL_ITEM_HEIGHT = VIRTUAL_SCROLL_CONFIG.ITEM_HEIGHT.element;
 
 /**
  * ツリー表示を初期化
@@ -148,17 +115,17 @@ export function buildTree(comparisonResult) {
   totalElementCount = 0;
   filteredElementCount = 0;
 
-  Object.keys(elementsByType).forEach(elementType => {
+  Object.keys(elementsByType).forEach((elementType) => {
     totalElementCount += elementsByType[elementType].length;
   });
 
   // 各要素タイプのノードを作成（フィルタリング適用）
-  Object.keys(elementsByType).forEach(elementType => {
+  Object.keys(elementsByType).forEach((elementType) => {
     const elements = elementsByType[elementType];
     if (elements.length > 0) {
       // フィルタリングを適用
-      const filteredElements = elements.filter(element =>
-        matchesSearch(element, searchPattern, currentStatusFilter, currentTargetFilter)
+      const filteredElements = elements.filter((element) =>
+        matchesSearch(element, searchPattern, currentStatusFilter, currentTargetFilter),
       );
 
       filteredElementCount += filteredElements.length;
@@ -196,13 +163,13 @@ function groupElementsByType(comparisonResult) {
   const groups = {};
 
   // 全要素タイプを初期化
-  Object.keys(ELEMENT_LABELS).forEach(type => {
+  Object.keys(ELEMENT_LABELS).forEach((type) => {
     groups[type] = [];
   });
 
   // matched要素を追加
   if (comparisonResult.matched) {
-    comparisonResult.matched.forEach(item => {
+    comparisonResult.matched.forEach((item) => {
       const elementType = item.elementType || item.type;
       if (elementType && groups[elementType]) {
         const element = item.elementA || item.elementB || item;
@@ -211,7 +178,7 @@ function groupElementsByType(comparisonResult) {
           modelSource: 'matched',
           displayId: item.elementA?.id || item.id,
           name: element.name,
-          guid: element.guid
+          guid: element.guid,
         });
       }
     });
@@ -219,7 +186,7 @@ function groupElementsByType(comparisonResult) {
 
   // onlyA要素を追加
   if (comparisonResult.onlyA) {
-    comparisonResult.onlyA.forEach(item => {
+    comparisonResult.onlyA.forEach((item) => {
       const elementType = item.elementType || item.type;
       if (elementType && groups[elementType]) {
         groups[elementType].push({
@@ -227,7 +194,7 @@ function groupElementsByType(comparisonResult) {
           modelSource: 'onlyA',
           displayId: item.id,
           name: item.name,
-          guid: item.guid
+          guid: item.guid,
         });
       }
     });
@@ -235,7 +202,7 @@ function groupElementsByType(comparisonResult) {
 
   // onlyB要素を追加
   if (comparisonResult.onlyB) {
-    comparisonResult.onlyB.forEach(item => {
+    comparisonResult.onlyB.forEach((item) => {
       const elementType = item.elementType || item.type;
       if (elementType && groups[elementType]) {
         groups[elementType].push({
@@ -243,14 +210,14 @@ function groupElementsByType(comparisonResult) {
           modelSource: 'onlyB',
           displayId: item.id,
           name: item.name,
-          guid: item.guid
+          guid: item.guid,
         });
       }
     });
   }
 
   // 各グループ内の要素をソート
-  Object.keys(groups).forEach(elementType => {
+  Object.keys(groups).forEach((elementType) => {
     groups[elementType] = sortElements(groups[elementType]);
   });
 
@@ -371,7 +338,7 @@ function createTypeNode(elementType, elements, searchPattern = null) {
       bufferSize: 15,
       renderItem: (element, index) => {
         return createLeafNode(element, elementType, searchPattern);
-      }
+      },
     });
 
     // 初期化
@@ -379,7 +346,7 @@ function createTypeNode(elementType, elements, searchPattern = null) {
     virtualScrollManagers.set(elementType, virtualManager);
   } else {
     // 通常のレンダリング
-    elements.forEach(element => {
+    elements.forEach((element) => {
       const leafNode = createLeafNode(element, elementType, searchPattern);
       children.appendChild(leafNode);
     });
@@ -451,9 +418,8 @@ function createLeafNode(element, elementType, searchPattern = null) {
     const guidSpan = document.createElement('div');
     guidSpan.className = 'tree-element-guid';
     // GUIDが長い場合は短縮表示
-    const guidText = element.guid.length > 20
-      ? element.guid.substring(0, 20) + '...'
-      : element.guid;
+    const guidText =
+      element.guid.length > 20 ? element.guid.substring(0, 20) + '...' : element.guid;
 
     // 検索ハイライト付き
     if (searchPattern && searchPattern.pattern) {
@@ -492,7 +458,7 @@ function createLeafNode(element, elementType, searchPattern = null) {
 
     selectTreeElement(elementKey, header, {
       addToSelection: isMultiSelect,
-      rangeSelect: isRangeSelect
+      rangeSelect: isRangeSelect,
     });
 
     // コールバック呼び出し
@@ -501,7 +467,7 @@ function createLeafNode(element, elementType, searchPattern = null) {
       const selectedKeys = getSelectedTreeElementKeys();
       if (selectedKeys.length > 1) {
         // 複数選択: 選択されたすべての要素情報を収集
-        const selectedElements = selectedKeys.map(key => {
+        const selectedElements = selectedKeys.map((key) => {
           const parts = key.split('_');
           const modelSource = parts.pop();
           const elementId = parts.pop();
@@ -509,7 +475,7 @@ function createLeafNode(element, elementType, searchPattern = null) {
           return {
             elementType: elemType,
             elementId: elementId,
-            modelSource: modelSource
+            modelSource: modelSource,
           };
         });
         onElementSelectCallback({
@@ -519,7 +485,7 @@ function createLeafNode(element, elementType, searchPattern = null) {
           elementType: elementType,
           elementId: element.displayId,
           modelSource: element.modelSource,
-          element: element
+          element: element,
         });
       } else {
         // 単一選択: 従来通り
@@ -528,7 +494,7 @@ function createLeafNode(element, elementType, searchPattern = null) {
           elementType: elementType,
           elementId: element.displayId,
           modelSource: element.modelSource,
-          element: element
+          element: element,
         });
       }
     }
@@ -596,8 +562,8 @@ function selectTreeElement(elementKey, headerElement, options = {}) {
     const startKey = lastClickedElementKey;
     const endKey = elementKey;
 
-    let startIdx = allLeafNodes.findIndex(n => n.dataset.elementKey === startKey);
-    let endIdx = allLeafNodes.findIndex(n => n.dataset.elementKey === endKey);
+    let startIdx = allLeafNodes.findIndex((n) => n.dataset.elementKey === startKey);
+    let endIdx = allLeafNodes.findIndex((n) => n.dataset.elementKey === endKey);
 
     if (startIdx !== -1 && endIdx !== -1) {
       // 順序を調整
@@ -629,7 +595,7 @@ function selectTreeElement(elementKey, headerElement, options = {}) {
     // 通常クリック: 単一選択（既存選択を解除）
     if (treeContainer) {
       const previouslySelected = treeContainer.querySelectorAll('.tree-node-header.selected');
-      previouslySelected.forEach(el => el.classList.remove('selected'));
+      previouslySelected.forEach((el) => el.classList.remove('selected'));
     }
     selectedElementKeys.clear();
 
@@ -638,11 +604,6 @@ function selectTreeElement(elementKey, headerElement, options = {}) {
     }
     selectedElementKeys.add(elementKey);
   }
-
-  // 単一選択の後方互換
-  selectedElementKey = selectedElementKeys.size === 1
-    ? Array.from(selectedElementKeys)[0]
-    : elementKey;
 
   // 最後にクリックした要素を記録（範囲選択用）
   lastClickedElementKey = elementKey;
@@ -662,10 +623,9 @@ export function getSelectedTreeElementKeys() {
 export function clearTreeSelection() {
   if (treeContainer) {
     const previouslySelected = treeContainer.querySelectorAll('.tree-node-header.selected');
-    previouslySelected.forEach(el => el.classList.remove('selected'));
+    previouslySelected.forEach((el) => el.classList.remove('selected'));
   }
   selectedElementKeys.clear();
-  selectedElementKey = null;
   lastClickedElementKey = null;
 }
 
@@ -687,13 +647,10 @@ export function selectElementInTree(elementType, elementId, modelSource) {
 
   if (virtualManager && virtualManager.isVirtualScrollEnabled()) {
     // 仮想スクロールの場合: アイテムを検索してスクロール
-    const index = virtualManager.scrollToItem(
-      (item) => {
-        const itemKey = `${elementType}_${item.displayId}_${item.modelSource}`;
-        return itemKey === elementKey;
-      },
-      'center'
-    );
+    const index = virtualManager.scrollToItem((item) => {
+      const itemKey = `${elementType}_${item.displayId}_${item.modelSource}`;
+      return itemKey === elementKey;
+    }, 'center');
 
     if (index !== -1) {
       // 少し遅延してから選択状態を更新（レンダリング完了後）
@@ -719,7 +676,7 @@ export function selectElementInTree(elementType, elementId, modelSource) {
       // ノードが見えるようにスクロール
       node.scrollIntoView({
         behavior: 'smooth',
-        block: 'nearest'
+        block: 'nearest',
       });
 
       break;
@@ -742,15 +699,7 @@ export function clearTree() {
     emptyMessage.textContent = 'モデルを読み込んでください';
     treeContainer.appendChild(emptyMessage);
   }
-  selectedElementKey = null;
-}
-
-/**
- * 選択されている要素キーを取得
- * @returns {string|null} 選択されている要素キー
- */
-export function getSelectedElementKey() {
-  return selectedElementKey;
+  selectedElementKeys.clear();
 }
 
 /**
@@ -794,7 +743,7 @@ function initializeSearchUI() {
     targetOptions: [
       { key: 'id', label: 'ID' },
       { key: 'name', label: '名前' },
-      { key: 'guid', label: 'GUID' }
+      { key: 'guid', label: 'GUID' },
     ],
     defaultTargetFilter: DEFAULT_ELEMENT_TARGET_FILTER,
     onSearch: (searchText, statusFilter, targetFilter) => {
@@ -810,7 +759,7 @@ function initializeSearchUI() {
       currentSearchText = '';
       currentStatusFilter = { ...DEFAULT_STATUS_FILTER };
       currentTargetFilter = { ...DEFAULT_ELEMENT_TARGET_FILTER };
-    }
+    },
   });
 
   // コンテナの先頭に検索UIを追加
@@ -832,7 +781,7 @@ function clearTreeContent() {
 
   // 検索UI以外の要素を削除
   const children = Array.from(treeContainer.children);
-  children.forEach(child => {
+  children.forEach((child) => {
     if (!child.classList.contains('tree-search-container')) {
       treeContainer.removeChild(child);
     }
@@ -891,21 +840,21 @@ function showElementContextMenu(x, y, element, elementType) {
     {
       label: isMultipleSelected ? `${selectedCount}個の要素を非表示` : '要素を非表示',
       icon: '👁️',
-      action: () => handleHideElements(element, elementType)
+      action: () => handleHideElements(element, elementType),
     },
     { separator: true },
     {
       label: '同じタイプの要素を全選択',
       icon: '☑️',
-      action: () => handleSelectAllOfType(elementType)
+      action: () => handleSelectAllOfType(elementType),
     },
     { separator: true },
     {
       label: 'プロパティをコピー',
       icon: '📋',
       action: () => handleCopyProperties(element, elementType),
-      disabled: isMultipleSelected
-    }
+      disabled: isMultipleSelected,
+    },
   ];
 
   showContextMenu(x, y, menuItems);
@@ -921,7 +870,7 @@ function handleHideElements(element, elementType) {
 
   if (selectedKeys.length > 1) {
     // 複数選択の場合
-    const elements = selectedKeys.map(key => {
+    const elements = selectedKeys.map((key) => {
       const parts = key.split('_');
       const modelSource = parts.pop();
       const elementId = parts.pop();
@@ -933,7 +882,7 @@ function handleHideElements(element, elementType) {
       onContextMenuActionCallback({
         action: 'hide',
         multiple: true,
-        elements: elements
+        elements: elements,
       });
     }
   } else {
@@ -945,7 +894,7 @@ function handleHideElements(element, elementType) {
         elementType: elementType,
         elementId: element.displayId,
         modelSource: element.modelSource,
-        element: element
+        element: element,
       });
     }
   }
@@ -965,12 +914,12 @@ function handleSelectAllOfType(elementType) {
 
   // matched
   if (currentComparisonResult.matched) {
-    currentComparisonResult.matched.forEach(pair => {
+    currentComparisonResult.matched.forEach((pair) => {
       if (pair.a && getElementType(pair.a) === elementType) {
         elementsOfType.push({
           elementType: elementType,
           elementId: pair.a.displayId || pair.a.id,
-          modelSource: 'matched'
+          modelSource: 'matched',
         });
       }
     });
@@ -978,12 +927,12 @@ function handleSelectAllOfType(elementType) {
 
   // onlyA
   if (currentComparisonResult.onlyA) {
-    currentComparisonResult.onlyA.forEach(elem => {
+    currentComparisonResult.onlyA.forEach((elem) => {
       if (getElementType(elem) === elementType) {
         elementsOfType.push({
           elementType: elementType,
           elementId: elem.displayId || elem.id,
-          modelSource: 'onlyA'
+          modelSource: 'onlyA',
         });
       }
     });
@@ -991,12 +940,12 @@ function handleSelectAllOfType(elementType) {
 
   // onlyB
   if (currentComparisonResult.onlyB) {
-    currentComparisonResult.onlyB.forEach(elem => {
+    currentComparisonResult.onlyB.forEach((elem) => {
       if (getElementType(elem) === elementType) {
         elementsOfType.push({
           elementType: elementType,
           elementId: elem.displayId || elem.id,
-          modelSource: 'onlyB'
+          modelSource: 'onlyB',
         });
       }
     });
@@ -1005,7 +954,7 @@ function handleSelectAllOfType(elementType) {
   // ツリー上の対応するノードを選択
   clearTreeSelection();
 
-  elementsOfType.forEach(elem => {
+  elementsOfType.forEach((elem) => {
     const elementKey = `${elem.elementType}_${elem.elementId}_${elem.modelSource}`;
     const node = treeContainer.querySelector(`[data-element-key="${elementKey}"]`);
     if (node) {
@@ -1022,14 +971,14 @@ function handleSelectAllOfType(elementType) {
     console.warn('選択上限（100要素）を超えました。最初の100要素のみ選択されます。');
     const keysArray = Array.from(selectedElementKeys);
     selectedElementKeys.clear();
-    keysArray.slice(0, 100).forEach(key => selectedElementKeys.add(key));
+    keysArray.slice(0, 100).forEach((key) => selectedElementKeys.add(key));
   }
 
   // コールバックを呼び出す
   if (onElementSelectCallback && elementsOfType.length > 0) {
     onElementSelectCallback({
       multiSelect: true,
-      selectedElements: elementsOfType.slice(0, 100)
+      selectedElements: elementsOfType.slice(0, 100),
     });
   }
 
@@ -1047,9 +996,14 @@ function handleCopyProperties(element, elementType) {
     ID: element.displayId || element.id,
     名前: element.name || '-',
     GUID: element.guid || '-',
-    ステータス: element.modelSource === 'matched' ? '一致'
-      : element.modelSource === 'onlyA' ? 'A専用'
-      : element.modelSource === 'onlyB' ? 'B専用' : '-'
+    ステータス:
+      element.modelSource === 'matched'
+        ? '一致'
+        : element.modelSource === 'onlyA'
+          ? 'A専用'
+          : element.modelSource === 'onlyB'
+            ? 'B専用'
+            : '-',
   };
 
   // 追加のプロパティがあれば追加
@@ -1064,21 +1018,24 @@ function handleCopyProperties(element, elementType) {
     .map(([key, value]) => `${key}: ${value}`)
     .join('\n');
 
-  navigator.clipboard.writeText(text).then(() => {
-    console.log('プロパティをクリップボードにコピーしました');
-    // 簡易的なフィードバック（将来的にトースト通知に置き換え）
-    if (onContextMenuActionCallback) {
-      onContextMenuActionCallback({
-        action: 'copyProperties',
-        success: true,
-        elementType: elementType,
-        elementId: element.displayId,
-        properties: properties
-      });
-    }
-  }).catch(err => {
-    console.error('クリップボードへのコピーに失敗しました:', err);
-  });
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      console.log('プロパティをクリップボードにコピーしました');
+      // 簡易的なフィードバック（将来的にトースト通知に置き換え）
+      if (onContextMenuActionCallback) {
+        onContextMenuActionCallback({
+          action: 'copyProperties',
+          success: true,
+          elementType: elementType,
+          elementId: element.displayId,
+          properties: properties,
+        });
+      }
+    })
+    .catch((err) => {
+      console.error('クリップボードへのコピーに失敗しました:', err);
+    });
 }
 
 /**

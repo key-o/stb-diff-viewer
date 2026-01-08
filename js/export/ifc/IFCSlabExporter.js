@@ -30,17 +30,17 @@ export class IFCSlabExporter extends IFCExporterBase {
       const v1 = {
         x: vertices[1].x - vertices[0].x,
         y: vertices[1].y - vertices[0].y,
-        z: vertices[1].z - vertices[0].z
+        z: vertices[1].z - vertices[0].z,
       };
       const v2 = {
         x: vertices[2].x - vertices[0].x,
         y: vertices[2].y - vertices[0].y,
-        z: vertices[2].z - vertices[0].z
+        z: vertices[2].z - vertices[0].z,
       };
       const normal = {
         x: v1.y * v2.z - v1.z * v2.y,
         y: v1.z * v2.x - v1.x * v2.z,
-        z: v1.x * v2.y - v1.y * v2.x
+        z: v1.x * v2.y - v1.y * v2.x,
       };
       const len = Math.sqrt(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
       if (len < 1e-10) {
@@ -92,12 +92,7 @@ export class IFCSlabExporter extends IFCExporterBase {
   addSlab(slabData) {
     this._ensureInitialized();
     const w = this.writer;
-    const {
-      name = 'Slab',
-      vertices,
-      thickness = 150,
-      predefinedType = 'FLOOR'
-    } = slabData;
+    const { name = 'Slab', vertices, thickness = 150, predefinedType = 'FLOOR' } = slabData;
 
     // 必須パラメータチェック
     if (!vertices || vertices.length < 3) {
@@ -143,7 +138,7 @@ export class IFCSlabExporter extends IFCExporterBase {
       let crossY = {
         x: normal.y * globalX.z - normal.z * globalX.y,
         y: normal.z * globalX.x - normal.x * globalX.z,
-        z: normal.x * globalX.y - normal.y * globalX.x
+        z: normal.x * globalX.y - normal.y * globalX.x,
       };
       let crossYLen = Math.sqrt(crossY.x * crossY.x + crossY.y * crossY.y + crossY.z * crossY.z);
 
@@ -153,7 +148,7 @@ export class IFCSlabExporter extends IFCExporterBase {
         crossY = {
           x: normal.y * globalY.z - normal.z * globalY.y,
           y: normal.z * globalY.x - normal.x * globalY.z,
-          z: normal.x * globalY.y - normal.y * globalY.x
+          z: normal.x * globalY.y - normal.y * globalY.x,
         };
         crossYLen = Math.sqrt(crossY.x * crossY.x + crossY.y * crossY.y + crossY.z * crossY.z);
       }
@@ -164,7 +159,7 @@ export class IFCSlabExporter extends IFCExporterBase {
       axisX = {
         x: axisY.y * normal.z - axisY.z * normal.y,
         y: axisY.z * normal.x - axisY.x * normal.z,
-        z: axisY.x * normal.y - axisY.y * normal.x
+        z: axisY.x * normal.y - axisY.y * normal.x,
       };
     } else {
       // 水平スラブ：標準の軸
@@ -189,7 +184,9 @@ export class IFCSlabExporter extends IFCExporterBase {
       polylinePoints.push(`#${pointId}`);
     }
     // 閉じるために最初の点を追加
-    const firstPointId = w.createEntity('IFCCARTESIANPOINT', [[localVertices[0].x, localVertices[0].y]]);
+    const firstPointId = w.createEntity('IFCCARTESIANPOINT', [
+      [localVertices[0].x, localVertices[0].y],
+    ]);
     polylinePoints.push(`#${firstPointId}`);
 
     // 6. ポリラインを作成
@@ -199,19 +196,21 @@ export class IFCSlabExporter extends IFCExporterBase {
     const profileId = w.createEntity('IFCARBITRARYCLOSEDPROFILEDEF', [
       '.AREA.',
       'SlabProfile',
-      `#${polylineId}`
+      `#${polylineId}`,
     ]);
 
     // 8. 押出方向（法線の反対方向＝下向き）
     const extrudeDir = { x: -normal.x, y: -normal.y, z: -normal.z };
-    const extrudeDirId = w.createEntity('IFCDIRECTION', [[extrudeDir.x, extrudeDir.y, extrudeDir.z]]);
+    const extrudeDirId = w.createEntity('IFCDIRECTION', [
+      [extrudeDir.x, extrudeDir.y, extrudeDir.z],
+    ]);
 
     // 9. 押出形状を作成
     const solidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
       `#${profileId}`,
       null,
       `#${extrudeDirId}`,
-      thickness
+      thickness,
     ]);
 
     // 10. 床の配置点（中心）
@@ -226,36 +225,29 @@ export class IFCSlabExporter extends IFCExporterBase {
       slabPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
         `#${slabOrigin}`,
         `#${axisId}`,
-        `#${refDirId}`
+        `#${refDirId}`,
       ]);
     } else {
       // 水平スラブ：デフォルトの座標系
-      slabPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
-        `#${slabOrigin}`,
-        null,
-        null
-      ]);
+      slabPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [`#${slabOrigin}`, null, null]);
     }
 
     // 12. ローカル配置
-    const slabLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
-      null,
-      `#${slabPlacement3D}`
-    ]);
+    const slabLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [null, `#${slabPlacement3D}`]);
 
     // 13. 形状表現
     const shapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
       `#${this._refs.bodyContext}`,
       'Body',
       'SweptSolid',
-      [`#${solidId}`]
+      [`#${solidId}`],
     ]);
 
     // 製品定義形状
     const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
       null,
       null,
-      [`#${shapeRep}`]
+      [`#${shapeRep}`],
     ]);
 
     // 14. 床エンティティ
@@ -268,7 +260,7 @@ export class IFCSlabExporter extends IFCExporterBase {
       `#${slabLocalPlacement}`,
       `#${productShape}`,
       null,
-      `.${predefinedType}.`
+      `.${predefinedType}.`,
     ]);
 
     // 床を階に所属させる（最小Z座標で適切な階を決定）
@@ -299,7 +291,9 @@ export class IFCSlabExporter extends IFCExporterBase {
     for (const nodeId of nodeIds) {
       const node = nodes.get(nodeId);
       if (!node) {
-        console.warn(`[IFC Export] 床 "${slabElement.id}" をスキップ: ノード ${nodeId} が見つかりません`);
+        console.warn(
+          `[IFC Export] 床 "${slabElement.id}" をスキップ: ノード ${nodeId} が見つかりません`,
+        );
         return null;
       }
 
@@ -311,7 +305,7 @@ export class IFCSlabExporter extends IFCExporterBase {
       vertices.push({
         x: node.x + offsetX,
         y: node.y + offsetY,
-        z: node.z + offsetZ
+        z: node.z + offsetZ,
       });
     }
 
@@ -320,11 +314,12 @@ export class IFCSlabExporter extends IFCExporterBase {
     if (slabSections) {
       const sectionData = slabSections.get(slabElement.id_section);
       if (sectionData) {
-        thickness = sectionData.depth ||
-                    sectionData.dimensions?.depth ||
-                    sectionData.t ||
-                    sectionData.thickness ||
-                    150;
+        thickness =
+          sectionData.depth ||
+          sectionData.dimensions?.depth ||
+          sectionData.t ||
+          sectionData.thickness ||
+          150;
       }
     }
 
@@ -340,7 +335,7 @@ export class IFCSlabExporter extends IFCExporterBase {
       name: slabElement.name || `Slab_${slabElement.id}`,
       vertices,
       thickness,
-      predefinedType
+      predefinedType,
     });
   }
 
@@ -353,7 +348,7 @@ export class IFCSlabExporter extends IFCExporterBase {
     return super.generate({
       fileName: options.fileName || 'slab_export.ifc',
       description: options.description || 'Slab IFC Export',
-      ...options
+      ...options,
     });
   }
 }
@@ -368,5 +363,3 @@ export function exportSingleSlabToIFC(slabData) {
   exporter.addSlab(slabData);
   return exporter.generate();
 }
-
-export { generateIfcGuid } from './IFCExporterBase.js';

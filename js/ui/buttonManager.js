@@ -50,12 +50,12 @@ export class ButtonManager {
           fontSize: '0.9em',
           fontWeight: '500',
           cursor: 'pointer',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
         },
         hoverStyle: {
           backgroundColor: '#0056b3',
-          borderColor: '#0056b3'
-        }
+          borderColor: '#0056b3',
+        },
       },
 
       // セカンダリボタン (二次的アクション)
@@ -69,12 +69,12 @@ export class ButtonManager {
           borderRadius: '4px',
           fontSize: '0.9em',
           cursor: 'pointer',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
         },
         hoverStyle: {
           backgroundColor: '#5a6268',
-          borderColor: '#545b62'
-        }
+          borderColor: '#545b62',
+        },
       },
 
       // トグルボタン
@@ -88,17 +88,17 @@ export class ButtonManager {
           borderRadius: '4px',
           fontSize: '0.85em',
           cursor: 'pointer',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
         },
         activeStyle: {
           backgroundColor: '#007bff',
           color: '#ffffff',
-          borderColor: '#007bff'
+          borderColor: '#007bff',
         },
         hoverStyle: {
           backgroundColor: '#e9ecef',
-          borderColor: '#adb5bd'
-        }
+          borderColor: '#adb5bd',
+        },
       },
 
       // 閉じるボタン
@@ -113,12 +113,12 @@ export class ButtonManager {
           fontSize: '1.2em',
           cursor: 'pointer',
           transition: 'all 0.2s ease',
-          lineHeight: '1'
+          lineHeight: '1',
         },
         hoverStyle: {
           backgroundColor: '#e9ecef',
-          color: '#495057'
-        }
+          color: '#495057',
+        },
       },
 
       // 適用ボタン
@@ -132,12 +132,12 @@ export class ButtonManager {
           borderRadius: '4px',
           fontSize: '0.85em',
           cursor: 'pointer',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
         },
         hoverStyle: {
           backgroundColor: '#218838',
-          borderColor: '#1e7e34'
-        }
+          borderColor: '#1e7e34',
+        },
       },
 
       // クリアボタン
@@ -151,12 +151,12 @@ export class ButtonManager {
           borderRadius: '4px',
           fontSize: '0.85em',
           cursor: 'pointer',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
         },
         hoverStyle: {
           backgroundColor: '#c82333',
-          borderColor: '#bd2130'
-        }
+          borderColor: '#bd2130',
+        },
       },
 
       // ビュー切り替えボタン
@@ -171,17 +171,17 @@ export class ButtonManager {
           fontSize: '0.8em',
           cursor: 'pointer',
           transition: 'all 0.2s ease',
-          minWidth: '60px'
+          minWidth: '60px',
         },
         activeStyle: {
           backgroundColor: '#007bff',
           color: '#ffffff',
-          borderColor: '#007bff'
+          borderColor: '#007bff',
         },
         hoverStyle: {
           backgroundColor: '#e9ecef',
-          borderColor: '#adb5bd'
-        }
+          borderColor: '#adb5bd',
+        },
       },
 
       // 小さいボタン
@@ -195,12 +195,12 @@ export class ButtonManager {
           borderRadius: '3px',
           fontSize: '0.75em',
           cursor: 'pointer',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
         },
         hoverStyle: {
           backgroundColor: '#e9ecef',
-          borderColor: '#adb5bd'
-        }
+          borderColor: '#adb5bd',
+        },
       },
 
       // カスタムファイルボタン
@@ -214,12 +214,12 @@ export class ButtonManager {
           borderRadius: '4px',
           fontSize: '0.85em',
           cursor: 'pointer',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
         },
         hoverStyle: {
           backgroundColor: '#f1f3f5',
-          borderColor: '#adb5bd'
-        }
+          borderColor: '#adb5bd',
+        },
       },
 
       // リセットボタン
@@ -233,13 +233,13 @@ export class ButtonManager {
           borderRadius: '4px',
           fontSize: '0.85em',
           cursor: 'pointer',
-          transition: 'all 0.2s ease'
+          transition: 'all 0.2s ease',
         },
         hoverStyle: {
           backgroundColor: '#e0a800',
-          borderColor: '#d39e00'
-        }
-      }
+          borderColor: '#d39e00',
+        },
+      },
     };
   }
 
@@ -269,7 +269,7 @@ export class ButtonManager {
       disabled = false,
       customStyle = {},
       id = '',
-      dataset = {}
+      dataset = {},
     } = config;
 
     // ボタンタイプの定義を取得
@@ -343,16 +343,12 @@ export class ButtonManager {
    * @returns {HTMLButtonElement} 作成されたトグルボタン
    */
   createToggleButton(config) {
-    const {
-      active = false,
-      onToggle = null,
-      ...restConfig
-    } = config;
+    const { active = false, onToggle = null, ...restConfig } = config;
 
     const button = this.createButton({
       ...restConfig,
       type: 'toggle',
-      onClick: null // 後で設定
+      onClick: null, // 後で設定
     });
 
     // アクティブ状態を管理
@@ -397,14 +393,10 @@ export class ButtonManager {
    * @param {Array<Object>} config.buttons - ボタンの設定配列
    * @param {string} [config.layout] - レイアウト ('horizontal' または 'vertical')
    * @param {string} [config.gap] - ボタン間の間隔
-  * @returns {HTMLDivElement} ボタングループのコンテナー
+   * @returns {HTMLDivElement} ボタングループのコンテナー
    */
   createButtonGroup(config) {
-    const {
-      buttons = [],
-      layout = 'horizontal',
-      gap = '8px'
-    } = config;
+    const { buttons = [], layout = 'horizontal', gap = '8px' } = config;
 
     const container = document.createElement('div');
     container.className = 'button-group';
@@ -432,8 +424,8 @@ export class ButtonManager {
       element: button,
       metadata: {
         createdAt: new Date(),
-        ...metadata
-      }
+        ...metadata,
+      },
     });
   }
 

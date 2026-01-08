@@ -13,6 +13,15 @@
  */
 
 import * as THREE from 'three';
+import { createLogger } from '../../utils/logger.js';
+import { LABEL_SETTINGS, LABEL_OCCLUSION_SETTINGS } from '../../config/renderingConstants.js';
+
+const log = createLogger('viewer/ui/labels');
+
+// オクルージョンチェック用のフレームカウンター
+let globalFrameCounter = 0;
+let lastFrameTime = 0;
+const FRAME_TIME_MS = 1000 / 60; // 60FPS想定
 
 /**
  * 指定されたテキストと位置を持つラベルスプライトを作成し、指定されたグループに追加する。
@@ -26,29 +35,27 @@ import * as THREE from 'three';
  * @returns {THREE.Sprite|null} 作成されたラベルスプライト、またはエラー時にnull。
  */
 export function createLabelSprite(text, position, spriteGroup, elementType, meta = {}) {
-  const labelFontSize = 45;
-  const labelCanvasWidth = 512;
-  const labelCanvasHeight = 64;
-  const labelBaseScaleX = 640;
-  const labelBaseScaleY = 80;
-  const labelOffsetX = labelCanvasWidth / 2;
-  const labelOffsetY = labelCanvasHeight / 2;
-  const referenceDistance = 5000;
-  // ★★★ 最小スケール係数を引き上げ ★★★
-  // const minScaleFactor = 1.0; // 元の値
-  const minScaleFactor = 5.0; // より大きくする (例えば 5.0 や 10.0 などで試す)
-  const maxScaleFactor = 30.0;
+  const labelFontSize = LABEL_SETTINGS.FONT_SIZE;
+  const labelCanvasWidth = LABEL_SETTINGS.CANVAS_WIDTH;
+  const labelCanvasHeight = LABEL_SETTINGS.CANVAS_HEIGHT;
+  const labelBaseScaleX = LABEL_SETTINGS.BASE_SCALE_X;
+  const labelBaseScaleY = LABEL_SETTINGS.BASE_SCALE_Y;
+  const labelOffsetX = LABEL_SETTINGS.OFFSET_X;
+  const labelOffsetY = LABEL_SETTINGS.OFFSET_Y;
+  const referenceDistance = LABEL_SETTINGS.REFERENCE_DISTANCE;
+  const minScaleFactor = LABEL_SETTINGS.MIN_SCALE_FACTOR;
+  const maxScaleFactor = LABEL_SETTINGS.MAX_SCALE_FACTOR;
 
   // 通り芯ラベル用の丸い背景設定
   const isAxisLabel = elementType === 'Axis';
   const isStoryLabel = elementType === 'Story';
-  const balloonSize = 64; // 丸い背景のサイズ（正方形キャンバス）
-  const balloonFontSize = 28;
-  
+  const balloonSize = LABEL_SETTINGS.BALLOON_SIZE;
+  const balloonFontSize = LABEL_SETTINGS.BALLOON_FONT_SIZE;
+
   // 階ラベル用の四角い背景設定
-  const storyBoxWidth = 80;
-  const storyBoxHeight = 48;
-  const storyFontSize = 24;
+  const storyBoxWidth = LABEL_SETTINGS.STORY_BOX_WIDTH;
+  const storyBoxHeight = LABEL_SETTINGS.STORY_BOX_HEIGHT;
+  const storyFontSize = LABEL_SETTINGS.STORY_FONT_SIZE;
 
   try {
     let canvas, ctx, texture, baseScaleX, baseScaleY;
@@ -60,7 +67,7 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
       canvas.height = balloonSize;
       ctx = canvas.getContext('2d');
       if (!ctx) {
-        console.error('Failed to get 2D context for axis label canvas.');
+        log.error('Failed to get 2D context for axis label canvas.');
         return null;
       }
       ctx.clearRect(0, 0, balloonSize, balloonSize);
@@ -100,14 +107,14 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
       canvas.height = storyBoxHeight;
       ctx = canvas.getContext('2d');
       if (!ctx) {
-        console.error('Failed to get 2D context for story label canvas.');
+        log.error('Failed to get 2D context for story label canvas.');
         return null;
       }
       ctx.clearRect(0, 0, storyBoxWidth, storyBoxHeight);
 
       // 四角い背景を描画
       const padding = 3;
-      
+
       // 白い塗りつぶしの四角
       ctx.fillStyle = 'white';
       ctx.fillRect(padding, padding, storyBoxWidth - padding * 2, storyBoxHeight - padding * 2);
@@ -134,7 +141,7 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
       canvas.height = labelCanvasHeight;
       ctx = canvas.getContext('2d');
       if (!ctx) {
-        console.error('Failed to get 2D context for label canvas.');
+        log.error('Failed to get 2D context for label canvas.');
         return null;
       }
       ctx.clearRect(0, 0, labelCanvasWidth, labelCanvasHeight);
@@ -167,7 +174,7 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
       // ★★★ テスト用: 深度テストを一時的に無効化してみる ★★★
       // depthTest: true, // 通常はこちら
       depthTest: true, // <<< テストする場合はこちらを有効化 (他の要素との前後関係がおかしくなります)
-      depthWrite: false
+      depthWrite: false,
     });
     const sprite = new THREE.Sprite(material);
 
@@ -180,6 +187,18 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
     sprite.userData.originalPosition = position.clone();
     // store optional metadata for special handling (axis, story, model bounds, etc.)
     sprite.userData.meta = meta || {};
+
+    // オクルージョンチェック用の状態
+    sprite.userData.occlusionState = {
+      lastCheckFrame: 0,
+      lastCameraPosition: new THREE.Vector3(),
+      lastCameraQuaternion: new THREE.Quaternion(),
+      isOccluded: false,
+      targetPushDistance: 0,
+      currentPushDistance: 0,
+      occludedFrameCount: 0,
+      visibleFrameCount: 0,
+    };
 
     // ラベルを要素から少し前面にオフセット
     const labelOffset = new THREE.Vector3(0, 0, 50); // Z方向に50mm前面に移動（元に戻す）
@@ -202,17 +221,18 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
       const dynamicOffset = cameraDirection.clone().multiplyScalar(-50);
       currentPos = originalPos.clone().add(dynamicOffset);
 
-      // --- Axis label specific: 通り芯の端に固定配置 ---
+      // --- Axis label specific: 通り芯の端（レベル面の端）に固定配置 ---
       if (elementType === 'Axis' && meta && meta.axisType && meta.modelBounds) {
         try {
           const mb = meta.modelBounds;
           const min = new THREE.Vector3(mb.min.x, mb.min.y, mb.min.z);
           const max = new THREE.Vector3(mb.max.x, mb.max.y, mb.max.z);
           const size = new THREE.Vector3().subVectors(max, min);
-          // 通り芯の端からの延長距離
-          const extendXY = Math.max(size.x, size.y, 1000) * 0.5 + 1000;
-          // ラベルを端の外側に配置するオフセット
-          const labelMargin = 300;
+          // 通り芯の延長距離（layout.jsのdrawAxes/drawStoriesと同じ計算式）
+          // レベル面と通り芯のラインが同じ範囲になるように合わせる
+          const extendXY = Math.max(size.x, size.y) * 0.15 + 500;
+          // ラベル中心をレベル外形ライン上（通り芯の終端）に配置
+          const labelMargin = 0;
 
           if (meta.axisType === 'X') {
             // X軸通り芯: Y方向の線の端（min.y側）に固定
@@ -226,40 +246,91 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
             currentPos.z = meta.storyHeight !== undefined ? meta.storyHeight : originalPos.z;
           }
         } catch (err) {
-          console.warn('Axis label meta handling failed:', err);
+          log.warn('Axis label meta handling failed:', err);
         }
       }
 
-      // --- Occlusion check: raycast from camera to label and push toward camera if occluded ---
-      try {
-        const cameraPos = cameraInstance.position.clone();
-        const dirToLabel = new THREE.Vector3().subVectors(currentPos, cameraPos);
-        const distance = dirToLabel.length();
-        if (distance > 0) {
-          const ray = new THREE.Raycaster(cameraPos, dirToLabel.normalize(), 0.01, distance);
-          // スプライトに対するRaycastにはカメラの設定が必要（Three.js r127+）
-          ray.camera = cameraInstance;
-          const intersects = ray.intersectObjects(scene.children, true);
-          // Find first intersect that is not the label itself and is not the Axis line (allow Axis)
-          const firstBlocker = intersects.find((hit) => {
-            if (!hit || !hit.object) return false;
-            if (hit.object === this) return false; // skip self
-            // Accept Axis lines and Story planes as not blockers
-            const t = hit.object.userData && hit.object.userData.elementType;
-            if (t === 'Axis' || t === 'Story') return false;
-            return true;
-          });
+      // --- Occlusion check with throttling and smoothing ---
+      // フレームカウンターの更新（時間ベース）
+      const now = performance.now();
+      if (now - lastFrameTime > FRAME_TIME_MS) {
+        globalFrameCounter++;
+        lastFrameTime = now;
+      }
 
-          if (firstBlocker) {
-            // push the label a bit toward the camera along camera direction
-            const pushDist = Math.min(500, distance * 0.1);
-            const push = cameraDirection.clone().multiplyScalar(pushDist * -1);
-            currentPos.add(push);
+      const state = this.userData.occlusionState;
+      const settings = LABEL_OCCLUSION_SETTINGS;
+
+      // カメラ移動/回転検出
+      const cameraPos = cameraInstance.position.clone();
+      const cameraQuat = cameraInstance.quaternion.clone();
+      const cameraMoved = state.lastCameraPosition.distanceTo(cameraPos) > settings.CAMERA_MOVE_THRESHOLD;
+      const cameraRotated = state.lastCameraQuaternion.angleTo(cameraQuat) > settings.CAMERA_ROTATE_THRESHOLD;
+
+      // チェックを実行すべきか判定（間引き）
+      const framesSinceLastCheck = globalFrameCounter - state.lastCheckFrame;
+      const shouldCheck = cameraMoved || cameraRotated ||
+                          framesSinceLastCheck >= settings.CHECK_INTERVAL_FRAMES;
+
+      if (shouldCheck) {
+        state.lastCheckFrame = globalFrameCounter;
+        state.lastCameraPosition.copy(cameraPos);
+        state.lastCameraQuaternion.copy(cameraQuat);
+
+        try {
+          const dirToLabel = new THREE.Vector3().subVectors(currentPos, cameraPos);
+          const distance = dirToLabel.length();
+
+          if (distance > 0) {
+            const ray = new THREE.Raycaster(cameraPos, dirToLabel.normalize(), 0.01, distance);
+            ray.camera = cameraInstance;
+            const intersects = ray.intersectObjects(scene.children, true);
+
+            const firstBlocker = intersects.find((hit) => {
+              if (!hit || !hit.object) return false;
+              if (hit.object === this) return false;
+              const t = hit.object.userData && hit.object.userData.elementType;
+              if (t === 'Axis' || t === 'Story') return false;
+              return true;
+            });
+
+            const isCurrentlyOccluded = !!firstBlocker;
+
+            // ヒステリシス処理: 状態変化に連続フレーム数の閾値を設ける
+            if (isCurrentlyOccluded) {
+              state.occludedFrameCount++;
+              state.visibleFrameCount = 0;
+            } else {
+              state.visibleFrameCount++;
+              state.occludedFrameCount = 0;
+            }
+
+            // 状態変更判定（ヒステリシス閾値を超えた場合のみ変更）
+            if (state.occludedFrameCount >= settings.HYSTERESIS_FRAMES && !state.isOccluded) {
+              state.isOccluded = true;
+              const pushDist = Math.min(settings.MAX_PUSH_DISTANCE, distance * settings.PUSH_DISTANCE_RATIO);
+              state.targetPushDistance = pushDist;
+            } else if (state.visibleFrameCount >= settings.HYSTERESIS_FRAMES && state.isOccluded) {
+              state.isOccluded = false;
+              state.targetPushDistance = 0;
+            }
           }
+        } catch (err) {
+          // Raycast失敗時は何もしない
         }
-      } catch (err) {
-        // Do not break rendering on raycast failure
-        // console.warn('Label occlusion check failed:', err);
+      }
+
+      // 補間による滑らかな位置変化（毎フレーム実行）
+      state.currentPushDistance = THREE.MathUtils.lerp(
+        state.currentPushDistance,
+        state.targetPushDistance,
+        settings.LERP_FACTOR
+      );
+
+      // 押し出し適用（最小閾値を超えた場合のみ）
+      if (Math.abs(state.currentPushDistance) > 0.1) {
+        const push = cameraDirection.clone().multiplyScalar(-state.currentPushDistance);
+        currentPos.add(push);
       }
 
       const initialVisibility = this.visible; // UIによる表示状態
@@ -268,11 +339,7 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
 
       // --- ビュー範囲 (Frustum) チェック ---
       // shouldBeVisible が true で、かつ Story/Axis 以外の場合のみチェック
-      if (
-        shouldBeVisible &&
-        elementType !== 'Story' &&
-        elementType !== 'Axis'
-      ) {
+      if (shouldBeVisible && elementType !== 'Story' && elementType !== 'Axis') {
         // ... (frustum culling logic - unchanged) ...
         const worldPosition = new THREE.Vector3();
         this.getWorldPosition(worldPosition);
@@ -297,9 +364,6 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
         // if (isClipped && elementType !== 'Story' && elementType !== 'Axis' && !shouldBeVisible) reason += `Clipped (${elementType}); `; // 削除
         if (isOutsideView && !shouldBeVisible) reason += 'Outside view; ';
         if (reason === '' && !shouldBeVisible) reason = 'Unknown reason; ';
-        console.log(
-          `Label '${text}' (${elementType}): Visibility changing ${this.visible} -> ${shouldBeVisible}. Reason: ${reason}`
-        );
       }
 
       // --- 最終設定 ---
@@ -325,17 +389,15 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
           // 正投影カメラでも最小/最大スケールを適用
           scaleFactor = Math.max(
             this.userData.minScaleFactor,
-            Math.min(scaleFactor, this.userData.maxScaleFactor)
+            Math.min(scaleFactor, this.userData.maxScaleFactor),
           );
         } else {
           // 透視投影カメラの場合は従来通り距離ベースでスケール
-          const distance = spriteWorldPosition.distanceTo(
-            cameraInstance.position
-          );
+          const distance = spriteWorldPosition.distanceTo(cameraInstance.position);
           scaleFactor = distance / this.userData.referenceDistance;
           scaleFactor = Math.max(
             this.userData.minScaleFactor,
-            Math.min(scaleFactor, this.userData.maxScaleFactor)
+            Math.min(scaleFactor, this.userData.maxScaleFactor),
           );
         }
 
@@ -348,18 +410,12 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
     const shouldBeVisible = labelCheckbox ? labelCheckbox.checked : false;
     sprite.visible = shouldBeVisible;
 
-    console.log(
-      `LabelSprite created for ${elementType}: initial visibility = ${shouldBeVisible} (checkbox checked: ${
-        labelCheckbox ? labelCheckbox.checked : 'not found'
-      })`
-    );
-
     if (spriteGroup) {
       spriteGroup.add(sprite);
     }
     return sprite;
   } catch (error) {
-    console.error('Error creating label sprite:', error);
+    log.error('Error creating label sprite:', error);
     return null;
   }
 }
@@ -376,23 +432,14 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
  * @param {Object} [options={}] - オプション (fontSize, colorなど)
  * @returns {THREE.Sprite} 作成されたラベルスプライト
  */
-export function createLabel(
-  text,
-  x,
-  y,
-  z,
-  elementType,
-  elementId,
-  modelSource,
-  options = {}
-) {
+export function createLabel(text, x, y, z, elementType, elementId, modelSource, options = {}) {
   const fontSize = options.fontSize || 16;
   const fontFamily = options.fontFamily || 'Arial';
   const textColor = options.color || 'rgba(0, 0, 0, 1)'; // デフォルトは黒
-  const backgroundColor = options.backgroundColor || 'rgba(255, 255, 255, 0)'; // 透明背景
-  const borderColor = options.borderColor || 'rgba(0, 0, 0, 0)'; // 境界線も透明
+  // const backgroundColor = options.backgroundColor || 'rgba(255, 255, 255, 0)'; // 透明背景
+  // const borderColor = options.borderColor || 'rgba(0, 0, 0, 0)'; // 境界線も透明
   const padding = options.padding || 6; // パディングを少し増加
-  const borderRadius = options.borderRadius || 4; // 角丸を少し大きく
+  // const borderRadius = options.borderRadius || 4; // 角丸を少し大きく
 
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
@@ -432,18 +479,14 @@ export function createLabel(
     depthWrite: false, // 深度バッファ書き込み無効
     alphaTest: 0.01, // 透明背景のため閾値を低く設定
     // レンダー順序を高く設定してより前面に表示
-    renderOrder: 1000
+    renderOrder: 1000,
   });
 
   const sprite = new THREE.Sprite(material);
 
   // スプライトのスケールを調整して、画面上でのサイズ感を一定に保つ
   const scaleFactor = 0.1; // この値を調整して基本サイズを決める
-  sprite.scale.set(
-    canvas.width * scaleFactor,
-    canvas.height * scaleFactor,
-    1.0
-  );
+  sprite.scale.set(canvas.width * scaleFactor, canvas.height * scaleFactor, 1.0);
 
   // ラベルを要素から少し前面にオフセット
   const labelOffset = new THREE.Vector3(0, 0, 25); // Z方向に25mm前面に移動
@@ -459,19 +502,13 @@ export function createLabel(
     elementType: elementType, // ラベルがどの要素タイプに属するか
     elementId: elementId, // 関連する要素のID
     modelSource: modelSource, // どのモデル由来か
-    originalText: text // 元のテキスト
+    originalText: text, // 元のテキスト
   };
 
   // 初期状態はチェックボックスの状態に基づいて設定
   const labelCheckbox = document.getElementById(`toggleLabel-${elementType}`);
   const shouldBeVisible = labelCheckbox ? labelCheckbox.checked : false;
   sprite.visible = shouldBeVisible;
-
-  console.log(
-    `Label created for ${elementType}: initial visibility = ${shouldBeVisible} (checkbox checked: ${
-      labelCheckbox ? labelCheckbox.checked : 'not found'
-    })`
-  );
 
   return sprite;
 }

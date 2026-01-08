@@ -1,0 +1,273 @@
+/**
+ * @fileoverview 要素再描画設定レジストリ
+ *
+ * 各要素タイプの再描画設定を一元管理します。
+ * viewModes.jsの重複関数を統一するために使用されます。
+ *
+ * @module config/elementRedrawConfig
+ */
+
+// ジオメトリジェネレータファクトリーから一括インポート
+import {
+  ProfileBasedColumnGenerator,
+  ProfileBasedPostGenerator,
+  ProfileBasedBeamGenerator,
+  ProfileBasedBraceGenerator,
+  PileGenerator,
+  FootingGenerator,
+  ProfileBasedFoundationColumnGenerator,
+  SlabGenerator,
+  WallGenerator,
+  ParapetGenerator,
+  StripFootingGenerator,
+} from '../viewer/geometry/GeometryGeneratorFactory.js';
+
+/**
+ * @typedef {Object} ElementRedrawConfig
+ * @property {string} elementType - 要素タイプ名
+ * @property {string} stbTagName - STB XMLタグ名
+ * @property {string} nodeStartAttr - 開始ノード属性名
+ * @property {string|null} nodeEndAttr - 終了ノード属性（単一ノード要素はnull）
+ * @property {Object} generator - ジェネレータークラス
+ * @property {string} generatorMethod - ジェネレーターメソッド名
+ * @property {string} elementsKey - stbData内の要素キー
+ * @property {string} sectionsKey - stbData内の断面キー
+ * @property {boolean} [supportsLineMode=true] - 線表示モードをサポートするか
+ */
+
+/**
+ * 要素再描画設定マップ
+ * @type {Map<string, ElementRedrawConfig>}
+ */
+export const ELEMENT_REDRAW_CONFIGS = new Map([
+  // 垂直要素（2ノード: bottom-top）
+  [
+    'Column',
+    {
+      elementType: 'Column',
+      stbTagName: 'StbColumn',
+      nodeStartAttr: 'id_node_bottom',
+      nodeEndAttr: 'id_node_top',
+      generator: ProfileBasedColumnGenerator,
+      generatorMethod: 'createColumnMeshes',
+      elementsKey: 'columnElements',
+      sectionsKey: 'columnSections',
+    },
+  ],
+  [
+    'Post',
+    {
+      elementType: 'Post',
+      stbTagName: 'StbPost',
+      nodeStartAttr: 'id_node_bottom',
+      nodeEndAttr: 'id_node_top',
+      generator: ProfileBasedPostGenerator,
+      generatorMethod: 'createPostMeshes',
+      elementsKey: 'postElements',
+      sectionsKey: 'postSections',
+    },
+  ],
+
+  // 水平要素（2ノード: start-end）
+  [
+    'Girder',
+    {
+      elementType: 'Girder',
+      stbTagName: 'StbGirder',
+      nodeStartAttr: 'id_node_start',
+      nodeEndAttr: 'id_node_end',
+      generator: ProfileBasedBeamGenerator,
+      generatorMethod: 'createBeamMeshes',
+      elementsKey: 'girderElements',
+      sectionsKey: 'girderSections',
+    },
+  ],
+  [
+    'Beam',
+    {
+      elementType: 'Beam',
+      stbTagName: 'StbBeam',
+      nodeStartAttr: 'id_node_start',
+      nodeEndAttr: 'id_node_end',
+      generator: ProfileBasedBeamGenerator,
+      generatorMethod: 'createBeamMeshes',
+      elementsKey: 'beamElements',
+      sectionsKey: 'beamSections',
+    },
+  ],
+  [
+    'Brace',
+    {
+      elementType: 'Brace',
+      stbTagName: 'StbBrace',
+      nodeStartAttr: 'id_node_start',
+      nodeEndAttr: 'id_node_end',
+      generator: ProfileBasedBraceGenerator,
+      generatorMethod: 'createBraceMeshes',
+      elementsKey: 'braceElements',
+      sectionsKey: 'braceSections',
+    },
+  ],
+  [
+    'Parapet',
+    {
+      elementType: 'Parapet',
+      stbTagName: 'StbParapet',
+      nodeStartAttr: 'id_node_start',
+      nodeEndAttr: 'id_node_end',
+      generator: ParapetGenerator,
+      generatorMethod: 'createParapetMeshes',
+      elementsKey: 'parapetElements',
+      sectionsKey: 'parapetSections',
+    },
+  ],
+  [
+    'StripFooting',
+    {
+      elementType: 'StripFooting',
+      stbTagName: 'StbStripFooting',
+      nodeStartAttr: 'id_node_start',
+      nodeEndAttr: 'id_node_end',
+      generator: StripFootingGenerator,
+      generatorMethod: 'createStripFootingMeshes',
+      elementsKey: 'stripFootingElements',
+      sectionsKey: 'footingSections',
+    },
+  ],
+
+  // 杭（2ノード: bottom-top）
+  [
+    'Pile',
+    {
+      elementType: 'Pile',
+      stbTagName: 'StbPile',
+      nodeStartAttr: 'id_node_bottom',
+      nodeEndAttr: 'id_node_top',
+      generator: PileGenerator,
+      generatorMethod: 'createPileMeshes',
+      elementsKey: 'pileElements',
+      sectionsKey: 'pileSections',
+    },
+  ],
+
+  // 単一ノード要素
+  [
+    'Footing',
+    {
+      elementType: 'Footing',
+      stbTagName: 'StbFooting',
+      nodeStartAttr: 'id_node',
+      nodeEndAttr: null,
+      generator: FootingGenerator,
+      generatorMethod: 'createFootingMeshes',
+      elementsKey: 'footingElements',
+      sectionsKey: 'footingSections',
+      supportsLineMode: false,
+    },
+  ],
+  [
+    'FoundationColumn',
+    {
+      elementType: 'FoundationColumn',
+      stbTagName: 'StbFoundationColumn',
+      nodeStartAttr: 'id_node',
+      nodeEndAttr: null,
+      generator: ProfileBasedFoundationColumnGenerator,
+      generatorMethod: 'createFoundationColumnMeshes',
+      elementsKey: 'foundationColumnElements',
+      sectionsKey: 'foundationcolumnSections',
+    },
+  ],
+
+  // ポリゴン要素（複数ノード）
+  [
+    'Slab',
+    {
+      elementType: 'Slab',
+      stbTagName: 'StbSlab',
+      nodeStartAttr: 'node_ids',
+      nodeEndAttr: null,
+      generator: SlabGenerator,
+      generatorMethod: 'createSlabMeshes',
+      elementsKey: 'slabElements',
+      sectionsKey: 'slabSections',
+      supportsLineMode: true, // パネル表示（面＋輪郭）をサポート
+    },
+  ],
+  [
+    'Wall',
+    {
+      elementType: 'Wall',
+      stbTagName: 'StbWall',
+      nodeStartAttr: 'node_ids',
+      nodeEndAttr: null,
+      generator: WallGenerator,
+      generatorMethod: 'createWallMeshes',
+      elementsKey: 'wallElements',
+      sectionsKey: 'wallSections',
+      supportsLineMode: true, // パネル表示（面＋輪郭）をサポート
+    },
+  ],
+]);
+
+/**
+ * 要素タイプの設定を取得
+ * @param {string} elementType - 要素タイプ名
+ * @returns {ElementRedrawConfig|undefined} 設定オブジェクト
+ */
+export function getElementRedrawConfig(elementType) {
+  return ELEMENT_REDRAW_CONFIGS.get(elementType);
+}
+
+/**
+ * すべての要素タイプ名を取得
+ * @returns {string[]} 要素タイプ名の配列
+ */
+export function getAllElementTypes() {
+  return Array.from(ELEMENT_REDRAW_CONFIGS.keys());
+}
+
+/**
+ * 特定の機能をサポートする要素タイプを取得
+ * @param {string} feature - 機能名（例: 'supportsLineMode'）
+ * @param {boolean} [value=true] - 期待する値
+ * @returns {string[]} 要素タイプ名の配列
+ */
+export function getElementTypesByFeature(feature, value = true) {
+  const types = [];
+  for (const [type, config] of ELEMENT_REDRAW_CONFIGS) {
+    const featureValue = config[feature] !== undefined ? config[feature] : true;
+    if (featureValue === value) {
+      types.push(type);
+    }
+  }
+  return types;
+}
+
+/**
+ * 2ノード（線）要素のタイプを取得
+ * @returns {string[]} 2ノード要素タイプ名の配列
+ */
+export function getLineElementTypes() {
+  const types = [];
+  for (const [type, config] of ELEMENT_REDRAW_CONFIGS) {
+    if (config.nodeEndAttr !== null) {
+      types.push(type);
+    }
+  }
+  return types;
+}
+
+/**
+ * 単一ノード要素のタイプを取得
+ * @returns {string[]} 単一ノード要素タイプ名の配列
+ */
+export function getSingleNodeElementTypes() {
+  const types = [];
+  for (const [type, config] of ELEMENT_REDRAW_CONFIGS) {
+    if (config.nodeEndAttr === null) {
+      types.push(type);
+    }
+  }
+  return types;
+}

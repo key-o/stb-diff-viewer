@@ -15,6 +15,12 @@
  */
 
 import * as THREE from 'three';
+import { createLogger } from '../../utils/logger.js';
+import { OrbitLikeControlsShim, MinimalControls } from '../controls/orbitLikeControlsShim.js';
+import { getFrustumCuller } from '../rendering/FrustumCuller.js';
+
+const log = createLogger('viewer/core/core');
+
 // CameraControls を使用（OrbitControls から移行）
 // CameraControls is only needed in the browser. Dynamically import it there to avoid
 // attempting to load remote ESM modules in Node (which would fail the tests).
@@ -23,38 +29,33 @@ let CameraControlsPromise = null;
 if (typeof window !== 'undefined') {
   // Start loading CameraControls asynchronously and keep the promise so
   // initRenderer can wait for it before instantiating controls.
-  CameraControlsPromise = import(
-    'https://unpkg.com/camera-controls@3.1.0/dist/camera-controls.module.js'
-  )
-    .then((mod) => {
-      CameraControls = mod.default || mod;
-      // install THREE reference into CameraControls (some distributions require this)
-      if (CameraControls && typeof CameraControls.install === 'function') {
-        CameraControls.install({ THREE });
-      }
-    })
-    .catch((err) => {
-      console.warn('CameraControls の読み込みに失敗しました:', err);
-      CameraControls = null;
-    });
+  CameraControlsPromise =
+    import('https://unpkg.com/camera-controls@3.1.0/dist/camera-controls.module.js')
+      .then((mod) => {
+        CameraControls = mod.default || mod;
+        // install THREE reference into CameraControls (some distributions require this)
+        if (CameraControls && typeof CameraControls.install === 'function') {
+          CameraControls.install({ THREE });
+        }
+      })
+      .catch((err) => {
+        log.warn('CameraControls の読み込みに失敗しました:', err);
+        CameraControls = null;
+      });
 }
 
 // --- 定数 ---
-export const SUPPORTED_ELEMENTS = [
-  'Node',
-  'Column',
-  'Post',
-  'Girder',
-  'Beam',
-  'Brace',
-  'Slab',
-  'Wall',
-  'Axis',
-  'Story',
-  'Pile',
-  'Footing',
-  'FoundationColumn'
-];
+// 要素タイプ定義は js/config/elementTypes.js で一元管理
+// three依存を持たないため、テスト環境でも安全にインポート可能
+import {
+  SUPPORTED_ELEMENTS,
+  DISPLAY_MODE_ELEMENTS,
+  LABEL_ELEMENTS,
+  COLOR_ELEMENTS,
+  ELEMENT_CATEGORIES,
+  SUPPORTED_ELEMENTS_SET,
+  isSupportedElement,
+} from '../../config/elementTypes.js';
 
 // --- Three.js シーン / カメラ / レンダラー ---
 // エクスポートは必ず行うが、Node (tests) 環境ではブラウザ用初期化を行わない
@@ -79,7 +80,7 @@ if (typeof window !== 'undefined') {
     window.innerWidth / window.innerHeight,
     // ★★★ near/far を mm スケールに調整 ★★★
     10, // near: 10mm
-    50000000 // far: 50km
+    50000000, // far: 50km
   );
   camera.position.set(10000, 10000, 10000);
   camera.up.set(0, 0, 1);
@@ -88,12 +89,12 @@ if (typeof window !== 'undefined') {
   const aspect = window.innerWidth / window.innerHeight;
   const frustumSize = 20000; // モデルサイズに応じて調整可能（デフォルト20m）
   orthographicCamera = new THREE.OrthographicCamera(
-    -frustumSize * aspect / 2, // left
-    frustumSize * aspect / 2,  // right
-    frustumSize / 2,            // top
-    -frustumSize / 2,           // bottom
-    1,                          // near
-    50000000                    // far: 50km
+    (-frustumSize * aspect) / 2, // left
+    (frustumSize * aspect) / 2, // right
+    frustumSize / 2, // top
+    -frustumSize / 2, // bottom
+    1, // near
+    50000000, // far: 50km
   );
   orthographicCamera.position.set(0, 0, 20000); // 上から見下ろす位置
   orthographicCamera.up.set(0, 1, 0); // Y軸が上
@@ -118,7 +119,7 @@ if (typeof window !== 'undefined') {
     frustumSize / 2,
     -frustumSize / 2,
     1,
-    50000000
+    50000000,
   );
 
   activeCamera = camera; // テスト環境でもactiveCameraを設定
@@ -142,249 +143,13 @@ export function setActiveCamera(newCamera) {
   activeCamera = newCamera;
 }
 
-// --- OrbitControls 互換の薄いラッパー（既存コードとの互換維持用） ---
-class TargetProxy extends THREE.Vector3 {
-  constructor(shim) {
-    super();
-    this._shim = shim;
-  }
-  set(x, y, z) {
-    super.set(x, y, z);
-    this._shim._cc.setTarget(this.x, this.y, this.z, false);
-    return this;
-  }
-  copy(v) {
-    super.copy(v);
-    this._shim._cc.setTarget(this.x, this.y, this.z, false);
-    return this;
-  }
-  lerpVectors(v1, v2, alpha) {
-    super.lerpVectors(v1, v2, alpha);
-    this._shim._cc.setTarget(this.x, this.y, this.z, false);
-    return this;
-  }
-}
-
-class OrbitLikeControlsShim {
-  constructor(camera, domElement) {
-    this._cc = new CameraControls(camera, domElement);
-    this._camera = camera;
-    this._dom = domElement;
-
-    // target 互換
-    this.target = new TargetProxy(this);
-    this._cc.getTarget(this.target);
-
-    // 既定の制御フラグ
-    this._enableRotate = true;
-    this._enableZoom = true;
-    this._enablePan = true;
-    this._screenSpacePanning = true; // ダミー（CameraControls は画面空間トラック）
-
-    // 既定のマウスボタン割り当て（OrbitControls 互換表現）
-    this._mouseButtonsOrbit = {
-      LEFT: THREE.MOUSE.ROTATE,
-      MIDDLE: THREE.MOUSE.DOLLY,
-      RIGHT: THREE.MOUSE.PAN
-    };
-    this._applyMouseButtons();
-
-    // ポーラー角制限（CameraControls は同名プロパティあり）
-    this.minPolarAngle = 0;
-    this.maxPolarAngle = Math.PI;
-
-    // 方位角制限（無制限に設定）
-    this.minAzimuthAngle = -Infinity;
-    this.maxAzimuthAngle = Infinity;
-
-    // 距離制限
-    this.minDistance = 0;
-    this.maxDistance = Infinity;
-
-    // ダンピング相当（smoothTime）
-    this._enableDamping = true;
-    this.dampingFactor = 0.05;
-    this._applyDamping();
-
-    // イベント変換
-    this._listeners = new Map(); // key: type, value: Set of wrapped listeners
-  }
-
-  // --- 互換プロパティ ---
-  get enabled() {
-    return this._cc.enabled;
-  }
-  set enabled(v) {
-    this._cc.enabled = !!v;
-  }
-
-  get enableRotate() {
-    return this._enableRotate;
-  }
-  set enableRotate(v) {
-    this._enableRotate = !!v;
-    this._applyMouseButtons();
-  }
-  get enableZoom() {
-    return this._enableZoom;
-  }
-  set enableZoom(v) {
-    this._enableZoom = !!v;
-    this._applyMouseButtons();
-  }
-  get enablePan() {
-    return this._enablePan;
-  }
-  set enablePan(v) {
-    this._enablePan = !!v;
-    this._applyMouseButtons();
-  }
-
-  get screenSpacePanning() {
-    return this._screenSpacePanning;
-  }
-  set screenSpacePanning(v) {
-    // CameraControls は画面空間トラックが基本のため、値は保持のみ
-    this._screenSpacePanning = !!v;
-  }
-
-  get mouseButtons() {
-    return { ...this._mouseButtonsOrbit };
-  }
-  set mouseButtons(mapping) {
-    if (mapping && typeof mapping === 'object') {
-      this._mouseButtonsOrbit = { ...this._mouseButtonsOrbit, ...mapping };
-      this._applyMouseButtons();
-    }
-  }
-
-  _applyMouseButtons() {
-    const A = CameraControls.ACTION;
-    const mapOne = (btn) => {
-      const v = this._mouseButtonsOrbit[btn];
-      if (v === THREE.MOUSE.ROTATE)
-        return this._enableRotate ? A.ROTATE : A.NONE;
-      if (v === THREE.MOUSE.DOLLY) return this._enableZoom ? A.DOLLY : A.NONE;
-      if (v === THREE.MOUSE.PAN) return this._enablePan ? A.TRUCK : A.NONE;
-      return A.NONE;
-    };
-    this._cc.mouseButtons.left = mapOne('LEFT');
-    this._cc.mouseButtons.middle = mapOne('MIDDLE');
-    this._cc.mouseButtons.right = mapOne('RIGHT');
-  }
-
-  _applyDamping() {
-    // OrbitControls の enableDamping/dampingFactor を smoothTime に対応付け
-    this._cc.smoothTime = this._enableDamping
-      ? Math.max(0, this.dampingFactor)
-      : 0;
-  }
-
-  get enableDamping() {
-    return this._enableDamping;
-  }
-  set enableDamping(v) {
-    this._enableDamping = !!v;
-    this._applyDamping();
-  }
-
-  // 距離・角度制限は CameraControls に直結
-  set minPolarAngle(v) {
-    this._cc.minPolarAngle = v;
-  }
-  get minPolarAngle() {
-    return this._cc.minPolarAngle;
-  }
-  set maxPolarAngle(v) {
-    this._cc.maxPolarAngle = v;
-  }
-  get maxPolarAngle() {
-    return this._cc.maxPolarAngle;
-  }
-  set minDistance(v) {
-    this._cc.minDistance = v;
-  }
-  get minDistance() {
-    return this._cc.minDistance;
-  }
-  set maxDistance(v) {
-    this._cc.maxDistance = v;
-  }
-  get maxDistance() {
-    return this._cc.maxDistance;
-  }
-
-  // 方位角の透過
-  set minAzimuthAngle(v) {
-    this._cc.minAzimuthAngle = v;
-  }
-  get minAzimuthAngle() {
-    return this._cc.minAzimuthAngle;
-  }
-  set maxAzimuthAngle(v) {
-    this._cc.maxAzimuthAngle = v;
-  }
-  get maxAzimuthAngle() {
-    return this._cc.maxAzimuthAngle;
-  }
-
-  // --- 互換メソッド ---
-  update(dt) {
-    const delta = typeof dt === 'number' ? dt : 0;
-    return this._cc.update(delta);
-  }
-
-  // ズーム挙動関連の透過プロパティ
-  get dollyToCursor() {
-    return this._cc.dollyToCursor;
-  }
-  set dollyToCursor(v) {
-    this._cc.dollyToCursor = !!v;
-  }
-  get infinityDolly() {
-    return this._cc.infinityDolly;
-  }
-  set infinityDolly(v) {
-    this._cc.infinityDolly = !!v;
-  }
-
-  // 既存コードからの直接呼び出し用（CameraControls の API を露出）
-  setOrbitPoint(x, y, z) {
-    this._cc.setOrbitPoint(x, y, z);
-    // target プロキシも同期
-    this.target.set(x, y, z);
-  }
-  setTarget(x, y, z, smooth = false) {
-    this._cc.setTarget(x, y, z, smooth);
-    this.target.set(x, y, z);
-  }
-  stop() {
-    this._cc.stop();
-  }
-
-  // イベント（start/end/change の互換レイヤ）
-  addEventListener(type, listener) {
-    const wrap = (e) => listener(e);
-    let ccType = type;
-    if (type === 'start') ccType = 'controlstart';
-    else if (type === 'end') ccType = 'controlend';
-    else if (type === 'change') ccType = 'update';
-    this._cc.addEventListener(ccType, wrap);
-    if (!this._listeners.has(type)) this._listeners.set(type, new Map());
-    this._listeners.get(type).set(listener, wrap);
-  }
-  removeEventListener(type, listener) {
-    const map = this._listeners.get(type);
-    if (!map) return;
-    const wrap = map.get(listener);
-    if (!wrap) return;
-    let ccType = type;
-    if (type === 'start') ccType = 'controlstart';
-    else if (type === 'end') ccType = 'controlend';
-    else if (type === 'change') ccType = 'update';
-    this._cc.removeEventListener(ccType, wrap);
-    map.delete(listener);
-  }
+/**
+ * アクティブなコントロールを設定
+ * common-viewerのCameraManagerからコントロールを同期する際に使用
+ * @param {Object} newControls - 新しいコントロール
+ */
+export function setActiveControls(newControls) {
+  controls = newControls;
 }
 
 // --- ライト設定 ---
@@ -397,6 +162,7 @@ scene.add(ambientLight);
 // --- ヘルパー設定 ---
 // ★★★ AxesHelper のサイズを mm スケールに調整 ★★★
 export const axesHelper = new THREE.AxesHelper(5000); // 5m
+axesHelper.visible = false; // デフォルトは非表示
 scene.add(axesHelper);
 // ★★★ GridHelper の初期サイズと分割数を mm スケールに調整 ★★★
 export const gridHelper = new THREE.GridHelper(100000, 100); // 100m grid, 1m divisions
@@ -421,22 +187,19 @@ export async function initRenderer() {
   try {
     const canvas = document.getElementById('three-canvas');
     if (!canvas) {
-      console.error("ID 'three-canvas'のキャンバス要素が見つかりません。");
+      log.error("ID 'three-canvas'のキャンバス要素が見つかりません。");
       return false;
     }
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
-    console.log('Renderer created. Canvas element found:', canvas);
     // 出力してWebGLコンテキストが取得できているか確認
     try {
       const gl = renderer.getContext && renderer.getContext();
-      console.log('WebGL context available:', !!gl, gl && (gl.getParameter ? gl.getParameter(gl.VERSION) : null));
     } catch (e) {
-      console.warn('WebGL context check failed:', e);
+      log.warn('WebGL context check failed:', e);
     }
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.localClippingEnabled = true;
-    console.log('Renderer size set:', renderer.domElement.clientWidth, renderer.domElement.clientHeight);
 
     // CameraControls の読み込みが進行中であれば待機する
     if (CameraControlsPromise) {
@@ -444,7 +207,7 @@ export async function initRenderer() {
         await CameraControlsPromise;
       } catch (e) {
         // 既に警告は出しているが、ここではフォールバックとして続行
-        console.warn('CameraControls の初期化待機中にエラーが発生しました:', e);
+        log.warn('CameraControls の初期化待機中にエラーが発生しました:', e);
       }
     }
 
@@ -452,36 +215,9 @@ export async function initRenderer() {
     // CameraControls が利用できない場合は、致命的エラーにせず
     // 最小限のフォールバックコントロールを用意してレンダリングを継続する
     if (CameraControls) {
-      controls = new OrbitLikeControlsShim(camera, renderer.domElement);
+      controls = new OrbitLikeControlsShim(camera, renderer.domElement, CameraControls);
     } else {
-      console.warn(
-        'CameraControls が利用できません。フォールバックの最小コントロールを使用します。'
-      );
-
-      class MinimalControls {
-        constructor(cameraArg, domElement) {
-          this.camera = cameraArg;
-          this.domElement = domElement || document;
-          this.target = new THREE.Vector3();
-          this.enableDamping = false;
-          this.dampingFactor = 0.0;
-          this.screenSpacePanning = false;
-          this.minDistance = 0;
-          this.maxDistance = Infinity;
-          this.maxPolarAngle = Math.PI;
-          this.mouseButtons = {
-            LEFT: THREE.MOUSE.ROTATE,
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.PAN
-          };
-        }
-        // 既存コードは controls.update(dt) を呼ぶだけなので noop 実装で良い
-        update(_dt) {}
-        stop() {}
-        addEventListener() {}
-        removeEventListener() {}
-      }
-
+      log.warn('CameraControls が利用できません。フォールバックの最小コントロールを使用します。');
       controls = new MinimalControls(camera, renderer.domElement);
     }
 
@@ -498,13 +234,12 @@ export async function initRenderer() {
     controls.mouseButtons = {
       LEFT: THREE.MOUSE.ROTATE,
       MIDDLE: THREE.MOUSE.DOLLY,
-      RIGHT: THREE.MOUSE.PAN
+      RIGHT: THREE.MOUSE.PAN,
     };
 
-    console.log('レンダラーが初期化されました。');
     return true;
   } catch (error) {
-    console.error('レンダラーの初期化に失敗しました:', error);
+    log.error('レンダラーの初期化に失敗しました:', error);
     controls = null; // エラー時は controls も null に戻す
     return false;
   }
@@ -516,6 +251,27 @@ export function setSkipControlsUpdate(skip) {
   skipControlsUpdate = skip;
 }
 
+// フラスタムカリングの有効/無効フラグ
+let frustumCullingEnabled = false;
+
+/**
+ * フラスタムカリングの有効/無効を設定
+ * @param {boolean} enabled - true で有効化
+ */
+export function setFrustumCullingEnabled(enabled) {
+  frustumCullingEnabled = enabled;
+  const culler = getFrustumCuller(activeCamera);
+  culler.setEnabled(enabled, scene);
+}
+
+/**
+ * フラスタムカリングの状態を取得
+ * @returns {boolean}
+ */
+export function isFrustumCullingEnabled() {
+  return frustumCullingEnabled;
+}
+
 // --- アニメーションループ ---
 /**
  * アニメーションループを開始
@@ -523,7 +279,11 @@ export function setSkipControlsUpdate(skip) {
  * @param {THREE.Scene} scene - レンダリングするシーン
  * @param {THREE.Camera} [camera] - 使用するカメラ（省略時はactiveCameraを使用）
  */
-export function animate(controls, scene, camera) {
+export function animate(initialControls, scene, camera) {
+  // フラスタムカリング用のカウンター（毎フレームではなく一定間隔で実行）
+  let cullingFrameCounter = 0;
+  const CULLING_INTERVAL = 3; // 3フレームごとにカリング実行
+
   // delta を渡して CameraControls を更新
   const _animate = () => {
     requestAnimationFrame(_animate);
@@ -531,10 +291,25 @@ export function animate(controls, scene, camera) {
     if (!skipControlsUpdate) {
       // 時間差分（秒）
       const dt = _clock.getDelta();
-      controls.update(dt);
+      // 常に最新のcontrolsを使用（common-viewerによる置き換えに対応）
+      const currentControls = controls || initialControls;
+      if (currentControls && typeof currentControls.update === 'function') {
+        currentControls.update(dt);
+      }
     }
     // カメラが指定されていない場合はactiveCameraを使用
     const renderCamera = camera || activeCamera;
+
+    // フラスタムカリング（有効な場合のみ、一定間隔で実行）
+    if (frustumCullingEnabled) {
+      cullingFrameCounter++;
+      if (cullingFrameCounter >= CULLING_INTERVAL) {
+        cullingFrameCounter = 0;
+        const culler = getFrustumCuller(renderCamera);
+        culler.cullElementGroups(elementGroups);
+      }
+    }
+
     renderer.render(scene, renderCamera);
   };
   // アニメーション開始（多重開始防止のため、1回目の呼び出しでループセット）
@@ -572,8 +347,8 @@ export function setupViewportResizeHandler(defaultCamera) {
       // OrthographicCamera の更新（frustumサイズを維持してアスペクト比を調整）
       if (orthographicCamera) {
         const frustumSize = orthographicCamera.top * 2; // 現在のfrustumサイズを取得
-        orthographicCamera.left = -frustumSize * aspect / 2;
-        orthographicCamera.right = frustumSize * aspect / 2;
+        orthographicCamera.left = (-frustumSize * aspect) / 2;
+        orthographicCamera.right = (frustumSize * aspect) / 2;
         orthographicCamera.top = frustumSize / 2;
         orthographicCamera.bottom = -frustumSize / 2;
         orthographicCamera.updateProjectionMatrix();
@@ -581,7 +356,7 @@ export function setupViewportResizeHandler(defaultCamera) {
 
       renderer.setSize(window.innerWidth, window.innerHeight);
     },
-    false
+    false,
   );
 }
 

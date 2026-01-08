@@ -25,7 +25,7 @@ const DEFAULT_CONFIG = {
   /** 最大表示数 */
   maxToasts: 5,
   /** アニメーション時間（ms） */
-  animationDuration: 300
+  animationDuration: 300,
 };
 
 /** @type {typeof DEFAULT_CONFIG} */
@@ -73,7 +73,7 @@ function getContainerStyles() {
     'top-right': 'top: 20px; right: 20px;',
     'bottom-left': 'bottom: 20px; left: 20px;',
     'bottom-center': 'bottom: 20px; left: 50%; transform: translateX(-50%);',
-    'bottom-right': 'bottom: 20px; right: 20px;'
+    'bottom-right': 'bottom: 20px; right: 20px;',
   };
 
   return baseStyles + (positions[config.position] || positions['bottom-right']);
@@ -93,12 +93,7 @@ export function showToast(options) {
     initializeToast();
   }
 
-  const {
-    message,
-    type = 'info',
-    duration = config.duration,
-    closable = true
-  } = options;
+  const { message, type = 'info', duration = config.duration, closable = true } = options;
 
   // 最大数を超えている場合、古いトーストを削除
   while (activeToasts.size >= config.maxToasts) {
@@ -196,7 +191,7 @@ function getToastStyles(type) {
     success: { bg: 'var(--color-success)', text: '#fff' },
     error: { bg: 'var(--color-danger)', text: '#fff' },
     warning: { bg: 'var(--color-warning)', text: '#fff' },
-    info: { bg: 'var(--color-info)', text: '#fff' }
+    info: { bg: 'var(--color-info)', text: '#fff' },
   };
 
   const { bg, text } = colors[type] || colors.info;
@@ -223,10 +218,10 @@ function getToastStyles(type) {
  */
 function getTypeIcon(type) {
   const icons = {
-    success: '&#10004;', // チェックマーク
-    error: '&#10006;',   // ×マーク
-    warning: '&#9888;',  // 警告マーク
-    info: '&#8505;'      // 情報マーク
+    success: '✔️', // チェックマーク
+    error: '✖️', // ×マーク
+    warning: '⚠️', // 警告マーク
+    info: 'ℹ️', // 情報マーク
   };
   return icons[type] || icons.info;
 }

@@ -1,0 +1,48 @@
+/**
+ * @fileoverview 仮想スクロール設定（単一の情報源 - SSOT）
+ *
+ * ツリービューなどで使用する仮想スクロールの設定を一元管理します。
+ */
+
+/**
+ * 仮想スクロール設定
+ */
+export const VIRTUAL_SCROLL_CONFIG = {
+  /** 仮想スクロールを有効にする要素数の閾値 */
+  THRESHOLD: 1000,
+
+  /** アイテムの高さ（px）- コンテキスト別 */
+  ITEM_HEIGHT: {
+    /** 要素ツリービューのアイテム高さ */
+    element: 32,
+    /** 断面ツリービューのアイテム高さ */
+    section: 28,
+    /** デフォルトのアイテム高さ */
+    default: 30,
+  },
+
+  /** バッファサイズ（表示領域外に事前レンダリングする行数） */
+  BUFFER_SIZE: 10,
+
+  /** スクロールデバウンス時間（ms） */
+  SCROLL_DEBOUNCE_MS: 16,
+};
+
+/**
+ * 仮想スクロールの閾値を取得
+ * @returns {number} 閾値
+ */
+export function getVirtualScrollThreshold() {
+  return VIRTUAL_SCROLL_CONFIG.THRESHOLD;
+}
+
+/**
+ * コンテキストに応じたアイテム高さを取得
+ * @param {string} context - コンテキスト名（'element', 'section', 'default'）
+ * @returns {number} アイテム高さ（px）
+ */
+export function getVirtualItemHeight(context = 'default') {
+  return VIRTUAL_SCROLL_CONFIG.ITEM_HEIGHT[context] || VIRTUAL_SCROLL_CONFIG.ITEM_HEIGHT.default;
+}
+
+export default VIRTUAL_SCROLL_CONFIG;

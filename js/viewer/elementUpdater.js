@@ -10,6 +10,9 @@
  */
 
 import * as THREE from 'three';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('ElementUpdater');
 import { elementGroups } from './core/core.js';
 import { ProfileBasedColumnGenerator } from './geometry/ProfileBasedColumnGenerator.js';
 import { ProfileBasedPostGenerator } from './geometry/ProfileBasedPostGenerator.js';
@@ -18,6 +21,7 @@ import { ProfileBasedBraceGenerator } from './geometry/ProfileBasedBraceGenerato
 import { PileGenerator } from './geometry/PileGenerator.js';
 import { FootingGenerator } from './geometry/FootingGenerator.js';
 import { extractAllSections } from '../parser/sectionExtractor.js';
+import { scheduleRender } from '../utils/renderScheduler.js';
 
 /**
  * グループ内から特定の要素IDを持つメッシュを検索
@@ -40,8 +44,10 @@ function findMeshByElementId(group, elementId, modelSource) {
         return child;
       }
       // マッチした要素（両方のIDを持つ）
-      if (modelSource === 'matched' &&
-          (child.userData.elementIdA === elementId || child.userData.elementIdB === elementId)) {
+      if (
+        modelSource === 'matched' &&
+        (child.userData.elementIdA === elementId || child.userData.elementIdB === elementId)
+      ) {
         return child;
       }
       // 単一要素（elementIdを持つ）
@@ -79,7 +85,7 @@ function buildNodeMapFromDocument(doc) {
   if (!doc) return nodeMap;
 
   const nodes = doc.querySelectorAll('StbNode');
-  nodes.forEach(node => {
+  nodes.forEach((node) => {
     const id = node.getAttribute('id');
     const x = parseFloat(node.getAttribute('X') || 0);
     const y = parseFloat(node.getAttribute('Y') || 0);
@@ -99,33 +105,30 @@ function buildNodeMapFromDocument(doc) {
  * @returns {Promise<boolean>} 更新成功可否
  */
 export async function regenerateElementGeometry(elementType, elementId, modelSource = 'modelA') {
-  console.log(`[ElementUpdater] Regenerating ${elementType} ${elementId} from ${modelSource}`);
-
   try {
     // 1. グループとドキュメントを取得
     const group = elementGroups[elementType];
     if (!group) {
-      console.error(`[ElementUpdater] Element group not found: ${elementType}`);
+      logger.error(`Element group not found: ${elementType}`);
       return false;
     }
 
     const doc = modelSource === 'modelA' ? window.docA : window.docB;
     if (!doc) {
-      console.error(`[ElementUpdater] Document not found: ${modelSource}`);
+      logger.error(`Document not found: ${modelSource}`);
       return false;
     }
 
     // 2. 古いメッシュを削除
     const oldMesh = findMeshByElementId(group, elementId, modelSource);
     if (oldMesh) {
-      console.log(`[ElementUpdater] Removing old mesh for ${elementId}`);
       group.remove(oldMesh);
 
       // ジオメトリとマテリアルを破棄
       if (oldMesh.geometry) oldMesh.geometry.dispose();
       if (oldMesh.material) {
         if (Array.isArray(oldMesh.material)) {
-          oldMesh.material.forEach(mat => mat.dispose());
+          oldMesh.material.forEach((mat) => mat.dispose());
         } else {
           oldMesh.material.dispose();
         }
@@ -135,7 +138,7 @@ export async function regenerateElementGeometry(elementType, elementId, modelSou
     // 3. XMLから更新された要素データを取得
     const elementNode = getElementFromDocument(doc, elementType, elementId);
     if (!elementNode) {
-      console.error(`[ElementUpdater] Element not found in document: ${elementId}`);
+      logger.error(`Element not found in document: ${elementId}`);
       return false;
     }
 
@@ -144,31 +147,22 @@ export async function regenerateElementGeometry(elementType, elementId, modelSou
     const sections = extractAllSections(doc);
 
     // 5. 要素タイプに応じてジオメトリを生成
-    const newMesh = await generateMeshForElement(
-      elementType,
-      elementNode,
-      nodeMap,
-      sections
-    );
+    const newMesh = await generateMeshForElement(elementType, elementNode, nodeMap, sections);
 
     if (!newMesh) {
-      console.error(`[ElementUpdater] Failed to generate mesh for ${elementId}`);
+      logger.error(`Failed to generate mesh for ${elementId}`);
       return false;
     }
 
     // 6. 新しいメッシュをグループに追加
     group.add(newMesh);
-    console.log(`[ElementUpdater] Successfully regenerated ${elementType} ${elementId}`);
 
     // 7. レンダリング更新をリクエスト
-    if (typeof window.requestRender === 'function') {
-      window.requestRender();
-    }
+    scheduleRender();
 
     return true;
-
   } catch (error) {
-    console.error(`[ElementUpdater] Error regenerating ${elementType} ${elementId}:`, error);
+    logger.error(`Error regenerating ${elementType} ${elementId}:`, error);
     return false;
   }
 }
@@ -207,11 +201,11 @@ async function generateMeshForElement(elementType, elementNode, nodeMap, section
         return generateFootingMesh(elementData, nodeMap, sections);
 
       default:
-        console.warn(`[ElementUpdater] Unsupported element type: ${elementType}`);
+        logger.warn(`Unsupported element type: ${elementType}`);
         return null;
     }
   } catch (error) {
-    console.error(`[ElementUpdater] Error generating mesh for ${elementType}:`, error);
+    logger.error(`Error generating mesh for ${elementType}:`, error);
     return null;
   }
 }
@@ -225,7 +219,7 @@ function xmlNodeToObject(node) {
   const obj = {};
 
   // 全属性を取得
-  Array.from(node.attributes).forEach(attr => {
+  Array.from(node.attributes).forEach((attr) => {
     obj[attr.name] = attr.value;
   });
 
@@ -242,7 +236,7 @@ function generateColumnMesh(columnData, nodeMap, sections) {
     sections.columnSections,
     sections.steelSections,
     'Column',
-    false // isJsonInput
+    false, // isJsonInput
   );
 
   return meshes.length > 0 ? meshes[0] : null;
@@ -258,7 +252,7 @@ function generatePostMesh(postData, nodeMap, sections) {
     sections.postSections || sections.columnSections,
     sections.steelSections,
     'Post',
-    false
+    false,
   );
 
   return meshes.length > 0 ? meshes[0] : null;
@@ -269,9 +263,10 @@ function generatePostMesh(postData, nodeMap, sections) {
  */
 function generateBeamMesh(beamData, nodeMap, sections, elementType) {
   // elementType に応じて適切な断面マップを選択
-  const sectionMap = elementType === 'Girder'
-    ? (sections.girderSections || sections.beamSections)
-    : (sections.beamSections || sections.girderSections);
+  const sectionMap =
+    elementType === 'Girder'
+      ? sections.girderSections || sections.beamSections
+      : sections.beamSections || sections.girderSections;
 
   const meshes = ProfileBasedBeamGenerator.createBeamMeshes(
     [beamData],
@@ -279,7 +274,7 @@ function generateBeamMesh(beamData, nodeMap, sections, elementType) {
     sectionMap,
     sections.steelSections,
     elementType,
-    false
+    false,
   );
 
   return meshes.length > 0 ? meshes[0] : null;
@@ -295,7 +290,7 @@ function generateBraceMesh(braceData, nodeMap, sections) {
     sections.braceSections,
     sections.steelSections,
     'Brace',
-    false
+    false,
   );
 
   return meshes.length > 0 ? meshes[0] : null;
@@ -310,7 +305,7 @@ function generatePileMesh(pileData, nodeMap, sections) {
     nodeMap,
     sections.pileSections,
     'Pile',
-    false
+    false,
   );
 
   return meshes.length > 0 ? meshes[0] : null;
@@ -325,7 +320,7 @@ function generateFootingMesh(footingData, nodeMap, sections) {
     nodeMap,
     sections.footingSections,
     'Footing',
-    false
+    false,
   );
 
   return meshes.length > 0 ? meshes[0] : null;
@@ -341,7 +336,7 @@ export async function regenerateMultipleElements(elements, modelSource = 'modelA
   const results = {
     success: 0,
     failed: 0,
-    total: elements.length
+    total: elements.length,
   };
 
   for (const { elementType, elementId } of elements) {
@@ -353,6 +348,5 @@ export async function regenerateMultipleElements(elements, modelSource = 'modelA
     }
   }
 
-  console.log(`[ElementUpdater] Batch update complete:`, results);
   return results;
 }

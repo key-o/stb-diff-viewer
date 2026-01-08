@@ -27,12 +27,7 @@ export class IFCSTBExporter extends IFCBeamExporter {
   addSlab(slabData) {
     this._ensureInitialized();
     const w = this.writer;
-    const {
-      name = 'Slab',
-      vertices,
-      thickness = 150,
-      predefinedType = 'FLOOR'
-    } = slabData;
+    const { name = 'Slab', vertices, thickness = 150, predefinedType = 'FLOOR' } = slabData;
 
     if (!vertices || vertices.length < 3) {
       console.warn(`[IFC Export] 床 "${name}" をスキップ: 頂点が3点未満`);
@@ -60,14 +55,12 @@ export class IFCSTBExporter extends IFCBeamExporter {
     // ポリライン頂点を作成
     const polylinePoints = [];
     for (const v of vertices) {
-      const pointId = w.createEntity('IFCCARTESIANPOINT', [
-        [v.x - center.x, v.y - center.y]
-      ]);
+      const pointId = w.createEntity('IFCCARTESIANPOINT', [[v.x - center.x, v.y - center.y]]);
       polylinePoints.push(`#${pointId}`);
     }
     // 閉じる
     const firstPointId = w.createEntity('IFCCARTESIANPOINT', [
-      [vertices[0].x - center.x, vertices[0].y - center.y]
+      [vertices[0].x - center.x, vertices[0].y - center.y],
     ]);
     polylinePoints.push(`#${firstPointId}`);
 
@@ -76,7 +69,7 @@ export class IFCSTBExporter extends IFCBeamExporter {
     const profileId = w.createEntity('IFCARBITRARYCLOSEDPROFILEDEF', [
       '.AREA.',
       'SlabProfile',
-      `#${polylineId}`
+      `#${polylineId}`,
     ]);
 
     const extrudeDirId = w.createEntity('IFCDIRECTION', [[0.0, 0.0, -1.0]]);
@@ -85,35 +78,26 @@ export class IFCSTBExporter extends IFCBeamExporter {
       `#${profileId}`,
       null,
       `#${extrudeDirId}`,
-      thickness
+      thickness,
     ]);
 
-    const slabOrigin = w.createEntity('IFCCARTESIANPOINT', [
-      [center.x, center.y, topZ]
-    ]);
+    const slabOrigin = w.createEntity('IFCCARTESIANPOINT', [[center.x, center.y, topZ]]);
 
-    const slabPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
-      `#${slabOrigin}`,
-      null,
-      null
-    ]);
+    const slabPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [`#${slabOrigin}`, null, null]);
 
-    const slabLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
-      null,
-      `#${slabPlacement3D}`
-    ]);
+    const slabLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [null, `#${slabPlacement3D}`]);
 
     const shapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
       `#${this._refs.bodyContext}`,
       'Body',
       'SweptSolid',
-      [`#${solidId}`]
+      [`#${solidId}`],
     ]);
 
     const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
       null,
       null,
-      [`#${shapeRep}`]
+      [`#${shapeRep}`],
     ]);
 
     const slabId = w.createEntity('IFCSLAB', [
@@ -125,11 +109,11 @@ export class IFCSTBExporter extends IFCBeamExporter {
       `#${slabLocalPlacement}`,
       `#${productShape}`,
       null,
-      `.${predefinedType}.`
+      `.${predefinedType}.`,
     ]);
 
     // 床を階に所属させる（Z座標で適切な階を決定）
-    const slabZ = Math.min(...vertices.map(v => v.z));
+    const slabZ = Math.min(...vertices.map((v) => v.z));
     this._addToStorey(slabId, slabZ);
     return slabId;
   }
@@ -156,7 +140,7 @@ export class IFCSTBExporter extends IFCBeamExporter {
       height = 3000,
       thickness = 200,
       predefinedType = 'STANDARD',
-      openings = []
+      openings = [],
     } = wallData;
 
     if (!startPoint || !endPoint) {
@@ -183,8 +167,8 @@ export class IFCSTBExporter extends IFCBeamExporter {
       '.AREA.',
       'WallProfile',
       null,
-      wallLength,   // XDim: 壁の長さ
-      thickness     // YDim: 壁の厚さ
+      wallLength, // XDim: 壁の長さ
+      thickness, // YDim: 壁の厚さ
     ]);
 
     // 押出方向: Z軸（上向き）
@@ -193,9 +177,9 @@ export class IFCSTBExporter extends IFCBeamExporter {
     // 押出形状（Position = null でデフォルト原点から）
     const solidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
       `#${profileId}`,
-      null,               // Position: デフォルト
+      null, // Position: デフォルト
       `#${extrudeDirId}`,
-      height              // Depth: 壁の高さ
+      height, // Depth: 壁の高さ
     ]);
 
     // 壁の中心点を計算（始点と終点の中間）
@@ -203,35 +187,30 @@ export class IFCSTBExporter extends IFCBeamExporter {
     const centerY = (startPoint.y + endPoint.y) / 2;
 
     // 壁の配置原点
-    const wallOrigin = w.createEntity('IFCCARTESIANPOINT', [
-      [centerX, centerY, startPoint.z]
-    ]);
+    const wallOrigin = w.createEntity('IFCCARTESIANPOINT', [[centerX, centerY, startPoint.z]]);
 
     // 壁の向き: Z軸はデフォルト（上向き）、X軸は壁の長さ方向
     const wallRefDir = w.createEntity('IFCDIRECTION', [[dirX, dirY, 0.0]]);
 
     const wallPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
       `#${wallOrigin}`,
-      null,               // Axis: デフォルト（Z方向）
-      `#${wallRefDir}`    // RefDirection: 壁の長さ方向
+      null, // Axis: デフォルト（Z方向）
+      `#${wallRefDir}`, // RefDirection: 壁の長さ方向
     ]);
 
-    const wallLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
-      null,
-      `#${wallPlacement3D}`
-    ]);
+    const wallLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [null, `#${wallPlacement3D}`]);
 
     const shapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
       `#${this._refs.bodyContext}`,
       'Body',
       'SweptSolid',
-      [`#${solidId}`]
+      [`#${solidId}`],
     ]);
 
     const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
       null,
       null,
-      [`#${shapeRep}`]
+      [`#${shapeRep}`],
     ]);
 
     const wallId = w.createEntity('IFCWALL', [
@@ -243,7 +222,7 @@ export class IFCSTBExporter extends IFCBeamExporter {
       `#${wallLocalPlacement}`,
       `#${productShape}`,
       null,
-      `.${predefinedType}.`
+      `.${predefinedType}.`,
     ]);
 
     // 壁を階に所属させる（Z座標で適切な階を決定）
@@ -255,7 +234,7 @@ export class IFCSTBExporter extends IFCBeamExporter {
         wallLength,
         height,
         thickness,
-        wallLocalPlacement
+        wallLocalPlacement,
       });
     }
 
@@ -270,7 +249,7 @@ export class IFCSTBExporter extends IFCBeamExporter {
    */
   _addOpeningsToWall(wallId, openings, wallContext) {
     const w = this.writer;
-    const { wallLength, height, thickness, wallLocalPlacement } = wallContext;
+    const { wallLength, thickness, wallLocalPlacement } = wallContext;
 
     for (const opening of openings) {
       const openingWidth = opening.width;
@@ -290,8 +269,8 @@ export class IFCSTBExporter extends IFCBeamExporter {
         '.AREA.',
         'OpeningProfile',
         null,
-        openingWidth,     // 開口幅
-        thickness + 100   // 厚さ方向に少し大きくして完全に貫通させる
+        openingWidth, // 開口幅
+        thickness + 100, // 厚さ方向に少し大きくして完全に貫通させる
       ]);
 
       // 押出方向（Z軸）
@@ -302,30 +281,32 @@ export class IFCSTBExporter extends IFCBeamExporter {
         `#${openingProfileId}`,
         null,
         `#${extrudeDirId}`,
-        openingHeight
+        openingHeight,
       ]);
 
       // 開口の位置計算（壁ローカル座標系での位置）
       // positionX は壁の左端からの距離、positionY は下端からの高さ
       // 壁の中心が原点なので、オフセットを計算
       const openingCenterX = opening.positionX + openingWidth / 2 - wallLength / 2;
-      const openingCenterY = 0; // 壁厚方向は中央
+      // const openingCenterY = 0; // 壁厚方向は中央
       const openingCenterZ = opening.positionY; // 壁下端からの高さ
 
       // 開口の配置（壁ローカル座標系内）
+      // 開口プロファイルは原点を中心とするため、Y=0で壁の中心に配置
+      // プロファイルのYDimは thickness+100 なので、壁を完全に貫通する
       const openingOrigin = w.createEntity('IFCCARTESIANPOINT', [
-        [openingCenterX, openingCenterY - thickness / 2 - 50, openingCenterZ]
+        [openingCenterX, 0, openingCenterZ],
       ]);
 
       const openingPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
         `#${openingOrigin}`,
         null,
-        null
+        null,
       ]);
 
       const openingLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
         `#${wallLocalPlacement}`, // 壁を親とする
-        `#${openingPlacement3D}`
+        `#${openingPlacement3D}`,
       ]);
 
       // 形状表現
@@ -333,13 +314,13 @@ export class IFCSTBExporter extends IFCBeamExporter {
         `#${this._refs.bodyContext}`,
         'Body',
         'SweptSolid',
-        [`#${openingSolidId}`]
+        [`#${openingSolidId}`],
       ]);
 
       const openingProductShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
         null,
         null,
-        [`#${openingShapeRep}`]
+        [`#${openingShapeRep}`],
       ]);
 
       // IfcOpeningElementを作成
@@ -352,7 +333,7 @@ export class IFCSTBExporter extends IFCBeamExporter {
         `#${openingLocalPlacement}`,
         `#${openingProductShape}`,
         null,
-        '.OPENING.' // PredefinedType
+        '.OPENING.', // PredefinedType
       ]);
 
       // IfcRelVoidsElementで壁と開口を関連付け
@@ -361,12 +342,428 @@ export class IFCSTBExporter extends IFCBeamExporter {
         null,
         null,
         null,
-        `#${wallId}`,      // RelatingBuildingElement (壁)
-        `#${openingId}`    // RelatedOpeningElement (開口)
+        `#${wallId}`, // RelatingBuildingElement (壁)
+        `#${openingId}`, // RelatedOpeningElement (開口)
       ]);
-
-      console.log(`[IFC Export] 開口 "${openingName}" を壁に追加しました`);
     }
+  }
+
+  /**
+   * 基礎柱を追加
+   * @param {Object} foundationColumnData - 基礎柱データ
+   * @param {string} foundationColumnData.name - 基礎柱名
+   * @param {Object} foundationColumnData.bottomPoint - 底部座標 {x, y, z} (mm)
+   * @param {Object} foundationColumnData.topPoint - 頂部座標 {x, y, z} (mm)
+   * @param {Object} foundationColumnData.profile - プロファイル情報
+   * @param {string} foundationColumnData.profile.type - プロファイルタイプ ('H', 'BOX', 'PIPE', 'RECTANGLE')
+   * @param {Object} foundationColumnData.profile.params - プロファイルパラメータ
+   * @param {number} [foundationColumnData.rotation=0] - 断面の回転角度（度）
+   * @param {boolean} [foundationColumnData.isReferenceDirection=true] - 基準方向フラグ
+   * @returns {number|null} 基礎柱エンティティID（未対応の場合はnull）
+   */
+  addFoundationColumn(foundationColumnData) {
+    this._ensureInitialized();
+    const w = this.writer;
+    const {
+      name = 'FoundationColumn',
+      bottomPoint,
+      topPoint,
+      profile,
+      rotation = 0,
+      isReferenceDirection = true,
+    } = foundationColumnData;
+
+    // 必須パラメータのチェック
+    if (!bottomPoint || !topPoint || !profile) {
+      console.warn(
+        `[IFC Export] 基礎柱 "${name}" をスキップ: 必須パラメータ（bottomPoint, topPoint, profile）が不足しています`,
+      );
+      return null;
+    }
+
+    // 基礎柱の長さを計算 (mm)
+    const dx = topPoint.x - bottomPoint.x;
+    const dy = topPoint.y - bottomPoint.y;
+    const dz = topPoint.z - bottomPoint.z;
+    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+    if (length < 1e-6) {
+      console.warn(`[IFC Export] 基礎柱 "${name}" をスキップ: 長さが0です`);
+      return null;
+    }
+
+    // プロファイルを作成（Position は null）
+    const profileId = this._createProfileId(profile, true);
+    if (profileId === null) {
+      console.warn(
+        `[IFC Export] 基礎柱 "${name}" をスキップ: 未対応のプロファイルタイプ "${profile.type}"`,
+      );
+      return null;
+    }
+
+    // 基礎柱の中心点を計算
+    const centerX = (bottomPoint.x + topPoint.x) / 2;
+    const centerY = (bottomPoint.y + topPoint.y) / 2;
+    const centerZ = (bottomPoint.z + topPoint.z) / 2;
+
+    // 押出方向（垂直: Z方向）
+    const extrudeDir = w.createEntity('IFCDIRECTION', [[0.0, 0.0, 1.0]]);
+
+    // プロファイルの位置（中心基準にするため、-length/2 から開始）
+    const extrudeOrigin = w.createEntity('IFCCARTESIANPOINT', [[0.0, 0.0, -length / 2]]);
+    const extrudePosition = w.createEntity('IFCAXIS2PLACEMENT3D', [
+      `#${extrudeOrigin}`,
+      null,
+      null,
+    ]);
+
+    // 押出形状を作成 (mm)
+    const solidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
+      `#${profileId}`,
+      `#${extrudePosition}`,
+      `#${extrudeDir}`,
+      length,
+    ]);
+
+    // 基礎柱の配置点（中心）(mm)
+    const foundationColumnOrigin = w.createEntity('IFCCARTESIANPOINT', [
+      [centerX, centerY, centerZ],
+    ]);
+
+    // 回転角度を計算（度 → ラジアン）
+    let effectiveRotationDeg = rotation;
+    if (!isReferenceDirection) {
+      effectiveRotationDeg += 90;
+    }
+    const effectiveRotationRad = (effectiveRotationDeg * Math.PI) / 180;
+
+    // Z軸（垂直方向）
+    const axisDir = w.createEntity('IFCDIRECTION', [[0.0, 0.0, 1.0]]);
+
+    // 参照方向（XY平面上の回転）
+    const cosVal = Math.cos(effectiveRotationRad);
+    const sinVal = Math.sin(effectiveRotationRad);
+    const refDir = w.createEntity('IFCDIRECTION', [[cosVal, sinVal, 0.0]]);
+
+    // 配置座標系
+    const foundationColumnPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
+      `#${foundationColumnOrigin}`,
+      `#${axisDir}`,
+      `#${refDir}`,
+    ]);
+
+    // 基礎柱のローカル配置
+    const foundationColumnLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
+      null,
+      `#${foundationColumnPlacement3D}`,
+    ]);
+
+    // 形状表現
+    const shapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
+      `#${this._refs.bodyContext}`,
+      'Body',
+      'SweptSolid',
+      [`#${solidId}`],
+    ]);
+
+    // 製品定義形状
+    const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
+      null,
+      null,
+      [`#${shapeRep}`],
+    ]);
+
+    // 基礎柱エンティティ（IFCCOLUMNとして出力、ObjectTypeで区別）
+    const foundationColumnId = w.createEntity('IFCCOLUMN', [
+      generateIfcGuid(),
+      null, // OwnerHistory
+      name,
+      'FoundationColumn', // Description: 基礎柱であることを示す
+      'FoundationColumn', // ObjectType: 基礎柱であることを示す
+      `#${foundationColumnLocalPlacement}`,
+      `#${productShape}`,
+      null, // Tag
+      null, // PredefinedType
+    ]);
+
+    // 基礎柱を階に所属させる（底部Z座標で適切な階を決定）
+    this._addToStorey(foundationColumnId, bottomPoint.z);
+
+    return foundationColumnId;
+  }
+
+  /**
+   * 基礎（フーチング）を追加
+   * @param {Object} footingData - 基礎データ
+   * @param {string} footingData.name - 基礎名
+   * @param {Object} footingData.position - 配置位置 {x, y, z} (mm) - 基礎の上端中心
+   * @param {number} footingData.width_X - X方向の幅 (mm)
+   * @param {number} footingData.width_Y - Y方向の幅 (mm)
+   * @param {number} footingData.depth - 基礎の深さ（厚さ） (mm)
+   * @param {number} [footingData.rotation=0] - 回転角度（度）
+   * @param {string} [footingData.predefinedType='PAD_FOOTING'] - 基礎タイプ
+   * @returns {number|null} 基礎エンティティID
+   */
+  addFooting(footingData) {
+    this._ensureInitialized();
+    const w = this.writer;
+    const {
+      name = 'Footing',
+      position,
+      width_X = 1500,
+      width_Y = 1500,
+      depth = 500,
+      rotation = 0,
+      predefinedType = 'PAD_FOOTING',
+    } = footingData;
+
+    // 必須パラメータのチェック
+    if (!position) {
+      console.warn(`[IFC Export] 基礎 "${name}" をスキップ: 位置が不足しています`);
+      return null;
+    }
+
+    if (width_X <= 0 || width_Y <= 0 || depth <= 0) {
+      console.warn(`[IFC Export] 基礎 "${name}" をスキップ: 寸法が不正です`);
+      return null;
+    }
+
+    // 矩形プロファイル（X方向 × Y方向）
+    const profileId = w.createEntity('IFCRECTANGLEPROFILEDEF', [
+      '.AREA.',
+      'FootingProfile',
+      null,
+      width_X, // XDim
+      width_Y, // YDim
+    ]);
+
+    // 押出方向: Z軸（下向き = -Z）
+    const extrudeDirId = w.createEntity('IFCDIRECTION', [[0.0, 0.0, -1.0]]);
+
+    // 押出形状
+    const solidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
+      `#${profileId}`,
+      null, // Position: デフォルト
+      `#${extrudeDirId}`,
+      depth, // Depth: 基礎の深さ
+    ]);
+
+    // 基礎の配置原点（上端中心）
+    const footingOrigin = w.createEntity('IFCCARTESIANPOINT', [
+      [position.x, position.y, position.z],
+    ]);
+
+    // 回転角度を適用
+    let refDirX = 1.0;
+    let refDirY = 0.0;
+    if (Math.abs(rotation) > 1e-6) {
+      const rotationRad = (rotation * Math.PI) / 180;
+      refDirX = Math.cos(rotationRad);
+      refDirY = Math.sin(rotationRad);
+    }
+    const footingRefDir = w.createEntity('IFCDIRECTION', [[refDirX, refDirY, 0.0]]);
+
+    const footingPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
+      `#${footingOrigin}`,
+      null, // Axis: デフォルト（Z方向）
+      `#${footingRefDir}`, // RefDirection: 回転を反映
+    ]);
+
+    const footingLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
+      null,
+      `#${footingPlacement3D}`,
+    ]);
+
+    const shapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
+      `#${this._refs.bodyContext}`,
+      'Body',
+      'SweptSolid',
+      [`#${solidId}`],
+    ]);
+
+    const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
+      null,
+      null,
+      [`#${shapeRep}`],
+    ]);
+
+    // 基礎エンティティ（IFCFOOTING）
+    const footingId = w.createEntity('IFCFOOTING', [
+      generateIfcGuid(),
+      null, // OwnerHistory
+      name,
+      null, // Description
+      null, // ObjectType
+      `#${footingLocalPlacement}`,
+      `#${productShape}`,
+      null, // Tag
+      `.${predefinedType}.`, // PredefinedType
+    ]);
+
+    // 基礎を階に所属させる（位置Z座標で適切な階を決定）
+    this._addToStorey(footingId, position.z - depth);
+
+    return footingId;
+  }
+
+  /**
+   * 杭を追加
+   * @param {Object} pileData - 杭データ
+   * @param {string} pileData.name - 杭名
+   * @param {Object} pileData.topPoint - 杭頭座標 {x, y, z} (mm)
+   * @param {Object} pileData.bottomPoint - 杭先端座標 {x, y, z} (mm)
+   * @param {number} pileData.diameter - 杭径 (mm)
+   * @param {number} [pileData.wallThickness] - 管厚 (mm) - 鋼管杭の場合のみ
+   * @param {string} [pileData.predefinedType='BORED'] - 杭タイプ (BORED, DRIVEN, JETGROUTING, COHESION, FRICTION, SUPPORT, USERDEFINED, NOTDEFINED)
+   * @param {string} [pileData.constructionType='CAST_IN_PLACE'] - 施工タイプ (CAST_IN_PLACE, COMPOSITE, PRECAST_CONCRETE, PREFAB_STEEL, USERDEFINED, NOTDEFINED)
+   * @returns {number|null} 杭エンティティID
+   */
+  addPile(pileData) {
+    this._ensureInitialized();
+    const w = this.writer;
+    const {
+      name = 'Pile',
+      topPoint,
+      bottomPoint,
+      diameter = 600,
+      wallThickness = null,
+      predefinedType = 'BORED',
+      constructionType = 'CAST_IN_PLACE',
+    } = pileData;
+
+    // 必須パラメータのチェック
+    if (!topPoint || !bottomPoint) {
+      console.warn(`[IFC Export] 杭 "${name}" をスキップ: 杭頭・杭先端座標が不足しています`);
+      return null;
+    }
+
+    if (diameter <= 0) {
+      console.warn(`[IFC Export] 杭 "${name}" をスキップ: 杭径が不正です`);
+      return null;
+    }
+
+    // 杭の長さを計算
+    const dx = bottomPoint.x - topPoint.x;
+    const dy = bottomPoint.y - topPoint.y;
+    const dz = bottomPoint.z - topPoint.z;
+    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+    if (length < 1e-6) {
+      console.warn(`[IFC Export] 杭 "${name}" をスキップ: 長さが0です`);
+      return null;
+    }
+
+    // 杭の方向ベクトル（正規化）
+    const dirX = dx / length;
+    const dirY = dy / length;
+    const dirZ = dz / length;
+
+    // プロファイルを作成（円形または円形中空）
+    let profileId;
+    if (wallThickness && wallThickness > 0) {
+      // 鋼管杭（円形中空）
+      profileId = w.createEntity('IFCCIRCLEHOLLOWPROFILEDEF', [
+        '.AREA.',
+        'PileProfile',
+        null,
+        diameter / 2, // Radius
+        wallThickness, // WallThickness
+      ]);
+    } else {
+      // 場所打ち杭等（中実円）
+      profileId = w.createEntity('IFCCIRCLEPROFILEDEF', [
+        '.AREA.',
+        'PileProfile',
+        null,
+        diameter / 2, // Radius
+      ]);
+    }
+
+    // 杭の配置点（杭頭）
+    const pileOrigin = w.createEntity('IFCCARTESIANPOINT', [[topPoint.x, topPoint.y, topPoint.z]]);
+
+    // 杭の軸方向（杭頭から杭先端へ）
+    const pileAxisDir = w.createEntity('IFCDIRECTION', [[dirX, dirY, dirZ]]);
+
+    // 参照方向の計算
+    let refDirX, refDirY, refDirZ;
+    if (Math.abs(dirZ) < 0.99) {
+      // 非垂直: グローバルZ方向との外積
+      const crossX = dirY * 1 - dirZ * 0;
+      const crossY = dirZ * 0 - dirX * 1;
+      const crossZ = dirX * 0 - dirY * 0;
+      const crossLen = Math.sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ);
+      if (crossLen > 1e-6) {
+        refDirX = crossX / crossLen;
+        refDirY = crossY / crossLen;
+        refDirZ = crossZ / crossLen;
+      } else {
+        refDirX = 1;
+        refDirY = 0;
+        refDirZ = 0;
+      }
+    } else {
+      // ほぼ垂直: グローバルX方向を参照
+      refDirX = 1;
+      refDirY = 0;
+      refDirZ = 0;
+    }
+    const pileRefDir = w.createEntity('IFCDIRECTION', [[refDirX, refDirY, refDirZ]]);
+
+    // 配置座標系
+    const pilePlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
+      `#${pileOrigin}`,
+      `#${pileAxisDir}`,
+      `#${pileRefDir}`,
+    ]);
+
+    // ローカル配置
+    const pileLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [null, `#${pilePlacement3D}`]);
+
+    // 押出方向（ローカルZ方向 = 杭軸方向）
+    const extrudeDir = w.createEntity('IFCDIRECTION', [[0.0, 0.0, 1.0]]);
+
+    // 押出形状
+    const solidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
+      `#${profileId}`,
+      null, // Position: デフォルト
+      `#${extrudeDir}`,
+      length, // Depth: 杭長さ
+    ]);
+
+    // 形状表現
+    const shapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
+      `#${this._refs.bodyContext}`,
+      'Body',
+      'SweptSolid',
+      [`#${solidId}`],
+    ]);
+
+    // 製品定義形状
+    const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
+      null,
+      null,
+      [`#${shapeRep}`],
+    ]);
+
+    // 杭エンティティ（IFCPILE）
+    const pileId = w.createEntity('IFCPILE', [
+      generateIfcGuid(),
+      null, // OwnerHistory
+      name,
+      null, // Description
+      null, // ObjectType
+      `#${pileLocalPlacement}`,
+      `#${productShape}`,
+      null, // Tag
+      `.${predefinedType}.`, // PredefinedType
+      `.${constructionType}.`, // ConstructionType
+    ]);
+
+    // 杭を階に所属させる（杭頭Z座標で適切な階を決定）
+    this._addToStorey(pileId, topPoint.z);
+
+    return pileId;
   }
 
   /**
@@ -378,7 +775,7 @@ export class IFCSTBExporter extends IFCBeamExporter {
     return super.generate({
       fileName: options.fileName || 'stb_export.ifc',
       description: options.description || 'STB Structure IFC Export',
-      ...options
+      ...options,
     });
   }
 }

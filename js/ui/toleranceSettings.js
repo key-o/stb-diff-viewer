@@ -3,12 +3,14 @@
  * 基準点(StbNode)とオフセットの許容差を個別に設定するUIを提供
  */
 
-import { getToleranceConfig, setToleranceConfig, resetToleranceConfig } from '../config/toleranceConfig.js';
-import { getToleranceDiffColor, setToleranceDiffColor } from '../viewer/rendering/colorManager.js';
-import { AppLogger } from '../config/logger.js';
-import { getState } from '../core/globalState.js';
+import {
+  getToleranceConfig,
+  setToleranceConfig,
+  resetToleranceConfig,
+} from '../config/toleranceConfig.js';
+import { createLogger } from '../utils/logger.js';
 
-const logger = AppLogger.getInstance('ToleranceSettings');
+const logger = createLogger('ToleranceSettings');
 
 /**
  * 許容差設定パネルのHTML構造を生成
@@ -97,33 +99,6 @@ function createToleranceSettingsHTML() {
         <button id="tolerance-reset-btn" class="btn btn-secondary">
           🔄 デフォルトに戻す
         </button>
-      </div>
-
-      <!-- 比較結果の凡例と色設定 -->
-      <div class="tolerance-section tolerance-legend">
-        <h5 class="tolerance-subsection-title">📊 比較結果の色設定</h5>
-        <div class="tolerance-legend-items">
-          <div class="tolerance-legend-item">
-            <input type="color" class="tolerance-color-picker" id="tolerance-color-exact" title="色を変更" />
-            <span class="tolerance-legend-text"><strong>完全一致</strong>: 座標が完全に一致</span>
-          </div>
-          <div class="tolerance-legend-item">
-            <input type="color" class="tolerance-color-picker" id="tolerance-color-within" title="色を変更" />
-            <span class="tolerance-legend-text"><strong>許容差内</strong>: 許容差の範囲内で一致</span>
-          </div>
-          <div class="tolerance-legend-item">
-            <input type="color" class="tolerance-color-picker" id="tolerance-color-mismatch" title="色を変更" />
-            <span class="tolerance-legend-text"><strong>不一致</strong>: 許容差を超えて異なる</span>
-          </div>
-          <div class="tolerance-legend-item">
-            <input type="color" class="tolerance-color-picker" id="tolerance-color-onlyA" title="色を変更" />
-            <span class="tolerance-legend-text"><strong>モデルAのみ</strong>: モデルAにのみ存在</span>
-          </div>
-          <div class="tolerance-legend-item">
-            <input type="color" class="tolerance-color-picker" id="tolerance-color-onlyB" title="色を変更" />
-            <span class="tolerance-legend-text"><strong>モデルBのみ</strong>: モデルBにのみ存在</span>
-          </div>
-        </div>
       </div>
     </div>
   `;
@@ -261,53 +236,6 @@ function injectToleranceStyles() {
     .tolerance-actions .btn-secondary:hover {
       background: #545b62;
     }
-
-    .tolerance-legend {
-      border-top: 1px solid #dee2e6;
-      padding-top: 12px;
-    }
-
-    .tolerance-legend-items {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .tolerance-legend-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.85em;
-    }
-
-    .tolerance-color-picker {
-      width: 24px;
-      height: 24px;
-      padding: 0;
-      border: none;
-      border-radius: 3px;
-      cursor: pointer;
-      background: none;
-      flex-shrink: 0;
-    }
-    
-    .tolerance-color-picker::-webkit-color-swatch-wrapper {
-      padding: 0;
-    }
-    
-    .tolerance-color-picker::-webkit-color-swatch {
-      border: 1px solid #666;
-      border-radius: 3px;
-    }
-
-    .tolerance-legend-text {
-      color: #495057;
-      line-height: 1.3;
-    }
-
-    .tolerance-legend-text strong {
-      font-weight: 600;
-    }
   `;
   document.head.appendChild(style);
 }
@@ -359,35 +287,7 @@ function loadSettingsToUI() {
   // 厳密モードが有効な場合は許容差入力を無効化
   updateInputStates();
 
-  // 凡例の色をカラーマネージャから取得して設定
-  updateLegendColors();
-
   logger.debug('Settings loaded to UI', config);
-}
-
-/**
- * 凡例の色をカラーマネージャから取得して設定
- */
-function updateLegendColors() {
-  const colorMapping = {
-    'tolerance-color-exact': 'exact',
-    'tolerance-color-within': 'withinTolerance',
-    'tolerance-color-mismatch': 'mismatch',
-    'tolerance-color-onlyA': 'onlyA',
-    'tolerance-color-onlyB': 'onlyB'
-  };
-
-  Object.entries(colorMapping).forEach(([elementId, state]) => {
-    const element = document.getElementById(elementId);
-    if (element) {
-      const color = getToleranceDiffColor(state);
-      element.value = color;
-      // プレビュー用の背景色も設定（input type="color"でも背景色を設定しておくと見栄えが良い場合がある）
-      element.style.backgroundColor = color;
-    }
-  });
-
-  logger.debug('Legend colors updated from color manager');
 }
 
 /**
@@ -403,13 +303,13 @@ function applySettingsFromUI() {
     basePoint: {
       x: parseFloat(document.getElementById('tolerance-basepoint-x').value),
       y: parseFloat(document.getElementById('tolerance-basepoint-y').value),
-      z: parseFloat(document.getElementById('tolerance-basepoint-z').value)
+      z: parseFloat(document.getElementById('tolerance-basepoint-z').value),
     },
     offset: {
       x: parseFloat(document.getElementById('tolerance-offset-x').value),
       y: parseFloat(document.getElementById('tolerance-offset-y').value),
-      z: parseFloat(document.getElementById('tolerance-offset-z').value)
-    }
+      z: parseFloat(document.getElementById('tolerance-offset-z').value),
+    },
   };
 
   // 設定を適用
@@ -453,10 +353,10 @@ function updateInputStates() {
     'tolerance-basepoint-z',
     'tolerance-offset-x',
     'tolerance-offset-y',
-    'tolerance-offset-z'
+    'tolerance-offset-z',
   ];
 
-  inputs.forEach(id => {
+  inputs.forEach((id) => {
     const input = document.getElementById(id);
     if (input) {
       input.disabled = disabled;
@@ -500,31 +400,6 @@ function setupEventListeners() {
     strictModeCheckbox.addEventListener('change', updateInputStates);
   }
 
-  // カラーピッカーのイベントリスナー
-  const colorPickers = [
-    { id: 'tolerance-color-exact', state: 'exact' },
-    { id: 'tolerance-color-within', state: 'withinTolerance' },
-    { id: 'tolerance-color-mismatch', state: 'mismatch' },
-    { id: 'tolerance-color-onlyA', state: 'onlyA' },
-    { id: 'tolerance-color-onlyB', state: 'onlyB' }
-  ];
-
-  colorPickers.forEach(({ id, state }) => {
-    const picker = document.getElementById(id);
-    if (picker) {
-      picker.addEventListener('change', (e) => {
-        const newColor = e.target.value;
-        setToleranceDiffColor(state, newColor);
-        logger.info(`Color updated for ${state}: ${newColor}`);
-
-        // 色変更を反映するためにマテリアルを更新
-        import('../colorModes.js').then(({ updateElementsForColorMode }) => {
-          updateElementsForColorMode();
-        });
-      });
-    }
-  });
-
   logger.debug('Event listeners set up');
 }
 
@@ -549,6 +424,6 @@ export function getToleranceSettingsUI() {
   return {
     loadSettingsToUI,
     applySettingsFromUI,
-    resetToDefaults
+    resetToDefaults,
   };
 }

@@ -2,20 +2,17 @@
  * SchemaColorManager - スキーマエラー色管理
  *
  * スキーマチェック結果に基づく色を管理します。
+ * 色定義は colorConfig.js から取得します。
  */
 
 import { BaseColorStateManager } from './baseColorStateManager.js';
+import { DEFAULT_SCHEMA_COLORS as CONFIG_SCHEMA_COLORS } from '../../config/colorConfig.js';
 
 // スキーマ状態タイプ
-const SCHEMA_STATES = ['valid', 'info', 'warning', 'error'];
+const SCHEMA_STATES = Object.keys(CONFIG_SCHEMA_COLORS);
 
-// デフォルト色設定
-const DEFAULT_SCHEMA_COLORS = {
-  valid: '#00aaff',     // 正常要素（水色）
-  info: '#32CD32',      // 自動修復可能（ライムグリーン）
-  warning: '#FFA500',   // 要確認（オレンジ）
-  error: '#ff0000'     // エラー要素（赤色）
-};
+// デフォルト色設定（colorConfig.jsから取得）
+const DEFAULT_SCHEMA_COLORS = { ...CONFIG_SCHEMA_COLORS };
 
 /**
  * SchemaColorManagerクラス
@@ -27,15 +24,10 @@ class SchemaColorManager extends BaseColorStateManager {
 
   /**
    * スキーマ色を取得
-   * @param {string|boolean} status - ステータス ('valid', 'info', 'warning', 'error') または hasError (boolean)
+   * @param {string} status - ステータス ('valid', 'info', 'warning', 'error')
    * @returns {string} 色コード
    */
   getSchemaColor(status) {
-    // booleanの場合は後方互換性のため変換
-    if (typeof status === 'boolean') {
-      return this.getColor(status ? 'error' : 'valid');
-    }
-    // 文字列の場合はそのまま使用（デフォルトはvalid）
     return this.getColor(status) || this.getColor('valid');
   }
 

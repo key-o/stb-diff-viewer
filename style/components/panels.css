@@ -63,9 +63,9 @@
   padding: 10px;
   min-width: 150px;
   max-width: 300px;
-  z-index: 10;
-  border-radius: 4px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  z-index: var(--z-panel);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-md);
 }
 
 .legend-panel-hidden {
@@ -79,7 +79,7 @@
 #editing-controls {
   background-color: #f8f9fa;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--border-radius);
   border: 1px solid #dee2e6;
   margin-bottom: 10px;
 }
@@ -92,7 +92,7 @@
   font-size: 0.8em;
   margin-left: 5px;
   padding: 1px 3px;
-  border-radius: 2px;
+  border-radius: var(--border-radius-sm);
 }
 
 .edit-btn:hover {
@@ -118,6 +118,41 @@
 }
 
 /* ========================================
+   荷重表示コントロール
+   ======================================== */
+
+.load-display-control {
+  margin-left: 20px;
+  margin-top: 8px;
+  font-size: 0.9em;
+  color: #666;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.load-display-control label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.load-display-control select {
+  padding: 2px 6px;
+  font-size: 0.85em;
+  border: 1px solid #ccc;
+  border-radius: var(--border-radius);
+  background-color: #fff;
+}
+
+.load-display-control select:disabled {
+  background-color: #f5f5f5;
+  color: #999;
+}
+
+/* ========================================
    編集モードボタン（最小化状態）
    ======================================== */
 
@@ -127,4 +162,145 @@
   background: #f8f9fa;
   border: 1px solid #dee2e6;
   color: #6c757d;
+}
+
+/* ========================================
+   外部データ連携セクション
+   ======================================== */
+
+.external-data-item {
+  margin-bottom: 8px;
+}
+
+.external-data-btn {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 0.95em;
+}
+
+.external-data-desc {
+  margin: 4px 0 0 0;
+  font-size: 0.8em;
+  color: var(--text-secondary, #666);
+  padding-left: 2px;
+}
+
+/* ========================================
+   表示モード切替（常時表示）
+   ======================================== */
+
+.view-mode-toggle {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color, #ddd);
+}
+
+.view-mode-buttons {
+  display: flex;
+  gap: 4px;
+}
+
+.view-mode-btn {
+  flex: 1;
+  padding: 10px 8px;
+  font-size: 0.95em;
+  font-weight: 600;
+  border: 2px solid var(--border-color, #ccc);
+  border-radius: var(--border-radius-lg);
+  background: var(--bg-secondary, #f5f5f5);
+  color: var(--text-secondary, #666);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.view-mode-btn:hover {
+  background: var(--bg-hover, #e8e8e8);
+  border-color: var(--primary-color, #4a90d9);
+}
+
+.view-mode-btn.active {
+  background: var(--primary-color, #4a90d9);
+  border-color: var(--primary-color, #4a90d9);
+  color: white;
+}
+
+/* ビュー方向ボタン */
+.view-direction-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.view-dir-btn {
+  flex: 1;
+  min-width: 50px;
+  padding: 6px 4px;
+  font-size: 0.8em;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: var(--border-radius);
+  background: var(--bg-panel, #fff);
+  color: var(--text-primary, #333);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.view-dir-btn:hover {
+  background: var(--bg-hover, #e8e8e8);
+  border-color: var(--primary-color, #4a90d9);
+}
+
+.view-dir-btn.active {
+  background: var(--primary-light, #e3f2fd);
+  border-color: var(--primary-color, #4a90d9);
+  color: var(--primary-color, #4a90d9);
+  font-weight: 600;
+}
+
+/* ========================================
+   エクスポート設定セクション共通スタイル
+   ======================================== */
+
+.export-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.export-settings label {
+  margin-bottom: 4px;
+}
+
+.export-settings .btn {
+  width: 100%;
+}
+
+.stb-convert-status {
+  margin-top: 8px;
+  padding: 8px;
+  border-radius: var(--border-radius);
+  font-size: 0.85em;
+}
+
+.stb-convert-status.hidden {
+  display: none;
+}
+
+.stb-convert-status.info {
+  background: var(--info-bg, #e7f3ff);
+  color: var(--info-color, #0066cc);
+  border: 1px solid var(--info-border, #b3d9ff);
+}
+
+.stb-convert-status.success {
+  background: var(--success-bg, #e7ffe7);
+  color: var(--success-color, #006600);
+  border: 1px solid var(--success-border, #b3ffb3);
+}
+
+.stb-convert-status.error {
+  background: var(--error-bg, #ffe7e7);
+  color: var(--error-color, #cc0000);
+  border: 1px solid var(--error-border, #ffb3b3);
 }

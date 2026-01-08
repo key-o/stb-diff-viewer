@@ -7,7 +7,7 @@
  */
 
 import { validateStbDocument, SEVERITY, CATEGORY } from './stbValidator.js';
-import { setSchemaError, clearSchemaErrors } from '../colorModes.js';
+import { setSchemaError, clearSchemaErrors } from '../colorModes/index.js';
 
 // 要素ごとのバリデーション結果を保持
 const elementValidationMap = new Map();
@@ -23,17 +23,17 @@ let lastValidationStats = {
   info: 0,
   warning: 0,
   error: 0,
-  total: 0
+  total: 0,
 };
 
 /**
  * バリデーション結果のサジェストタイプ
  */
 export const SUGGESTION_TYPE = {
-  AUTO_REPAIR: 'auto_repair',      // 自動修復可能
-  MANUAL_REVIEW: 'manual_review',  // 手動確認が必要
-  MANUAL_FIX: 'manual_fix',        // 手動修正が必要
-  INFO_ONLY: 'info_only'          // 情報のみ（修正不要）
+  AUTO_REPAIR: 'auto_repair', // 自動修復可能
+  MANUAL_REVIEW: 'manual_review', // 手動確認が必要
+  MANUAL_FIX: 'manual_fix', // 手動修正が必要
+  INFO_ONLY: 'info_only', // 情報のみ（修正不要）
 };
 
 /**
@@ -60,7 +60,7 @@ export function validateAndIntegrate(xmlDoc) {
           elementType: issue.elementType,
           errors: [],
           warnings: [],
-          suggestions: []
+          suggestions: [],
         });
       }
       const elementData = elementValidationMap.get(issue.elementId);
@@ -83,7 +83,7 @@ export function validateAndIntegrate(xmlDoc) {
           sectionType: issue.sectionType,
           errors: [],
           warnings: [],
-          suggestions: []
+          suggestions: [],
         });
       }
       const sectionData = sectionValidationMap.get(issue.sectionId);
@@ -106,7 +106,7 @@ export function validateAndIntegrate(xmlDoc) {
     info: 0,
     warning: 0,
     error: 0,
-    total: 0
+    total: 0,
   };
 
   // スキーマエラー表示システムに連携
@@ -116,7 +116,7 @@ export function validateAndIntegrate(xmlDoc) {
       status = 'error';
     } else if (data.warnings.length > 0) {
       status = 'warning';
-    } else if (data.suggestions.some(s => s.type === SUGGESTION_TYPE.AUTO_REPAIR)) {
+    } else if (data.suggestions.some((s) => s.type === SUGGESTION_TYPE.AUTO_REPAIR)) {
       status = 'info';
     }
 
@@ -125,10 +125,7 @@ export function validateAndIntegrate(xmlDoc) {
       lastValidationStats[status]++;
     }
 
-    const messages = [
-      ...data.errors.map(e => e.message),
-      ...data.warnings.map(w => w.message)
-    ];
+    const messages = [...data.errors.map((e) => e.message), ...data.warnings.map((w) => w.message)];
 
     setSchemaError(elementId, status, messages);
   }
@@ -138,7 +135,7 @@ export function validateAndIntegrate(xmlDoc) {
     totalIssues: result.issues.length,
     elementsWithErrors: elementValidationMap.size,
     sectionsWithErrors: sectionValidationMap.size,
-    stats: lastValidationStats
+    stats: lastValidationStats,
   });
 
   return result;
@@ -203,7 +200,7 @@ function createSuggestion(issue) {
     detailText,
     attribute: issue.attribute,
     value: issue.value,
-    repairable: issue.repairable
+    repairable: issue.repairable,
   };
 }
 
@@ -241,6 +238,68 @@ export function clearValidationData() {
   sectionValidationMap.clear();
   clearSchemaErrors();
   lastValidationResult = null;
+}
+
+/**
+ * 指定したステータスの要素リストを取得
+ * @param {string} status - ステータス ('info', 'warning', 'error')
+ * @returns {Array<{elementId: string, elementType: string, messages: string[]}>} 要素リスト
+ */
+export function getElementsByStatus(status) {
+  const elements = [];
+
+  for (const [elementId, data] of elementValidationMap) {
+    let elementStatus = 'valid';
+
+    if (data.errors.length > 0) {
+      elementStatus = 'error';
+    } else if (data.warnings.length > 0) {
+      elementStatus = 'warning';
+    } else if (data.suggestions.some((s) => s.type === SUGGESTION_TYPE.AUTO_REPAIR)) {
+      elementStatus = 'info';
+    }
+
+    if (elementStatus === status) {
+      const messages = [];
+
+      // エラーメッセージを収集
+      if (status === 'error') {
+        messages.push(...data.errors.map((e) => e.message));
+      }
+      // 警告メッセージを収集
+      if (status === 'warning') {
+        messages.push(...data.warnings.map((w) => w.message));
+      }
+      // サジェストメッセージを収集
+      const relevantSuggestions = data.suggestions.filter((s) => {
+        if (status === 'info') return s.type === SUGGESTION_TYPE.AUTO_REPAIR;
+        if (status === 'warning') return s.type === SUGGESTION_TYPE.MANUAL_REVIEW;
+        if (status === 'error') return s.type === SUGGESTION_TYPE.MANUAL_FIX;
+        return false;
+      });
+      messages.push(...relevantSuggestions.map((s) => s.detailText));
+
+      elements.push({
+        elementId,
+        elementType: data.elementType,
+        messages: [...new Set(messages)], // 重複を除去
+      });
+    }
+  }
+
+  return elements;
+}
+
+/**
+ * 全ステータスの要素リストを取得
+ * @returns {Object} ステータスごとの要素リスト
+ */
+export function getAllElementsByStatus() {
+  return {
+    info: getElementsByStatus('info'),
+    warning: getElementsByStatus('warning'),
+    error: getElementsByStatus('error'),
+  };
 }
 
 /**
@@ -297,9 +356,13 @@ export function generateValidationInfoHtml(elementId) {
     html += '<ul class="suggestion-list">';
 
     // タイプごとにグループ化
-    const autoRepairs = validation.suggestions.filter(s => s.type === SUGGESTION_TYPE.AUTO_REPAIR);
-    const manualReviews = validation.suggestions.filter(s => s.type === SUGGESTION_TYPE.MANUAL_REVIEW);
-    const manualFixes = validation.suggestions.filter(s => s.type === SUGGESTION_TYPE.MANUAL_FIX);
+    const autoRepairs = validation.suggestions.filter(
+      (s) => s.type === SUGGESTION_TYPE.AUTO_REPAIR,
+    );
+    const manualReviews = validation.suggestions.filter(
+      (s) => s.type === SUGGESTION_TYPE.MANUAL_REVIEW,
+    );
+    const manualFixes = validation.suggestions.filter((s) => s.type === SUGGESTION_TYPE.MANUAL_FIX);
 
     // 自動修復可能
     for (const suggestion of autoRepairs) {
@@ -353,9 +416,9 @@ export function generateValidationSummaryHtml() {
   }
 
   const result = lastValidationResult;
-  const errorCount = result.issues.filter(i => i.severity === SEVERITY.ERROR).length;
-  const warningCount = result.issues.filter(i => i.severity === SEVERITY.WARNING).length;
-  const repairableCount = result.issues.filter(i => i.repairable).length;
+  const errorCount = result.issues.filter((i) => i.severity === SEVERITY.ERROR).length;
+  const warningCount = result.issues.filter((i) => i.severity === SEVERITY.WARNING).length;
+  const repairableCount = result.issues.filter((i) => i.repairable).length;
 
   let statusClass = 'valid';
   let statusText = '有効';
@@ -566,7 +629,4 @@ export function getValidationStyles() {
 }
 
 // エクスポート
-export {
-  SEVERITY,
-  CATEGORY
-};
+export { SEVERITY, CATEGORY };

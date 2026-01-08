@@ -50,9 +50,7 @@ export class StepWriter {
    */
   static escapeString(str) {
     if (str === null || str === undefined) return '';
-    return String(str)
-      .replace(/\\/g, '\\\\')
-      .replace(/'/g, "''");
+    return String(str).replace(/\\/g, '\\\\').replace(/'/g, "''");
   }
 
   /**
@@ -91,7 +89,7 @@ export class StepWriter {
       return value ? '.T.' : '.F.';
     }
     if (Array.isArray(value)) {
-      const formatted = value.map(v => StepWriter.formatValue(v));
+      const formatted = value.map((v) => StepWriter.formatValue(v));
       return `(${formatted.join(',')})`;
     }
     if (typeof value === 'object' && value._type) {
@@ -117,7 +115,7 @@ export class StepWriter {
       preprocessorVersion = 'StbDiffViewer IFC Exporter 1.0',
       originatingSystem = 'StbDiffViewer',
       authorization = '',
-      schemaIdentifier = 'IFC4'
+      schemaIdentifier = 'IFC4',
     } = options;
 
     return `ISO-10303-21;
@@ -137,11 +135,10 @@ ENDSEC;
     const lines = ['DATA;'];
 
     // エンティティをID順にソート
-    const sortedEntries = Array.from(this._entities.entries())
-      .sort((a, b) => a[0] - b[0]);
+    const sortedEntries = Array.from(this._entities.entries()).sort((a, b) => a[0] - b[0]);
 
     for (const [id, entity] of sortedEntries) {
-      const attrs = entity.attributes.map(a => StepWriter.formatValue(a)).join(',');
+      const attrs = entity.attributes.map((a) => StepWriter.formatValue(a)).join(',');
       lines.push(`#${id}=${entity.typeName}(${attrs});`);
     }
 
@@ -155,7 +152,9 @@ ENDSEC;
    * @returns {string} STEPファイル内容
    */
   generate(headerOptions = {}) {
-    return this.generateHeader(headerOptions) + '\n' + this.generateData() + '\nEND-ISO-10303-21;\n';
+    return (
+      this.generateHeader(headerOptions) + '\n' + this.generateData() + '\nEND-ISO-10303-21;\n'
+    );
   }
 
   /**
@@ -182,9 +181,9 @@ ENDSEC;
  */
 export function generateIfcGuid() {
   // RFC4122 UUID v4を生成
-  const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+  const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 
@@ -204,10 +203,10 @@ export function generateIfcGuid() {
     const b2 = bytes[i + 1] || 0;
     const b3 = bytes[i + 2] || 0;
 
-    result += base64Chars[(b1 >> 2) & 0x3F];
-    result += base64Chars[((b1 << 4) | (b2 >> 4)) & 0x3F];
-    result += base64Chars[((b2 << 2) | (b3 >> 6)) & 0x3F];
-    result += base64Chars[b3 & 0x3F];
+    result += base64Chars[(b1 >> 2) & 0x3f];
+    result += base64Chars[((b1 << 4) | (b2 >> 4)) & 0x3f];
+    result += base64Chars[((b2 << 2) | (b3 >> 6)) & 0x3f];
+    result += base64Chars[b3 & 0x3f];
   }
 
   return result.substring(0, 22);

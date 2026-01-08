@@ -16,9 +16,9 @@
   max-height: 80vh;
   background: white;
   border: 1px solid #ccc;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  z-index: 1000;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-modal);
   flex-direction: column;
   display: none;
 }
@@ -33,8 +33,8 @@
   align-items: center;
   padding: 12px 16px;
   border-bottom: 1px solid #eee;
-  background: #f8f9fa;
-  border-radius: 8px 8px 0 0;
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 }
 
 .importance-panel .panel-header h3 {
@@ -86,7 +86,7 @@
   font-size: 12px;
   padding: 4px 6px;
   border: 1px solid #ddd;
-  border-radius: 3px;
+  border-radius: var(--border-radius-sm);
   margin-right: 8px;
 }
 
@@ -94,7 +94,7 @@
   font-size: 12px;
   padding: 4px 8px;
   border: 1px solid #ddd;
-  border-radius: 3px;
+  border-radius: var(--border-radius-sm);
   background: white;
   cursor: pointer;
   margin-right: 4px;
@@ -121,10 +121,10 @@
   padding: 6px 12px;
   font-size: 11px;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: var(--border-radius);
   background: white;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
 
 .importance-panel .tab-button:hover {
@@ -158,7 +158,7 @@
 .importance-panel .stat-item {
   text-align: center;
   padding: 8px 4px;
-  border-radius: 4px;
+  border-radius: var(--border-radius);
   background: white;
   border: 1px solid #eee;
 }
@@ -229,7 +229,7 @@
   font-size: 10px;
   padding: 2px 4px;
   border: 1px solid #ddd;
-  border-radius: 3px;
+  border-radius: var(--border-radius-sm);
   background: white;
 }
 
@@ -270,7 +270,7 @@
   display: flex;
   align-items: center;
   padding: 12px;
-  border-radius: 6px;
+  border-radius: var(--border-radius-lg);
   border: 1px solid #eee;
   background: white;
 }
@@ -335,7 +335,7 @@
   font-size: 12px;
   padding: 2px 6px;
   border: 1px solid #ddd;
-  border-radius: 3px;
+  border-radius: var(--border-radius-sm);
 }
 
 .statistics-table {
@@ -406,7 +406,7 @@
   text-align: center;
   padding: 8px;
   background: #f8f9fa;
-  border-radius: 4px;
+  border-radius: var(--border-radius);
 }
 
 .filter-stat .stat-label {
@@ -455,9 +455,9 @@
   max-height: 85vh;
   background: white;
   border: 1px solid #ccc;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  z-index: 1000;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-modal);
   overflow-y: auto;
   display: none;
 }
@@ -472,8 +472,8 @@
   align-items: center;
   padding: 12px 16px;
   border-bottom: 1px solid #eee;
-  background: #f8f9fa;
-  border-radius: 8px 8px 0 0;
+  background: var(--bg-secondary);
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 }
 
 .bulk-operations-panel .panel-header h3 {
@@ -505,7 +505,7 @@
 .operation-section {
   margin-bottom: 20px;
   border: 1px solid #eee;
-  border-radius: 6px;
+  border-radius: var(--border-radius-lg);
 }
 
 .section-header {
@@ -559,14 +559,14 @@
   font-size: 12px;
   padding: 4px 6px;
   border: 1px solid #ddd;
-  border-radius: 3px;
+  border-radius: var(--border-radius-sm);
 }
 
 .operation-row button {
   padding: 4px 12px;
   font-size: 12px;
   border: 1px solid #007bff;
-  border-radius: 3px;
+  border-radius: var(--border-radius-sm);
   background: #007bff;
   color: white;
   cursor: pointer;
@@ -580,7 +580,7 @@
   margin-top: 12px;
   padding: 8px;
   background: #f8f9fa;
-  border-radius: 4px;
+  border-radius: var(--border-radius);
   font-size: 11px;
   max-height: 150px;
   overflow-y: auto;
@@ -605,11 +605,11 @@
   left: 20px;
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid #ddd;
-  border-radius: 6px;
+  border-radius: var(--border-radius-lg);
   padding: 8px 12px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   font-size: 12px;
-  z-index: 999;
+  z-index: var(--z-floating);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -643,11 +643,11 @@
 .filter-btn {
   padding: 2px 6px;
   border: 1px solid #ccc;
-  border-radius: 3px;
+  border-radius: var(--border-radius-sm);
   background: white;
   cursor: pointer;
   font-size: 10px;
-  transition: all 0.2s;
+  transition: all var(--transition-fast);
 }
 
 .filter-btn:hover {
@@ -681,7 +681,7 @@
   background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
   color: white;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all var(--transition-fast);
   display: flex;
   align-items: center;
   justify-content: center;

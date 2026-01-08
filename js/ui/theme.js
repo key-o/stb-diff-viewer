@@ -4,8 +4,10 @@
  * ダークテーマとライトテーマの切り替え機能を提供
  * - システム設定に従う自動切り替え
  * - 手動切り替え
- * - 設定の永続化（localStorage）
+ * - 設定の永続化（storageHelper経由）
  */
+
+import { storageHelper } from '../utils/storageHelper.js';
 
 /** @type {'light' | 'dark' | 'system'} */
 let currentThemeSetting = 'system';
@@ -31,7 +33,7 @@ export function initializeTheme(options = {}) {
   }
 
   // 保存された設定を読み込み
-  const savedSetting = localStorage.getItem('theme-setting');
+  const savedSetting = storageHelper.get('theme-setting');
   if (savedSetting && ['light', 'dark', 'system'].includes(savedSetting)) {
     currentThemeSetting = savedSetting;
   }
@@ -100,7 +102,7 @@ export function setThemeSetting(setting) {
   }
 
   currentThemeSetting = setting;
-  localStorage.setItem('theme-setting', setting);
+  storageHelper.set('theme-setting', setting);
   applyTheme();
 }
 
@@ -154,15 +156,15 @@ function updateThemeButtonIcon(button) {
   const effectiveTheme = getEffectiveTheme();
   const setting = getThemeSetting();
 
-  // アイコンを設定
+  // アイコンを設定（絵文字形式に統一）
   if (setting === 'system') {
-    button.innerHTML = '<span class="theme-icon">&#9728;&#65039;</span>'; // 太陽（システム）
+    button.innerHTML = '<span class="theme-icon">☀️</span>'; // 太陽（システム）
     button.title = 'テーマ: システム設定に従う';
   } else if (effectiveTheme === 'dark') {
-    button.innerHTML = '<span class="theme-icon">&#127769;</span>'; // 月
+    button.innerHTML = '<span class="theme-icon">🌙</span>'; // 月
     button.title = 'テーマ: ダーク（クリックでライトに）';
   } else {
-    button.innerHTML = '<span class="theme-icon">&#9728;&#65039;</span>'; // 太陽
+    button.innerHTML = '<span class="theme-icon">☀️</span>'; // 太陽
     button.title = 'テーマ: ライト（クリックでダークに）';
   }
 }

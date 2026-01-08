@@ -12,16 +12,16 @@
  */
 
 import * as THREE from 'three';
-import {
-  scene,
-  camera,
-  materials,
-  controls,
-  elementGroups
-} from './viewer/index.js';
-import { displayElementInfo } from './viewer/ui/elementInfoDisplay.js';
+import { createLogger, WarnCategory } from './utils/logger.js';
+
+const logger = createLogger('interaction');
+import { scene, camera, materials, controls, elementGroups } from './viewer/index.js';
+import { displayElementInfo } from './viewer/ui/element-info/index.js';
 import { selectElementInTree } from './ui/elementTreeView.js';
 import { showContextMenu, initializeContextMenu } from './ui/contextMenu.js';
+import { getState } from './app/globalState.js';
+import { eventBus, SelectionEvents } from './app/events/index.js';
+import { CAMERA_CONTROLS } from './config/renderingConstants.js';
 
 // レイキャスト用オブジェクト
 const raycaster = new THREE.Raycaster();
@@ -55,8 +55,9 @@ function findSelectableAncestor(obj) {
 
 /**
  * 回転中心を視覚的に表示するヘルパーを作成・更新
+ * @param {THREE.Vector3} position - 回転中心の位置
  */
-function createOrUpdateOrbitCenterHelper(position) {
+export function createOrUpdateOrbitCenterHelper(position) {
   if (!scene) return;
 
   // 既存のヘルパーを削除
@@ -72,7 +73,7 @@ function createOrUpdateOrbitCenterHelper(position) {
     color: 0xff4444,
     transparent: true,
     opacity: 0.9,
-    depthTest: false // 常に手前に表示
+    depthTest: false, // 常に手前に表示
   });
 
   orbitCenterHelper = new THREE.Mesh(geometry, material);
@@ -84,7 +85,7 @@ function createOrUpdateOrbitCenterHelper(position) {
 /**
  * 回転中心ヘルパーを非表示にする
  */
-function hideOrbitCenterHelper() {
+export function hideOrbitCenterHelper() {
   if (orbitCenterHelper) {
     scene.remove(orbitCenterHelper);
     if (orbitCenterHelper.geometry) orbitCenterHelper.geometry.dispose();
@@ -115,7 +116,7 @@ export function getSelectedCenter() {
       return center;
     }
   } catch (e) {
-    console.warn('getSelectedCenter failed:', e);
+    logger.warn(`${WarnCategory.UI} 選択中心取得: 計算失敗`, e);
   }
   return null;
 }
@@ -143,7 +144,7 @@ const pointerDownPos = { x: 0, y: 0 };
 // このドラッグ中に適用済みか
 let appliedThisDrag = false;
 // ドラッグ判定のピクセル閾値
-const DRAG_APPLY_THRESHOLD_PX = 3;
+const DRAG_APPLY_THRESHOLD_PX = CAMERA_CONTROLS.DRAG_THRESHOLD_PX;
 
 /**
  * 単一オブジェクトの選択を解除（マテリアル復元）
@@ -165,6 +166,15 @@ function deselectSingleObject(obj) {
  * 選択状態をリセット（全選択解除）
  */
 export function resetSelection() {
+  // common/viewerモードの場合はアダプター経由で選択解除
+  const useCommonViewer = getState('viewer.useCommonViewer');
+  const adapter = getState('viewer.adapter');
+
+  if (useCommonViewer && adapter) {
+    adapter.clearSelection();
+  }
+
+  // 従来の選択状態もクリア
   if (selectedObjects.length > 0) {
     for (const obj of selectedObjects) {
       const origMat = originalMaterials.get(obj);
@@ -175,6 +185,11 @@ export function resetSelection() {
     selectedObjects = [];
     originalMaterials.clear();
     displayElementInfo(null, null, null, null);
+
+    // 選択クリアイベントを発行
+    eventBus.emit(SelectionEvents.SELECTION_CLEARED, {
+      timestamp: Date.now(),
+    });
   }
   // 回転中心ヘルパーも非表示
   hideOrbitCenterHelper();
@@ -189,7 +204,7 @@ function highlightObject(obj) {
   if (Array.isArray(obj.material)) {
     originalMaterials.set(
       obj,
-      obj.material.map((mat) => mat.clone())
+      obj.material.map((mat) => mat.clone()),
     );
   } else if (obj.material) {
     originalMaterials.set(obj, obj.material.clone());
@@ -218,7 +233,7 @@ function highlightObject(obj) {
  */
 export function selectElement3D(obj, scheduleRender) {
   if (!obj || !obj.userData) {
-    console.warn('無効なオブジェクトが指定されました');
+    logger.warn(`${WarnCategory.UI} 選択: 無効なオブジェクトが指定されました`);
     return;
   }
 
@@ -227,7 +242,26 @@ export function selectElement3D(obj, scheduleRender) {
 
   // Axis と Story 以外の場合のみハイライト処理を実行
   if (elementType && elementType !== 'Axis' && elementType !== 'Story') {
-    // 既存の選択を解除（単一選択なので全解除）
+    // common/viewerモードの場合はアダプター経由で選択
+    const useCommonViewer = getState('viewer.useCommonViewer');
+    const adapter = getState('viewer.adapter');
+
+    if (useCommonViewer && adapter) {
+      // アダプター経由で選択
+      const elementId = userData.elementId || userData.elementIdA || userData.elementIdB;
+      const modelSource = userData.modelSource || 'A';
+      adapter.selectElement(elementId, modelSource);
+
+      // 従来の選択状態もクリア（互換性のため）
+      resetSelection();
+
+      // カメラフォーカス
+      adapter.focusOnElement(elementId, modelSource);
+
+      return;
+    }
+
+    // 通常モード: 既存の選択を解除（単一選択なので全解除）
     resetSelection();
 
     // ハイライト処理
@@ -249,7 +283,7 @@ export function selectElement3D(obj, scheduleRender) {
         createOrUpdateOrbitCenterHelper(center);
       }
     } catch (e) {
-      console.warn('Failed to compute selected object center:', e);
+      logger.warn(`${WarnCategory.UI} 選択: オブジェクト中心の計算失敗`, e);
     }
 
     // 再描画
@@ -298,7 +332,7 @@ export function selectMultipleElements3D(objects, scheduleRender, options = {}) 
   }
 
   if (objects.length > maxToSelect) {
-    console.warn(`選択数上限（${MAX_SELECTION_COUNT}要素）に達しました。一部の要素は選択されていません。`);
+    logger.warn(`${WarnCategory.UI} 選択: 上限到達 (${MAX_SELECTION_COUNT}要素)`);
   }
 
   // 回転中心を更新
@@ -313,7 +347,7 @@ export function selectMultipleElements3D(objects, scheduleRender, options = {}) 
       }
       createOrUpdateOrbitCenterHelper(center);
     } catch (e) {
-      console.warn('Failed to update orbit center:', e);
+      logger.warn(`${WarnCategory.UI} 選択: 回転中心の更新失敗`, e);
     }
   }
 
@@ -395,7 +429,8 @@ function displayMultiSelectionSummary() {
 
   if (modelSourceCounts.A > 0) summaryHtml += `<li>モデルA: ${modelSourceCounts.A}</li>`;
   if (modelSourceCounts.B > 0) summaryHtml += `<li>モデルB: ${modelSourceCounts.B}</li>`;
-  if (modelSourceCounts.matched > 0) summaryHtml += `<li>マッチ済: ${modelSourceCounts.matched}</li>`;
+  if (modelSourceCounts.matched > 0)
+    summaryHtml += `<li>マッチ済: ${modelSourceCounts.matched}</li>`;
 
   summaryHtml += `
       </ul>
@@ -447,8 +482,7 @@ export function processElementSelection(event, scheduleRender) {
     const obj = intersect.object;
     if (obj.userData && obj.userData.elementType) {
       const elementType = obj.userData.elementType;
-      const groupVisible =
-        elementGroups[elementType] && elementGroups[elementType].visible;
+      const groupVisible = elementGroups[elementType] && elementGroups[elementType].visible;
 
       if (groupVisible && obj.visible) {
         if (obj instanceof THREE.Line && !lineObject) {
@@ -461,10 +495,7 @@ export function processElementSelection(event, scheduleRender) {
           !meshOrSpriteObject
         ) {
           meshOrSpriteObject = obj;
-        } else if (
-          (elementType === 'Axis' || elementType === 'Story') &&
-          !axisOrStoryObject
-        ) {
+        } else if ((elementType === 'Axis' || elementType === 'Story') && !axisOrStoryObject) {
           axisOrStoryObject = obj;
         }
       }
@@ -489,7 +520,7 @@ export function processElementSelection(event, scheduleRender) {
         } else {
           // 選択上限チェック
           if (selectedObjects.length >= MAX_SELECTION_COUNT) {
-            console.warn(`選択数上限（${MAX_SELECTION_COUNT}要素）に達しました`);
+            logger.warn(`${WarnCategory.UI} 選択: 上限到達 (${MAX_SELECTION_COUNT}要素)`);
           } else {
             // 新規追加選択
             highlightObject(objectToSelect);
@@ -512,7 +543,7 @@ export function processElementSelection(event, scheduleRender) {
           }
           createOrUpdateOrbitCenterHelper(center);
         } catch (e) {
-          console.warn('Failed to update orbit center:', e);
+          logger.warn(`${WarnCategory.UI} 選択: 回転中心の更新失敗`, e);
         }
       }
 
@@ -525,10 +556,29 @@ export function processElementSelection(event, scheduleRender) {
         const singleObj = selectedObjects[0];
         const singleUserData = singleObj.userData;
         const singleElementType = singleUserData.elementType || singleUserData.stbNodeType;
-        const { idA, idB } = getElementIds(singleUserData);
-        const displayType = singleElementType === 'Column (fallback line)' ? 'Column' : singleElementType;
+        const displayType =
+          singleElementType === 'Column (fallback line)' ? 'Column' : singleElementType;
+
+        // 継手要素の場合はuserData.idをそのまま使用（"joint_165_start"形式）
+        let idA, idB;
+        if (displayType === 'Joint') {
+          idA = singleUserData.modelSource !== 'B' ? singleUserData.id : null;
+          idB = singleUserData.modelSource === 'B' ? singleUserData.id : null;
+        } else {
+          ({ idA, idB } = getElementIds(singleUserData));
+        }
 
         displayElementInfo(idA, idB, displayType, singleUserData.modelSource);
+
+        // 要素選択イベントを発行
+        eventBus.emit(SelectionEvents.ELEMENT_SELECTED, {
+          elementType: displayType,
+          elementId: idA || idB,
+          elementIdA: idA,
+          elementIdB: idB,
+          modelSource: singleUserData.modelSource,
+          timestamp: Date.now(),
+        });
 
         // ツリー表示を同期
         const elementId = idA || idB;
@@ -538,6 +588,21 @@ export function processElementSelection(event, scheduleRender) {
       } else {
         // 複数選択: サマリー表示
         displayMultiSelectionSummary();
+
+        // 複数選択イベントを発行
+        const selectedIds = selectedObjects.map((obj) => {
+          const ud = obj.userData;
+          return {
+            elementType: ud.elementType || ud.stbNodeType,
+            elementId: ud.elementId || ud.elementIdA || ud.elementIdB,
+            modelSource: ud.modelSource,
+          };
+        });
+        eventBus.emit(SelectionEvents.MULTI_SELECT, {
+          selectedElements: selectedIds,
+          count: selectedObjects.length,
+          timestamp: Date.now(),
+        });
       }
     } else if (elementType === 'Axis' || elementType === 'Story') {
       // Axis/Story がクリックされた場合: ハイライトせず、情報パネルをクリア
@@ -579,7 +644,7 @@ export function setupInteractionListeners(scheduleRender, options = {}) {
       (event) => {
         processElementSelection(event, scheduleRender);
       },
-      false
+      false,
     );
 
     // 右クリックイベント（コンテキストメニュー）
@@ -589,7 +654,7 @@ export function setupInteractionListeners(scheduleRender, options = {}) {
         event.preventDefault();
         handleContextMenu(event, scheduleRender);
       },
-      false
+      false,
     );
 
     // 左ボタン押下でドラッグの可能性を記録
@@ -602,7 +667,7 @@ export function setupInteractionListeners(scheduleRender, options = {}) {
         pointerDownPos.x = event.clientX;
         pointerDownPos.y = event.clientY;
       },
-      false
+      false,
     );
 
     // 実際にドラッグが始まったら（閾値超え）
@@ -622,7 +687,7 @@ export function setupInteractionListeners(scheduleRender, options = {}) {
           if (scheduleRender) scheduleRender();
         }
       },
-      false
+      false,
     );
 
     // ドラッグ終了でフラグをリセット
@@ -632,7 +697,7 @@ export function setupInteractionListeners(scheduleRender, options = {}) {
         isPointerDownLeft = false;
         appliedThisDrag = false;
       },
-      false
+      false,
     );
 
     // 操作開始/終了のフック
@@ -643,7 +708,7 @@ export function setupInteractionListeners(scheduleRender, options = {}) {
       });
     }
   } else {
-    console.error('Canvas element not found for click listener.');
+    logger.error('Canvas element not found for click listener.');
   }
 }
 
@@ -697,13 +762,12 @@ function handleContextMenu(event, scheduleRender) {
 function show3DContextMenu(x, y, targetObject, scheduleRender) {
   const selectedCount = selectedObjects.length;
   const isMultipleSelected = selectedCount > 1;
-  const userData = targetObject.userData || {};
 
   const menuItems = [
     {
       label: isMultipleSelected ? `${selectedCount}個の要素を非表示` : '要素を非表示',
       icon: '👁️',
-      action: () => handle3DHideElements(scheduleRender)
+      action: () => handle3DHideElements(scheduleRender),
     },
     { separator: true },
     {
@@ -711,21 +775,21 @@ function show3DContextMenu(x, y, targetObject, scheduleRender) {
       icon: '🔄',
       action: () => {
         resetSelection(scheduleRender);
-      }
+      },
     },
     { separator: true },
     {
       label: 'プロパティをコピー',
       icon: '📋',
       action: () => handle3DCopyProperties(targetObject),
-      disabled: isMultipleSelected
+      disabled: isMultipleSelected,
     },
     {
       label: 'この要素にフォーカス',
       icon: '🎯',
       action: () => handle3DFocusElement(targetObject),
-      disabled: isMultipleSelected
-    }
+      disabled: isMultipleSelected,
+    },
   ];
 
   showContextMenu(x, y, menuItems);
@@ -747,7 +811,7 @@ function showEmpty3DContextMenu(x, y, scheduleRender) {
       action: () => {
         resetSelection(scheduleRender);
       },
-      disabled: !hasSelection
+      disabled: !hasSelection,
     },
     { separator: true },
     {
@@ -758,8 +822,8 @@ function showEmpty3DContextMenu(x, y, scheduleRender) {
           controls.reset();
           if (scheduleRender) scheduleRender();
         }
-      }
-    }
+      },
+    },
   ];
 
   showContextMenu(x, y, menuItems);
@@ -772,15 +836,15 @@ function showEmpty3DContextMenu(x, y, scheduleRender) {
 function handle3DHideElements(scheduleRender) {
   if (selectedObjects.length === 0) return;
 
-  const elementsToHide = selectedObjects.map(obj => ({
+  const elementsToHide = selectedObjects.map((obj) => ({
     elementType: obj.userData?.elementType,
     elementId: obj.userData?.elementId,
     modelSource: obj.userData?.modelSource,
-    object: obj
+    object: obj,
   }));
 
   // 非表示にする
-  selectedObjects.forEach(obj => {
+  selectedObjects.forEach((obj) => {
     obj.visible = false;
   });
 
@@ -792,11 +856,9 @@ function handle3DHideElements(scheduleRender) {
     contextMenuActionCallback({
       action: 'hide',
       multiple: elementsToHide.length > 1,
-      elements: elementsToHide
+      elements: elementsToHide,
     });
   }
-
-  console.log(`${elementsToHide.length}個の要素を非表示にしました`);
 
   if (scheduleRender) scheduleRender();
 }
@@ -813,14 +875,20 @@ function handle3DCopyProperties(targetObject) {
     ID: userData.elementId || '-',
     名前: userData.name || '-',
     GUID: userData.guid || '-',
-    ステータス: userData.modelSource === 'matched' ? '一致'
-      : userData.modelSource === 'onlyA' ? 'A専用'
-      : userData.modelSource === 'onlyB' ? 'B専用' : '-'
+    ステータス:
+      userData.modelSource === 'matched'
+        ? '一致'
+        : userData.modelSource === 'onlyA'
+          ? 'A専用'
+          : userData.modelSource === 'onlyB'
+            ? 'B専用'
+            : '-',
   };
 
   // 位置情報を追加
   if (targetObject.position) {
-    properties['位置'] = `(${targetObject.position.x.toFixed(2)}, ${targetObject.position.y.toFixed(2)}, ${targetObject.position.z.toFixed(2)})`;
+    properties['位置'] =
+      `(${targetObject.position.x.toFixed(2)}, ${targetObject.position.y.toFixed(2)}, ${targetObject.position.z.toFixed(2)})`;
   }
 
   // 断面情報があれば追加
@@ -832,18 +900,20 @@ function handle3DCopyProperties(targetObject) {
     .map(([key, value]) => `${key}: ${value}`)
     .join('\n');
 
-  navigator.clipboard.writeText(text).then(() => {
-    console.log('プロパティをクリップボードにコピーしました');
-    if (contextMenuActionCallback) {
-      contextMenuActionCallback({
-        action: 'copyProperties',
-        success: true,
-        properties: properties
-      });
-    }
-  }).catch(err => {
-    console.error('クリップボードへのコピーに失敗しました:', err);
-  });
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      if (contextMenuActionCallback) {
+        contextMenuActionCallback({
+          action: 'copyProperties',
+          success: true,
+          properties: properties,
+        });
+      }
+    })
+    .catch((err) => {
+      logger.error('クリップボードへのコピーに失敗しました:', err);
+    });
 }
 
 /**
@@ -870,12 +940,8 @@ function handle3DFocusElement(targetObject) {
   cameraDistance = Math.max(cameraDistance * 2, 5); // 最小距離を確保
 
   // カメラ位置を更新
-  const direction = new THREE.Vector3()
-    .subVectors(camera.position, controls.target)
-    .normalize();
+  const direction = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
   camera.position.copy(center).add(direction.multiplyScalar(cameraDistance));
 
   controls.update();
-
-  console.log(`要素「${targetObject.userData?.elementId || 'Unknown'}」にフォーカスしました`);
 }

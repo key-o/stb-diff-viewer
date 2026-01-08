@@ -11,14 +11,17 @@
  */
 
 import * as THREE from 'three';
-import { parseElements } from '../parser/stbXmlParser.js';
+import { createLogger } from '../utils/logger.js';
+
+const logger = createLogger('modelLoader:comparison');
+import { parseElements } from '../common-stb/parser/stbXmlParser.js';
 import {
   compareElements,
   compareElementsWithImportance,
   compareElementsWithTolerance,
   lineElementKeyExtractor,
   polyElementKeyExtractor,
-  nodeElementKeyExtractor
+  nodeElementKeyExtractor,
 } from '../comparator.js';
 import { SUPPORTED_ELEMENTS } from '../viewer/index.js';
 import { COMPARISON_KEY_TYPE } from '../config/comparisonKeyConfig.js';
@@ -34,11 +37,7 @@ import { getToleranceConfig } from '../config/toleranceConfig.js';
  * @param {string} [options.comparisonKeyType] - Comparison key type (POSITION_BASED or GUID_BASED)
  * @returns {Object} Comparison results
  */
-export function processElementComparison(
-  modelData,
-  selectedElementTypes,
-  options = {}
-) {
+export function processElementComparison(modelData, selectedElementTypes, options = {}) {
   const { modelADocument, modelBDocument, nodeMapA, nodeMapB } = modelData;
 
   const comparisonResults = new Map();
@@ -46,27 +45,34 @@ export function processElementComparison(
 
   const { comparisonKeyType = COMPARISON_KEY_TYPE.POSITION_BASED } = options;
 
-  console.log('=== Starting Element Comparison ===');
-  console.log('Supported elements:', SUPPORTED_ELEMENTS);
-  console.log('Comparison key type:', comparisonKeyType);
-
   for (const elementType of SUPPORTED_ELEMENTS) {
     if (elementType === 'Axis' || elementType === 'Story') continue;
 
     const isSelected = selectedElementTypes.includes(elementType);
-    console.log(`--- Processing ${elementType} (Selected: ${isSelected}) ---`);
 
     let elementsA = [];
     let elementsB = [];
+
+    // Undefined要素は特別な処理が必要（StbUndefinedタグは存在しない）
+    // stbStructureReader.jsのparseStbFileで抽出されたundefinedElementsを使用
+    // ここでは空の結果を返し、viewModes.jsのredrawUndefinedElementsForViewModeで処理
+    if (elementType === 'Undefined') {
+      comparisonResults.set(elementType, {
+        matched: [],
+        onlyA: [],
+        onlyB: [],
+        elementType,
+        isSelected,
+        elementsA: [],
+        elementsB: [],
+      });
+      continue;
+    }
 
     try {
       // Parse elements from both models
       elementsA = parseElements(modelADocument, 'Stb' + elementType);
       elementsB = parseElements(modelBDocument, 'Stb' + elementType);
-
-      console.log(
-        `${elementType} - Model A: ${elementsA.length}, Model B: ${elementsB.length}`
-      );
 
       // Perform comparison with importance options
       const comparisonResult = compareElementsByType(
@@ -75,7 +81,7 @@ export function processElementComparison(
         elementsB,
         nodeMapA,
         nodeMapB,
-        { ...options, comparisonKeyType }
+        { ...options, comparisonKeyType },
       );
 
       // Store comparison result
@@ -84,29 +90,15 @@ export function processElementComparison(
         elementType,
         isSelected,
         elementsA,
-        elementsB
-      });
-
-      console.log(`${elementType} comparison complete:`, {
-        matched: comparisonResult.matched.length,
-        onlyA: comparisonResult.onlyA.length,
-        onlyB: comparisonResult.onlyB.length
+        elementsB,
       });
     } catch (error) {
-      console.error(`Error processing ${elementType}:`, error);
-      console.error(`Error stack:`, error.stack);
-      console.error(
-        `Elements A length: ${elementsA ? elementsA.length : 'undefined'}`
-      );
-      console.error(
-        `Elements B length: ${elementsB ? elementsB.length : 'undefined'}`
-      );
-      console.error(
-        `Node map A size: ${nodeMapA ? nodeMapA.size : 'undefined'}`
-      );
-      console.error(
-        `Node map B size: ${nodeMapB ? nodeMapB.size : 'undefined'}`
-      );
+      logger.error(`Error processing ${elementType}:`, error);
+      logger.error(`Error stack:`, error.stack);
+      logger.error(`Elements A length: ${elementsA ? elementsA.length : 'undefined'}`);
+      logger.error(`Elements B length: ${elementsB ? elementsB.length : 'undefined'}`);
+      logger.error(`Node map A size: ${nodeMapA ? nodeMapA.size : 'undefined'}`);
+      logger.error(`Node map B size: ${nodeMapB ? nodeMapB.size : 'undefined'}`);
       comparisonResults.set(elementType, {
         matched: [],
         onlyA: [],
@@ -115,16 +107,14 @@ export function processElementComparison(
         isSelected,
         elementsA: elementsA || [],
         elementsB: elementsB || [],
-        error: error.message
+        error: error.message,
       });
     }
   }
 
-  console.log('=== Element Comparison Complete ===');
-
   return {
     comparisonResults,
-    modelBounds
+    modelBounds,
   };
 }
 
@@ -147,22 +137,15 @@ function compareElementsByType(
   elementsB,
   nodeMapA,
   nodeMapB,
-  options = {}
+  options = {},
 ) {
   const {
     useImportanceFiltering = true,
     targetImportanceLevels = null,
-    comparisonKeyType = COMPARISON_KEY_TYPE.POSITION_BASED
+    comparisonKeyType = COMPARISON_KEY_TYPE.POSITION_BASED,
   } = options;
 
   let comparisonResult = null;
-
-  console.log(`compareElementsByType called for ${elementType}:`, {
-    elementsACount: elementsA.length,
-    elementsBCount: elementsB.length,
-    useImportanceFiltering,
-    targetImportanceLevels
-  });
 
   // Get tolerance configuration
   const toleranceConfig = getToleranceConfig();
@@ -173,14 +156,13 @@ function compareElementsByType(
     try {
       // Use tolerance-based comparison if enabled
       if (useToleranceComparison) {
-        console.log(`Using tolerance-based comparison for ${elementType}`, toleranceConfig);
         const toleranceResult = compareElementsWithTolerance(
           elementsA,
           elementsB,
           nodeMapA,
           nodeMapB,
           keyExtractor,
-          toleranceConfig
+          toleranceConfig,
         );
 
         // Convert 5-level tolerance result to 3-level result for compatibility
@@ -193,14 +175,13 @@ function compareElementsByType(
           _toleranceData: {
             exact: toleranceResult.exact,
             withinTolerance: toleranceResult.withinTolerance,
-            mismatch: toleranceResult.mismatch
-          }
+            mismatch: toleranceResult.mismatch,
+          },
         };
       }
 
       // Use importance-based comparison
       if (useImportanceFiltering) {
-        console.log(`Using importance-based comparison for ${elementType}`);
         return compareElementsWithImportance(
           elementsA,
           elementsB,
@@ -208,20 +189,13 @@ function compareElementsByType(
           nodeMapB,
           keyExtractor,
           'Stb' + elementType,
-          { targetImportanceLevels }
+          { targetImportanceLevels },
         );
       } else {
-        console.log(`Using basic comparison for ${elementType}`);
-        return compareElements(
-          elementsA,
-          elementsB,
-          nodeMapA,
-          nodeMapB,
-          keyExtractor
-        );
+        return compareElements(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor);
       }
     } catch (error) {
-      console.error(`Error in performComparison for ${elementType}:`, error);
+      logger.error(`Error in performComparison for ${elementType}:`, error);
       throw error;
     }
   };
@@ -229,68 +203,90 @@ function compareElementsByType(
   try {
     switch (elementType) {
       case 'Node':
-        console.log(`Processing Node elements`);
         comparisonResult = performComparison(nodeElementKeyExtractor);
         break;
 
       case 'Column':
-        console.log(`Processing Column elements with bottom/top nodes`);
         comparisonResult = performComparison((el, nm) =>
-          lineElementKeyExtractor(
-            el,
-            nm,
-            'id_node_bottom',
-            'id_node_top',
-            comparisonKeyType
-          )
+          lineElementKeyExtractor(el, nm, 'id_node_bottom', 'id_node_top', comparisonKeyType),
+        );
+        break;
+
+      case 'Post':
+        comparisonResult = performComparison((el, nm) =>
+          lineElementKeyExtractor(el, nm, 'id_node_bottom', 'id_node_top', comparisonKeyType),
         );
         break;
 
       case 'Girder':
       case 'Beam':
-        console.log(`Processing ${elementType} elements with start/end nodes`);
         comparisonResult = performComparison((el, nm) =>
-          lineElementKeyExtractor(
-            el,
-            nm,
-            'id_node_start',
-            'id_node_end',
-            comparisonKeyType
-          )
+          lineElementKeyExtractor(el, nm, 'id_node_start', 'id_node_end', comparisonKeyType),
         );
         break;
 
       case 'Brace':
-        console.log(`Processing Brace elements with start/end nodes`);
         comparisonResult = performComparison((el, nm) =>
-          lineElementKeyExtractor(
-            el,
-            nm,
-            'id_node_start',
-            'id_node_end',
-            comparisonKeyType
-          )
+          lineElementKeyExtractor(el, nm, 'id_node_start', 'id_node_end', comparisonKeyType),
         );
         break;
 
       case 'Slab':
       case 'Wall':
-        console.log(`Processing ${elementType} elements with node order`);
         comparisonResult = performComparison((el, nm) =>
-          polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType)
+          polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType),
         );
         break;
 
+      case 'Pile':
+        // Pile要素は2ノード形式（id_node_bottom/top）または1ノード形式（id_node + level_top）
+        // lineElementKeyExtractorは1ノード形式にもフォールバック対応
+        comparisonResult = performComparison((el, nm) =>
+          lineElementKeyExtractor(el, nm, 'id_node_bottom', 'id_node_top', comparisonKeyType),
+        );
+        break;
+
+      case 'Footing':
+        // Footing要素は1ノード形式（id_node + level_bottom）
+        // lineElementKeyExtractorの1ノードフォールバックで対応
+        comparisonResult = performComparison((el, nm) =>
+          lineElementKeyExtractor(el, nm, 'id_node_bottom', 'id_node_top', comparisonKeyType),
+        );
+        break;
+
+      case 'FoundationColumn':
+        comparisonResult = performComparison((el, nm) =>
+          lineElementKeyExtractor(el, nm, 'id_node_bottom', 'id_node_top', comparisonKeyType),
+        );
+        break;
+
+      case 'Parapet':
+        comparisonResult = performComparison((el, nm) =>
+          lineElementKeyExtractor(el, nm, 'id_node_start', 'id_node_end', comparisonKeyType),
+        );
+        break;
+
+      case 'StripFooting':
+        comparisonResult = performComparison((el, nm) =>
+          lineElementKeyExtractor(el, nm, 'id_node_start', 'id_node_end', comparisonKeyType),
+        );
+        break;
+
+      case 'Joint':
+        // 継手は梁・柱に関連付けられた定義なので、IDベースで比較
+        comparisonResult = performComparison((el) => el.id);
+        break;
+
       default:
-        console.warn(`Unknown element type for comparison: ${elementType}`);
+        logger.warn(`Unknown element type for comparison: ${elementType}`);
         comparisonResult = {
           matched: [],
           onlyA: [...elementsA],
-          onlyB: [...elementsB]
+          onlyB: [...elementsB],
         };
     }
   } catch (error) {
-    console.error(`Error in switch statement for ${elementType}:`, error);
+    logger.error(`Error in switch statement for ${elementType}:`, error);
     throw error;
   }
 
@@ -298,7 +294,7 @@ function compareElementsByType(
     comparisonResult || {
       matched: [],
       onlyA: [],
-      onlyB: []
+      onlyB: [],
     }
   );
 }
@@ -326,7 +322,7 @@ export function calculateElementBounds(comparisonResults, nodeMapA, nodeMapB) {
   if (bounds.isEmpty()) {
     bounds.expandByPoint(new THREE.Vector3(-1000, -1000, -1000));
     bounds.expandByPoint(new THREE.Vector3(1000, 1000, 1000));
-    console.warn('No valid geometry found, using default bounds');
+    logger.warn('No valid geometry found, using default bounds');
   }
 
   return bounds;
@@ -345,7 +341,7 @@ export function getComparisonStatistics(comparisonResults) {
     onlyBElements: 0,
     elementTypes: {},
     selectedTypes: [],
-    errors: []
+    errors: [],
   };
 
   for (const [elementType, result] of comparisonResults.entries()) {
@@ -354,7 +350,7 @@ export function getComparisonStatistics(comparisonResults) {
       onlyA: result.onlyA.length,
       onlyB: result.onlyB.length,
       total: result.matched.length + result.onlyA.length + result.onlyB.length,
-      isSelected: result.isSelected
+      isSelected: result.isSelected,
     };
 
     stats.elementTypes[elementType] = typeStats;
@@ -370,7 +366,7 @@ export function getComparisonStatistics(comparisonResults) {
     if (result.error) {
       stats.errors.push({
         elementType,
-        error: result.error
+        error: result.error,
       });
     }
   }

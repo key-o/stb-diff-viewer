@@ -9,10 +9,11 @@
  * 5. 修復済みファイルの出力
  */
 
-import { loadStbXmlAutoEncoding } from '../viewer/utils/utils.js';
+/* global XMLSerializer */
+
+import { loadStbXmlAutoEncoding } from '../viewer/loader/stbXmlLoader.js';
 import { validateStbDocument, formatValidationReport } from './stbValidator.js';
-import { StbRepairEngine, formatRepairReport, autoRepairDocument } from '../repair/stbRepairEngine.js';
-import { buildNodeMap } from '../parser/stbXmlParser.js';
+import { formatRepairReport, autoRepairDocument } from '../repair/stbRepairEngine.js';
 
 /**
  * ワークフローステップ
@@ -26,7 +27,7 @@ export const WORKFLOW_STEP = {
   REPAIRED: 'repaired',
   EXPORTING: 'exporting',
   COMPLETED: 'completed',
-  ERROR: 'error'
+  ERROR: 'error',
 };
 
 /**
@@ -53,7 +54,7 @@ export class ValidationWorkflow {
       validationReport: null,
       repairReport: null,
       error: null,
-      options: {}
+      options: {},
     };
 
     this.listeners = [];
@@ -74,7 +75,7 @@ export class ValidationWorkflow {
    * @param {Function} listener - コールバック関数
    */
   removeListener(listener) {
-    this.listeners = this.listeners.filter(l => l !== listener);
+    this.listeners = this.listeners.filter((l) => l !== listener);
   }
 
   /**
@@ -111,7 +112,7 @@ export class ValidationWorkflow {
       validationReport: null,
       repairReport: null,
       error: null,
-      options: {}
+      options: {},
     };
     this.notifyListeners();
   }
@@ -129,36 +130,36 @@ export class ValidationWorkflow {
       this.updateState({
         step: WORKFLOW_STEP.LOADING,
         error: null,
-        options
+        options,
       });
 
       const xmlDoc = await loadStbXmlAutoEncoding(file);
 
       this.updateState({
-        originalDocument: xmlDoc
+        originalDocument: xmlDoc,
       });
 
       // バリデーションステップ
       this.updateState({
-        step: WORKFLOW_STEP.VALIDATING
+        step: WORKFLOW_STEP.VALIDATING,
       });
 
       const validationReport = validateStbDocument(xmlDoc, {
         validateReferences: options.validateReferences !== false,
         validateGeometry: options.validateGeometry !== false,
-        includeInfo: options.includeInfo || false
+        includeInfo: options.includeInfo || false,
       });
 
       this.updateState({
         step: WORKFLOW_STEP.VALIDATED,
-        validationReport
+        validationReport,
       });
 
       return validationReport;
     } catch (e) {
       this.updateState({
         step: WORKFLOW_STEP.ERROR,
-        error: e.message
+        error: e.message,
       });
       throw e;
     }
@@ -177,25 +178,25 @@ export class ValidationWorkflow {
         step: WORKFLOW_STEP.VALIDATING,
         originalDocument: xmlDoc,
         error: null,
-        options
+        options,
       });
 
       const validationReport = validateStbDocument(xmlDoc, {
         validateReferences: options.validateReferences !== false,
         validateGeometry: options.validateGeometry !== false,
-        includeInfo: options.includeInfo || false
+        includeInfo: options.includeInfo || false,
       });
 
       this.updateState({
         step: WORKFLOW_STEP.VALIDATED,
-        validationReport
+        validationReport,
       });
 
       return validationReport;
     } catch (e) {
       this.updateState({
         step: WORKFLOW_STEP.ERROR,
-        error: e.message
+        error: e.message,
       });
       throw e;
     }
@@ -214,7 +215,7 @@ export class ValidationWorkflow {
 
     try {
       this.updateState({
-        step: WORKFLOW_STEP.REPAIRING
+        step: WORKFLOW_STEP.REPAIRING,
       });
 
       // ドキュメントをクローン
@@ -226,21 +227,21 @@ export class ValidationWorkflow {
         {
           removeInvalid: repairOptions.removeInvalid !== false,
           useDefaults: repairOptions.useDefaults !== false,
-          skipCategories: repairOptions.skipCategories || []
-        }
+          skipCategories: repairOptions.skipCategories || [],
+        },
       );
 
       this.updateState({
         step: WORKFLOW_STEP.REPAIRED,
         repairedDocument: repairedDoc,
-        repairReport: report
+        repairReport: report,
       });
 
       return report;
     } catch (e) {
       this.updateState({
         step: WORKFLOW_STEP.ERROR,
-        error: e.message
+        error: e.message,
       });
       throw e;
     }
@@ -259,7 +260,7 @@ export class ValidationWorkflow {
     const report = validateStbDocument(this.state.repairedDocument, {
       validateReferences: true,
       validateGeometry: true,
-      includeInfo: false
+      includeInfo: false,
     });
 
     return report;
@@ -296,7 +297,7 @@ export class ValidationWorkflow {
    */
   downloadRepairedFile(filename, options = {}) {
     this.updateState({
-      step: WORKFLOW_STEP.EXPORTING
+      step: WORKFLOW_STEP.EXPORTING,
     });
 
     try {
@@ -321,12 +322,12 @@ export class ValidationWorkflow {
       URL.revokeObjectURL(url);
 
       this.updateState({
-        step: WORKFLOW_STEP.COMPLETED
+        step: WORKFLOW_STEP.COMPLETED,
       });
     } catch (e) {
       this.updateState({
         step: WORKFLOW_STEP.ERROR,
-        error: e.message
+        error: e.message,
       });
       throw e;
     }
@@ -357,7 +358,7 @@ export class ValidationWorkflow {
       errorCount: report.statistics.errorCount,
       warningCount: report.statistics.warningCount,
       repairableCount: report.statistics.repairableCount,
-      totalElements: report.statistics.totalElements
+      totalElements: report.statistics.totalElements,
     };
   }
 
@@ -376,7 +377,7 @@ export class ValidationWorkflow {
       totalRepairs: report.totalRepairs,
       successCount: report.successCount,
       failureCount: report.failureCount,
-      removedCount: report.removedElements.length
+      removedCount: report.removedElements.length,
     };
   }
 
@@ -391,15 +392,15 @@ export class ValidationWorkflow {
     }
 
     return this.state.validationReport.issues
-      .filter(issue => issue.repairable)
-      .map(issue => ({
+      .filter((issue) => issue.repairable)
+      .map((issue) => ({
         elementType: issue.elementType,
         elementId: issue.elementId,
         attribute: issue.attribute,
         currentValue: issue.value,
         suggestion: issue.repairSuggestion,
         severity: issue.severity,
-        message: issue.message
+        message: issue.message,
       }));
   }
 }
@@ -433,11 +434,13 @@ function formatXml(xmlString) {
     formatted += '  '.repeat(indent) + trimmed + '\n';
 
     // 開始タグでインデント増加（自己終了タグを除く）
-    if (trimmed.startsWith('<') &&
-        !trimmed.startsWith('</') &&
-        !trimmed.startsWith('<?') &&
-        !trimmed.endsWith('/>') &&
-        !trimmed.includes('</')) {
+    if (
+      trimmed.startsWith('<') &&
+      !trimmed.startsWith('</') &&
+      !trimmed.startsWith('<?') &&
+      !trimmed.endsWith('/>') &&
+      !trimmed.includes('</')
+    ) {
       indent++;
     }
   }
@@ -477,7 +480,7 @@ export async function runCompleteWorkflow(file, options = {}) {
     validationReport,
     repairReport,
     xmlString,
-    workflow
+    workflow,
   };
 }
 

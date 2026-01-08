@@ -7,7 +7,6 @@
 import * as THREE from 'three';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 import { createLogger } from '../utils/logger.js';
-import { getState, setState } from '../core/globalState.js';
 import { scene, camera, renderer, controls, getActiveCamera } from './core/core.js';
 
 const log = createLogger('DXFViewer');
@@ -38,7 +37,7 @@ export function clearDxfGroup() {
       if (child.geometry) child.geometry.dispose();
       if (child.material) {
         if (Array.isArray(child.material)) {
-          child.material.forEach(m => m.dispose());
+          child.material.forEach((m) => m.dispose());
         } else {
           child.material.dispose();
         }
@@ -58,42 +57,36 @@ export function clearDxfGroup() {
  * @returns {Object} 変換後の座標 {x, y, z}
  */
 function transformCoordinates(x, y, z, transformOptions) {
-  const {
-    scale = 1,
-    offsetX = 0,
-    offsetY = 0,
-    offsetZ = 0,
-    plane = 'xy'
-  } = transformOptions;
+  const { scale = 1, offsetX = 0, offsetY = 0, offsetZ = 0, plane = 'xy' } = transformOptions;
 
   let tx, ty, tz;
 
   switch (plane) {
     case 'xy':
       // XY平面（平面図） - そのまま
-      tx = (x * scale) + offsetX;
-      ty = (y * scale) + offsetY;
-      tz = (z * scale) + offsetZ;
+      tx = x * scale + offsetX;
+      ty = y * scale + offsetY;
+      tz = z * scale + offsetZ;
       break;
 
     case 'xz':
       // XZ平面（Y通り断面図） - DXFのY→3DのZ
-      tx = (x * scale) + offsetX;
+      tx = x * scale + offsetX;
       ty = offsetY; // Y通りの位置
-      tz = (y * scale) + offsetZ;
+      tz = y * scale + offsetZ;
       break;
 
     case 'yz':
       // YZ平面（X通り断面図） - DXFのX→3DのY, DXFのY→3DのZ
       tx = offsetX; // X通りの位置
-      ty = (x * scale) + offsetY;
-      tz = (y * scale) + offsetZ;
+      ty = x * scale + offsetY;
+      tz = y * scale + offsetZ;
       break;
 
     default:
-      tx = (x * scale) + offsetX;
-      ty = (y * scale) + offsetY;
-      tz = (z * scale) + offsetZ;
+      tx = x * scale + offsetX;
+      ty = y * scale + offsetY;
+      tz = z * scale + offsetZ;
   }
 
   return { x: tx, y: ty, z: tz };
@@ -112,7 +105,7 @@ export function renderDxfEntities(entities, options = {}) {
     offsetY = 0,
     offsetZ = 0,
     plane = 'xy',
-    visibleLayers = null  // nullの場合は全レイヤー表示
+    visibleLayers = null, // nullの場合は全レイヤー表示
   } = options;
 
   // 座標変換オプションをまとめる
@@ -144,7 +137,7 @@ export function renderDxfEntities(entities, options = {}) {
 
   log.info('DXF描画完了:', {
     totalObjects: group.children.length,
-    plane: plane
+    plane: plane,
   });
 
   return group;
@@ -158,29 +151,27 @@ function renderLines(lines, group, transformOptions, visibleLayers) {
     if (visibleLayers && !visibleLayers.includes(line.layer)) continue;
 
     const start = transformCoordinates(
-      line.start.x, line.start.y, line.start.z || 0, transformOptions
+      line.start.x,
+      line.start.y,
+      line.start.z || 0,
+      transformOptions,
     );
-    const end = transformCoordinates(
-      line.end.x, line.end.y, line.end.z || 0, transformOptions
-    );
+    const end = transformCoordinates(line.end.x, line.end.y, line.end.z || 0, transformOptions);
 
     const geometry = new THREE.BufferGeometry();
-    const vertices = new Float32Array([
-      start.x, start.y, start.z,
-      end.x, end.y, end.z
-    ]);
+    const vertices = new Float32Array([start.x, start.y, start.z, end.x, end.y, end.z]);
     geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
 
     const material = new THREE.LineBasicMaterial({
       color: line.color,
-      linewidth: 1
+      linewidth: 1,
     });
 
     const lineObj = new THREE.Line(geometry, material);
     lineObj.userData = {
       type: 'DXF_LINE',
       layer: line.layer,
-      sourceType: 'dxf'
+      sourceType: 'dxf',
     };
     group.add(lineObj);
   }
@@ -217,7 +208,12 @@ function renderPolylines(polylines, group, transformOptions, visibleLayers) {
         points.push(...arcPoints);
       }
 
-      const firstTransformed = transformCoordinates(firstPt.x, firstPt.y, firstPt.z || 0, transformOptions);
+      const firstTransformed = transformCoordinates(
+        firstPt.x,
+        firstPt.y,
+        firstPt.z || 0,
+        transformOptions,
+      );
       points.push(new THREE.Vector3(firstTransformed.x, firstTransformed.y, firstTransformed.z));
     }
 
@@ -226,7 +222,7 @@ function renderPolylines(polylines, group, transformOptions, visibleLayers) {
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     const material = new THREE.LineBasicMaterial({
       color: pl.color,
-      linewidth: 1
+      linewidth: 1,
     });
 
     const lineObj = new THREE.Line(geometry, material);
@@ -234,7 +230,7 @@ function renderPolylines(polylines, group, transformOptions, visibleLayers) {
       type: 'DXF_POLYLINE',
       layer: pl.layer,
       closed: pl.closed,
-      sourceType: 'dxf'
+      sourceType: 'dxf',
     };
     group.add(lineObj);
   }
@@ -253,8 +249,8 @@ function calculateBulgeArc(startPt, endPt, bulge, transformOptions) {
 
   if (chord < 0.0001) return points;
 
-  const sagitta = Math.abs(bulge) * chord / 2;
-  const radius = (chord * chord / 4 + sagitta * sagitta) / (2 * sagitta);
+  const sagitta = (Math.abs(bulge) * chord) / 2;
+  const radius = ((chord * chord) / 4 + sagitta * sagitta) / (2 * sagitta);
 
   const midX = (startPt.x + endPt.x) / 2;
   const midY = (startPt.y + endPt.y) / 2;
@@ -309,7 +305,7 @@ function renderCircles(circles, group, transformOptions, visibleLayers) {
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     const material = new THREE.LineBasicMaterial({
       color: circle.color,
-      linewidth: 1
+      linewidth: 1,
     });
 
     const circleObj = new THREE.Line(geometry, material);
@@ -317,7 +313,7 @@ function renderCircles(circles, group, transformOptions, visibleLayers) {
       type: 'DXF_CIRCLE',
       layer: circle.layer,
       radius: circle.radius,
-      sourceType: 'dxf'
+      sourceType: 'dxf',
     };
     group.add(circleObj);
   }
@@ -332,8 +328,8 @@ function renderArcs(arcs, group, transformOptions, visibleLayers) {
   for (const arc of arcs) {
     if (visibleLayers && !visibleLayers.includes(arc.layer)) continue;
 
-    const startAngle = arc.startAngle * Math.PI / 180;
-    let endAngle = arc.endAngle * Math.PI / 180;
+    const startAngle = (arc.startAngle * Math.PI) / 180;
+    let endAngle = (arc.endAngle * Math.PI) / 180;
 
     // 角度の正規化
     if (endAngle < startAngle) {
@@ -354,7 +350,7 @@ function renderArcs(arcs, group, transformOptions, visibleLayers) {
     const geometry = new THREE.BufferGeometry().setFromPoints(points);
     const material = new THREE.LineBasicMaterial({
       color: arc.color,
-      linewidth: 1
+      linewidth: 1,
     });
 
     const arcObj = new THREE.Line(geometry, material);
@@ -362,7 +358,7 @@ function renderArcs(arcs, group, transformOptions, visibleLayers) {
       type: 'DXF_ARC',
       layer: arc.layer,
       radius: arc.radius,
-      sourceType: 'dxf'
+      sourceType: 'dxf',
     };
     group.add(arcObj);
   }
@@ -405,24 +401,32 @@ function renderPoints(points, group, transformOptions, visibleLayers) {
     const geometry = new THREE.BufferGeometry();
     const vertices = new Float32Array([
       // 水平線
-      h1.x, h1.y, h1.z,
-      h2.x, h2.y, h2.z,
+      h1.x,
+      h1.y,
+      h1.z,
+      h2.x,
+      h2.y,
+      h2.z,
       // 垂直線
-      v1.x, v1.y, v1.z,
-      v2.x, v2.y, v2.z
+      v1.x,
+      v1.y,
+      v1.z,
+      v2.x,
+      v2.y,
+      v2.z,
     ]);
     geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
 
     const material = new THREE.LineBasicMaterial({
       color: point.color,
-      linewidth: 1
+      linewidth: 1,
     });
 
     const pointObj = new THREE.LineSegments(geometry, material);
     pointObj.userData = {
       type: 'DXF_POINT',
       layer: point.layer,
-      sourceType: 'dxf'
+      sourceType: 'dxf',
     };
     group.add(pointObj);
   }
@@ -450,12 +454,15 @@ function renderTexts(texts, group, transformOptions, visibleLayers) {
     log.info('DXF TEXT raw:', {
       text: text.text,
       bytes: rawBytes.join(' '),
-      layer: text.layer
+      layer: text.layer,
     });
 
     // 座標を変換
     const transformed = transformCoordinates(
-      text.position.x, text.position.y, text.position.z || 0, transformOptions
+      text.position.x,
+      text.position.y,
+      text.position.z || 0,
+      transformOptions,
     );
 
     const sprite = createTextSprite(
@@ -466,7 +473,7 @@ function renderTexts(texts, group, transformOptions, visibleLayers) {
       scale,
       text.color,
       text.height,
-      text.rotation
+      text.rotation,
     );
 
     if (sprite) {
@@ -476,7 +483,7 @@ function renderTexts(texts, group, transformOptions, visibleLayers) {
         sourceType: 'dxf',
         originalText: text.text,
         height: text.height,
-        rotation: text.rotation
+        rotation: text.rotation,
       };
       group.add(sprite);
     }
@@ -495,18 +502,18 @@ function convertDxfSpecialChars(text) {
 
   // AutoCAD %%コード（大文字小文字両方に対応）
   const specialCodes = {
-    '%%C': 'φ',      // 直径記号
+    '%%C': 'φ', // 直径記号
     '%%c': 'φ',
-    '%%D': '°',      // 度記号
+    '%%D': '°', // 度記号
     '%%d': '°',
-    '%%P': '±',      // プラスマイナス
+    '%%P': '±', // プラスマイナス
     '%%p': '±',
-    '%%U': '',       // 下線開始（表示のみなので除去）
+    '%%U': '', // 下線開始（表示のみなので除去）
     '%%u': '',
-    '%%O': '',       // 上線開始（表示のみなので除去）
+    '%%O': '', // 上線開始（表示のみなので除去）
     '%%o': '',
-    '%%%': '%',      // パーセント記号
-    '%%NNN': ''      // 3桁数字は後で処理
+    '%%%': '%', // パーセント記号
+    '%%NNN': '', // 3桁数字は後で処理
   };
 
   // %%コードを置換
@@ -535,20 +542,20 @@ function convertDxfSpecialChars(text) {
 
   // MTEXT書式コードを除去
   result = result
-    .replace(/\\A[012];/g, '')      // 垂直揃え
-    .replace(/\\f[^;]*;/gi, '')     // フォント指定
-    .replace(/\\H[0-9.]+;/gi, '')   // 高さ指定
-    .replace(/\\H[0-9.]+x;/gi, '')  // 高さ係数
-    .replace(/\\W[0-9.]+;/gi, '')   // 幅係数
-    .replace(/\\Q[0-9.]+;/gi, '')   // 斜体角度
-    .replace(/\\T[0-9.]+;/gi, '')   // トラッキング
-    .replace(/\\[CLOR]/gi, '')      // 色、行揃え
-    .replace(/\\S[^;]*;/gi, '')     // スタックテキスト
-    .replace(/\{|\}/g, '')          // グループ括弧
-    .replace(/\\~/g, ' ')           // 改行なしスペース
-    .replace(/\\\\/g, '\\')         // エスケープされたバックスラッシュ
-    .replace(/\\P/gi, '\n')         // 段落区切り（改行）
-    .replace(/\\N/gi, '\n');        // 改行
+    .replace(/\\A[012];/g, '') // 垂直揃え
+    .replace(/\\f[^;]*;/gi, '') // フォント指定
+    .replace(/\\H[0-9.]+;/gi, '') // 高さ指定
+    .replace(/\\H[0-9.]+x;/gi, '') // 高さ係数
+    .replace(/\\W[0-9.]+;/gi, '') // 幅係数
+    .replace(/\\Q[0-9.]+;/gi, '') // 斜体角度
+    .replace(/\\T[0-9.]+;/gi, '') // トラッキング
+    .replace(/\\[CLOR]/gi, '') // 色、行揃え
+    .replace(/\\S[^;]*;/gi, '') // スタックテキスト
+    .replace(/\{|\}/g, '') // グループ括弧
+    .replace(/\\~/g, ' ') // 改行なしスペース
+    .replace(/\\\\/g, '\\') // エスケープされたバックスラッシュ
+    .replace(/\\P/gi, '\n') // 段落区切り（改行）
+    .replace(/\\N/gi, '\n'); // 改行
 
   // SHXフォント外字・特殊記号の変換
   // これらはbigfont.shx、extfont.shx等で使われる日本語CAD特有の文字
@@ -575,7 +582,7 @@ function convertShxSpecialChars(text) {
     const code = char.charCodeAt(0);
 
     // Unicode Private Use Area (E000-F8FF) - SHXフォント外字
-    if (code >= 0xE000 && code <= 0xF8FF) {
+    if (code >= 0xe000 && code <= 0xf8ff) {
       // よく使われる外字のマッピング（AutoCAD/Jw_cad等）
       const shxMapping = getShxCharMapping(code);
       if (shxMapping) {
@@ -586,21 +593,21 @@ function convertShxSpecialChars(text) {
       }
     }
     // 罫線素片やBox Drawing文字（2500-257F）- 通常はそのまま
-    else if (code >= 0x2500 && code <= 0x257F) {
+    else if (code >= 0x2500 && code <= 0x257f) {
       result += char;
     }
     // その他の特殊記号領域
-    else if (code >= 0x25A0 && code <= 0x25FF) {
+    else if (code >= 0x25a0 && code <= 0x25ff) {
       // 幾何学的図形（◆◇○●等）
       // 建築記号として使われている可能性があるが、表示できる文字はそのまま
       result += char;
     }
     // 囲み文字（①②等 - 2460-24FF）
-    else if (code >= 0x2460 && code <= 0x24FF) {
+    else if (code >= 0x2460 && code <= 0x24ff) {
       result += char;
     }
     // CJK互換文字や特殊記号で表示できないもの
-    else if (code >= 0xFE00 && code <= 0xFE0F) {
+    else if (code >= 0xfe00 && code <= 0xfe0f) {
       // 異体字セレクタ - 除去
       continue;
     } else {
@@ -621,92 +628,92 @@ function getShxCharMapping(code) {
   // これらは主にbigfont.shx、extfont2.shx等で定義される特殊記号
   const shxMappings = {
     // 建築記号
-    0xE000: '─',    // 横線
-    0xE001: '│',    // 縦線
-    0xE002: '┌',    // 角
-    0xE003: '┐',
-    0xE004: '└',
-    0xE005: '┘',
-    0xE006: '├',
-    0xE007: '┤',
-    0xE008: '┬',
-    0xE009: '┴',
-    0xE00A: '┼',
+    0xe000: '─', // 横線
+    0xe001: '│', // 縦線
+    0xe002: '┌', // 角
+    0xe003: '┐',
+    0xe004: '└',
+    0xe005: '┘',
+    0xe006: '├',
+    0xe007: '┤',
+    0xe008: '┬',
+    0xe009: '┴',
+    0xe00a: '┼',
 
     // 構造記号（鉄骨等）
-    0xE010: 'H',     // H形鋼
-    0xE011: 'C',     // C形鋼
-    0xE012: 'L',     // アングル
-    0xE013: '□',    // 角パイプ
-    0xE014: '○',    // 丸パイプ
+    0xe010: 'H', // H形鋼
+    0xe011: 'C', // C形鋼
+    0xe012: 'L', // アングル
+    0xe013: '□', // 角パイプ
+    0xe014: '○', // 丸パイプ
 
     // 寸法記号
-    0xE020: 'φ',    // 直径
-    0xE021: 'R',     // 半径
-    0xE022: '°',    // 度
-    0xE023: '±',    // プラスマイナス
-    0xE024: '×',    // 掛ける
-    0xE025: '÷',    // 割る
+    0xe020: 'φ', // 直径
+    0xe021: 'R', // 半径
+    0xe022: '°', // 度
+    0xe023: '±', // プラスマイナス
+    0xe024: '×', // 掛ける
+    0xe025: '÷', // 割る
 
     // よく使われる日本語CAD記号
-    0xE030: '通',    // 通り芯
-    0xE031: '芯',
-    0xE032: '階',
-    0xE033: 'F',     // Floor
-    0xE034: 'GL',    // Ground Level
-    0xE035: 'FL',    // Floor Level
-    0xE036: 'SL',    // Slab Level
-    0xE037: 'CH',    // Ceiling Height
+    0xe030: '通', // 通り芯
+    0xe031: '芯',
+    0xe032: '階',
+    0xe033: 'F', // Floor
+    0xe034: 'GL', // Ground Level
+    0xe035: 'FL', // Floor Level
+    0xe036: 'SL', // Slab Level
+    0xe037: 'CH', // Ceiling Height
 
     // 矢印
-    0xE040: '→',
-    0xE041: '←',
-    0xE042: '↑',
-    0xE043: '↓',
-    0xE044: '↗',
-    0xE045: '↘',
-    0xE046: '↖',
-    0xE047: '↙',
+    0xe040: '→',
+    0xe041: '←',
+    0xe042: '↑',
+    0xe043: '↓',
+    0xe044: '↗',
+    0xe045: '↘',
+    0xe046: '↖',
+    0xe047: '↙',
 
     // 囲み数字の代替
-    0xE050: '①',
-    0xE051: '②',
-    0xE052: '③',
-    0xE053: '④',
-    0xE054: '⑤',
-    0xE055: '⑥',
-    0xE056: '⑦',
-    0xE057: '⑧',
-    0xE058: '⑨',
-    0xE059: '⑩',
+    0xe050: '①',
+    0xe051: '②',
+    0xe052: '③',
+    0xe053: '④',
+    0xe054: '⑤',
+    0xe055: '⑥',
+    0xe056: '⑦',
+    0xe057: '⑧',
+    0xe058: '⑨',
+    0xe059: '⑩',
 
     // 丸囲みアルファベット
-    0xE060: 'Ⓐ',
-    0xE061: 'Ⓑ',
-    0xE062: 'Ⓒ',
-    0xE063: 'Ⓓ',
-    0xE064: 'Ⓔ',
-    0xE065: 'Ⓕ',
-    0xE066: 'Ⓖ',
-    0xE067: 'Ⓗ',
-    0xE068: 'Ⓘ',
-    0xE069: 'Ⓙ',
-    0xE06A: 'Ⓚ',
-    0xE06B: 'Ⓛ',
-    0xE06C: 'Ⓜ',
-    0xE06D: 'Ⓝ',
-    0xE06E: 'Ⓞ',
-    0xE06F: 'Ⓟ',
-    0xE070: 'Ⓠ',
-    0xE071: 'Ⓡ',
-    0xE072: 'Ⓢ',
-    0xE073: 'Ⓣ',
-    0xE074: 'Ⓤ',
-    0xE075: 'Ⓥ',
-    0xE076: 'Ⓦ',
-    0xE077: 'Ⓧ',
-    0xE078: 'Ⓨ',
-    0xE079: 'Ⓩ'
+    0xe060: 'Ⓐ',
+    0xe061: 'Ⓑ',
+    0xe062: 'Ⓒ',
+    0xe063: 'Ⓓ',
+    0xe064: 'Ⓔ',
+    0xe065: 'Ⓕ',
+    0xe066: 'Ⓖ',
+    0xe067: 'Ⓗ',
+    0xe068: 'Ⓘ',
+    0xe069: 'Ⓙ',
+    0xe06a: 'Ⓚ',
+    0xe06b: 'Ⓛ',
+    0xe06c: 'Ⓜ',
+    0xe06d: 'Ⓝ',
+    0xe06e: 'Ⓞ',
+    0xe06f: 'Ⓟ',
+    0xe070: 'Ⓠ',
+    0xe071: 'Ⓡ',
+    0xe072: 'Ⓢ',
+    0xe073: 'Ⓣ',
+    0xe074: 'Ⓤ',
+    0xe075: 'Ⓥ',
+    0xe076: 'Ⓦ',
+    0xe077: 'Ⓧ',
+    0xe078: 'Ⓨ',
+    0xe079: 'Ⓩ',
   };
 
   return shxMappings[code] || null;
@@ -724,7 +731,7 @@ function getShxCharMapping(code) {
  * @param {number} rotation - 回転角度（度）
  * @returns {THREE.Sprite} テキストスプライト
  */
-function createTextSprite(text, x, y, z, scale, color, height = 1, rotation = 0) {
+function createTextSprite(text, x, y, z, scale, color, height = 1, _rotation = 0) {
   // 特殊文字を変換
   const convertedText = convertDxfSpecialChars(text);
 
@@ -789,14 +796,14 @@ function createTextSprite(text, x, y, z, scale, color, height = 1, rotation = 0)
     map: texture,
     transparent: true,
     depthTest: true,
-    depthWrite: false
+    depthWrite: false,
   });
 
   const sprite = new THREE.Sprite(material);
 
   // スケール調整（DXFのテキスト高さに基づく）
   // height はDXF上のテキスト高さ（単位はモデル単位）
-  const textScale = height * 10 * scale;  // 適切なスケール係数
+  const textScale = height * 10 * scale; // 適切なスケール係数
   const aspectRatio = canvasWidth / canvasHeight;
   sprite.scale.set(textScale * aspectRatio, textScale, 1);
 
@@ -828,7 +835,7 @@ function renderDimensions(dimensions, group, transformOptions, visibleLayers) {
       layer: dim.layer,
       sourceType: 'dxf',
       text: dim.text,
-      actualMeasurement: dim.actualMeasurement
+      actualMeasurement: dim.actualMeasurement,
     };
 
     // 線形寸法 (type 0, 1) の描画
@@ -891,7 +898,7 @@ function renderLinearDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
       ((p1.z || 0) + offsetZ) * scale,
       (p1.x + offsetX) * scale,
       (dimLineY + offsetY) * scale,
-      ((p1.z || 0) + offsetZ) * scale
+      ((p1.z || 0) + offsetZ) * scale,
     ]);
     const ext1Geo = new THREE.BufferGeometry();
     ext1Geo.setAttribute('position', new THREE.BufferAttribute(ext1Vertices, 3));
@@ -906,7 +913,7 @@ function renderLinearDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
       ((p2.z || 0) + offsetZ) * scale,
       (p2.x + offsetX) * scale,
       (dimLineY + offsetY) * scale,
-      ((p2.z || 0) + offsetZ) * scale
+      ((p2.z || 0) + offsetZ) * scale,
     ]);
     const ext2Geo = new THREE.BufferGeometry();
     ext2Geo.setAttribute('position', new THREE.BufferAttribute(ext2Vertices, 3));
@@ -921,7 +928,7 @@ function renderLinearDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
       ((p1.z || 0) + offsetZ) * scale,
       (p2.x + offsetX) * scale,
       (dimLineY + offsetY) * scale,
-      ((p2.z || 0) + offsetZ) * scale
+      ((p2.z || 0) + offsetZ) * scale,
     ]);
     const dimLineGeo = new THREE.BufferGeometry();
     dimLineGeo.setAttribute('position', new THREE.BufferAttribute(dimLineVertices, 3));
@@ -929,7 +936,15 @@ function renderLinearDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
 
     // 矢印を追加
     addArrowHead(group, p1.x + offsetX, dimLineY + offsetY, (p1.z || 0) + offsetZ, 1, scale, color);
-    addArrowHead(group, p2.x + offsetX, dimLineY + offsetY, (p2.z || 0) + offsetZ, -1, scale, color);
+    addArrowHead(
+      group,
+      p2.x + offsetX,
+      dimLineY + offsetY,
+      (p2.z || 0) + offsetZ,
+      -1,
+      scale,
+      color,
+    );
 
     // 寸法テキストを追加
     const displayText = getDimensionDisplayText(dim);
@@ -966,7 +981,7 @@ function renderRadiusDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
       ((center.z || 0) + offsetZ) * scale,
       (textPos.x + offsetX) * scale,
       (textPos.y + offsetY) * scale,
-      ((textPos.z || 0) + offsetZ) * scale
+      ((textPos.z || 0) + offsetZ) * scale,
     ]);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
@@ -974,9 +989,16 @@ function renderRadiusDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
 
     // 矢印
     const dx = textPos.x - center.x;
-    const dy = textPos.y - center.y;
     const dir = dx !== 0 ? (dx > 0 ? 1 : -1) : 0;
-    addArrowHead(group, center.x + offsetX, center.y + offsetY, (center.z || 0) + offsetZ, dir, scale, color);
+    addArrowHead(
+      group,
+      center.x + offsetX,
+      center.y + offsetY,
+      (center.z || 0) + offsetZ,
+      dir,
+      scale,
+      color,
+    );
 
     // 寸法テキストを追加（「R」プレフィックス付き）
     const displayText = getDimensionDisplayText(dim);
@@ -984,7 +1006,14 @@ function renderRadiusDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
       const textX = textPos.x + offsetX;
       const textY = textPos.y + offsetY + 100;
       const textZ = (textPos.z || 0) + offsetZ;
-      const textSprite = createDimensionTextSprite('R' + displayText, textX, textY, textZ, scale, color);
+      const textSprite = createDimensionTextSprite(
+        'R' + displayText,
+        textX,
+        textY,
+        textZ,
+        scale,
+        color,
+      );
       if (textSprite) {
         group.add(textSprite);
       }
@@ -1013,7 +1042,7 @@ function renderDiameterDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
       ((p1.z || 0) + offsetZ) * scale,
       (p2.x + offsetX) * scale,
       (p2.y + offsetY) * scale,
-      ((p2.z || 0) + offsetZ) * scale
+      ((p2.z || 0) + offsetZ) * scale,
     ]);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
@@ -1029,7 +1058,14 @@ function renderDiameterDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
       const textX = (p1.x + p2.x) / 2 + offsetX;
       const textY = (p1.y + p2.y) / 2 + offsetY + 100;
       const textZ = ((p1.z || 0) + (p2.z || 0)) / 2 + offsetZ;
-      const textSprite = createDimensionTextSprite('φ' + displayText, textX, textY, textZ, scale, color);
+      const textSprite = createDimensionTextSprite(
+        'φ' + displayText,
+        textX,
+        textY,
+        textZ,
+        scale,
+        color,
+      );
       if (textSprite) {
         group.add(textSprite);
       }
@@ -1055,9 +1091,7 @@ function renderAngularDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
   if (center && p1 && p2) {
     const angle1 = Math.atan2(p1.y - center.y, p1.x - center.x);
     const angle2 = Math.atan2(p2.y - center.y, p2.x - center.x);
-    const radius = Math.sqrt(
-      Math.pow(p1.x - center.x, 2) + Math.pow(p1.y - center.y, 2)
-    );
+    const radius = Math.sqrt(Math.pow(p1.x - center.x, 2) + Math.pow(p1.y - center.y, 2));
 
     const segments = 32;
     const startAngle = angle1;
@@ -1067,11 +1101,13 @@ function renderAngularDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
     const points = [];
     for (let i = 0; i <= segments; i++) {
       const angle = startAngle + (i / segments) * (endAngle - startAngle);
-      points.push(new THREE.Vector3(
-        (center.x + Math.cos(angle) * radius + offsetX) * scale,
-        (center.y + Math.sin(angle) * radius + offsetY) * scale,
-        ((center.z || 0) + offsetZ) * scale
-      ));
+      points.push(
+        new THREE.Vector3(
+          (center.x + Math.cos(angle) * radius + offsetX) * scale,
+          (center.y + Math.sin(angle) * radius + offsetY) * scale,
+          ((center.z || 0) + offsetZ) * scale,
+        ),
+      );
     }
 
     const geo = new THREE.BufferGeometry().setFromPoints(points);
@@ -1086,7 +1122,14 @@ function renderAngularDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
       const textX = center.x + Math.cos(midAngle) * textRadius + offsetX;
       const textY = center.y + Math.sin(midAngle) * textRadius + offsetY;
       const textZ = (center.z || 0) + offsetZ;
-      const textSprite = createDimensionTextSprite(displayText + '°', textX, textY, textZ, scale, color);
+      const textSprite = createDimensionTextSprite(
+        displayText + '°',
+        textX,
+        textY,
+        textZ,
+        scale,
+        color,
+      );
       if (textSprite) {
         group.add(textSprite);
       }
@@ -1131,7 +1174,7 @@ function renderGenericDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
         ((p1.z || 0) + offsetZ) * scale,
         (p2.x + offsetX) * scale,
         (p2.y + offsetY) * scale,
-        ((p2.z || 0) + offsetZ) * scale
+        ((p2.z || 0) + offsetZ) * scale,
       ]);
       const geo = new THREE.BufferGeometry();
       geo.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
@@ -1165,14 +1208,18 @@ function addArrowHead(group, x, y, z, direction, scale, color) {
 
   // 矢印の2本の線
   const vertices = new Float32Array([
-    x * scale, y * scale, z * scale,
+    x * scale,
+    y * scale,
+    z * scale,
     (x - direction * arrowSize * Math.cos(arrowAngle)) * scale,
     (y + arrowSize * Math.sin(arrowAngle)) * scale,
     z * scale,
-    x * scale, y * scale, z * scale,
+    x * scale,
+    y * scale,
+    z * scale,
     (x - direction * arrowSize * Math.cos(arrowAngle)) * scale,
     (y - arrowSize * Math.sin(arrowAngle)) * scale,
-    z * scale
+    z * scale,
   ]);
 
   const geo = new THREE.BufferGeometry();
@@ -1191,7 +1238,7 @@ function addArrowHead(group, x, y, z, direction, scale, color) {
  * @param {number} rotation - 回転角度（ラジアン）
  * @returns {THREE.Sprite} テキストスプライト
  */
-function createDimensionTextSprite(text, x, y, z, scale, color, rotation = 0) {
+function createDimensionTextSprite(text, x, y, z, scale, color, _rotation = 0) {
   const fontSize = 32;
   const canvasWidth = 256;
   const canvasHeight = 64;
@@ -1229,7 +1276,7 @@ function createDimensionTextSprite(text, x, y, z, scale, color, rotation = 0) {
     map: texture,
     transparent: true,
     depthTest: true,
-    depthWrite: false
+    depthWrite: false,
   });
 
   const sprite = new THREE.Sprite(material);
@@ -1243,7 +1290,7 @@ function createDimensionTextSprite(text, x, y, z, scale, color, rotation = 0) {
   sprite.userData = {
     type: 'DXF_DIMENSION_TEXT',
     sourceType: 'dxf',
-    originalText: text
+    originalText: text,
   };
 
   return sprite;
@@ -1320,7 +1367,7 @@ export function fitCameraToDxfBounds(bounds, camera, controls) {
   log.info('カメラ調整完了:', {
     center: { x: centerX, y: centerY, z: centerZ },
     size: { x: sizeX, y: sizeY, z: sizeZ },
-    distance
+    distance,
   });
 }
 
@@ -1341,21 +1388,21 @@ export function toggleDxfEditMode(enabled) {
     } else {
       transformControl.camera = currentCamera;
     }
-    
+
     transformControl.attach(group);
     transformControl.setMode('translate');
-    
+
     // モード中はカメラ操作を完全に無効化して誤操作を防ぐ
     if (controls) {
       controls.enabled = false;
     }
-    
+
     log.info('DXF位置編集モード: ON');
   } else {
     if (transformControl) {
       transformControl.detach();
     }
-    
+
     // モード終了時にカメラ操作を有効化
     if (controls) {
       controls.enabled = true;
@@ -1363,4 +1410,3 @@ export function toggleDxfEditMode(enabled) {
     log.info('DXF位置編集モード: OFF');
   }
 }
-
