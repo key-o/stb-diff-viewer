@@ -5,11 +5,10 @@
  */
 
 import { createLogger } from './utils/logger.js';
-import { setCameraMode } from './viewer/camera/cameraManagerImpl.js';
 import { CAMERA_MODES } from './constants/displayModes.js';
-import { setView } from './viewer/camera/viewManagerImpl.js';
-import { updateDepth2DClippingVisibility } from './ui/clipping2DImpl.js';
-import { setStbExportPanelVisibility } from './dxfLoader.js';
+import { setCameraMode, setView } from './viewer/index.js';
+import { updateDepth2DClippingVisibility } from './ui/viewer3d/clipping2DImpl.js';
+import { setStbExportPanelVisibility } from './app/dxfLoader.js';
 import { redrawAxesAtStory } from './ui/events/index.js';
 
 const log = createLogger('viewModeCameraUtils');
@@ -127,4 +126,3 @@ export function changeViewDirection(viewType, modelBounds, scheduleRender) {
     log.error('ビュー方向の設定に失敗:', error);
   }
 }
-

@@ -42,7 +42,7 @@ import {
   applyJointArrangementsToElements, // 継手IDを部材に適用
   extractStripFootingElements, // 布基礎要素の抽出
 } from '../../common-stb/parser/stbXmlParser.js';
-import { extractAllSections } from '../../parser/sectionExtractor.js';
+import { extractAllSections } from '../../common-stb/parser/defaultSectionExtractor.js';
 import { ensureUnifiedSectionType } from '../../common-stb/section/sectionTypeUtil.js';
 
 // ============================================
@@ -225,7 +225,7 @@ export function parseStbFile(xmlDoc, options = {}) {
     applyJointArrangementsToElements(braceElements, jointArrangements, 'BRACE');
     console.log('[DEBUG] stbStructureReader: Applied joint arrangements to elements');
     // 大梁の継手ID確認
-    const jointedGirders = girderElements.filter(g => g.joint_id_start || g.joint_id_end);
+    const jointedGirders = girderElements.filter((g) => g.joint_id_start || g.joint_id_end);
     console.log('[DEBUG] stbStructureReader: Girders with joint IDs:', jointedGirders.length);
   }
 

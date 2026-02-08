@@ -12,14 +12,23 @@
   position: fixed;
   top: 50px;
   right: 20px;
-  width: 400px;
-  max-height: 80vh;
+  left: auto;
+  width: min(960px, calc(100vw - 40px));
+  height: min(78vh, 760px);
+  min-width: 520px;
+  min-height: 360px;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 20px);
   background: white;
   border: 1px solid #ccc;
   border-radius: var(--border-radius-lg);
   box-shadow: var(--shadow-lg);
   z-index: var(--z-modal);
   flex-direction: column;
+  overflow: hidden;
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
   display: none;
 }
 
@@ -75,15 +84,15 @@
 
 .importance-panel .control-group label {
   display: inline-block;
-  font-weight: bold;
+  font-weight: var(--font-weight-medium);
   margin-right: 8px;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: #555;
 }
 
 .importance-panel .control-group input,
 .importance-panel .control-group select {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   padding: 4px 6px;
   border: 1px solid #ddd;
   border-radius: var(--border-radius-sm);
@@ -91,13 +100,13 @@
 }
 
 .importance-panel .control-group button {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   padding: 4px 8px;
   border: 1px solid #ddd;
   border-radius: var(--border-radius-sm);
   background: white;
   cursor: pointer;
-  margin-right: 4px;
+  margin: 0;
 }
 
 .importance-panel .control-group button:hover {
@@ -697,3 +706,465 @@
 .btn-diff-list:active {
   transform: translateY(0);
 }
+
+/* ========================================
+   MVD設定セレクター
+   ======================================== */
+
+#importance-panel .mvd-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  min-width: 240px;
+}
+
+#importance-panel .config-selector-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+#importance-panel .config-selector-group label {
+  font-size: 13px;
+  color: var(--text-primary, #374151);
+  white-space: nowrap;
+}
+
+#importance-panel .mvd-config-select {
+  min-width: 170px;
+  max-width: 340px;
+  font-size: var(--font-size-sm);
+  padding: 5px 8px;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: var(--border-radius, 4px);
+  background: white;
+  cursor: pointer;
+  font-weight: var(--font-weight-medium);
+}
+
+#importance-panel .mvd-config-select:focus {
+  outline: none;
+  border-color: var(--color-primary, #4a6fa5);
+  box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2);
+}
+
+#importance-panel .config-description {
+  font-size: 11px;
+  color: var(--text-secondary, #6b7280);
+  font-style: italic;
+  padding-left: 2px;
+}
+
+/* ========================================
+   Refined Importance Panel Layout (2-pane)
+   ======================================== */
+
+.importance-panel-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  border-top: 1px solid #ddd;
+}
+
+/* Sidebar (Category List) */
+.importance-sidebar {
+  flex: 0 0 clamp(160px, 24%, 260px);
+  min-width: 150px;
+  background-color: #f8f9fa;
+  border-right: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+}
+
+.importance-category-search {
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+.importance-category-search input {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.importance-category-list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.category-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #eee;
+  transition: background-color 0.2s;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.category-item:hover {
+  background-color: #e9ecef;
+}
+
+.category-item.active {
+  background-color: #e3f2fd; /* Light Blue */
+  border-left: 3px solid #2196f3;
+  font-weight: bold;
+}
+
+.category-item .count-badge {
+  background: #ddd;
+  border-radius: 10px;
+  padding: 2px 6px;
+  font-size: 10px;
+  color: #555;
+}
+
+/* Main Content Area */
+.importance-main-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+}
+
+.content-toolbar {
+  padding: 10px;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.content-toolbar .search-box {
+  flex: 1;
+  min-width: 220px;
+}
+
+.content-toolbar .search-box input,
+#importance-panel #importance-bulk-level {
+  font-size: var(--font-size-sm);
+}
+
+.content-toolbar .search-box input {
+  width: 100%;
+}
+
+#importance-panel #importance-filter-level {
+  width: auto;
+  min-width: 120px;
+}
+
+/* Table View */
+.importance-table-container {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0;
+}
+
+.importance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.importance-table th,
+.importance-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+  text-align: left;
+}
+
+.importance-table th {
+  background-color: #f1f3f5;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  font-weight: 600;
+  color: #495057;
+}
+
+.importance-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.importance-tree-root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.importance-tree-node {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.importance-tree-node + .importance-tree-node {
+  margin-top: 2px;
+}
+
+.importance-tree-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  background: #f8f9fb;
+  border-radius: 6px 6px 0 0;
+}
+
+.importance-tree-node > .importance-tree-summary::-webkit-details-marker {
+  display: none;
+}
+
+.importance-tree-summary::before {
+  content: "▸";
+  font-size: 12px;
+  color: #4b5563;
+  transition: transform 0.18s ease;
+}
+
+.importance-tree-node[open] > .importance-tree-summary::before {
+  transform: rotate(90deg);
+}
+
+.tree-node-name {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.tree-node-count {
+  margin-left: auto;
+  min-width: 24px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #374151;
+  font-size: 11px;
+}
+
+.importance-tree-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 8px 8px 20px;
+}
+
+.importance-tree-node .importance-tree-node {
+  border-color: #eef1f5;
+}
+
+.importance-table-compact {
+  font-size: 12px;
+  border: 1px solid #eef1f5;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.importance-table-compact td {
+  padding: 6px 10px;
+}
+
+.importance-table-compact tr:last-child td {
+  border-bottom: none;
+}
+
+.param-name {
+  font-family: var(--font-family-base);
+  font-weight: bold;
+  color: #333;
+}
+
+.param-type {
+  font-size: var(--font-size-xs);
+  color: #888;
+  margin-left: 5px;
+  border: 1px solid #eee;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.importance-select-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.importance-select-wrapper select {
+  width: auto;
+  min-width: 130px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+  background-color: white;
+}
+
+/* Status dots */
+.status-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Hide old tabs */
+.panel-tabs {
+  display: none !important;
+}
+
+#importance-panel button {
+  margin-top: 0;
+  font-family: var(--font-family-base);
+}
+
+#importance-panel .btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: var(--border-radius, 4px);
+  background: #fff;
+  color: var(--text-primary, #374151);
+  cursor: pointer;
+}
+
+#importance-panel .btn-icon:hover {
+  background: #f3f4f6;
+}
+
+#importance-panel .dropdown-menu {
+  position: relative;
+}
+
+#importance-panel .dropdown-content {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: var(--border-radius, 4px);
+  box-shadow: var(--shadow-md);
+  z-index: 20;
+  display: none;
+}
+
+#importance-panel .dropdown-item {
+  width: 100%;
+  display: block;
+  padding: 8px 10px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--text-primary, #374151);
+  cursor: pointer;
+}
+
+#importance-panel .dropdown-item:hover {
+  background: #f3f4f6;
+}
+
+#importance-panel .dropdown-item.text-danger {
+  color: var(--color-danger, #dc2626);
+}
+
+#importance-panel .importance-bulk-controls {
+  border-top: 1px solid #eee;
+  padding: 8px 10px;
+  background: #fff;
+}
+
+#importance-panel .importance-bulk-group {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
+}
+
+#importance-panel .importance-bulk-level {
+  width: auto;
+  min-width: 150px;
+  margin-right: 0;
+}
+
+#importance-panel .btn-small {
+  padding: 6px 10px;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: var(--border-radius, 4px);
+  background: #fff;
+  color: var(--text-primary, #374151);
+  cursor: pointer;
+}
+
+#importance-panel .btn-small:hover {
+  background: #f3f4f6;
+}
+
+#importance-panel .statistics-bar {
+  border-top: 1px solid #ddd;
+  background: #f8f9fa;
+  padding: 6px 8px;
+}
+
+#importance-panel .statistics-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+#importance-panel .no-elements {
+  padding: 20px;
+  text-align: center;
+  color: #888;
+}
+
+@media (max-width: 900px) {
+  #importance-panel.importance-panel {
+    right: 8px;
+    width: calc(100vw - 16px);
+    min-width: 0;
+    max-width: calc(100vw - 16px);
+    height: min(90vh, 900px);
+  }
+
+  #importance-panel .importance-panel-body {
+    flex-direction: column;
+  }
+
+  #importance-panel .importance-sidebar {
+    flex: 0 0 180px;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #ddd;
+  }
+
+  #importance-panel .statistics-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 6px;
+  }
+}
+

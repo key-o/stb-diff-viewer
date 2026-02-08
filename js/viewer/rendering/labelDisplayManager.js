@@ -6,7 +6,7 @@
  */
 
 import { BaseElementStateManager } from './baseElementStateManager.js';
-import { LABEL_ELEMENTS } from '../../config/elementTypes.js';
+import { LABEL_ELEMENTS } from '../../constants/elementTypes.js';
 
 /**
  * ラベル表示可能な要素タイプ（elementTypes.jsから取得）

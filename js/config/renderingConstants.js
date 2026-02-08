@@ -78,7 +78,7 @@ export const LABEL_SETTINGS = {
   BASE_SCALE_X: 640,
   BASE_SCALE_Y: 80,
   OFFSET_X: 256, // CANVAS_WIDTH / 2
-  OFFSET_Y: 32,  // CANVAS_HEIGHT / 2
+  OFFSET_Y: 32, // CANVAS_HEIGHT / 2
 
   // 通り芯ラベル（丸い背景）
   BALLOON_SIZE: 64,
@@ -101,19 +101,19 @@ export const LABEL_SETTINGS = {
  */
 export const LABEL_OCCLUSION_SETTINGS = {
   // チェック頻度（間引き設定）
-  CHECK_INTERVAL_FRAMES: 10,        // フレーム間引き数（0で毎フレーム）
-  CAMERA_MOVE_THRESHOLD: 100,       // カメラ移動検出閾値 (mm)
-  CAMERA_ROTATE_THRESHOLD: 0.02,    // カメラ回転検出閾値 (ラジアン)
+  CHECK_INTERVAL_FRAMES: 10, // フレーム間引き数（0で毎フレーム）
+  CAMERA_MOVE_THRESHOLD: 100, // カメラ移動検出閾値 (mm)
+  CAMERA_ROTATE_THRESHOLD: 0.02, // カメラ回転検出閾値 (ラジアン)
 
   // ヒステリシス設定（状態変化の安定化）
-  HYSTERESIS_FRAMES: 5,             // 状態変化に必要な連続フレーム数
+  HYSTERESIS_FRAMES: 5, // 状態変化に必要な連続フレーム数
 
   // 位置補間設定
-  LERP_FACTOR: 0.15,                // 補間係数（0.0-1.0、小さいほど滑らか）
+  LERP_FACTOR: 0.15, // 補間係数（0.0-1.0、小さいほど滑らか）
 
   // 押し出し設定
-  MAX_PUSH_DISTANCE: 500,           // 最大押し出し距離 (mm)
-  PUSH_DISTANCE_RATIO: 0.1,         // 距離に対する押し出し比率
+  MAX_PUSH_DISTANCE: 500, // 最大押し出し距離 (mm)
+  PUSH_DISTANCE_RATIO: 0.1, // 距離に対する押し出し比率
 };
 
 // ============================================================================
@@ -138,9 +138,9 @@ export const GRID_SETTINGS = {
  * 通り芯線のダッシュパターン（一点鎖線）
  */
 export const AXIS_LINE_PATTERN = {
-  DASH_LENGTH: 500,  // 長い実線部分 (mm) - 短くしてサイクル数を増やす
-  DOT_LENGTH: 200,   // 点部分 (mm) - 視認性向上のため拡大
-  GAP_LENGTH: 150,   // 隙間 (mm) - 少し短く
+  DASH_LENGTH: 500, // 長い実線部分 (mm) - 短くしてサイクル数を増やす
+  DOT_LENGTH: 200, // 点部分 (mm) - 視認性向上のため拡大
+  GAP_LENGTH: 150, // 隙間 (mm) - 少し短く
 };
 
 // ============================================================================

@@ -91,7 +91,7 @@ export function updateLegendContent() {
  * 重要度別凡例を生成
  */
 function updateImportanceLegend(container) {
-  import('../../app/importanceManager.js').then(({ IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES }) => {
+  import('../../constants/importanceLevels.js').then(({ IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES }) => {
     // ColorManager経由で色を取得（単一データソース）
     import('../../viewer/rendering/colorManager.js').then(({ colorManager }) => {
       const html = `

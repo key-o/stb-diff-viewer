@@ -8,7 +8,7 @@
 import { createLogger } from '../utils/logger.js';
 import { AppError, getErrorSeverity } from './errors.js';
 import { ERROR_MESSAGES } from '../config/errorMessages.js';
-import { showError, showWarning, showInfo } from '../ui/toast.js';
+import { showError, showWarning, showInfo } from '../ui/common/toast.js';
 
 const logger = createLogger('ErrorHandler');
 

@@ -451,7 +451,7 @@ export function calculateBeamPlacement(
   const length = calculateDistance(adjustedStart, adjustedEnd);
 
   // 梁軸回りの回転を計算（断面の向きを変える）
-  let rotation = calculateQuaternionFromBasis(basis.xAxis, basis.yAxis, basis.zAxis);
+  const rotation = calculateQuaternionFromBasis(basis.xAxis, basis.yAxis, basis.zAxis);
 
   // rollAngleは材軸（Z軸）回りの断面回転
   // この回転はジオメトリレベルで適用する必要があるため、ここでは保存のみ

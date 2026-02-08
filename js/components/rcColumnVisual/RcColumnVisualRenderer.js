@@ -8,7 +8,11 @@
  * MatrixCalcより移植・改変
  */
 
-import { addBarSymbolDefs, placeBarSymbol as placeBarSymbolBase, createSvgElement } from './rebarSymbolDefs.js';
+import {
+  addBarSymbolDefs,
+  placeBarSymbol as placeBarSymbolBase,
+  createSvgElement,
+} from './rebarSymbolDefs.js';
 
 const COL_BAR_PREFIX = 'col-bar';
 
@@ -53,10 +57,7 @@ export class RcColumnVisualRenderer {
     const { width, height, cover = 50, mainBar, hoop, coreBar } = sectionData;
     const { maxWidth, maxHeight, padding } = this.settings;
 
-    const scale = Math.min(
-      (maxWidth - padding * 2) / width,
-      (maxHeight - padding * 2) / height
-    );
+    const scale = Math.min((maxWidth - padding * 2) / width, (maxHeight - padding * 2) / height);
 
     const svgWidth = width * scale + padding * 2;
     const svgHeight = height * scale + padding * 2;
@@ -78,7 +79,7 @@ export class RcColumnVisualRenderer {
         width: svgWidth,
         height: svgHeight,
         fill: 'white',
-      })
+      }),
     );
 
     const rectX = padding;
@@ -96,7 +97,7 @@ export class RcColumnVisualRenderer {
         fill: '#f8f8f8',
         stroke: 'black',
         'stroke-width': 2,
-      })
+      }),
     );
 
     const coverScaled = cover * scale;
@@ -117,16 +118,26 @@ export class RcColumnVisualRenderer {
           fill: 'none',
           stroke: '#666',
           'stroke-width': 1.5,
-        })
+        }),
       );
     }
 
     // 主筋配置
-    this.renderRectangularRebars(svg, mainBar, rectX, rectY, rectW, rectH, coverScaled, scale);
+    this.renderRectangularRebars({
+      svg,
+      mainBar,
+      rectBounds: { x: rectX, y: rectY, width: rectW, height: rectH },
+      coverScaled,
+    });
 
     // 芯鉄筋（中子筋）配置
     if (coreBar && (coreBar.countX > 0 || coreBar.countY > 0)) {
-      this.renderCoreRebars(svg, coreBar, rectX, rectY, rectW, rectH, coverScaled, scale);
+      this.renderCoreRebars({
+        svg,
+        coreBar,
+        rectBounds: { x: rectX, y: rectY, width: rectW, height: rectH },
+        coverScaled,
+      });
     }
 
     // 寸法表示
@@ -157,11 +168,24 @@ export class RcColumnVisualRenderer {
   }
 
   /**
+   * @typedef {Object} RectangularRebarConfig
+   * @property {SVGElement} svg - 描画先SVG要素
+   * @property {Object} mainBar - 主筋設定
+   * @property {{x: number, y: number, width: number, height: number}} rectBounds - 断面の矩形座標
+   * @property {number} coverScaled - スケール済みかぶり厚さ
+   */
+
+  /**
    * 矩形断面の周囲配筋を描画
+   * @param {RectangularRebarConfig} config - 矩形鉄筋設定
    * @private
    */
-  renderRectangularRebars(svg, mainBar, rectX, rectY, rectW, rectH, coverScaled, _scale) {
-    if (!mainBar || (!mainBar.countX && !mainBar.count) || (mainBar.countX || mainBar.count) <= 0) return;
+  renderRectangularRebars(config) {
+    const { svg, mainBar, rectBounds, coverScaled } = config;
+    const { x: rectX, y: rectY, width: rectW, height: rectH } = rectBounds;
+
+    if (!mainBar || (!mainBar.countX && !mainBar.count) || (mainBar.countX || mainBar.count) <= 0)
+      return;
 
     const countX = mainBar.countX || mainBar.count;
     const countY = mainBar.countY || mainBar.count;
@@ -179,7 +203,7 @@ export class RcColumnVisualRenderer {
       xLeft,
       xRight,
       yTop,
-      yBottom
+      yBottom,
     );
 
     positions.forEach((pos) => {
@@ -226,10 +250,22 @@ export class RcColumnVisualRenderer {
   }
 
   /**
+   * @typedef {Object} CoreRebarConfig
+   * @property {SVGElement} svg - 描画先SVG要素
+   * @property {Object} coreBar - 芯鉄筋設定
+   * @property {{x: number, y: number, width: number, height: number}} rectBounds - 断面の矩形座標
+   * @property {number} coverScaled - スケール済みかぶり厚さ
+   */
+
+  /**
    * 芯鉄筋（中子筋）を描画
+   * @param {CoreRebarConfig} config - 芯鉄筋設定
    * @private
    */
-  renderCoreRebars(svg, coreBar, rectX, rectY, rectW, rectH, coverScaled, _scale) {
+  renderCoreRebars(config) {
+    const { svg, coreBar, rectBounds, coverScaled } = config;
+    const { x: rectX, y: rectY, width: rectW, height: rectH } = rectBounds;
+
     const countX = coreBar.countX || 0;
     const countY = coreBar.countY || 0;
     const dia = coreBar.dia || 'D25';
@@ -310,7 +346,7 @@ export class RcColumnVisualRenderer {
         width: svgWidth,
         height: svgHeight,
         fill: 'white',
-      })
+      }),
     );
 
     const centerX = svgWidth / 2;
@@ -326,7 +362,7 @@ export class RcColumnVisualRenderer {
         fill: '#f8f8f8',
         stroke: 'black',
         'stroke-width': 2,
-      })
+      }),
     );
 
     // 帯筋描画
@@ -342,7 +378,7 @@ export class RcColumnVisualRenderer {
           fill: 'none',
           stroke: '#666',
           'stroke-width': 1.5,
-        })
+        }),
       );
     }
 

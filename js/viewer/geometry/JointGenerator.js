@@ -120,7 +120,16 @@ export class JointGenerator extends BaseElementGenerator {
    * @returns {Array<THREE.Mesh>|null} メッシュ配列またはnull
    */
   static _createJointAtPosition(element, position, context) {
-    const { nodes, jointDefinitions, steelSections, elementType, isJsonInput, log, girderSections, beamSections } = context;
+    const {
+      nodes,
+      jointDefinitions,
+      steelSections,
+      elementType,
+      isJsonInput,
+      log,
+      girderSections,
+      beamSections,
+    } = context;
 
     // 継手ID取得
     const jointId = position === 'start' ? element.joint_id_start : element.joint_id_end;
@@ -152,14 +161,26 @@ export class JointGenerator extends BaseElementGenerator {
     if (sectionId) {
       // 要素タイプに応じて断面マップを選択
       const sections = element.elementType === 'Girder' ? girderSections : beamSections;
-      console.log('[DEBUG] JointGenerator: sectionId =', sectionId, ', elementType =', element.elementType, ', sections keys =', sections ? Array.from(sections.keys()).slice(0, 5) : 'null');
+      console.log(
+        '[DEBUG] JointGenerator: sectionId =',
+        sectionId,
+        ', elementType =',
+        element.elementType,
+        ', sections keys =',
+        sections ? Array.from(sections.keys()).slice(0, 5) : 'null',
+      );
       const sectionData = sections?.get(sectionId) || sections?.get(parseInt(sectionId, 10));
       if (sectionData) {
         const height = ElementGeometryUtils.getSectionHeight(sectionData, sectionData.shape || 'H');
         if (height > 0) {
           beamHeight = height;
         }
-        console.log('[DEBUG] JointGenerator: sectionData =', sectionData, ', beamHeight =', beamHeight);
+        console.log(
+          '[DEBUG] JointGenerator: sectionData =',
+          sectionData,
+          ', beamHeight =',
+          beamHeight,
+        );
       } else {
         console.log('[DEBUG] JointGenerator: sectionData NOT FOUND for sectionId =', sectionId);
       }
@@ -178,7 +199,14 @@ export class JointGenerator extends BaseElementGenerator {
     // 継手中心位置（天端基準のため、断面せいの半分だけ下にオフセット）
     const jointCenter = new THREE.Vector3().copy(startPos).addScaledVector(direction, jointOffset);
     jointCenter.z -= beamHeight / 2;
-    console.log('[DEBUG] JointGenerator: jointCenter =', jointCenter, ', jointOffset =', jointOffset, ', beamHeight =', beamHeight);
+    console.log(
+      '[DEBUG] JointGenerator: jointCenter =',
+      jointCenter,
+      ', jointOffset =',
+      jointOffset,
+      ', beamHeight =',
+      beamHeight,
+    );
 
     const meshes = [];
 
@@ -189,7 +217,9 @@ export class JointGenerator extends BaseElementGenerator {
     switch (jointDef.joint_type) {
       case 'BeamShapeH':
       case 'ColumnShapeH':
-        meshes.push(...this._createHShapeJoint(jointDef, jointCenter, direction, element, jointContext));
+        meshes.push(
+          ...this._createHShapeJoint(jointDef, jointCenter, direction, element, jointContext),
+        );
         break;
       case 'BeamShapeBox':
       case 'ColumnShapeBox':
@@ -199,7 +229,9 @@ export class JointGenerator extends BaseElementGenerator {
         break;
       case 'BeamShapeT':
       case 'ColumnShapeT':
-        meshes.push(...this._createTShapeJoint(jointDef, jointCenter, direction, element, jointContext));
+        meshes.push(
+          ...this._createTShapeJoint(jointDef, jointCenter, direction, element, jointContext),
+        );
         break;
       default:
         log.warn(`Unknown joint type: ${jointDef.joint_type}`);

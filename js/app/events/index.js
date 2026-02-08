@@ -38,6 +38,9 @@ export {
   ViewEvents,
   ExportEvents,
   LoadEvents,
+  ToastEvents,
+  ClippingEvents,
   EditEvents,
+  ValidationEvents,
   isValidEventType,
 } from './eventTypes.js';

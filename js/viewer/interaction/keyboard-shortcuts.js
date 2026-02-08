@@ -13,7 +13,7 @@ import {
   resetSelection,
   createOrUpdateOrbitCenterHelper,
   hideOrbitCenterHelper,
-} from '../../interaction.js';
+} from '../../app/interaction.js';
 import { focusOnSelected, fitCameraToModel } from '../camera/cameraFitter.js';
 import { createLogger } from '../../utils/logger.js';
 

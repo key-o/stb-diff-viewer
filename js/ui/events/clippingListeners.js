@@ -11,7 +11,7 @@ import {
   applyAxisClip,
   updateClippingRange,
   clearAllClippingPlanes,
-} from '../clipping.js';
+} from '../viewer3d/clipping.js';
 
 /**
  * Setup clipping range slider listeners

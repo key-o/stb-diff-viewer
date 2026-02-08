@@ -5,7 +5,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { showError } from '../../ui/toast.js';
+import { showError } from '../../ui/common/toast.js';
 
 const log = createLogger('DXFExporter');
 
@@ -268,7 +268,7 @@ function generateTables(layers, bounds) {
     '  2',
     'LAYER',
     ' 70',
-    '    ' + (layers.length).toString(),
+    '    ' + layers.length.toString(),
   ];
 
   // 各レイヤーを定義

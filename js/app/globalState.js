@@ -26,8 +26,8 @@ class ApplicationState {
 
       // モデル関連
       models: {
-        modelADocument: null,
-        modelBDocument: null,
+        documentA: null, // 旧: modelADocument - modelLoader.js と統一
+        documentB: null, // 旧: modelBDocument - modelLoader.js と統一
         nodeMapA: new Map(),
         nodeMapB: new Map(),
         // 荷重データ（StbCalData）
@@ -52,6 +52,10 @@ class ApplicationState {
           braceElements: [],
         },
         modelsLoaded: false,
+        // STBバージョン情報
+        stbVersionA: null, // '2.0.2' | '2.1.0' | 'unknown'
+        stbVersionB: null, // '2.0.2' | '2.1.0' | 'unknown'
+        activeXsdVersion: null, // 現在アクティブなXSDバージョン
       },
 
       // UI関連
@@ -89,6 +93,15 @@ class ApplicationState {
         evaluationResults: null,
         currentMode: 'default',
         filterSettings: {},
+        // MVD設定情報
+        currentConfigId: null, // 's2' | 's4' | 'mvd-combined'
+        currentConfigName: null, // 'MVD S2 (必須)' など
+        // フォールバック統計
+        fallbackStats: {
+          totalChecks: 0,
+          fallbackCount: 0,
+          undefinedPaths: new Set(),
+        },
       },
 
       // ファイル関連（IFC変換用）
@@ -141,7 +154,7 @@ class ApplicationState {
     if (!path) {
       return this.state;
     }
-    
+
     const keys = path.split('.');
     let target = this.state;
 
@@ -313,8 +326,8 @@ class ApplicationState {
         rendererInitialized: false,
       },
       models: {
-        modelADocument: null,
-        modelBDocument: null,
+        documentA: null, // 旧: modelADocument - modelLoader.js と統一
+        documentB: null, // 旧: modelBDocument - modelLoader.js と統一
         nodeMapA: new Map(),
         nodeMapB: new Map(),
         // 荷重データ（StbCalData）
@@ -357,6 +370,13 @@ class ApplicationState {
         evaluationResults: null,
         currentMode: 'default',
         filterSettings: {},
+        currentConfigId: null,
+        currentConfigName: null,
+        fallbackStats: {
+          totalChecks: 0,
+          fallbackCount: 0,
+          undefinedPaths: new Set(),
+        },
       },
       files: {
         originalFileA: null,
@@ -392,3 +412,28 @@ export const resetApplicationState = () => globalState.reset();
 // 重要度機能専用の便利関数
 export const setImportanceState = (path, value) => globalState.set(`importance.${path}`, value);
 export const getImportanceState = (path) => globalState.get(`importance.${path}`);
+
+/**
+ * モデルドキュメントを取得（window.docA/docB の代替）
+ * @param {'A'|'B'} modelId - モデル識別子
+ * @returns {Document|null} XMLドキュメント
+ */
+export function getModelDocument(modelId) {
+  if (modelId === 'A') {
+    return globalState.get('models.documentA');
+  } else if (modelId === 'B') {
+    return globalState.get('models.documentB');
+  }
+  return null;
+}
+
+/**
+ * 両方のモデルドキュメントを取得
+ * @returns {{docA: Document|null, docB: Document|null}}
+ */
+export function getModelDocuments() {
+  return {
+    docA: globalState.get('models.documentA'),
+    docB: globalState.get('models.documentB'),
+  };
+}

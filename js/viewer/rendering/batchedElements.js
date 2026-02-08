@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
 import { getMaterialForElementWithMode } from './materials.js';
 import { LineBatcher, getHitElementFromBatch } from './geometryBatcher.js';
+import { getState } from '../../app/globalState.js';
 
 const log = createLogger('viewer:batchedElements');
 
@@ -309,7 +310,7 @@ function isValidCoords(coords) {
 function createBatchedLabel(startVec, endVec, dataA, dataB, modelSource, elementType, group) {
   const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
 
-  const contentType = window.globalState?.get('ui.labelContentType') || 'id';
+  const contentType = getState('ui.labelContentType') || 'id';
   let labelText;
 
   if (contentType === 'id') {
@@ -365,7 +366,7 @@ function createSingleModelLabel(
 
   const labelPosition = midPoint.clone().add(offsetDir.multiplyScalar(offsetAmount));
 
-  const contentType = window.globalState?.get('ui.labelContentType') || 'id';
+  const contentType = getState('ui.labelContentType') || 'id';
   let displayText = id;
 
   if (contentType === 'name' && element?.name) {

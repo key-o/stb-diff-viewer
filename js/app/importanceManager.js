@@ -11,53 +11,58 @@
  * - notApplicable: 対象外
  */
 
-import { validateImportanceSettings } from '../validation/importanceValidation.js';
-import { setState } from './globalState.js';
+import { validateImportanceSettings } from '../common-stb/validation/importanceValidation.js';
+import { getState, setState } from './globalState.js';
 import { eventBus, ImportanceEvents } from './events/index.js';
-import { DEFAULT_IMPORTANCE_SETTINGS } from '../config/importanceConfig.js';
+import { DEFAULT_IMPORTANCE_SETTINGS, getXPathPattern } from '../config/importanceConfig.js';
 import { loadConfigById } from '../config/importanceConfigLoader.js';
 import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../constants/importanceLevels.js';
+import {
+  loadXsdSchema,
+  getElementAttributes,
+  getElementDefinition,
+} from '../common-stb/parser/xsdSchemaParser.js';
 
 // STB要素のタブ別グループ化定義（C#版ImportanceSetting.csと対応）
 export const STB_ELEMENT_TABS = [
-  { id: 'StbCommon', name: '共通' },
-  { id: 'StbNodes', name: '節点' },
-  { id: 'StbParallelAxes', name: '平行軸' },
-  { id: 'StbArcAxes', name: '円弧軸' },
-  { id: 'StbRadialAxes', name: '放射軸' },
-  { id: 'StbDrawingLineAxis', name: '描画軸(直線)' },
-  { id: 'StbDrawingArcAxis', name: '描画軸(円弧)' },
-  { id: 'StbStories', name: '階' },
-  { id: 'StbColumns', name: '柱' },
-  { id: 'StbPosts', name: '間柱' },
-  { id: 'StbGirders', name: '大梁' },
-  { id: 'StbBeams', name: '小梁' },
-  { id: 'StbBraces', name: 'ブレース' },
-  { id: 'StbSlabs', name: 'スラブ' },
-  { id: 'StbWalls', name: '壁' },
-  { id: 'StbFootings', name: '基礎' },
-  { id: 'StbStripFootings', name: '布基礎' },
-  { id: 'StbPiles', name: '杭' },
-  { id: 'StbFoundationColumns', name: '基礎柱' },
-  { id: 'StbParapets', name: 'パラペット' },
-  { id: 'StbSecColumn_RC', name: '柱断面RC' },
-  { id: 'StbSecColumn_S', name: '柱断面S' },
-  { id: 'StbSecColumn_SRC', name: '柱断面SRC' },
-  { id: 'StbSecColumn_CFT', name: '柱断面CFT' },
-  { id: 'StbSecBeam_RC', name: '梁断面RC' },
-  { id: 'StbSecBeam_S', name: '梁断面S' },
-  { id: 'StbSecBeam_SRC', name: '梁断面SRC' },
-  { id: 'StbSecBrace_S', name: 'ブレース断面S' },
-  { id: 'StbSecSlab_RC', name: 'スラブ断面RC' },
-  { id: 'StbSecSlabDeck', name: 'スラブ断面デッキ' },
-  { id: 'StbSecSlabPrecast', name: 'スラブ断面プレキャスト' },
-  { id: 'StbSecWall_RC', name: '壁断面RC' },
-  { id: 'StbSecFoundation_RC', name: '基礎断面RC' },
-  { id: 'StbSecPile_RC', name: '杭断面RC' },
-  { id: 'StbSecPile_S', name: '杭断面S' },
-  { id: 'StbSecPileProduct', name: '杭断面製品' },
-  { id: 'StbSecParapet_RC', name: 'パラペット断面RC' },
-  { id: 'StbJoints', name: '継手' },
+  { id: 'StbCommon', name: 'StbCommon', xsdElem: 'StbCommon' },
+  { id: 'StbNodes', name: 'StbNodes', xsdElem: 'StbNode' },
+  { id: 'StbParallelAxes', name: 'StbParallelAxes', xsdElem: 'StbParallelAxis' },
+  { id: 'StbArcAxes', name: 'StbArcAxes', xsdElem: 'StbArcAxis' },
+  { id: 'StbRadialAxes', name: 'StbRadialAxes', xsdElem: 'StbRadialAxis' },
+  { id: 'StbDrawingLineAxis', name: 'StbDrawingLineAxis', xsdElem: 'StbDrawingLineAxis' },
+  { id: 'StbDrawingArcAxis', name: 'StbDrawingArcAxis', xsdElem: 'StbDrawingArcAxis' },
+  { id: 'StbStories', name: 'StbStories', xsdElem: 'StbStory' },
+  { id: 'StbColumns', name: 'StbColumns', xsdElem: 'StbColumn' },
+  { id: 'StbPosts', name: 'StbPosts', xsdElem: 'StbPost' },
+  { id: 'StbGirders', name: 'StbGirders', xsdElem: 'StbGirder' },
+  { id: 'StbBeams', name: 'StbBeams', xsdElem: 'StbBeam' },
+  { id: 'StbBraces', name: 'StbBraces', xsdElem: 'StbBrace' },
+  { id: 'StbSlabs', name: 'StbSlabs', xsdElem: 'StbSlab' },
+  { id: 'StbWalls', name: 'StbWalls', xsdElem: 'StbWall' },
+  { id: 'StbFootings', name: 'StbFootings', xsdElem: 'StbFooting' },
+  { id: 'StbStripFootings', name: 'StbStripFootings', xsdElem: 'StbStripFooting' },
+  { id: 'StbPiles', name: 'StbPiles', xsdElem: 'StbPile' },
+  { id: 'StbFoundationColumns', name: 'StbFoundationColumns', xsdElem: 'StbFoundationColumn' },
+  { id: 'StbParapets', name: 'StbParapets', xsdElem: 'StbParapet' },
+  { id: 'StbSecColumn_RC', name: 'StbSecColumn_RC' },
+  { id: 'StbSecColumn_S', name: 'StbSecColumn_S' },
+  { id: 'StbSecColumn_SRC', name: 'StbSecColumn_SRC' },
+  { id: 'StbSecColumn_CFT', name: 'StbSecColumn_CFT' },
+  { id: 'StbSecBeam_RC', name: 'StbSecBeam_RC' },
+  { id: 'StbSecBeam_S', name: 'StbSecBeam_S' },
+  { id: 'StbSecBeam_SRC', name: 'StbSecBeam_SRC' },
+  { id: 'StbSecBrace_S', name: 'StbSecBrace_S' },
+  { id: 'StbSecSlab_RC', name: 'StbSecSlab_RC' },
+  { id: 'StbSecSlabDeck', name: 'StbSecSlabDeck' },
+  { id: 'StbSecSlabPrecast', name: 'StbSecSlabPrecast' },
+  { id: 'StbSecWall_RC', name: 'StbSecWall_RC' },
+  { id: 'StbSecFoundation_RC', name: 'StbSecFoundation_RC' },
+  { id: 'StbSecPile_RC', name: 'StbSecPile_RC' },
+  { id: 'StbSecPile_S', name: 'StbSecPile_S' },
+  { id: 'StbSecPileProduct', name: 'StbSecPileProduct' },
+  { id: 'StbSecParapet_RC', name: 'StbSecParapet_RC' },
+  { id: 'StbJoints', name: 'StbJoints' },
 ];
 
 /**
@@ -69,6 +74,8 @@ class ImportanceManager {
     this.orderedElementPaths = [];
     this.elementPathsByTab = new Map();
     this.isInitialized = false;
+    this.currentConfigId = 'mvd-combined'; // デフォルト: S2+S4
+    this.currentConfigName = 'デフォルト';
   }
 
   /**
@@ -78,13 +85,9 @@ class ImportanceManager {
    */
   async initialize(_xsdContent = null) {
     try {
-      // XSDコンテンツが提供されていない場合は、デフォルト設定を使用
-      if (!_xsdContent) {
-        console.warn('XSDコンテンツが提供されていません。デフォルトの重要度設定を使用します');
-        await this.loadDefaultSettings();
-      } else {
-        await this.parseXsdAndGenerateSettings(_xsdContent);
-      }
+      // XSD解析と設定生成を実行（デフォルト設定ロード含む）
+      // ファイルからのXSDロードを試み、パラメータを補完します
+      await this.parseXsdAndGenerateSettings(_xsdContent);
 
       this.isInitialized = true;
       this.notifySettingsChanged();
@@ -97,13 +100,102 @@ class ImportanceManager {
   }
 
   /**
+   * 要素階層からXPathパスを再帰的に生成する
+   * @param {string} elementName - 要素名
+   * @param {string} parentPath - 親要素のパス
+   * @param {Object} elementDef - 要素定義 {name, attributes, children, documentation}
+   * @returns {string[]} 生成されたXPathパスの配列
+   */
+  generatePathsFromHierarchy(elementName, parentPath, elementDef) {
+    const paths = [];
+    const currentPath = `${parentPath}/${elementName}`;
+
+    // 0. 要素自体のパスを追加（重要！）
+    paths.push(currentPath);
+
+    // 1. 属性パスを生成
+    if (elementDef.attributes) {
+      for (const [attrName] of elementDef.attributes) {
+        paths.push(`${currentPath}/@${attrName}`);
+      }
+    }
+
+    // 2. 子要素パスを再帰的に生成
+    if (elementDef.children) {
+      for (const [childName, childDef] of elementDef.children) {
+        // 再帰呼び出しで子要素とその子孫のパスを取得
+        const childPaths = this.generatePathsFromHierarchy(childName, currentPath, childDef);
+        paths.push(...childPaths);
+      }
+    }
+
+    return paths;
+  }
+
+  /**
    * XSDスキーマから要素パスを解析して重要度設定を生成する
    * @param {string} _xsdContent - XSDスキーマ内容
    */
   async parseXsdAndGenerateSettings(_xsdContent) {
-    // TODO: XSDパーサーとの統合（将来の拡張）
-    // 現時点では既知の要素パスを使用
+    // デフォルト設定を先にロード
     await this.loadDefaultSettings();
+
+    try {
+      // XSDスキーマをロード
+      // note: _xsdContentが渡されても、ファイルから正規のスキーマを読み込むことを優先
+      const loaded = await loadXsdSchema();
+      if (!loaded) {
+        console.warn('XSDスキーマのロードに失敗しました。補完をスキップします。');
+        return;
+      }
+
+      // 各タブについて、XSDから階層的にパスを生成
+      for (const tab of STB_ELEMENT_TABS) {
+        // xsdElemが定義されていればそれを使用、なければidを使用
+        const elementId = tab.xsdElem || tab.id;
+        const elementDef = getElementDefinition(elementId);
+
+        if (elementDef) {
+          if (!this.elementPathsByTab.has(tab.id)) {
+            this.elementPathsByTab.set(tab.id, []);
+          }
+          const currentPaths = this.elementPathsByTab.get(tab.id);
+
+          // 要素タイプに応じた親パスを決定
+          // セクション要素（StbSecColumn_RC、StbSecBeam_RC など）は //ST_BRIDGE/StbSections の下
+          // 構造要素（StbColumn、StbBeam など）やその他の要素は //ST_BRIDGE の下
+          // セクション要素は "StbSec" で始まる（STB_ELEMENT_TABSに含まれるルート要素のみ）
+          const parentPath = elementId.startsWith('StbSec')
+            ? '//ST_BRIDGE/StbSections'
+            : '//ST_BRIDGE';
+
+          // 階層から全パスを生成
+          const paths = this.generatePathsFromHierarchy(elementId, parentPath, elementDef);
+
+          for (const path of paths) {
+            // リストに追加
+            if (!currentPaths.includes(path)) {
+              currentPaths.push(path);
+            }
+            if (!this.orderedElementPaths.includes(path)) {
+              this.orderedElementPaths.push(path);
+            }
+
+            // 重要度設定がなければ追加
+            if (!this.userImportanceSettings.has(path)) {
+              // 属性はOPTIONAL、要素はREQUIRED
+              const isAttribute = path.includes('/@');
+              const level = isAttribute
+                ? IMPORTANCE_LEVELS.OPTIONAL
+                : IMPORTANCE_LEVELS.REQUIRED;
+              this.userImportanceSettings.set(path, level);
+            }
+          }
+        }
+      }
+    } catch (error) {
+       console.error('XSD解析と設定生成中にエラーが発生しました:', error);
+    }
   }
 
   /**
@@ -203,8 +295,31 @@ class ImportanceManager {
    * @returns {string} 重要度レベル（設定がない場合はOPTIONAL）
    */
   getImportanceLevel(elementPath) {
+    const importance = this.userImportanceSettings.get(elementPath);
+
+    // 統計収集
+    const stats = getState('importance.fallbackStats') || {
+      totalChecks: 0,
+      fallbackCount: 0,
+      undefinedPaths: new Set(),
+    };
+
+    stats.totalChecks++;
+
+    if (!importance) {
+      // フォールバック発生
+      stats.fallbackCount++;
+      stats.undefinedPaths.add(elementPath);
+      setState('importance.fallbackStats', stats);
+
+      // デバッグログ（開発時のみ）
+      if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
+        console.debug(`[Importance] Fallback to OPTIONAL: ${elementPath}`);
+      }
+    }
+
     // 設定がない場合はOPTIONAL（MVDに記載されていない要素は任意扱い）
-    return this.userImportanceSettings.get(elementPath) || IMPORTANCE_LEVELS.OPTIONAL;
+    return importance || IMPORTANCE_LEVELS.OPTIONAL;
   }
 
   /**
@@ -233,12 +348,156 @@ class ImportanceManager {
   }
 
   /**
+   * タブに対応するパス判定用セグメント一覧を生成する
+   * @param {string} tabId - タブID
+   * @returns {Set<string>} 判定用セグメント（小文字）
+   */
+  buildTabPathCandidates(tabId) {
+    const tab = STB_ELEMENT_TABS.find((item) => item.id === tabId);
+    const rawNames = new Set([tabId]);
+
+    if (tab?.xsdElem) {
+      rawNames.add(tab.xsdElem);
+    }
+
+    const candidates = new Set();
+    rawNames.forEach((name) => {
+      if (!name || typeof name !== 'string') return;
+
+      const normalized = name.trim();
+      if (!normalized) return;
+
+      candidates.add(normalized.toLowerCase());
+
+      if (normalized.endsWith('s') && normalized.length > 1) {
+        candidates.add(normalized.slice(0, -1).toLowerCase());
+      } else {
+        candidates.add(`${normalized}s`.toLowerCase());
+      }
+    });
+
+    return candidates;
+  }
+
+  /**
+   * XPath文字列を要素セグメント配列に分解する
+   * @param {string} path - XPath
+   * @returns {string[]} 要素セグメント配列
+   */
+  extractPathElementSegments(path) {
+    if (!path || typeof path !== 'string') {
+      return [];
+    }
+
+    return path
+      .split('/')
+      .map((segment) => segment.trim())
+      .filter((segment) => segment && !segment.startsWith('@'))
+      .map((segment) => segment.toLowerCase());
+  }
+
+  /**
+   * XPathがタブ候補に一致するか判定する
+   * @param {string} path - XPath
+   * @param {Set<string>} candidates - 判定用セグメント
+   * @returns {boolean} 一致する場合true
+   */
+  pathMatchesTab(path, candidates) {
+    if (!candidates || candidates.size === 0) {
+      return false;
+    }
+
+    const segments = this.extractPathElementSegments(path);
+    return segments.some((segment) => {
+      if (candidates.has(segment)) {
+        return true;
+      }
+
+      for (const candidate of candidates) {
+        if (segment.startsWith(`${candidate}_`)) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+  }
+
+  /**
    * タブ別の要素パスを取得する
    * @param {string} tabId - タブID
    * @returns {string[]} 要素パスの配列
    */
   getElementPathsByTab(tabId) {
-    return this.elementPathsByTab.get(tabId) || [];
+    const staticPaths = this.elementPathsByTab.get(tabId) || [];
+    const candidates = this.buildTabPathCandidates(tabId);
+    const matchedPaths = new Set(staticPaths);
+    const allPaths = [...this.userImportanceSettings.keys()];
+    const descendantRoots = new Set();
+
+    const getPathElements = (path) =>
+      this.extractPathElementSegments(path).filter((segment) => segment !== 'st_bridge');
+
+    const collectDescendantRoots = (segments, triggerSegments) => {
+      for (let i = 0; i < segments.length - 1; i++) {
+        if (triggerSegments.has(segments[i])) {
+          descendantRoots.add(segments[i + 1]);
+        }
+      }
+    };
+
+    for (const path of allPaths) {
+      if (this.pathMatchesTab(path, candidates)) {
+        matchedPaths.add(path);
+        collectDescendantRoots(getPathElements(path), candidates);
+      }
+    }
+
+    let expanded = true;
+    while (expanded) {
+      expanded = false;
+
+      for (const path of allPaths) {
+        if (matchedPaths.has(path)) {
+          continue;
+        }
+
+        const segments = getPathElements(path);
+        const belongsToDescendant = segments.some((segment) => {
+          if (descendantRoots.has(segment)) {
+            return true;
+          }
+
+          for (const root of descendantRoots) {
+            if (segment.startsWith(`${root}_`)) {
+              return true;
+            }
+          }
+
+          return false;
+        });
+
+        if (belongsToDescendant) {
+          matchedPaths.add(path);
+          collectDescendantRoots(segments, descendantRoots);
+          expanded = true;
+        }
+      }
+    }
+
+    const ordered = [];
+    const seen = new Set();
+    const pushOrdered = (path) => {
+      if (matchedPaths.has(path) && !seen.has(path)) {
+        ordered.push(path);
+        seen.add(path);
+      }
+    };
+
+    this.orderedElementPaths.forEach(pushOrdered);
+    matchedPaths.forEach(pushOrdered);
+
+    return ordered;
   }
 
   /**
@@ -333,6 +592,10 @@ class ImportanceManager {
       elementPathsByTab: Object.fromEntries(this.elementPathsByTab),
       lastModified: new Date().toISOString(),
     });
+
+    // MVD設定情報をglobalStateに反映
+    setState('importance.currentConfigId', this.currentConfigId);
+    setState('importance.currentConfigName', this.currentConfigName);
 
     // EventBus経由でイベントを発行
     eventBus.emit(ImportanceEvents.SETTINGS_CHANGED, {
@@ -436,6 +699,58 @@ class ImportanceManager {
     }
 
     return stats;
+  }
+
+  /**
+   * フォールバック統計をリセット
+   */
+  resetFallbackStats() {
+    setState('importance.fallbackStats', {
+      totalChecks: 0,
+      fallbackCount: 0,
+      undefinedPaths: new Set(),
+    });
+  }
+
+  /**
+   * 要素の重要度を取得する
+   * @param {Object} element - 要素データ
+   * @param {string} elementType - 要素タイプ（オプション）
+   * @returns {string} 重要度レベル
+   */
+  getElementImportance(element, elementType = null) {
+    if (!this.isInitialized) {
+      return IMPORTANCE_LEVELS.REQUIRED; // デフォルト
+    }
+
+    // 要素タイプの決定
+    let type = elementType;
+    if (!type && element) {
+      // element から要素タイプを推測
+      if (typeof element.getAttribute === 'function') {
+        // DOM Element の場合（あまり使われないが念のため）
+        type = element.tagName;
+      } else if (typeof element === 'object') {
+        // JavaScript object の場合
+        // elementType プロパティがあればそれを使用
+        type = element.elementType || element.type;
+      }
+    }
+
+    if (!type) {
+      return IMPORTANCE_LEVELS.REQUIRED; // デフォルト
+    }
+
+    // 基本的な要素パス
+    const basePath = `//ST_BRIDGE/${type}`;
+    let importance = this.userImportanceSettings.get(basePath);
+
+    if (importance === undefined) {
+      // デフォルト値を返す
+      importance = IMPORTANCE_LEVELS.REQUIRED;
+    }
+
+    return importance;
   }
 }
 

@@ -6,7 +6,7 @@
  */
 
 import { BaseElementStateManager } from './baseElementStateManager.js';
-import { DISPLAY_MODE_ELEMENTS } from '../../config/elementTypes.js';
+import { DISPLAY_MODE_ELEMENTS } from '../../constants/elementTypes.js';
 import { DISPLAY_MODES } from '../../constants/displayModes.js';
 
 /**

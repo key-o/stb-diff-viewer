@@ -7,10 +7,14 @@
  * - 読み込みプロセスのUI状態管理
  * - 入力パラメータ検証
  *
+ * ファイルタイプ設定は config/fileTypeConfig.js で一元管理されています。
+ *
  * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
 import { notify } from '../app/controllers/notificationController.js';
+import { setState } from '../app/globalState.js';
+import { validateFileType } from '../config/fileTypeConfig.js';
 
 /**
  * Validate and retrieve files for comparison
@@ -24,32 +28,33 @@ export function validateAndGetFiles() {
 
   if (!fileA && !fileB) {
     notify.warning('表示するモデルファイル（モデルAまたはモデルB）を選択してください。');
-    return { isValid: false, fileA: null, fileB: null };
+    return { isValid: false, fileA: null, fileB: null, fileTypes: {} };
   }
 
-  // 元のSTBファイルをグローバル状態に保存（IFC変換用）
-  // グローバル状態システムが利用可能な場合のみ保存
-  if (typeof window !== 'undefined' && window.globalState && window.globalState.set) {
-    if (fileA) {
-      window.globalState.set('files.originalFileA', fileA);
+  // ファイルタイプを検証（設定ファイルベース）
+  const fileTypes = {};
+
+  if (fileA) {
+    const validationA = validateFileType(fileA);
+    if (!validationA.isValid) {
+      notify.warning(`モデルA: ${validationA.errors.join(', ')}`);
+      return { isValid: false, fileA: null, fileB: null, fileTypes: {} };
     }
-    if (fileB) {
-      window.globalState.set('files.originalFileB', fileB);
-    }
-  } else {
-    // フォールバック: windowオブジェクトに直接保存
-    if (!window.originalSTBFiles) {
-      window.originalSTBFiles = {};
-    }
-    if (fileA) {
-      window.originalSTBFiles.fileA = fileA;
-    }
-    if (fileB) {
-      window.originalSTBFiles.fileB = fileB;
-    }
+    fileTypes.fileA = validationA.fileType;
+    setState('files.originalFileA', fileA);
   }
 
-  return { isValid: true, fileA, fileB };
+  if (fileB) {
+    const validationB = validateFileType(fileB);
+    if (!validationB.isValid) {
+      notify.warning(`モデルB: ${validationB.errors.join(', ')}`);
+      return { isValid: false, fileA: null, fileB: null, fileTypes: {} };
+    }
+    fileTypes.fileB = validationB.fileType;
+    setState('files.originalFileB', fileB);
+  }
+
+  return { isValid: true, fileA, fileB, fileTypes };
 }
 
 /**

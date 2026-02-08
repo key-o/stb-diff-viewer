@@ -6,8 +6,6 @@
 
 // stbRepairEngine.jsから全てエクスポート
 export {
-  // 設定関数
-  setValidatorFunctions,
   // 定数
   REPAIR_ACTION,
   DEFAULT_VALUES,

@@ -4,22 +4,21 @@
 
 import { createLogger } from '../../utils/logger.js';
 import { setState } from '../globalState.js';
-import { initializeImportancePanel } from '../../ui/importancePanel.js';
-import { initializeImportanceFilterSystem } from '../../ui/importanceFilter.js';
-import { initializeImportanceStatistics } from '../../ui/statistics.js';
-import { initializeBulkImportanceOperations } from '../../ui/bulkImportanceOperations.js';
-import { initializeOutlineSystem } from '../../viewer/rendering/outlines.js';
-import { initializeDiffListPanel } from '../../ui/diffList.js';
+import { initializeImportancePanel } from '../../ui/panels/importancePanel.js';
+import { initializeImportanceFilterSystem } from '../../ui/panels/importanceFilter.js';
+import { initializeImportanceStatistics } from '../../ui/panels/statistics.js';
+import { initializeBulkImportanceOperations } from '../../ui/panels/bulkImportanceOperations.js';
+import { initializeDiffListPanel } from '../../ui/panels/diffList.js';
 import {
   initializeDiffStatusFilterSystem,
   globalDiffStatusFilter,
-} from '../../ui/diffStatusFilter.js';
-import { initializeDiffStatusPanel } from '../../ui/diffStatusPanel.js';
+} from '../../ui/panels/diffStatusFilter.js';
+import { initializeDiffStatusPanel } from '../../ui/panels/diffStatusPanel.js';
 import { eventBus } from '../events/eventBus.js';
 import { EventTypes } from '../events/eventTypes.js';
 import { getState } from '../globalState.js';
 import { buildMemberDataFromDocument, updateLoadCaseSelector } from './initializationUtils.js';
-import { getLoadDisplayManager } from '../../viewer/rendering/loadDisplayManager.js';
+import { initializeOutlineSystem, getLoadDisplayManager } from '../../viewer/index.js';
 
 const log = createLogger('systemInitializer');
 
@@ -95,8 +94,8 @@ function updateLoadDisplayData() {
     const calDataB = getState('models.calDataB');
     const nodeMapA = getState('models.nodeMapA');
     const nodeMapB = getState('models.nodeMapB');
-    const documentA = getState('models.modelADocument');
-    const documentB = getState('models.modelBDocument');
+    const documentA = getState('models.documentA');
+    const documentB = getState('models.documentB');
 
     // 荷重データがある方を使用（優先：モデルA）
     const calData = calDataA || calDataB;

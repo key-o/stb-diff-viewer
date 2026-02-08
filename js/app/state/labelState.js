@@ -36,7 +36,7 @@ export function setAllLabels(labels) {
  */
 export function removeLabelsForElementType(elementType) {
   allLabels = allLabels.filter(
-    (label) => !label.userData || label.userData.elementType !== elementType
+    (label) => !label.userData || label.userData.elementType !== elementType,
   );
 }
 

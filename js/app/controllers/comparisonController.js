@@ -7,11 +7,11 @@
  * @module app/controllers/comparisonController
  */
 
-import { generateVersionDifferenceSummary } from '../../comparison/semanticEquivalence.js';
 import {
+  generateVersionDifferenceSummary,
   generateImportanceSummary,
   updateComparisonResultImportance,
-} from '../../comparator.js';
+} from '../../common-stb/comparison/index.js';
 
 /**
  * 比較コントローラー

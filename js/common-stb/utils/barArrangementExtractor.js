@@ -31,11 +31,7 @@ import {
  *   'count_main_X'    // legacy: レガシー名
  * ], '0');
  */
-export function getAttributeWithFallback(
-  element,
-  attributeCandidates,
-  defaultValue = '0'
-) {
+export function getAttributeWithFallback(element, attributeCandidates, defaultValue = '0') {
   if (!element || !Array.isArray(attributeCandidates) || attributeCandidates.length === 0) {
     return defaultValue;
   }
@@ -72,17 +68,9 @@ export function extractBeamMainBar(beamSection) {
 
   return {
     // v2.0.2: N_main_X_1st, v1.x: N_main_X, legacy: count_main_X
-    N_main_X: getAttributeWithFallback(beamSection, [
-      'N_main_X_1st',
-      'N_main_X',
-      'count_main_X',
-    ]),
+    N_main_X: getAttributeWithFallback(beamSection, ['N_main_X_1st', 'N_main_X', 'count_main_X']),
     // v2.0.2: N_main_Y_1st, v1.x: N_main_Y, legacy: count_main_Y
-    N_main_Y: getAttributeWithFallback(beamSection, [
-      'N_main_Y_1st',
-      'N_main_Y',
-      'count_main_Y',
-    ]),
+    N_main_Y: getAttributeWithFallback(beamSection, ['N_main_Y_1st', 'N_main_Y', 'count_main_Y']),
     // v2.0.2: D_main, v1.x: D_main, legacy: dia_main
     D_main: getAttributeWithFallback(beamSection, ['D_main', 'dia_main']),
     // v2.0.2: D_main_X, v1.x: D_main_X, legacy: dia_main_X
@@ -122,10 +110,7 @@ export function extractStirrupInfo(beamSection) {
     // v2.0.2: D_stirrup, v1.x: D_stirrup, legacy: dia_stirrup
     D_stirrup: getAttributeWithFallback(beamSection, ['D_stirrup', 'dia_stirrup']),
     // v2.0.2: stirrup_spacing, v1.x: stirrup_spacing, legacy: pitch_stirrup
-    spacing: getAttributeWithFallback(beamSection, [
-      'stirrup_spacing',
-      'pitch_stirrup',
-    ]),
+    spacing: getAttributeWithFallback(beamSection, ['stirrup_spacing', 'pitch_stirrup']),
     // v2.0.2: stirrup_spacing_1st, v1.x: stirrup_spacing_1st, legacy: pitch_stirrup_1st
     spacing_1st: getAttributeWithFallback(beamSection, [
       'stirrup_spacing_1st',
@@ -199,27 +184,13 @@ export function extractMainBarInfo(columnSection) {
     // v2.0.2: D_main, v1.x: D_main, legacy: dia_main
     D_main: getAttributeWithFallback(columnSection, ['D_main', 'dia_main']),
     // v2.0.2: N_main_X_1st, v1.x: N_main_X, legacy: count_main_X
-    N_main_X: getAttributeWithFallback(columnSection, [
-      'N_main_X_1st',
-      'N_main_X',
-      'count_main_X',
-    ]),
+    N_main_X: getAttributeWithFallback(columnSection, ['N_main_X_1st', 'N_main_X', 'count_main_X']),
     // v2.0.2: N_main_Y_1st, v1.x: N_main_Y, legacy: count_main_Y
-    N_main_Y: getAttributeWithFallback(columnSection, [
-      'N_main_Y_1st',
-      'N_main_Y',
-      'count_main_Y',
-    ]),
+    N_main_Y: getAttributeWithFallback(columnSection, ['N_main_Y_1st', 'N_main_Y', 'count_main_Y']),
     // v2.0.2: D_main_X, v1.x: D_main_X, legacy: dia_main_X
-    D_main_X: getAttributeWithFallback(columnSection, [
-      'D_main_X',
-      'dia_main_X',
-    ]),
+    D_main_X: getAttributeWithFallback(columnSection, ['D_main_X', 'dia_main_X']),
     // v2.0.2: D_main_Y, v1.x: D_main_Y, legacy: dia_main_Y
-    D_main_Y: getAttributeWithFallback(columnSection, [
-      'D_main_Y',
-      'dia_main_Y',
-    ]),
+    D_main_Y: getAttributeWithFallback(columnSection, ['D_main_Y', 'dia_main_Y']),
   };
 }
 
@@ -253,15 +224,9 @@ export function extractHoopInfo(columnSection) {
     // v2.0.2: D_hoop, v1.x: D_hoop, legacy: dia_hoop
     D_hoop: getAttributeWithFallback(columnSection, ['D_hoop', 'dia_hoop']),
     // v2.0.2: hoop_spacing, v1.x: hoop_spacing, legacy: pitch_hoop
-    spacing: getAttributeWithFallback(columnSection, [
-      'hoop_spacing',
-      'pitch_hoop',
-    ]),
+    spacing: getAttributeWithFallback(columnSection, ['hoop_spacing', 'pitch_hoop']),
     // v2.0.2: hoop_spacing_1st, v1.x: hoop_spacing_1st, legacy: pitch_hoop_1st
-    spacing_1st: getAttributeWithFallback(columnSection, [
-      'hoop_spacing_1st',
-      'pitch_hoop_1st',
-    ]),
+    spacing_1st: getAttributeWithFallback(columnSection, ['hoop_spacing_1st', 'pitch_hoop_1st']),
   };
 }
 
@@ -365,34 +330,16 @@ export function extractWallBarInfo(wallSection) {
 
   return {
     // v2.0.2: N_main_h, v1.x: N_main_h, legacy: count_main_h
-    N_main_h: getAttributeWithFallback(wallSection, [
-      'N_main_h',
-      'count_main_h',
-    ]),
+    N_main_h: getAttributeWithFallback(wallSection, ['N_main_h', 'count_main_h']),
     // v2.0.2: D_main_h, v1.x: D_main_h, legacy: dia_main_h
-    D_main_h: getAttributeWithFallback(wallSection, [
-      'D_main_h',
-      'dia_main_h',
-    ]),
+    D_main_h: getAttributeWithFallback(wallSection, ['D_main_h', 'dia_main_h']),
     // v2.0.2: N_main_v, v1.x: N_main_v, legacy: count_main_v
-    N_main_v: getAttributeWithFallback(wallSection, [
-      'N_main_v',
-      'count_main_v',
-    ]),
+    N_main_v: getAttributeWithFallback(wallSection, ['N_main_v', 'count_main_v']),
     // v2.0.2: D_main_v, v1.x: D_main_v, legacy: dia_main_v
-    D_main_v: getAttributeWithFallback(wallSection, [
-      'D_main_v',
-      'dia_main_v',
-    ]),
+    D_main_v: getAttributeWithFallback(wallSection, ['D_main_v', 'dia_main_v']),
     // v2.0.2: shear_spacing_h, v1.x: shear_spacing_h, legacy: pitch_h
-    spacing_h: getAttributeWithFallback(wallSection, [
-      'shear_spacing_h',
-      'pitch_h',
-    ]),
+    spacing_h: getAttributeWithFallback(wallSection, ['shear_spacing_h', 'pitch_h']),
     // v2.0.2: shear_spacing_v, v1.x: shear_spacing_v, legacy: pitch_v
-    spacing_v: getAttributeWithFallback(wallSection, [
-      'shear_spacing_v',
-      'pitch_v',
-    ]),
+    spacing_v: getAttributeWithFallback(wallSection, ['shear_spacing_v', 'pitch_v']),
   };
 }

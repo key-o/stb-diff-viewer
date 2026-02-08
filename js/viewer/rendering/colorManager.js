@@ -251,7 +251,7 @@ class ColorManager {
         break;
 
       case 'schema':
-        color = this.getSchemaColor(params.status || params.hasError || false);
+        color = this.getSchemaColor(params.status || (params.hasError ? 'error' : 'valid'));
         break;
 
       case 'importance':

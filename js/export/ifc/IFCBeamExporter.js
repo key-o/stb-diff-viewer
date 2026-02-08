@@ -60,21 +60,31 @@ export class IFCBeamExporter extends IFCExporterBase {
 
     // 必須パラメータのチェック
     if (!startPoint || !endPoint || !profile) {
-      const error = new Error('Required parameters missing: startPoint, endPoint, and profile are required');
+      const error = new Error(
+        'Required parameters missing: startPoint, endPoint, and profile are required',
+      );
       log.error(`[IFC Export] 梁 "${name}" をスキップ:`, error);
       return null;
     }
 
     // Validate point objects
-    if (typeof startPoint !== 'object' || typeof startPoint.x !== 'number' ||
-        typeof startPoint.y !== 'number' || typeof startPoint.z !== 'number') {
+    if (
+      typeof startPoint !== 'object' ||
+      typeof startPoint.x !== 'number' ||
+      typeof startPoint.y !== 'number' ||
+      typeof startPoint.z !== 'number'
+    ) {
       const error = new TypeError('startPoint must be an object with numeric x, y, z properties');
       log.error(`[IFC Export] 梁 "${name}" をスキップ:`, error);
       return null;
     }
 
-    if (typeof endPoint !== 'object' || typeof endPoint.x !== 'number' ||
-        typeof endPoint.y !== 'number' || typeof endPoint.z !== 'number') {
+    if (
+      typeof endPoint !== 'object' ||
+      typeof endPoint.x !== 'number' ||
+      typeof endPoint.y !== 'number' ||
+      typeof endPoint.z !== 'number'
+    ) {
       const error = new TypeError('endPoint must be an object with numeric x, y, z properties');
       log.error(`[IFC Export] 梁 "${name}" をスキップ:`, error);
       return null;
@@ -94,12 +104,16 @@ export class IFCBeamExporter extends IFCExporterBase {
 
     // Validate placementMode
     if (placementMode !== 'center' && placementMode !== 'top-aligned') {
-      log.warn(`[IFC Export] 梁 "${name}": invalid placementMode "${placementMode}", using "center"`);
+      log.warn(
+        `[IFC Export] 梁 "${name}": invalid placementMode "${placementMode}", using "center"`,
+      );
     }
 
     // Validate sectionHeight
     if (typeof sectionHeight !== 'number' || !isFinite(sectionHeight) || sectionHeight < 0) {
-      log.warn(`[IFC Export] 梁 "${name}": sectionHeight must be a non-negative finite number, using 0`);
+      log.warn(
+        `[IFC Export] 梁 "${name}": sectionHeight must be a non-negative finite number, using 0`,
+      );
     }
 
     // 梁の長さを計算 (mm)
@@ -617,21 +631,31 @@ export class IFCBeamExporter extends IFCExporterBase {
 
     // 必須パラメータのチェック
     if (!bottomPoint || !topPoint || !profile) {
-      const error = new Error('Required parameters missing: bottomPoint, topPoint, and profile are required');
+      const error = new Error(
+        'Required parameters missing: bottomPoint, topPoint, and profile are required',
+      );
       log.error(`[IFC Export] 柱 "${name}" をスキップ:`, error);
       return null;
     }
 
     // Validate point objects
-    if (typeof bottomPoint !== 'object' || typeof bottomPoint.x !== 'number' ||
-        typeof bottomPoint.y !== 'number' || typeof bottomPoint.z !== 'number') {
+    if (
+      typeof bottomPoint !== 'object' ||
+      typeof bottomPoint.x !== 'number' ||
+      typeof bottomPoint.y !== 'number' ||
+      typeof bottomPoint.z !== 'number'
+    ) {
       const error = new TypeError('bottomPoint must be an object with numeric x, y, z properties');
       log.error(`[IFC Export] 柱 "${name}" をスキップ:`, error);
       return null;
     }
 
-    if (typeof topPoint !== 'object' || typeof topPoint.x !== 'number' ||
-        typeof topPoint.y !== 'number' || typeof topPoint.z !== 'number') {
+    if (
+      typeof topPoint !== 'object' ||
+      typeof topPoint.x !== 'number' ||
+      typeof topPoint.y !== 'number' ||
+      typeof topPoint.z !== 'number'
+    ) {
       const error = new TypeError('topPoint must be an object with numeric x, y, z properties');
       log.error(`[IFC Export] 柱 "${name}" をスキップ:`, error);
       return null;
@@ -933,21 +957,31 @@ export class IFCBeamExporter extends IFCExporterBase {
 
     // 必須パラメータのチェック
     if (!startPoint || !endPoint || !profile) {
-      const error = new Error('Required parameters missing: startPoint, endPoint, and profile are required');
+      const error = new Error(
+        'Required parameters missing: startPoint, endPoint, and profile are required',
+      );
       log.error(`[IFC Export] ブレース "${name}" をスキップ:`, error);
       return null;
     }
 
     // Validate point objects
-    if (typeof startPoint !== 'object' || typeof startPoint.x !== 'number' ||
-        typeof startPoint.y !== 'number' || typeof startPoint.z !== 'number') {
+    if (
+      typeof startPoint !== 'object' ||
+      typeof startPoint.x !== 'number' ||
+      typeof startPoint.y !== 'number' ||
+      typeof startPoint.z !== 'number'
+    ) {
       const error = new TypeError('startPoint must be an object with numeric x, y, z properties');
       log.error(`[IFC Export] ブレース "${name}" をスキップ:`, error);
       return null;
     }
 
-    if (typeof endPoint !== 'object' || typeof endPoint.x !== 'number' ||
-        typeof endPoint.y !== 'number' || typeof endPoint.z !== 'number') {
+    if (
+      typeof endPoint !== 'object' ||
+      typeof endPoint.x !== 'number' ||
+      typeof endPoint.y !== 'number' ||
+      typeof endPoint.z !== 'number'
+    ) {
       const error = new TypeError('endPoint must be an object with numeric x, y, z properties');
       log.error(`[IFC Export] ブレース "${name}" をスキップ:`, error);
       return null;

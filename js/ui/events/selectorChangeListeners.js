@@ -6,10 +6,10 @@
  * @module ui/events/selectorChangeListeners
  */
 
-import { updateLabelVisibility } from '../unifiedLabelManager.js';
-import { applyStoryClip, applyAxisClip } from '../clipping.js';
+import { updateLabelVisibility } from '../viewer3d/unifiedLabelManager.js';
+import { applyStoryClip, applyAxisClip } from '../viewer3d/clipping.js';
 import { eventBus, AxisEvents, RenderEvents } from '../../app/events/index.js';
-import { getModelData } from '../../modelLoader.js';
+import { getModelData } from '../../app/modelLoader.js';
 
 /**
  * Setup selector change listeners

@@ -8,7 +8,11 @@
  * RcColumnVisualRendererを参考に実装
  */
 
-import { addBarSymbolDefs, placeBarSymbol as placeBarSymbolBase, createSvgElement } from '../rcColumnVisual/rebarSymbolDefs.js';
+import {
+  addBarSymbolDefs,
+  placeBarSymbol as placeBarSymbolBase,
+  createSvgElement,
+} from '../rcColumnVisual/rebarSymbolDefs.js';
 
 const BEAM_BAR_PREFIX = 'beam-bar';
 
@@ -59,7 +63,7 @@ export class RcBeamVisualRenderer {
       console.warn('[RcBeamVisualRenderer] Invalid dimensions:', {
         width: beamData.width,
         depth: beamData.depth,
-        beamData
+        beamData,
       });
       return null;
     }
@@ -68,10 +72,7 @@ export class RcBeamVisualRenderer {
     const { maxWidth, maxHeight, padding } = this.settings;
 
     // スケーリング計算
-    const scale = Math.min(
-      (maxWidth - padding * 2) / width,
-      (maxHeight - padding * 2) / depth
-    );
+    const scale = Math.min((maxWidth - padding * 2) / width, (maxHeight - padding * 2) / depth);
 
     const svgWidth = width * scale + padding * 2;
     const svgHeight = depth * scale + padding * 2;
@@ -94,7 +95,7 @@ export class RcBeamVisualRenderer {
         width: svgWidth,
         height: svgHeight,
         fill: 'white',
-      })
+      }),
     );
 
     const rectX = padding;
@@ -112,7 +113,7 @@ export class RcBeamVisualRenderer {
         fill: '#f8f8f8',
         stroke: 'black',
         'stroke-width': 2,
-      })
+      }),
     );
 
     // スターラップ（U字型フープ）
@@ -161,7 +162,7 @@ export class RcBeamVisualRenderer {
         fill: 'none',
         stroke: '#666',
         'stroke-width': 1.5,
-      })
+      }),
     );
   }
 

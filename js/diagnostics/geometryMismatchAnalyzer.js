@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { createLogger } from '../utils/logger.js';
-import { ElementGeometryUtils } from '../viewer/geometry/ElementGeometryUtils.js';
+import { ElementGeometryUtils } from '../viewer/index.js';
 import { getDefaultScene } from './geometryInspector.js';
 import { getState } from '../app/globalState.js';
 

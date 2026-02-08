@@ -7,9 +7,7 @@
  * @module app/controllers/renderingController
  */
 
-import { colorManager } from '../../viewer/rendering/colorManager.js';
-import labelDisplayManager from '../../viewer/rendering/labelDisplayManager.js';
-import { createLabelSprite } from '../../viewer/ui/labels.js';
+import { colorManager, labelDisplayManager, createLabelSprite } from '../../viewer/index.js';
 
 /**
  * レンダリングコントローラー

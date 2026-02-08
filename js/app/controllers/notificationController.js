@@ -7,7 +7,7 @@
  * @module app/controllers/notificationController
  */
 
-import { showWarning, showError, showSuccess, showInfo } from '../../ui/toast.js';
+import { showWarning, showError, showSuccess, showInfo } from '../../ui/common/toast.js';
 
 /**
  * 通知コントローラー

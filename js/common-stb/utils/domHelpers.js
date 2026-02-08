@@ -184,7 +184,7 @@ export function getAttributeValue(element, attributeName, defaultValue = '') {
   try {
     const value = element.getAttribute(attributeName);
     // Handle both null (standard DOM) and empty string (@xmldom/xmldom)
-    return (value !== null && value !== '') ? value : defaultValue;
+    return value !== null && value !== '' ? value : defaultValue;
   } catch (error) {
     console.warn(`getAttributeValue error for attribute "${attributeName}":`, error);
     return defaultValue;

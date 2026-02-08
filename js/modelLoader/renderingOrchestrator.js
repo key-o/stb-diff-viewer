@@ -25,9 +25,10 @@ import {
   drawAxes,
   drawStories,
   getActiveCamera,
+  displayModeManager,
+  getElementRegistry,
 } from '../viewer/index.js';
-import { convertToDiffRenderModel, getDiffStatistics } from '../adapters/index.js';
-import { getElementRegistry } from '../viewer/utils/ElementRegistry.js';
+import { convertToDiffRenderModel, getDiffStatistics } from '../data/converters/index.js';
 
 const log = createLogger('modelLoader/renderingOrchestrator');
 
@@ -103,7 +104,7 @@ export function orchestrateElementRendering(comparisonResults, modelBounds, glob
  * 全要素グループの要素をElementRegistryに登録
  * これにより、要素検索がO(n)からO(1)に高速化される
  */
-function registerElementsToRegistry() {
+export function registerElementsToRegistry() {
   const registry = getElementRegistry();
 
   // 既存の登録をクリア
@@ -166,6 +167,13 @@ function renderElementType(elementType, comparisonResult, modelBounds, globalDat
     case 'Girder':
     case 'Beam':
     case 'Brace':
+    case 'Parapet':
+    case 'Pile':
+    case 'Footing':
+    case 'FoundationColumn':
+    case 'StripFooting':
+      // solidモードの場合は線分描画をスキップ（applyInitialDisplayModesで立体描画される）
+      if (displayModeManager.isSolidMode(elementType)) break;
       result.labels = drawLineElements(
         comparisonResult,
         materials,
@@ -178,64 +186,9 @@ function renderElementType(elementType, comparisonResult, modelBounds, globalDat
 
     case 'Slab':
     case 'Wall':
-      // Slab/WallはviewModes.jsのredrawSlabsForViewMode/redrawWallsForViewModeで描画される
-      // drawPolyElementsはgroup.clear()を呼ぶため、ここでは何もしない
-      // applyInitialDisplayModesで適切に再描画される
-      break;
-
-    case 'Parapet':
-      // パラペットは2ノード間の線状要素として描画
-      // 3D表示はviewModes.jsで制御される
-      result.labels = drawLineElements(
-        comparisonResult,
-        materials,
-        group,
-        elementType,
-        createLabels,
-        modelBounds,
-      );
-      break;
-
-    case 'Pile':
-    case 'Footing':
-    case 'FoundationColumn':
-      // 杭・基礎・基礎柱は線分要素として描画
-      // 3D表示はviewModes.jsで制御される（表示モード切り替え時に再描画）
-      result.labels = drawLineElements(
-        comparisonResult,
-        materials,
-        group,
-        elementType,
-        createLabels,
-        modelBounds,
-      );
-      break;
-
     case 'Joint':
-      // 継手は梁・柱の端部に配置される接合部品
-      // 3D表示はviewModes.jsで制御される（立体表示モード時のみ描画）
-      // 初期状態では空（solid表示時にJointGeneratorで描画）
-      result.labels = [];
-      break;
-
-    case 'StripFooting':
-      // 布基礎は2ノード間の線状要素として描画
-      // 3D表示はviewModes.jsで制御される
-      result.labels = drawLineElements(
-        comparisonResult,
-        materials,
-        group,
-        elementType,
-        createLabels,
-        modelBounds,
-      );
-      break;
-
     case 'Undefined':
-      // StbSecUndefinedを参照する要素は常にライン表示（寸法情報がないため）
-      // viewModes.jsのredrawUndefinedElementsForViewModeで描画される
-      // ここでは空を返す（初期レンダリング後にviewModesで描画）
-      result.labels = [];
+      // applyInitialDisplayModesで適切なモードで描画される
       break;
 
     default:

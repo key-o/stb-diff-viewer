@@ -8,9 +8,9 @@
  */
 
 // プロジェクト固有の依存関係をインポート
-import { validateElement, isSchemaLoaded } from '../../parser/xsdSchemaParser.js';
-import { formatValidationReport } from '../../validation/stbValidator.js';
-import { formatRepairReport } from '../../repair/stbRepairEngine.js';
+import { validateElement, isSchemaLoaded } from '../../common-stb/parser/xsdSchemaParser.js';
+import { formatValidationReport } from '../../common-stb/validation/stbValidator.js';
+import { formatRepairReport } from '../../common-stb/repair/stbRepairEngine.js';
 
 // 共通モジュールをインポート
 import {
@@ -48,7 +48,7 @@ setValidatorFunctions({
 // 動的インポートパスを設定
 setDynamicImportPaths({
   repair: '../../repair/stbRepairEngine.js',
-  validator: '../../validation/stbValidator.js',
+  validator: '../../common-stb/validation/stbValidator.js',
 });
 
 // 全機能を再エクスポート

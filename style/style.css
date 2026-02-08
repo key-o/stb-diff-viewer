@@ -5,7 +5,7 @@ body {
   padding: 0;
   height: 100%; /* Ensure body takes full height */
   overflow: hidden; /* Prevent body scrollbars */
-  font-family: sans-serif;
+  font-family: var(--font-family-base);
 }
 
 body {

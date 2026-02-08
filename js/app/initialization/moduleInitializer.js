@@ -3,7 +3,13 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { orthographicCamera, setLabelProvider, setElementsLabelProvider, setElementInfoProviders, setClippingStateProvider } from '../../viewer/index.js';
+import {
+  orthographicCamera,
+  setLabelProvider,
+  setElementsLabelProvider,
+  setElementInfoProviders,
+  setClippingStateProvider,
+} from '../../viewer/index.js';
 import { setDxfExporterProviders } from '../../export/index.js';
 import { getState } from '../globalState.js';
 import { getActiveCamera } from '../../viewer/index.js';
@@ -17,13 +23,16 @@ const log = createLogger('moduleInitializer');
  */
 export async function initializeRequiredModules(elementGroups) {
   // 統合ラベル管理システムを初期化
-  import('../../ui/unifiedLabelManager.js').then(({ initializeLabelManager, generateLabelText }) => {
-    initializeLabelManager();
-    log.info('統合ラベル管理システムが初期化されました');
+  import('../../ui/viewer3d/unifiedLabelManager.js').then(
+    ({ initializeLabelManager, generateLabelText }) => {
+      initializeLabelManager();
+      log.info('統合ラベル管理システムが初期化されました');
 
-    // viewer層へのラベルプロバイダー注入（逆依存解消）
-    Promise.all([import('../../ui/labelRegeneration.js'), import('../../viewer/ui/labels.js')]).then(
-      ([{ attachElementDataToLabel }, { createLabelSprite }]) => {
+      // viewer層へのラベルプロバイダー注入（逆依存解消）
+      Promise.all([
+        import('../../ui/viewer3d/labelRegeneration.js'),
+        import('../../viewer/annotations/labels.js'),
+      ]).then(([{ attachElementDataToLabel }, { createLabelSprite }]) => {
         const labelProvider = {
           generateLabelText,
           attachElementDataToLabel,
@@ -34,12 +43,12 @@ export async function initializeRequiredModules(elementGroups) {
         // elements.js用
         setElementsLabelProvider(labelProvider);
         log.info('ラベルプロバイダーがviewer層に注入されました');
-      },
-    );
-  });
+      });
+    },
+  );
 
   // XSDスキーマを初期化
-  import('../../parser/xsdSchemaParser.js')
+  import('../../common-stb/parser/xsdSchemaParser.js')
     .then(({ loadXsdSchema }) => {
       const xsdPath = './schemas/ST-Bridge202.xsd';
       loadXsdSchema(xsdPath).then((success) => {
@@ -62,12 +71,12 @@ export async function initializeRequiredModules(elementGroups) {
 
   // elementInfoDisplayへの依存プロバイダー注入（逆依存解消）
   Promise.all([
-    import('../../ui/parameterEditor.js'),
+    import('../../ui/panels/parameterEditor.js'),
     import('../suggestionEngine.js'),
-    import('../../ui/floatingWindow.js'),
+    import('../../ui/panels/floatingWindow.js'),
     import('../importanceManager.js'),
     import('../sectionEquivalenceEngine.js'),
-    import('../../ui/labelRegeneration.js'),
+    import('../../ui/viewer3d/labelRegeneration.js'),
   ])
     .then(
       ([
@@ -103,8 +112,8 @@ export async function initializeRequiredModules(elementGroups) {
       { getCurrentStories, getCurrentAxesData },
     ] = await Promise.all([
       import('../globalState.js'),
-      import('../../ui/unifiedLabelManager.js'),
-      import('../../ui/clipping.js'),
+      import('../../ui/viewer3d/unifiedLabelManager.js'),
+      import('../../ui/viewer3d/clipping.js'),
       import('../../ui/state.js'),
     ]);
     setDxfExporterProviders({

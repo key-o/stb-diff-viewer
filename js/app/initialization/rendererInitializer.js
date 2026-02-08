@@ -11,9 +11,10 @@ import {
   controls,
   initRenderer,
   updateMaterialClippingPlanes,
+  initLoadDisplayManager,
+  getLoadDisplayManager,
+  GeometryDebugger,
 } from '../../viewer/index.js';
-import { initLoadDisplayManager, getLoadDisplayManager } from '../../viewer/rendering/loadDisplayManager.js';
-import * as GeometryDebugger from '../../viewer/geometry/debug/GeometryDebugger.js';
 
 const log = createLogger('rendererInitializer');
 

@@ -40,14 +40,14 @@ export class AppInitializer {
   async initializeRequiredModules() {
     // 統合ラベル管理システムを初期化
     const { initializeLabelManager, generateLabelText } =
-      await import('../ui/unifiedLabelManager.js');
+      await import('../ui/viewer3d/unifiedLabelManager.js');
     initializeLabelManager();
     log.info('統合ラベル管理システムが初期化されました');
 
     // viewer層へのラベルプロバイダー注入
     const [{ attachElementDataToLabel }, { createLabelSprite }] = await Promise.all([
-      import('../ui/labelRegeneration.js'),
-      import('../viewer/ui/labels.js'),
+      import('../ui/viewer3d/labelRegeneration.js'),
+      import('../viewer/annotations/labels.js'),
     ]);
 
     const labelProvider = {
@@ -59,11 +59,30 @@ export class AppInitializer {
     setElementsLabelProvider(labelProvider);
     log.info('ラベルプロバイダーがviewer層に注入されました');
 
-    // XSDスキーマを初期化
+    // XSDスキーマを初期化（Phase 2: 両バージョンを事前読み込み）
     try {
-      const { loadXsdSchema } = await import('../parser/xsdSchemaParser.js');
-      const xsdPath = './schemas/ST-Bridge202.xsd';
-      const success = await loadXsdSchema(xsdPath);
+      const { loadXsdSchemaForVersion, setActiveVersion } =
+        await import('../common-stb/parser/xsdSchemaParser.js');
+
+      // v2.0.2を読み込み
+      const success202 = await loadXsdSchemaForVersion('2.0.2');
+      if (success202) {
+        log.info('XSD 2.0.2 スキーマが読み込まれました');
+      }
+
+      // v2.1.0も事前読み込み
+      const success210 = await loadXsdSchemaForVersion('2.1.0');
+      if (success210) {
+        log.info('XSD 2.1.0 スキーマが読み込まれました');
+      }
+
+      // デフォルトでv2.0.2をアクティブに設定
+      if (success202) {
+        setActiveVersion('2.0.2');
+        log.info('アクティブXSDバージョンを 2.0.2 に設定しました');
+      }
+
+      const success = success202 || success210;
       if (success) {
         log.info('起動時にXSDスキーマが初期化されました');
       } else {
@@ -99,12 +118,12 @@ export class AppInitializer {
         { evaluateSectionEquivalence },
         { updateLabelsForElement },
       ] = await Promise.all([
-        import('../ui/parameterEditor.js'),
+        import('../ui/panels/parameterEditor.js'),
         import('./suggestionEngine.js'),
-        import('../ui/floatingWindow.js'),
+        import('../ui/panels/floatingWindow.js'),
         import('./importanceManager.js'),
         import('./sectionEquivalenceEngine.js'),
-        import('../ui/labelRegeneration.js'),
+        import('../ui/viewer3d/labelRegeneration.js'),
       ]);
 
       setElementInfoProviders({
@@ -134,8 +153,8 @@ export class AppInitializer {
         { getCurrentStories, getCurrentAxesData },
       ] = await Promise.all([
         import('./globalState.js'),
-        import('../ui/unifiedLabelManager.js'),
-        import('../ui/clipping.js'),
+        import('../ui/viewer3d/unifiedLabelManager.js'),
+        import('../ui/viewer3d/clipping.js'),
         import('../ui/state.js'),
       ]);
 

@@ -52,47 +52,24 @@
  */
 
 // ============================================
-// ファクトリ関数
+// ファクトリー関数について
 // ============================================
 
 /**
- * 空のRenderModelを生成
- * @returns {StbRenderModel}
+ * 注意: ファクトリー関数は constants/renderModelTypes.js に移動されました。
+ *
+ * 使用例:
+ * ```javascript
+ * // 直接インポート（推奨：data/層から使用する場合）
+ * import { createEmptyRenderModel } from '../../constants/renderModelTypes.js';
+ *
+ * // viewer/types/index.js経由（viewer/内で使用する場合）
+ * import { createEmptyRenderModel } from './viewer/types/index.js';
+ * ```
+ *
+ * 利用可能なファクトリー関数:
+ * - createEmptyRenderModel(): 空のRenderModelを生成
+ * - createEmptyBoundingBox(): デフォルトのバウンディングボックスを生成
+ * - createPosition(x, y, z): 座標オブジェクトを生成
+ * - createDefaultStyle(): デフォルトの要素スタイルを生成
  */
-export function createEmptyRenderModel() {
-  return {
-    nodes: [],
-    columns: [],
-    posts: [],
-    girders: [],
-    beams: [],
-    braces: [],
-    slabs: [],
-    walls: [],
-    footings: [],
-    piles: [],
-    foundationColumns: [],
-    parapets: [],
-    stripFootings: [],
-    joints: [],
-    axes: [],
-    stories: [],
-    meta: {
-      fileName: null,
-      stbVersion: null,
-      boundingBox: null,
-    },
-  };
-}
-
-/**
- * デフォルトのバウンディングボックスを生成
- * @returns {RenderBoundingBox}
- */
-export function createEmptyBoundingBox() {
-  return {
-    min: { x: 0, y: 0, z: 0 },
-    max: { x: 0, y: 0, z: 0 },
-    center: { x: 0, y: 0, z: 0 },
-  };
-}

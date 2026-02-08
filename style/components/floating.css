@@ -186,9 +186,10 @@
   height: 16px;
   cursor: se-resize;
   background: linear-gradient(135deg, transparent 0%, transparent 50%, var(--color-primary, #0066cc) 50%, var(--color-primary, #0066cc) 100%);
-  opacity: 0.5;
+  opacity: 0.8;
   transition: opacity 0.2s ease;
-  z-index: 10;
+  z-index: 1000;
+  border-bottom-right-radius: var(--border-radius);
 }
 
 .resize-handle:hover {

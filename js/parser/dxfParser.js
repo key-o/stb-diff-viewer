@@ -6,6 +6,7 @@
  */
 
 import { createLogger } from '../utils/logger.js';
+import DxfParser from 'dxf-parser';
 
 const log = createLogger('DXFParser');
 
@@ -16,12 +17,7 @@ const log = createLogger('DXFParser');
  */
 export function parseDxf(dxfContent) {
   try {
-    // グローバルに読み込まれたDxfParserを使用
-    if (typeof window.DxfParser === 'undefined') {
-      throw new Error('DxfParserライブラリが読み込まれていません');
-    }
-
-    const parser = new window.DxfParser();
+    const parser = new DxfParser();
     const dxf = parser.parseSync(dxfContent);
 
     if (!dxf) {

@@ -187,6 +187,8 @@ export const ExportEvents = {
   ERROR: 'export:error',
   /** エクスポート進捗 */
   PROGRESS: 'export:progress',
+  /** STBエクスポート状態更新要求 */
+  STB_STATUS_UPDATE_REQUESTED: 'export:stbStatusUpdateRequested',
 };
 
 /**
@@ -202,6 +204,32 @@ export const LoadEvents = {
   SCALE_CHANGED: 'load:scaleChanged',
   /** 荷重データが読み込まれた */
   DATA_LOADED: 'load:dataLoaded',
+};
+
+/**
+ * トースト通知関連イベント
+ * @constant {Object}
+ */
+export const ToastEvents = {
+  /** エラー表示要求 */
+  SHOW_ERROR: 'toast:showError',
+  /** 警告表示要求 */
+  SHOW_WARNING: 'toast:showWarning',
+  /** 成功表示要求 */
+  SHOW_SUCCESS: 'toast:showSuccess',
+  /** 情報表示要求 */
+  SHOW_INFO: 'toast:showInfo',
+};
+
+/**
+ * クリッピング関連イベント
+ * @constant {Object}
+ */
+export const ClippingEvents = {
+  /** エラー発生 */
+  ERROR: 'clipping:error',
+  /** 2D表示モードの変更 */
+  MODE_2D_CHANGED: 'clipping:mode2dChanged',
 };
 
 /**
@@ -254,6 +282,8 @@ export const EventTypes = {
   View: ViewEvents,
   Export: ExportEvents,
   Load: LoadEvents,
+  Toast: ToastEvents,
+  Clipping: ClippingEvents,
   Edit: EditEvents,
   Validation: ValidationEvents,
 };
@@ -278,6 +308,8 @@ export function isValidEventType(eventType) {
     ...Object.values(ViewEvents),
     ...Object.values(ExportEvents),
     ...Object.values(LoadEvents),
+    ...Object.values(ToastEvents),
+    ...Object.values(ClippingEvents),
     ...Object.values(EditEvents),
     ...Object.values(ValidationEvents),
   ];

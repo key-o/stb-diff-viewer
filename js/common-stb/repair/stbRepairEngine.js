@@ -1,5 +1,5 @@
 /**
- * @fileoverview ST-Bridgeデータ修復エンジン（共通モジュール）
+ * @fileoverview ST-Bridgeデータ修復エンジン
  *
  * バリデーションで検出された問題を自動または手動で修復します。
  *
@@ -10,37 +10,11 @@
  * - 重複要素の削除
  * - 幾何学的に無効な要素の削除
  *
- * このモジュールは依存性注入（DI）パターンを使用し、
- * プロジェクト固有のバリデーション機能を外部から設定可能にします。
- *
  * @module common/stb/repair/stbRepairEngine
  */
 
-// ========================================
-// 依存性注入用の設定
-// ========================================
-
-/**
- * バリデーション関数（プロジェクト固有）
- * - parseElements: XML要素をパース
- * - SEVERITY: 重大度定数
- * - CATEGORY: カテゴリ定数
- * - getRepairableIssues: 修復可能な問題を取得
- */
-let validatorFunctions = {
-  parseElements: null,
-  SEVERITY: null,
-  CATEGORY: null,
-  getRepairableIssues: null,
-};
-
-/**
- * バリデーション関数を設定
- * @param {Object} functions - バリデーション関数オブジェクト
- */
-export function setValidatorFunctions(functions) {
-  validatorFunctions = { ...validatorFunctions, ...functions };
-}
+import { parseElements } from '../parser/stbXmlParser.js';
+import { SEVERITY, CATEGORY, getRepairableIssues } from '../validation/stbValidator.js';
 
 // ========================================
 // 定数定義
@@ -143,11 +117,6 @@ export class StbRepairEngine {
   autoRepair(validationReport, options = {}) {
     const { removeInvalid = true, useDefaults = true, skipCategories = [] } = options;
 
-    const { getRepairableIssues } = validatorFunctions;
-    if (!getRepairableIssues) {
-      throw new Error('getRepairableIssues function is not set. Call setValidatorFunctions first.');
-    }
-
     const repairableIssues = getRepairableIssues(validationReport);
 
     for (const issue of repairableIssues) {
@@ -180,11 +149,6 @@ export class StbRepairEngine {
    */
   repairIssue(issue, options = {}) {
     const { removeInvalid = true, useDefaults = true } = options;
-    const { CATEGORY } = validatorFunctions;
-
-    if (!CATEGORY) {
-      throw new Error('CATEGORY constant is not set. Call setValidatorFunctions first.');
-    }
 
     switch (issue.category) {
       case CATEGORY.DATA:
@@ -361,11 +325,6 @@ export class StbRepairEngine {
    */
   findElement(elementType, elementId) {
     if (!elementId) return null;
-
-    const { parseElements } = validatorFunctions;
-    if (!parseElements) {
-      throw new Error('parseElements function is not set. Call setValidatorFunctions first.');
-    }
 
     const elements = parseElements(this.xmlDoc, elementType);
     return elements.find((el) => el.getAttribute('id') === elementId) || null;
@@ -566,11 +525,6 @@ export class StbRepairEngine {
    * @returns {RepairResult[]} 修復結果の配列
    */
   removeInvalidReferences(nodeMap) {
-    const { parseElements } = validatorFunctions;
-    if (!parseElements) {
-      throw new Error('parseElements function is not set. Call setValidatorFunctions first.');
-    }
-
     const results = [];
 
     const checkAndRemove = (elementType, nodeAttrs) => {
@@ -624,11 +578,6 @@ export class StbRepairEngine {
    * @returns {RepairResult[]} 修復結果の配列
    */
   removeZeroLengthElements(nodeMap) {
-    const { parseElements } = validatorFunctions;
-    if (!parseElements) {
-      throw new Error('parseElements function is not set. Call setValidatorFunctions first.');
-    }
-
     const results = [];
 
     const checkAndRemove = (elementType, startAttr, endAttr) => {

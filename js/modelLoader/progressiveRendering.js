@@ -17,7 +17,7 @@ import {
   showLoading,
   hideLoading,
   completeLoading,
-} from '../ui/loadingIndicator.js';
+} from '../ui/common/loadingIndicator.js';
 import {
   materials,
   elementGroups,
@@ -30,8 +30,9 @@ import {
   drawAxes,
   drawStories,
   getActiveCamera,
+  displayModeManager,
 } from '../viewer/index.js';
-import { convertToDiffRenderModel, getDiffStatistics } from '../adapters/index.js';
+import { convertToDiffRenderModel, getDiffStatistics } from '../data/converters/index.js';
 
 const log = createLogger('modelLoader/progressiveRendering');
 
@@ -319,6 +320,8 @@ function renderElementTypeSync(elementType, comparisonResult, modelBounds, _glob
     case 'FoundationColumn':
     case 'Joint':
     case 'Parapet':
+      // solidモードの場合は線分描画をスキップ（applyInitialDisplayModesで立体描画される）
+      if (displayModeManager.isSolidMode(elementType)) break;
       // 要素数が多い場合はバッチ処理を使用
       if (useBatch) {
         result.labels = drawLineElementsBatched(
@@ -343,6 +346,8 @@ function renderElementTypeSync(elementType, comparisonResult, modelBounds, _glob
 
     case 'Slab':
     case 'Wall':
+      // solidモードの場合はスキップ（applyInitialDisplayModesで描画される）
+      if (displayModeManager.isSolidMode(elementType)) break;
       result.labels = drawPolyElements(
         comparisonResult,
         materials,
@@ -353,8 +358,7 @@ function renderElementTypeSync(elementType, comparisonResult, modelBounds, _glob
       break;
 
     case 'Undefined':
-      // StbSecUndefinedを参照する要素は常にライン表示
-      // viewModes.jsのredrawUndefinedElementsForViewModeで処理されるため、ここでは何もしない
+      // Undefined要素はapplyInitialDisplayModesで描画される
       result.labels = [];
       break;
 

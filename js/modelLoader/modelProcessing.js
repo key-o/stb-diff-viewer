@@ -10,15 +10,12 @@
  * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
-import { loadStbXmlAutoEncoding } from '../viewer/loader/stbXmlLoader.js';
-import {
-  buildNodeMap,
-  parseStories,
-  parseAxes,
-} from '../common-stb/parser/stbXmlParser.js';
-import { extractAllSections } from '../parser/sectionExtractor.js';
+import { loadStbXmlAutoEncoding } from '../common-stb/stbXmlLoader.js';
+import { buildNodeMap, parseStories, parseAxes } from '../common-stb/parser/stbXmlParser.js';
+import { extractAllSections } from '../common-stb/parser/defaultSectionExtractor.js';
 import { detectStbVersion, getVersionInfo } from '../common-stb/parser/utils/versionDetector.js';
-import { parseStbCalData } from '../parser/stbCalDataParser.js';
+import { parseStbCalData } from '../common-stb/parser/stbCalDataParser.js';
+import { setState } from '../app/globalState.js';
 
 /**
  * Process model documents and extract structural data
@@ -188,11 +185,13 @@ async function processModelFile(file, modelId) {
     // Parse calculation data (StbCalData) for load visualization
     const calData = parseStbCalData(document);
 
-    // Set global reference for model access
+    // Set document in global state
     if (modelId === 'A') {
-      window.docA = document;
+      setState('models.documentA', document);
+      window.docA = document; // 後方互換性（非推奨）
     } else {
-      window.docB = document;
+      setState('models.documentB', document);
+      window.docB = document; // 後方互換性（非推奨）
     }
 
     return {
@@ -215,7 +214,10 @@ async function processModelFile(file, modelId) {
  * Clear model processing state
  */
 export function clearModelProcessingState() {
-  // Clear global window references
+  // Clear global state
+  setState('models.documentA', null);
+  setState('models.documentB', null);
+  // 後方互換性のためwindowも維持（非推奨）
   window.docA = null;
   window.docB = null;
 }

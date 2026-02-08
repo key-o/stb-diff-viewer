@@ -16,6 +16,7 @@ import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
 import { getMaterialForElementWithMode } from './materials.js';
 import { IMPORTANCE_LEVELS } from '../../constants/importanceLevels.js';
+import { getState } from '../../app/globalState.js';
 
 const log = createLogger('viewer:elements');
 
@@ -274,14 +275,12 @@ export function drawLineElements(
 
       // 重要度データを取得（重要度管理システムから）
       let importance = null;
-      if (window.globalState && window.globalState.get) {
-        const importanceManager = window.globalState.get('importanceManager');
-        if (importanceManager && dataA.element) {
-          // 要素の重要度を取得（まずAから、なければBから）
-          importance =
-            importanceManager.getElementImportance?.(dataA.element) ||
-            (dataB.element ? importanceManager.getElementImportance?.(dataB.element) : null);
-        }
+      const importanceManager = getState('importanceManager');
+      if (importanceManager && dataA.element) {
+        // 要素の重要度を取得（まずAから、なければBから）
+        importance =
+          importanceManager.getElementImportance?.(dataA.element) ||
+          (dataB.element ? importanceManager.getElementImportance?.(dataB.element) : null);
       }
 
       line.userData = {
@@ -320,7 +319,7 @@ export function drawLineElements(
         const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
 
         // マッチした要素の場合、設定に応じてラベルテキストを生成
-        const contentType = window.globalState?.get('ui.labelContentType') || 'id';
+        const contentType = getState('ui.labelContentType') || 'id';
         let labelText;
 
         if (contentType === 'id') {
@@ -413,7 +412,7 @@ export function drawLineElements(
         const labelPosition = midPoint.clone().add(offsetDir.multiplyScalar(labelOffsetAmount));
 
         // 設定に応じてラベルテキストを生成
-        const contentType = window.globalState?.get('ui.labelContentType') || 'id';
+        const contentType = getState('ui.labelContentType') || 'id';
         let displayText = id;
 
         if (contentType === 'name' && element && element.name) {
@@ -488,7 +487,7 @@ export function drawLineElements(
         const labelPosition = midPoint.clone().sub(offsetDir.multiplyScalar(labelOffsetAmount));
 
         // 設定に応じてラベルテキストを生成
-        const contentType = window.globalState?.get('ui.labelContentType') || 'id';
+        const contentType = getState('ui.labelContentType') || 'id';
         let displayText = id;
 
         if (contentType === 'name' && element && element.name) {
@@ -573,8 +572,8 @@ export function drawPolyElements(comparisonResult, materials, group, labelToggle
 
       // 重要度データを取得
       let actualImportance = importance; // パラメータから取得
-      if (!actualImportance && window.globalState && window.globalState.get) {
-        const importanceManager = window.globalState.get('importanceManager');
+      if (!actualImportance) {
+        const importanceManager = getState('importanceManager');
         if (importanceManager && id) {
           // 要素IDから重要度を取得
           actualImportance = importanceManager.getElementImportanceById?.(id);

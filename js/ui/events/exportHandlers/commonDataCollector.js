@@ -19,7 +19,7 @@ import {
   calculateLShapeProfile,
   calculateChannelProfile,
   calculateTShapeProfile,
-} from '../../../viewer/geometry/core/ProfileCalculator.js';
+} from '../../../viewer/index.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('commonDataCollector');
@@ -81,7 +81,8 @@ export async function getOrParseStructureData() {
     extractFoundationColumnElements,
   } = await import('../../../parser/stbXmlParser.js');
 
-  const { extractAllSections } = await import('../../../parser/sectionExtractor.js');
+  const { extractAllSections } =
+    await import('../../../common-stb/parser/defaultSectionExtractor.js');
 
   // データを抽出
   const nodeMap = buildNodeMap(xmlDoc);

@@ -1,7 +1,7 @@
 /**
  * @fileoverview 断面データアクセサー - 共通ユーティリティ
  *
- * このファイルは、様々なデータソース（ST-Bridge, JSON, IFC）から
+ * このファイルは、様々なデータソース（ST-Bridge, IFC）から
  * 断面データを統一的に抽出するためのユーティリティ関数を提供します。
  *
  * 主な機能:
@@ -13,7 +13,12 @@
  * 属性キー定義は attributeKeys.js に統一されています。
  */
 
-import { WIDTH_KEYS, HEIGHT_KEYS, DIAMETER_KEYS, THICKNESS_KEYS } from '../../common-stb/data/attributeKeys.js';
+import {
+  WIDTH_KEYS,
+  HEIGHT_KEYS,
+  DIAMETER_KEYS,
+  THICKNESS_KEYS,
+} from '../../common-stb/data/attributeKeys.js';
 
 /**
  * 断面データから寸法オブジェクトを取得

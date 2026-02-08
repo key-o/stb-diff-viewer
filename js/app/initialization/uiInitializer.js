@@ -3,19 +3,28 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { initializeTheme, setThemeSetting, getThemeSetting } from '../../ui/theme.js';
-import { initializeToast, showSuccess, showError, showWarning, showInfo } from '../../ui/toast.js';
-import { initializeFloatingWindow } from '../../ui/floatingWindow.js';
-import { initializeTreeView, buildTree } from '../../ui/elementTreeView.js';
+import { initializeTheme, setThemeSetting, getThemeSetting } from '../../ui/common/theme.js';
+import {
+  initializeToast,
+  showSuccess,
+  showError,
+  showWarning,
+  showInfo,
+  initializeToastEventListeners,
+} from '../../ui/common/toast.js';
+import { initializeFloatingWindow } from '../../ui/panels/floatingWindow.js';
+import { initializeTreeView, buildTree } from '../../ui/panels/elementTreeView.js';
 import {
   initializeSectionTreeView,
   buildSectionTree,
   setGroupingMode,
-} from '../../ui/sectionTreeView.js';
-import { initializeComparisonKeySelector } from '../../ui/comparisonKeySelector.js';
-import { initializeToleranceSettings } from '../../ui/toleranceSettings.js';
-import { initDxfLoaderUI } from '../../dxfLoader.js';
-import { setupVersionPanelEventListeners } from '../../ui/versionPanel.js';
+} from '../../ui/panels/sectionTreeView.js';
+import { initializeComparisonKeySelector } from '../../ui/panels/comparisonKeySelector.js';
+import { initializeToleranceSettings } from '../../ui/panels/toleranceSettings.js';
+import { initDxfLoaderUI, initDxfLoaderEventListeners } from '../dxfLoader.js';
+import { setupVersionPanelEventListeners } from '../../ui/panels/versionPanel.js';
+import { initClipping2DEventListeners } from '../../ui/viewer3d/clipping2DImpl.js';
+import { injectElementInfoService } from '../../viewer/services/elementInfoAdapter.js';
 import { getState } from '../globalState.js';
 import { convertComparisonResultsForTree } from './initializationUtils.js';
 import {
@@ -23,14 +32,11 @@ import {
   toggleOriginAxesVisibility,
   togglePlacementLinesVisibility,
 } from './eventHandlers.js';
-import {
-  getLoadDisplayManager,
-  LOAD_DISPLAY_MODE,
-} from '../../viewer/rendering/loadDisplayManager.js';
+import { getLoadDisplayManager, LOAD_DISPLAY_MODE } from '../../viewer/index.js';
 import {
   initColumnSectionListPanel,
   initBeamSectionListPanel,
-} from '../../ui/sectionList/index.js';
+} from '../../ui/panels/sectionList/index.js';
 
 const log = createLogger('uiInitializer');
 
@@ -88,6 +94,24 @@ export function initializeUIComponents(scheduleRender, elementGroups) {
     maxToasts: 5,
   });
   log.info('トースト通知システムが初期化されました');
+
+  // トーストイベントリスナーを初期化（イベントバス経由でトーストを表示可能に）
+  initializeToastEventListeners();
+  log.info('トーストイベントリスナーが初期化されました');
+
+  // 2Dクリッピングイベントリスナーを初期化
+  initClipping2DEventListeners();
+  log.info('2Dクリッピングイベントリスナーが初期化されました');
+
+  // DXFローダーイベントリスナーを初期化
+  initDxfLoaderEventListeners();
+  log.info('DXFローダーイベントリスナーが初期化されました');
+
+  // 要素情報サービスを注入
+  import('../../ui/panels/element-info/index.js').then((elementInfo) => {
+    injectElementInfoService(elementInfo);
+    log.info('要素情報サービスが注入されました');
+  });
 
   // グローバルにトースト関数を公開
   window.showToast = { showSuccess, showError, showWarning, showInfo };
@@ -250,12 +274,16 @@ export function setupButtonEventListeners() {
 
           if (!calDataA && !calDataB) {
             // 警告を表示
-            import('../../ui/toast.js').then(({ showWarning }) => {
-              showWarning('荷重データがありません。StbCalDataを含むSTBファイルを読み込んでください。');
-            }).catch(() => {
-              // toast.jsがない場合はalertで代替
-              alert('荷重データがありません。StbCalDataを含むSTBファイルを読み込んでください。');
-            });
+            import('../../ui/common/toast.js')
+              .then(({ showWarning }) => {
+                showWarning(
+                  '荷重データがありません。StbCalDataを含むSTBファイルを読み込んでください。',
+                );
+              })
+              .catch(() => {
+                // toast.jsがない場合はalertで代替
+                alert('荷重データがありません。StbCalDataを含むSTBファイルを読み込んでください。');
+              });
             event.target.checked = false;
             log.warn('荷重データが見つからないため、表示を無効にしました');
             return;

@@ -7,8 +7,7 @@
  */
 
 import * as THREE from 'three';
-import { elementGroups, camera, controls } from '../viewer/index.js';
-import { colorManager } from '../viewer/rendering/colorManager.js';
+import { elementGroups, camera, controls, colorManager } from '../viewer/index.js';
 import { DEFAULT_SCHEMA_COLORS } from '../config/colorConfig.js';
 import { ELEMENT_LABELS } from '../config/elementLabels.js';
 import {
@@ -16,9 +15,9 @@ import {
   getLastValidationResult,
   getValidationStats,
   getElementsByStatus,
-} from '../validation/validationIntegration.js';
+} from '../common-stb/validation/validationManager.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
-import { floatingWindowManager } from '../ui/floatingWindowManager.js';
+import { floatingWindowManager } from '../ui/panels/floatingWindowManager.js';
 
 // スキーマエラー情報を保存するマップ
 const schemaErrorMap = new Map();
@@ -59,7 +58,7 @@ export function initializeSchemaColorControls() {
     // 既存のリセットボタン（デフォルト色に戻すボタン）があるかチェック
     const existingResetButton = container.querySelector('button.btn-reset');
     if (!existingResetButton) {
-      import('../ui/buttonManager.js').then(({ buttonManager }) => {
+      import('../ui/common/buttonManager.js').then(({ buttonManager }) => {
         const resetButton = buttonManager.createButton({
           type: 'reset',
           text: 'デフォルト色に戻す',
@@ -264,7 +263,7 @@ function focusOnSchemaErrorElement(elementId, elementType) {
   const isSectionError = isSectionType(elementType);
 
   // セクション型から要素型へのマッピングを適用
-  let actualElementType = SECTION_TO_ELEMENT_TYPE[elementType] || elementType;
+  const actualElementType = SECTION_TO_ELEMENT_TYPE[elementType] || elementType;
 
   // elementGroupsから該当する要素タイプのグループを取得
   const elementTypeGroup = elementGroups[actualElementType];
@@ -301,7 +300,7 @@ function focusOnSchemaErrorElement(elementId, elementType) {
   } else {
     const searchField = isSectionError ? 'sectionId' : 'elementId';
     console.warn(
-      `[SchemaErrorList] Element not found: ${elementType} → ${actualElementType}, ${elementId} (by ${searchField})`
+      `[SchemaErrorList] Element not found: ${elementType} → ${actualElementType}, ${elementId} (by ${searchField})`,
     );
   }
 }

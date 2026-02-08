@@ -47,3 +47,18 @@ export { SameNotSameProcessor } from './SameNotSameProcessor.js';
 
 // バージョン検出ユーティリティの再エクスポート
 export { findRootElement, isSameVersion, ROOT_ELEMENT_NAMES } from './utils/versionDetector.js';
+
+// STB計算データ（荷重等）の解析
+export * from './stbCalDataParser.js';
+
+// XSDスキーマ解析
+export * as xsdSchemaParser from './xsdSchemaParser.js';
+
+// 要素名マッピング（バージョン間差異吸収）
+export * from './utils/elementNameMapping.js';
+
+// 座標範囲計算
+export * as coordinateRangeCalculator from './utils/coordinateRangeCalculator.js';
+
+// デフォルト設定済み断面抽出（後方互換用）
+export * as defaultSectionExtractor from './defaultSectionExtractor.js';

@@ -6,7 +6,7 @@
  * @module ui/events/exportHandlers/stbExportHandler
  */
 
-import { showError, showWarning } from '../../toast.js';
+import { showError, showWarning } from '../../common/toast.js';
 
 /**
  * Setup STB export button listener

@@ -81,7 +81,7 @@ export function setupDevelopmentTools() {
           柱: calDataA.loadArrangements?.columns?.size,
           大梁: calDataA.loadArrangements?.girders?.size,
           小梁: calDataA.loadArrangements?.beams?.size,
-        }
+        },
       });
     }
 

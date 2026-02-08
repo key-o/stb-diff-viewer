@@ -585,7 +585,11 @@ export class MeshPositioner {
     }
 
     // Validate sectionDimensions
-    if (!sectionDimensions || typeof sectionDimensions !== 'object' || Array.isArray(sectionDimensions)) {
+    if (
+      !sectionDimensions ||
+      typeof sectionDimensions !== 'object' ||
+      Array.isArray(sectionDimensions)
+    ) {
       const error = new TypeError('sectionDimensions must be a non-null object');
       console.error('MeshPositioner validation failed:', error);
       throw error;

@@ -4,6 +4,9 @@
  * 描画層が受け取るデータ形式の型定義を提供します。
  * 他のレイヤーからはこのindex.jsを経由してインポートしてください。
  *
+ * 注意: ファクトリー関数は constants/renderModelTypes.js から再エクスポートしています。
+ * これにより、Layer 1（data/）がLayer 4（viewer/）に依存することを回避しています。
+ *
  * @example
  * // 推奨: index.js経由のインポート
  * import { createEmptyRenderModel, createPosition } from './viewer/types/index.js';
@@ -12,16 +15,18 @@
  */
 
 // ============================================
-// RenderModel（メイン型）
+// ファクトリー関数（constants層から再エクスポート）
 // ============================================
 
-export { createEmptyRenderModel, createEmptyBoundingBox } from './render-model.js';
-
-// ============================================
-// 要素型・ファクトリ関数
-// ============================================
-
-export { createDefaultStyle, createPosition } from './render-elements.js';
+// 共有constants層から再エクスポート
+// これにより、viewer/内での後方互換性を維持しつつ、
+// data/層は constants/ から直接インポートできます
+export {
+  createEmptyRenderModel,
+  createEmptyBoundingBox,
+  createPosition,
+  createDefaultStyle,
+} from '../../constants/renderModelTypes.js';
 
 // ============================================
 // 型定義の再エクスポート（JSDoc用）
@@ -57,4 +62,17 @@ export { createDefaultStyle, createPosition } from './render-elements.js';
  * @typedef {import('./render-elements.js').RenderStory} RenderStory
  * @typedef {import('./render-elements.js').RenderElementStyle} RenderElementStyle
  * @typedef {import('./render-elements.js').RenderDiffStatus} RenderDiffStatus
+ *
+ * @typedef {import('./parameterTypes.js').Vector3} Vector3
+ * @typedef {import('./parameterTypes.js').Vector2} Vector2
+ * @typedef {import('./parameterTypes.js').TextSpriteConfig} TextSpriteConfig
+ * @typedef {import('./parameterTypes.js').ArrowHeadConfig} ArrowHeadConfig
+ * @typedef {import('./parameterTypes.js').DimensionTextSpriteConfig} DimensionTextSpriteConfig
+ * @typedef {import('./parameterTypes.js').LabelConfig} LabelConfig
+ * @typedef {import('./parameterTypes.js').LabelOptions} LabelOptions
+ * @typedef {import('./parameterTypes.js').DotPatternConfig} DotPatternConfig
+ * @typedef {import('./parameterTypes.js').DotPatternStyle} DotPatternStyle
+ * @typedef {import('./parameterTypes.js').RectangularRebarConfig} RectangularRebarConfig
+ * @typedef {import('./parameterTypes.js').RectBounds} RectBounds
+ * @typedef {import('./parameterTypes.js').CoreRebarConfig} CoreRebarConfig
  */

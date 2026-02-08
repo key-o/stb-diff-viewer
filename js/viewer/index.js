@@ -36,7 +36,7 @@ import {
   setFrustumCullingEnabled,
   isFrustumCullingEnabled,
 } from './core/core.js';
-import { SUPPORTED_ELEMENTS } from '../config/elementTypes.js';
+import { SUPPORTED_ELEMENTS } from '../constants/elementTypes.js';
 import {
   materials,
   ELEMENT_MATERIAL_SIDE,
@@ -58,8 +58,8 @@ import {
   getElementFromBatchedIntersection,
   setLabelProvider,
 } from './rendering/batchedElements.js';
-import { createLabel } from './ui/labels.js';
-import { drawAxes, drawStories } from './ui/layout.js';
+import { createLabel } from './annotations/labels.js';
+import { drawAxes, drawStories } from './annotations/layout.js';
 import { clearSceneContent, getModelBounds } from './scene/sceneManager.js';
 import { createOrUpdateGridHelper } from './grid/gridHelper.js';
 import {
@@ -75,7 +75,7 @@ import {
   applyClipPlanes,
   updateMaterialClippingPlanes,
 } from './clipping/clippingManager.js';
-import { setElementInfoProviders } from './ui/element-info/index.js';
+import { setElementInfoProviders } from './services/elementInfoAdapter.js';
 import { setClippingStateProvider } from './clipping/clippingManager.js';
 
 // ============================================
@@ -158,4 +158,71 @@ export {
 } from './interaction/keyboard-shortcuts.js';
 
 // ViewCubeナビゲーション
-export { initializeViewCube, getViewCube, destroyViewCube } from './ui/viewCube/ViewCube.js';
+export {
+  initializeViewCube,
+  getViewCube,
+  destroyViewCube,
+} from '../ui/viewer3d/viewCube/ViewCube.js';
+
+// ============================================
+// レンダリング管理 (rendering/)
+// ============================================
+
+// 色管理・マテリアル管理
+export { colorManager } from './rendering/colorManager.js';
+export { applyImportanceColorMode } from './rendering/materials.js';
+
+// 表示モード管理
+export { default as displayModeManager } from './rendering/displayModeManager.js';
+export { default as labelDisplayManager } from './rendering/labelDisplayManager.js';
+export { default as modelVisibilityManager } from './rendering/modelVisibilityManager.js';
+
+// 荷重表示管理（Load Display）
+export {
+  initLoadDisplayManager,
+  getLoadDisplayManager,
+  LOAD_DISPLAY_MODE,
+} from './rendering/loadDisplayManager.js';
+
+// アウトライン
+export { initializeOutlineSystem } from './rendering/outlines.js';
+
+// ラベル作成
+export { createLabelSprite } from './annotations/labels.js';
+
+// ============================================
+// ジオメトリ生成 (geometry/)
+// ============================================
+
+// ジオメトリ生成ファクトリー
+export {
+  GeometryGeneratorFactory,
+  geometryGeneratorFactory,
+} from './geometry/GeometryGeneratorFactory.js';
+export { ElementGeometryUtils } from './geometry/ElementGeometryUtils.js';
+
+// STB構造パーサー
+export { clearParseCache, setStateProvider, parseStbFile } from './geometry/stbStructureReader.js';
+
+// プロファイル計算
+export {
+  calculateHShapeProfile,
+  calculateBoxProfile,
+  calculatePipeProfile,
+  calculateRectangleProfile,
+  calculateLShapeProfile,
+  calculateChannelProfile,
+  calculateTShapeProfile,
+} from './geometry/core/ProfileCalculator.js';
+
+// デバッグツール（開発時のみ）
+export * as GeometryDebugger from './geometry/debug/GeometryDebugger.js';
+
+// ============================================
+// カメラ管理 (camera/)
+// ============================================
+
+// カメラモード管理
+export { setCameraMode, getCameraMode } from './camera/cameraManagerImpl.js';
+
+// ビュー管理（setView, VIEW_DIRECTIONS は既にエクスポート済み）

@@ -6,7 +6,7 @@
  * @module ui/events/exportHandlers/ifcExportHandler
  */
 
-import { showError, showWarning } from '../../toast.js';
+import { showError, showWarning } from '../../common/toast.js';
 import {
   collectBeamDataForExport,
   collectColumnDataForExport,

@@ -17,11 +17,18 @@
 /* global PointerEvent */
 
 import { createLogger } from './utils/logger.js';
-import { scene, camera, controls, renderer, elementGroups, getActiveCamera } from './viewer/index.js';
+import {
+  scene,
+  camera,
+  controls,
+  renderer,
+  elementGroups,
+  getActiveCamera,
+  displayModeManager,
+  labelDisplayManager,
+} from './viewer/index.js';
 import { setState } from './app/globalState.js';
-import displayModeManager from './viewer/rendering/displayModeManager.js';
-import labelDisplayManager from './viewer/rendering/labelDisplayManager.js';
-import { showError } from './ui/toast.js';
+import { showError } from './ui/common/toast.js';
 import { handleCompareModelsClick } from './app/initialization/eventHandlers.js';
 import { initializeRenderer, exposeManagers } from './app/initialization/rendererInitializer.js';
 import { initializeRequiredModules } from './app/initialization/moduleInitializer.js';

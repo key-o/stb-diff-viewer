@@ -9,7 +9,7 @@
    ======================================== */
 
 .load-label {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--font-family-base);
   font-size: 12px;
   font-weight: 500;
   color: #ffffff;

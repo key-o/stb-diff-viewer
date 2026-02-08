@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { renderer, elementGroups as viewerElementGroups } from '../core/core.js';
 import { materials } from '../rendering/materials.js';
 import { createLogger } from '../../utils/logger.js';
-import { showError } from '../../ui/toast.js';
+import { eventBus, ToastEvents } from '../../app/events/index.js';
 
 const log = createLogger('viewer:clipping');
 
@@ -59,7 +59,9 @@ export function applyClipping(axis, centerCoord, range = 1000) {
   );
   if (!renderer) {
     log.error('Renderer is not initialized when applyClipping was called!');
-    showError('クリッピングエラー: レンダラーが初期化されていません。');
+    eventBus.emit(ToastEvents.SHOW_ERROR, {
+      message: 'クリッピングエラー: レンダラーが初期化されていません。',
+    });
     return;
   }
   log.trace('Renderer found in applyClipping:', renderer);
@@ -107,7 +109,9 @@ export function applyClipping(axis, centerCoord, range = 1000) {
     );
   } catch (error) {
     log.error('Error setting clipping planes:', error);
-    showError('クリッピング中にエラーが発生しました。');
+    eventBus.emit(ToastEvents.SHOW_ERROR, {
+      message: 'クリッピング中にエラーが発生しました。',
+    });
   }
 }
 
@@ -119,7 +123,9 @@ export function clearClippingPlanes() {
   log.debug('clearClippingPlanes called. Checking renderer state...');
   if (!renderer) {
     log.error('Renderer is not initialized when clearClippingPlanes was called!');
-    showError('クリッピング解除エラー: レンダラーが初期化されていません。');
+    eventBus.emit(ToastEvents.SHOW_ERROR, {
+      message: 'クリッピング解除エラー: レンダラーが初期化されていません。',
+    });
     return;
   }
   log.trace('Renderer found in clearClippingPlanes:', renderer);
@@ -130,7 +136,9 @@ export function clearClippingPlanes() {
     log.info('Clipping planes cleared. localClippingEnabled:', renderer.localClippingEnabled);
   } catch (error) {
     log.error('Error clearing clipping planes:', error);
-    showError('クリッピング解除中にエラーが発生しました。');
+    eventBus.emit(ToastEvents.SHOW_ERROR, {
+      message: 'クリッピング解除中にエラーが発生しました。',
+    });
   }
 }
 

@@ -366,29 +366,22 @@
  */
 
 // ============================================
-// ファクトリ関数
+// ファクトリー関数について
 // ============================================
 
 /**
- * デフォルトの要素スタイルを生成
- * @returns {RenderElementStyle}
+ * 注意: ファクトリー関数は constants/renderModelTypes.js に移動されました。
+ *
+ * 使用例:
+ * ```javascript
+ * // 直接インポート（推奨：data/層から使用する場合）
+ * import { createPosition, createDefaultStyle } from '../../constants/renderModelTypes.js';
+ *
+ * // viewer/types/index.js経由（viewer/内で使用する場合）
+ * import { createPosition, createDefaultStyle } from './viewer/types/index.js';
+ * ```
+ *
+ * 利用可能なファクトリー関数:
+ * - createPosition(x, y, z): 座標オブジェクトを生成
+ * - createDefaultStyle(): デフォルトの要素スタイルを生成
  */
-export function createDefaultStyle() {
-  return {
-    color: null,
-    opacity: 1.0,
-    wireframe: false,
-    visible: true,
-  };
-}
-
-/**
- * 座標オブジェクトを生成
- * @param {number} x - X座標
- * @param {number} y - Y座標
- * @param {number} z - Z座標
- * @returns {RenderPosition}
- */
-export function createPosition(x, y, z) {
-  return { x, y, z };
-}

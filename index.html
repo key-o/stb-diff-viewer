@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>STB Diff Viewer</title>
+    <link rel="icon" href="data:,">
     <link rel="stylesheet" href="./style/variables.css" />
     <link rel="stylesheet" href="./style/style.css" />
     <link rel="stylesheet" href="./style/utilities.css" />
@@ -33,15 +34,13 @@
           "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
           "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
           "camera-controls": "https://unpkg.com/camera-controls@3.1.0/dist/camera-controls.module.js",
-          "xml2js": "https://esm.sh/xml2js@0.6.2"
+          "xml2js": "https://esm.sh/xml2js@0.6.2",
+          "dxf-parser": "https://esm.sh/dxf-parser@1.1.2",
+          "html2canvas": "https://esm.sh/html2canvas@1.4.1",
+          "jspdf": "https://esm.sh/jspdf@2.5.1"
         }
       }
     </script>
-    <!-- DXF Parser Library -->
-    <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
-    <!-- PDF出力用ライブラリ -->
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
   </head>
   <body>
     <div id="overlay">
@@ -174,6 +173,14 @@
         📋 要素情報パネル
       </button>
       <button type="button" id="toggle-tree-view-btn">🌳 ツリービュー</button>
+      <button
+        type="button"
+        id="toggle-importance-panel-btn"
+        aria-controls="importance-panel"
+        aria-expanded="false"
+      >
+        🏷️ 重要度設定
+      </button>
 
       <!-- その他設定セクション -->
       <div class="accordion-section">
@@ -1214,89 +1221,7 @@
               </button>
             </div>
             <div class="color-legend-container" id="diff-filter-legend">
-              <!-- 存在差分 -->
-              <div class="legend-item diff-filter-item" data-status="matched">
-                <input
-                  type="checkbox"
-                  id="diff-filter-matched"
-                  checked
-                  class="diff-filter-checkbox"
-                  title="完全一致要素の表示切替"
-                />
-                <span class="legend-color-box legend-color-matched" id="diff-color-matched"></span>
-                <span class="legend-label">完全一致</span>
-                <span id="diff-count-matched" class="legend-count">0</span>
-              </div>
-              <div class="legend-item diff-filter-item" data-status="onlyA">
-                <input
-                  type="checkbox"
-                  id="diff-filter-onlyA"
-                  checked
-                  class="diff-filter-checkbox"
-                  title="モデルAのみの表示切替"
-                />
-                <span class="legend-color-box legend-color-onlya" id="diff-color-onlyA"></span>
-                <span class="legend-label">モデルAのみ</span>
-                <span id="diff-count-onlyA" class="legend-count">0</span>
-              </div>
-              <div class="legend-item diff-filter-item" data-status="onlyB">
-                <input
-                  type="checkbox"
-                  id="diff-filter-onlyB"
-                  checked
-                  class="diff-filter-checkbox"
-                  title="モデルBのみの表示切替"
-                />
-                <span class="legend-color-box legend-color-onlyb" id="diff-color-onlyB"></span>
-                <span class="legend-label">モデルBのみ</span>
-                <span id="diff-count-onlyB" class="legend-count">0</span>
-              </div>
-              <!-- 内容差分（両方に存在する要素の詳細分類） -->
-              <div class="legend-item diff-filter-item" data-status="positionTolerance">
-                <input
-                  type="checkbox"
-                  id="diff-filter-positionTolerance"
-                  checked
-                  class="diff-filter-checkbox"
-                  title="位置許容差内要素の表示切替"
-                />
-                <span
-                  class="legend-color-box legend-color-positiontolerance"
-                  id="diff-color-positionTolerance"
-                ></span>
-                <span class="legend-label">位置許容差内</span>
-                <span id="diff-count-positionTolerance" class="legend-count">0</span>
-              </div>
-              <div class="legend-item diff-filter-item" data-status="attributeMismatch">
-                <input
-                  type="checkbox"
-                  id="diff-filter-attributeMismatch"
-                  checked
-                  class="diff-filter-checkbox"
-                  title="属性不一致要素の表示切替"
-                />
-                <span
-                  class="legend-color-box legend-color-attributemismatch"
-                  id="diff-color-attributeMismatch"
-                ></span>
-                <span class="legend-label">属性不一致</span>
-                <span id="diff-count-attributeMismatch" class="legend-count">0</span>
-              </div>
-              <div class="legend-item diff-filter-item" data-status="combined">
-                <input
-                  type="checkbox"
-                  id="diff-filter-combined"
-                  checked
-                  class="diff-filter-checkbox"
-                  title="複合差分要素の表示切替"
-                />
-                <span
-                  class="legend-color-box legend-color-combined"
-                  id="diff-color-combined"
-                ></span>
-                <span class="legend-label">複合差分</span>
-                <span id="diff-count-combined" class="legend-count">0</span>
-              </div>
+              <!-- 差分フィルタ凡例はconfig/diffFilterConfig.jsから動的生成されます -->
             </div>
             <div class="diff-filter-summary">
               <span

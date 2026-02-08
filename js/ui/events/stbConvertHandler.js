@@ -7,8 +7,8 @@
  * @module StbDiffViewer/ui/events/stbConvertHandler
  */
 
-import { convert, detectVersion } from '../../utils/stb-converter/index.js';
-import { showSuccess, showError, showInfo } from '../toast.js';
+import { convert, detectVersion } from '../../common-stb/converter/index.js';
+import { showSuccess, showError, showInfo } from '../common/toast.js';
 import { getState, addStateListener } from '../../app/globalState.js';
 
 /**

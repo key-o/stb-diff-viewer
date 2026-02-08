@@ -192,12 +192,16 @@ function extractRcBeamSectionDetail(sectionElement) {
   // 寸法と配筋情報の抽出
   // STB v2.1: StbSecBeam_RC → StbSecBeamStraight/StbSecBeamTaper
   // STB v2.0.2: StbSecGirder_RC → StbSecGirder_RC_Straight
-  const figureElement = querySelector(sectionElement, 'StbSecFigureBeam_RC') ||
-                        querySelector(sectionElement, 'StbSecFigureGirder_RC');
+  const figureElement =
+    querySelector(sectionElement, 'StbSecFigureBeam_RC') ||
+    querySelector(sectionElement, 'StbSecFigureGirder_RC');
 
   if (figureElement) {
     // STB v2.1形式: 複数のStbSecBeam_RC_Straight_NotSame要素（order属性付き）
-    const straightNotSameElements = querySelectorAll(figureElement, 'StbSecBeam_RC_Straight_NotSame');
+    const straightNotSameElements = querySelectorAll(
+      figureElement,
+      'StbSecBeam_RC_Straight_NotSame',
+    );
     if (straightNotSameElements.length > 0) {
       extractMultiplePositionFigures(straightNotSameElements, result, 'STB_V21');
     } else {
@@ -207,9 +211,10 @@ function extractRcBeamSectionDetail(sectionElement) {
         extractHaunchPositionFigures(haunchElements, result);
       } else {
         // STB v2.0.2形式: StbSecBeam_RC_Straight, StbSecGirder_RC_Straight（order属性なし、単一）
-        const straightSameElement = querySelector(figureElement, 'StbSecBeam_RC_Straight_Same') ||
-                                    querySelector(figureElement, 'StbSecBeam_RC_Straight') ||
-                                    querySelector(figureElement, 'StbSecGirder_RC_Straight');
+        const straightSameElement =
+          querySelector(figureElement, 'StbSecBeam_RC_Straight_Same') ||
+          querySelector(figureElement, 'StbSecBeam_RC_Straight') ||
+          querySelector(figureElement, 'StbSecGirder_RC_Straight');
         if (straightSameElement) {
           extractSinglePositionFigure(straightSameElement, result, 'SAME');
         }
@@ -218,8 +223,9 @@ function extractRcBeamSectionDetail(sectionElement) {
   }
 
   // 配筋情報の抽出
-  const barArrangementElement = querySelector(sectionElement, 'StbSecBarArrangementBeam_RC') ||
-                                querySelector(sectionElement, 'StbSecBarArrangementGirder_RC');
+  const barArrangementElement =
+    querySelector(sectionElement, 'StbSecBarArrangementBeam_RC') ||
+    querySelector(sectionElement, 'StbSecBarArrangementGirder_RC');
 
   if (barArrangementElement) {
     extractBeamBarArrangement(barArrangementElement, result);
@@ -240,9 +246,9 @@ function extractRcBeamSectionDetail(sectionElement) {
  */
 function extractHaunchPositionFigures(haunchElements, result) {
   const positionMap = {
-    'START': 'LEFT',
-    'CENTER': 'CENTER',
-    'END': 'RIGHT',
+    START: 'LEFT',
+    CENTER: 'CENTER',
+    END: 'RIGHT',
   };
 
   const orders = [];
@@ -398,12 +404,16 @@ function extractBeamBarArrangement(barArrangementElement, result) {
     }
 
     // 統一されたカバー情報をresultに記録
-    const coverTop = parseFloat(barArrangementElement.getAttribute('depth_cover_top')) ||
-                     parseFloat(simpleBarElement.getAttribute('depth_cover_top')) ||
-                     parseFloat(simpleBarElement.getAttribute('center_X')) || 40;
-    const coverBottom = parseFloat(barArrangementElement.getAttribute('depth_cover_bottom')) ||
-                        parseFloat(simpleBarElement.getAttribute('depth_cover_bottom')) ||
-                        parseFloat(simpleBarElement.getAttribute('center_Y')) || 40;
+    const coverTop =
+      parseFloat(barArrangementElement.getAttribute('depth_cover_top')) ||
+      parseFloat(simpleBarElement.getAttribute('depth_cover_top')) ||
+      parseFloat(simpleBarElement.getAttribute('center_X')) ||
+      40;
+    const coverBottom =
+      parseFloat(barArrangementElement.getAttribute('depth_cover_bottom')) ||
+      parseFloat(simpleBarElement.getAttribute('depth_cover_bottom')) ||
+      parseFloat(simpleBarElement.getAttribute('center_Y')) ||
+      40;
 
     result.cover = {
       top: coverTop,
@@ -419,7 +429,7 @@ function extractBeamBarArrangement(barArrangementElement, result) {
  */
 function extractBarDataFromDirectAttributes(barElement, result) {
   // STB v2.0.2では全位置で同じ鉄筋データを使用
-  const positions = ['SAME', 'LEFT', 'CENTER', 'RIGHT'].filter(p => result.positions[p]);
+  const positions = ['SAME', 'LEFT', 'CENTER', 'RIGHT'].filter((p) => result.positions[p]);
 
   positions.forEach((position) => {
     const positionData = result.positions[position];
@@ -557,16 +567,20 @@ function extractMainBarInfo(mainBarElement) {
   const barInfo = extractBeamMainBar(mainBarElement);
 
   // v2.0.2 と v2.1.0 の両方の属性名対応
-  const count = parseInt(mainBarElement.getAttribute('N') ||
-                        mainBarElement.getAttribute('count_main') ||
-                        barInfo.N_main_X) || 0;
-  const dia = (mainBarElement.getAttribute('D_bar') ||
-               mainBarElement.getAttribute('D') ||
-               barInfo.D_main ||
-               'D25').toUpperCase();
-  const grade = mainBarElement.getAttribute('strength') ||
-                mainBarElement.getAttribute('grade') ||
-                'SD345';
+  const count =
+    parseInt(
+      mainBarElement.getAttribute('N') ||
+        mainBarElement.getAttribute('count_main') ||
+        barInfo.N_main_X,
+    ) || 0;
+  const dia = (
+    mainBarElement.getAttribute('D_bar') ||
+    mainBarElement.getAttribute('D') ||
+    barInfo.D_main ||
+    'D25'
+  ).toUpperCase();
+  const grade =
+    mainBarElement.getAttribute('strength') || mainBarElement.getAttribute('grade') || 'SD345';
 
   return {
     count,
@@ -591,29 +605,37 @@ function extractStirrupInfo(simpleBarElement, order) {
   const stirrupInfo = extractStirrupInfoFromBar(simpleBarElement);
 
   // 径を確定（v2.0.2と v2.1.0の両方に対応）
-  const dStirrup = simpleBarElement.getAttribute('D_stirrup') ||
-                   simpleBarElement.getAttribute('D_band') ||
-                   stirrupInfo.D_stirrup ||
-                   'D10';
+  const dStirrup =
+    simpleBarElement.getAttribute('D_stirrup') ||
+    simpleBarElement.getAttribute('D_band') ||
+    stirrupInfo.D_stirrup ||
+    'D10';
 
   if (!dStirrup) {
     return null;
   }
 
   // 本数（デフォルト2）
-  const nStirrup = parseInt(simpleBarElement.getAttribute('N_stirrup') ||
-                            simpleBarElement.getAttribute('N_band') ||
-                            stirrupInfo.N_stirrup) || 2;
+  const nStirrup =
+    parseInt(
+      simpleBarElement.getAttribute('N_stirrup') ||
+        simpleBarElement.getAttribute('N_band') ||
+        stirrupInfo.N_stirrup,
+    ) || 2;
 
   // 間隔（デフォルト100）
-  const pitchStirrup = parseFloat(simpleBarElement.getAttribute('pitch_stirrup') ||
-                                  simpleBarElement.getAttribute('pitch_band') ||
-                                  stirrupInfo.spacing) || 100;
+  const pitchStirrup =
+    parseFloat(
+      simpleBarElement.getAttribute('pitch_stirrup') ||
+        simpleBarElement.getAttribute('pitch_band') ||
+        stirrupInfo.spacing,
+    ) || 100;
 
   // グレード
-  const gradeStirrup = simpleBarElement.getAttribute('strength_stirrup') ||
-                       simpleBarElement.getAttribute('strength_band') ||
-                       'SD295';
+  const gradeStirrup =
+    simpleBarElement.getAttribute('strength_stirrup') ||
+    simpleBarElement.getAttribute('strength_band') ||
+    'SD295';
 
   return {
     dia: dStirrup.toUpperCase(),
@@ -755,8 +777,9 @@ function extractBeamSectionGridV210(xmlDoc) {
 
   // 1. 階データを抽出
   const storiesMap = extractStories(xmlDoc);
-  const storiesList = Array.from(storiesMap.values())
-    .sort((a, b) => (b.level || 0) - (a.level || 0)); // level降順
+  const storiesList = Array.from(storiesMap.values()).sort(
+    (a, b) => (b.level || 0) - (a.level || 0),
+  ); // level降順
   console.log('[extractBeamSectionGridV210] Stories extracted:', storiesList.length);
 
   // 2. 梁要素を抽出
@@ -765,7 +788,10 @@ function extractBeamSectionGridV210(xmlDoc) {
 
   // 3. 梁断面（StbSecBeam_RC のみ）を抽出
   const beamSectionElements = querySelectorAll(xmlDoc, 'StbSecBeam_RC');
-  console.log('[extractBeamSectionGridV210] Beam section elements found:', beamSectionElements.length);
+  console.log(
+    '[extractBeamSectionGridV210] Beam section elements found:',
+    beamSectionElements.length,
+  );
 
   const sectionsMap = new Map();
   beamSectionElements.forEach((el) => {
@@ -790,8 +816,9 @@ function extractBeamSectionGridV202(xmlDoc) {
 
   // 1. 階データを抽出
   const storiesMap = extractStories(xmlDoc);
-  const storiesList = Array.from(storiesMap.values())
-    .sort((a, b) => (b.level || 0) - (a.level || 0)); // level降順
+  const storiesList = Array.from(storiesMap.values()).sort(
+    (a, b) => (b.level || 0) - (a.level || 0),
+  ); // level降順
   console.log('[extractBeamSectionGridV202] Stories extracted:', storiesList.length);
 
   // 2. 梁要素を抽出
@@ -800,7 +827,10 @@ function extractBeamSectionGridV202(xmlDoc) {
 
   // 3. 梁断面（StbSecBeam_RC のみ）を抽出
   const beamSectionElements = querySelectorAll(xmlDoc, 'StbSecBeam_RC');
-  console.log('[extractBeamSectionGridV202] Beam section elements found:', beamSectionElements.length);
+  console.log(
+    '[extractBeamSectionGridV202] Beam section elements found:',
+    beamSectionElements.length,
+  );
 
   const sectionsMap = new Map();
   beamSectionElements.forEach((el) => {
@@ -825,15 +855,16 @@ function extractBeamSectionGridFallback(xmlDoc) {
 
   // 1. 階データを抽出
   const storiesMap = extractStories(xmlDoc);
-  const storiesList = Array.from(storiesMap.values())
-    .sort((a, b) => (b.level || 0) - (a.level || 0)); // level降順
+  const storiesList = Array.from(storiesMap.values()).sort(
+    (a, b) => (b.level || 0) - (a.level || 0),
+  ); // level降順
 
   // 2. 梁要素を抽出
   const girders = extractGirders(xmlDoc);
 
   // 3. 梁断面（両方を試す）を抽出
   const beamSectionElements = [
-    ...querySelectorAll(xmlDoc, 'StbSecBeam_RC'),   // STB v2.1 および v2.0.2
+    ...querySelectorAll(xmlDoc, 'StbSecBeam_RC'), // STB v2.1 および v2.0.2
     ...querySelectorAll(xmlDoc, 'StbSecGirder_RC'), // 非標準ファイル対応
   ];
 
@@ -859,7 +890,14 @@ function extractBeamSectionGridFallback(xmlDoc) {
  * @param {Map} sectionsMap - 断面マップ
  * @param {string} parserVersion - パーサーバージョン
  */
-function buildBeamSectionGrid(xmlDoc, storiesMap, storiesList, girders, sectionsMap, parserVersion) {
+function buildBeamSectionGrid(
+  xmlDoc,
+  storiesMap,
+  storiesList,
+  girders,
+  sectionsMap,
+  parserVersion,
+) {
   // 梁-階マッピング
   const sectionUsageMap = new Map(); // sectionId → [{ storyId, symbol, ... }]
 
@@ -882,12 +920,18 @@ function buildBeamSectionGrid(xmlDoc, storiesMap, storiesList, girders, sections
   const grid = new Map();
   const symbolSet = new Set();
 
-  console.log(`[buildBeamSectionGrid] (${parserVersion}) Section usage entries:`, sectionUsageMap.size);
+  console.log(
+    `[buildBeamSectionGrid] (${parserVersion}) Section usage entries:`,
+    sectionUsageMap.size,
+  );
 
   sectionUsageMap.forEach((usages, sectionId) => {
     const sectionData = sectionsMap.get(sectionId);
     if (!sectionData) {
-      console.warn(`[buildBeamSectionGrid] (${parserVersion}) Section data not found for:`, sectionId);
+      console.warn(
+        `[buildBeamSectionGrid] (${parserVersion}) Section data not found for:`,
+        sectionId,
+      );
       return;
     }
 
@@ -946,12 +990,11 @@ export function extractBeamSectionList(xmlDoc) {
 
   // グリッドデータをリスト形式に変換
   // 階を降順、符号を昇順でソート
-  const rows = Array.from(gridData.grid.values())
-    .sort((a, b) => {
-      const levelComp = (b.storyLevel || 0) - (a.storyLevel || 0);
-      if (levelComp !== 0) return levelComp;
-      return compareSymbols(a.symbol, b.symbol);
-    });
+  const rows = Array.from(gridData.grid.values()).sort((a, b) => {
+    const levelComp = (b.storyLevel || 0) - (a.storyLevel || 0);
+    if (levelComp !== 0) return levelComp;
+    return compareSymbols(a.symbol, b.symbol);
+  });
 
   sections.push(...rows);
 

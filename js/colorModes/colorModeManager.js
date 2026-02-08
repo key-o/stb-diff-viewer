@@ -10,9 +10,8 @@
  * @module colorModes/colorModeManager
  */
 
-import { colorManager } from '../viewer/rendering/colorManager.js';
 import { UI_TIMING } from '../config/uiTimingConfig.js';
-import { elementGroups } from '../viewer/index.js';
+import { elementGroups, colorManager } from '../viewer/index.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
 
 // 各色付けモードのモジュールをインポート
@@ -82,7 +81,7 @@ export function setColorMode(mode) {
   updateColorModeUI();
 
   // モデルが読み込まれているかチェック
-  import('../modelLoader.js').then(({ isModelLoaded }) => {
+  import('../app/modelLoader.js').then(({ isModelLoaded }) => {
     const modelsLoaded = isModelLoaded();
 
     if (!modelsLoaded) {
@@ -247,7 +246,7 @@ export function updateElementsForColorMode() {
   // マテリアルの更新は各色付けモード関数（applyDiffColorModeToAll等）で処理される
 
   // 統合ラベル管理システムに色付けモード変更を通知
-  import('../ui/unifiedLabelManager.js').then(({ handleColorModeChange }) => {
+  import('../ui/viewer3d/unifiedLabelManager.js').then(({ handleColorModeChange }) => {
     if (handleColorModeChange) {
       handleColorModeChange();
     }
@@ -262,7 +261,7 @@ export function updateElementsForColorMode() {
   }
 
   // 要素情報パネルを更新（バリデーション情報の反映）
-  import('../viewer/ui/element-info/index.js').then(({ refreshElementInfoPanel }) => {
+  import('../ui/panels/element-info/index.js').then(({ refreshElementInfoPanel }) => {
     if (refreshElementInfoPanel) {
       refreshElementInfoPanel();
     }

@@ -20,8 +20,8 @@ import {
   updateStorySelector,
   updateAxisSelectors,
   updateLabelVisibility,
-} from '../ui.js';
-import { initViewModes, updateModelVisibility } from '../viewModes.js';
+} from '../ui/index.js';
+import { initViewModes, updateModelVisibility } from '../app/viewModes.js';
 import { createOrUpdateGridHelper, setView, VIEW_DIRECTIONS } from '../viewer/index.js';
 import { setColorMode, COLOR_MODES } from '../colorModes/index.js';
 import { eventBus, ModelEvents } from '../app/events/index.js';
@@ -62,7 +62,7 @@ export function finalizeVisualization(finalizationData, scheduleRender, cameraCo
     setColorMode(targetColorMode);
 
     // Initialize view modes
-    initializeViewModes(finalizationData);
+    initializeViewModes(finalizationData, scheduleRender);
 
     // Update model visibility based on current settings
     updateModelVisibility(scheduleRender);
@@ -141,10 +141,11 @@ function updateLabelDisplay() {
 /**
  * Initialize view modes with model data
  * @param {Object} modelData - Complete model data
+ * @param {Function} scheduleRender - Render scheduling function
  */
-function initializeViewModes(modelData) {
+function initializeViewModes(modelData, scheduleRender) {
   try {
-    initViewModes(modelData);
+    initViewModes(modelData, scheduleRender);
   } catch (error) {
     logger.error('Failed to initialize view modes:', error);
     throw error;

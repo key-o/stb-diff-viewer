@@ -14,8 +14,7 @@ import { elementGroups } from '../index.js';
 import { VIEW_MODE_CHECKBOX_IDS } from '../../config/uiElementConfig.js';
 import { setCameraMode } from '../camera/cameraManagerImpl.js';
 import { setView } from '../camera/viewManagerImpl.js';
-import { updateDepth2DClippingVisibility } from '../../ui/clipping2DImpl.js';
-import { updateStbExportStatus } from '../../dxfLoader.js';
+import { eventBus, ViewEvents, ExportEvents } from '../../app/events/index.js';
 
 const log = createLogger('DisplayModeUISync');
 
@@ -88,7 +87,7 @@ export function setupViewModeListeners(scheduleRender, redrawFunctions) {
         }
       }
 
-      updateStbExportStatus();
+      eventBus.emit(ExportEvents.STB_STATUS_UPDATE_REQUESTED);
       log.info(`${elementType}表示モード:`, mode);
     });
   });
@@ -167,7 +166,12 @@ function setupElementCategoryListeners(scheduleRender) {
     },
     { id: 'toggleSlabView', type: 'Slab', name: 'スラブ' },
     { id: 'toggleWallView', type: 'Wall', name: '壁' },
-    { id: 'toggleParapetView', type: 'Parapet', name: 'パラペット', solidViewId: 'toggleParapet3DView' },
+    {
+      id: 'toggleParapetView',
+      type: 'Parapet',
+      name: 'パラペット',
+      solidViewId: 'toggleParapet3DView',
+    },
     { id: 'toggleAxisView', type: 'Axis', name: '通り芯' },
     { id: 'toggleStoryView', type: 'Story', name: '階' },
   ];
@@ -276,7 +280,10 @@ export function setupCameraModeListeners(scheduleRender) {
     }
 
     // 2Dクリッピング表示の更新
-    updateDepth2DClippingVisibility(!isPerspective);
+    eventBus.emit(ViewEvents.CAMERA_MODE_CHANGED, {
+      mode: isPerspective ? 'perspective' : 'orthographic',
+      is2DMode: !isPerspective,
+    });
   }
 
   /**

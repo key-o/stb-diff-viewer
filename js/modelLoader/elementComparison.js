@@ -22,10 +22,11 @@ import {
   lineElementKeyExtractor,
   polyElementKeyExtractor,
   nodeElementKeyExtractor,
-} from '../comparator.js';
-import { SUPPORTED_ELEMENTS } from '../viewer/index.js';
+} from '../common-stb/comparison/comparator.js';
+import { SUPPORTED_ELEMENTS } from '../constants/elementTypes.js';
 import { COMPARISON_KEY_TYPE } from '../config/comparisonKeyConfig.js';
 import { getToleranceConfig } from '../config/toleranceConfig.js';
+import { getImportanceManager } from '../app/importanceManager.js';
 
 /**
  * Process element comparison for all supported element types
@@ -182,6 +183,12 @@ function compareElementsByType(
 
       // Use importance-based comparison
       if (useImportanceFiltering) {
+        const manager = getImportanceManager();
+        // マネージャーの依存性（isInitialized）を隠蔽して関数のみ渡す
+        const importanceLookup = manager.isInitialized
+          ? (path) => manager.getImportanceLevel(path)
+          : null;
+
         return compareElementsWithImportance(
           elementsA,
           elementsB,
@@ -189,7 +196,7 @@ function compareElementsByType(
           nodeMapB,
           keyExtractor,
           'Stb' + elementType,
-          { targetImportanceLevels },
+          { targetImportanceLevels, importanceLookup },
         );
       } else {
         return compareElements(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor);

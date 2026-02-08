@@ -1,26 +1,11 @@
 /**
  * @fileoverview 要素再描画設定レジストリ
  *
- * 各要素タイプの再描画設定を一元管理します。
- * viewModes.jsの重複関数を統一するために使用されます。
+ * 各要素タイプのSTB固有メタデータを管理します。
+ * ジオメトリ生成は viewer/geometry/GeometryGeneratorFactory で行います。
  *
  * @module config/elementRedrawConfig
  */
-
-// ジオメトリジェネレータファクトリーから一括インポート
-import {
-  ProfileBasedColumnGenerator,
-  ProfileBasedPostGenerator,
-  ProfileBasedBeamGenerator,
-  ProfileBasedBraceGenerator,
-  PileGenerator,
-  FootingGenerator,
-  ProfileBasedFoundationColumnGenerator,
-  SlabGenerator,
-  WallGenerator,
-  ParapetGenerator,
-  StripFootingGenerator,
-} from '../viewer/geometry/GeometryGeneratorFactory.js';
 
 /**
  * @typedef {Object} ElementRedrawConfig
@@ -28,18 +13,18 @@ import {
  * @property {string} stbTagName - STB XMLタグ名
  * @property {string} nodeStartAttr - 開始ノード属性名
  * @property {string|null} nodeEndAttr - 終了ノード属性（単一ノード要素はnull）
- * @property {Object} generator - ジェネレータークラス
- * @property {string} generatorMethod - ジェネレーターメソッド名
  * @property {string} elementsKey - stbData内の要素キー
  * @property {string} sectionsKey - stbData内の断面キー
  * @property {boolean} [supportsLineMode=true] - 線表示モードをサポートするか
  */
 
 /**
- * 要素再描画設定マップ
+ * 要素再描画設定マップ（STBメタデータのみ）
+ * ジェネレータ情報は viewer/geometry/GeometryGeneratorFactory.GENERATOR_MAP を参照
  * @type {Map<string, ElementRedrawConfig>}
  */
 export const ELEMENT_REDRAW_CONFIGS = new Map([
+  // 垂直要素（2ノード: bottom-top）
   // 垂直要素（2ノード: bottom-top）
   [
     'Column',
@@ -48,8 +33,6 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
       stbTagName: 'StbColumn',
       nodeStartAttr: 'id_node_bottom',
       nodeEndAttr: 'id_node_top',
-      generator: ProfileBasedColumnGenerator,
-      generatorMethod: 'createColumnMeshes',
       elementsKey: 'columnElements',
       sectionsKey: 'columnSections',
     },
@@ -61,8 +44,6 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
       stbTagName: 'StbPost',
       nodeStartAttr: 'id_node_bottom',
       nodeEndAttr: 'id_node_top',
-      generator: ProfileBasedPostGenerator,
-      generatorMethod: 'createPostMeshes',
       elementsKey: 'postElements',
       sectionsKey: 'postSections',
     },
@@ -76,8 +57,6 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
       stbTagName: 'StbGirder',
       nodeStartAttr: 'id_node_start',
       nodeEndAttr: 'id_node_end',
-      generator: ProfileBasedBeamGenerator,
-      generatorMethod: 'createBeamMeshes',
       elementsKey: 'girderElements',
       sectionsKey: 'girderSections',
     },
@@ -89,8 +68,6 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
       stbTagName: 'StbBeam',
       nodeStartAttr: 'id_node_start',
       nodeEndAttr: 'id_node_end',
-      generator: ProfileBasedBeamGenerator,
-      generatorMethod: 'createBeamMeshes',
       elementsKey: 'beamElements',
       sectionsKey: 'beamSections',
     },
@@ -102,8 +79,6 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
       stbTagName: 'StbBrace',
       nodeStartAttr: 'id_node_start',
       nodeEndAttr: 'id_node_end',
-      generator: ProfileBasedBraceGenerator,
-      generatorMethod: 'createBraceMeshes',
       elementsKey: 'braceElements',
       sectionsKey: 'braceSections',
     },
@@ -115,8 +90,6 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
       stbTagName: 'StbParapet',
       nodeStartAttr: 'id_node_start',
       nodeEndAttr: 'id_node_end',
-      generator: ParapetGenerator,
-      generatorMethod: 'createParapetMeshes',
       elementsKey: 'parapetElements',
       sectionsKey: 'parapetSections',
     },
@@ -128,8 +101,6 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
       stbTagName: 'StbStripFooting',
       nodeStartAttr: 'id_node_start',
       nodeEndAttr: 'id_node_end',
-      generator: StripFootingGenerator,
-      generatorMethod: 'createStripFootingMeshes',
       elementsKey: 'stripFootingElements',
       sectionsKey: 'footingSections',
     },
@@ -143,8 +114,6 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
       stbTagName: 'StbPile',
       nodeStartAttr: 'id_node_bottom',
       nodeEndAttr: 'id_node_top',
-      generator: PileGenerator,
-      generatorMethod: 'createPileMeshes',
       elementsKey: 'pileElements',
       sectionsKey: 'pileSections',
     },
@@ -158,8 +127,6 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
       stbTagName: 'StbFooting',
       nodeStartAttr: 'id_node',
       nodeEndAttr: null,
-      generator: FootingGenerator,
-      generatorMethod: 'createFootingMeshes',
       elementsKey: 'footingElements',
       sectionsKey: 'footingSections',
       supportsLineMode: false,
@@ -172,8 +139,6 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
       stbTagName: 'StbFoundationColumn',
       nodeStartAttr: 'id_node',
       nodeEndAttr: null,
-      generator: ProfileBasedFoundationColumnGenerator,
-      generatorMethod: 'createFoundationColumnMeshes',
       elementsKey: 'foundationColumnElements',
       sectionsKey: 'foundationcolumnSections',
     },
@@ -187,11 +152,9 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
       stbTagName: 'StbSlab',
       nodeStartAttr: 'node_ids',
       nodeEndAttr: null,
-      generator: SlabGenerator,
-      generatorMethod: 'createSlabMeshes',
       elementsKey: 'slabElements',
       sectionsKey: 'slabSections',
-      supportsLineMode: true, // パネル表示（面＋輪郭）をサポート
+      supportsLineMode: true,
     },
   ],
   [
@@ -201,11 +164,9 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
       stbTagName: 'StbWall',
       nodeStartAttr: 'node_ids',
       nodeEndAttr: null,
-      generator: WallGenerator,
-      generatorMethod: 'createWallMeshes',
       elementsKey: 'wallElements',
       sectionsKey: 'wallSections',
-      supportsLineMode: true, // パネル表示（面＋輪郭）をサポート
+      supportsLineMode: true,
     },
   ],
 ]);

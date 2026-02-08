@@ -55,7 +55,7 @@ import {
   ELEMENT_CATEGORIES,
   SUPPORTED_ELEMENTS_SET,
   isSupportedElement,
-} from '../../config/elementTypes.js';
+} from '../../constants/elementTypes.js';
 
 // --- Three.js シーン / カメラ / レンダラー ---
 // エクスポートは必ず行うが、Node (tests) 環境ではブラウザ用初期化を行わない

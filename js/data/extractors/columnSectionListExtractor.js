@@ -204,8 +204,10 @@ function extractRcColumnSectionDetail(sectionElement) {
 
   if (rectFigure) {
     result.dimensions.type = 'RECTANGLE';
-    result.dimensions.width = parseFloat(rectFigure.getAttribute('width_X') || rectFigure.getAttribute('depth_X')) || 0;
-    result.dimensions.height = parseFloat(rectFigure.getAttribute('width_Y') || rectFigure.getAttribute('depth_Y')) || 0;
+    result.dimensions.width =
+      parseFloat(rectFigure.getAttribute('width_X') || rectFigure.getAttribute('depth_X')) || 0;
+    result.dimensions.height =
+      parseFloat(rectFigure.getAttribute('width_Y') || rectFigure.getAttribute('depth_Y')) || 0;
   } else if (circleFigure) {
     result.dimensions.type = 'CIRCLE';
     result.dimensions.diameter = parseFloat(circleFigure.getAttribute('D')) || 0;
@@ -280,7 +282,7 @@ function extractRectBarInfo(rectBar, result) {
     parseInt(
       rectBar.getAttribute('N_main_X_1st') || // v2.0.2
         rectBar.getAttribute('N_main_X') || // v1.x
-        rectBar.getAttribute('count_main_X') // 旧版
+        rectBar.getAttribute('count_main_X'), // 旧版
     ) || 0;
 
   // 主筋本数（Y方向）- 3段階フォールバック
@@ -288,12 +290,13 @@ function extractRectBarInfo(rectBar, result) {
     parseInt(
       rectBar.getAttribute('N_main_Y_1st') || // v2.0.2
         rectBar.getAttribute('N_main_Y') || // v1.x
-        rectBar.getAttribute('count_main_Y') // 旧版
+        rectBar.getAttribute('count_main_Y'), // 旧版
     ) || 0;
 
   // 主筋径
   const dMain = rectBar.getAttribute('D_main') || rectBar.getAttribute('dia_main') || 'D25';
-  const gradeMain = rectBar.getAttribute('strength_main') || rectBar.getAttribute('grade_main') || 'SD345';
+  const gradeMain =
+    rectBar.getAttribute('strength_main') || rectBar.getAttribute('grade_main') || 'SD345';
 
   result.mainBar = {
     countX: nMainX,
@@ -309,10 +312,13 @@ function extractRectBarInfo(rectBar, result) {
   result.mainBar.dtY = dtY;
 
   // 芯鉄筋（中子筋）
-  const nCoreX = parseInt(rectBar.getAttribute('N_core_X') || rectBar.getAttribute('count_2nd_X')) || 0;
-  const nCoreY = parseInt(rectBar.getAttribute('N_core_Y') || rectBar.getAttribute('count_2nd_Y')) || 0;
+  const nCoreX =
+    parseInt(rectBar.getAttribute('N_core_X') || rectBar.getAttribute('count_2nd_X')) || 0;
+  const nCoreY =
+    parseInt(rectBar.getAttribute('N_core_Y') || rectBar.getAttribute('count_2nd_Y')) || 0;
   const dCore = rectBar.getAttribute('D_core') || rectBar.getAttribute('dia_2nd');
-  const corePosition = parseFloat(rectBar.getAttribute('pos_core') || rectBar.getAttribute('pitch_2nd_X')) || 0;
+  const corePosition =
+    parseFloat(rectBar.getAttribute('pos_core') || rectBar.getAttribute('pitch_2nd_X')) || 0;
 
   if (nCoreX > 0 || nCoreY > 0) {
     result.coreBar = {
@@ -336,7 +342,7 @@ function extractRectBarInfo(rectBar, result) {
     parseFloat(
       rectBar.getAttribute('pitch_band') || // v2.0.2（最優先）
         rectBar.getAttribute('pitch_stirrup') ||
-        rectBar.getAttribute('pitch')
+        rectBar.getAttribute('pitch'),
     ) || 100;
 
   // 帯筋強度 - strength_bandを最優先（v2.0.2）
@@ -348,17 +354,19 @@ function extractRectBarInfo(rectBar, result) {
     'SD295';
 
   // 帯筋のX/Y方向本数を取得
-  const nBandX = parseInt(
-    rectBar.getAttribute('N_hoop_X') ||           // STB 2.1.0
-    rectBar.getAttribute('N_band_direction_X') || // STB 2.0.2
-    rectBar.getAttribute('N_band_X')              // 旧版フォールバック
-  ) || 0;
+  const nBandX =
+    parseInt(
+      rectBar.getAttribute('N_hoop_X') || // STB 2.1.0
+        rectBar.getAttribute('N_band_direction_X') || // STB 2.0.2
+        rectBar.getAttribute('N_band_X'), // 旧版フォールバック
+    ) || 0;
 
-  const nBandY = parseInt(
-    rectBar.getAttribute('N_hoop_Y') ||           // STB 2.1.0
-    rectBar.getAttribute('N_band_direction_Y') || // STB 2.0.2
-    rectBar.getAttribute('N_band_Y')              // 旧版フォールバック
-  ) || 0;
+  const nBandY =
+    parseInt(
+      rectBar.getAttribute('N_hoop_Y') || // STB 2.1.0
+        rectBar.getAttribute('N_band_direction_Y') || // STB 2.0.2
+        rectBar.getAttribute('N_band_Y'), // 旧版フォールバック
+    ) || 0;
 
   result.hoop = {
     dia: dStirrup.toUpperCase(),
@@ -370,7 +378,9 @@ function extractRectBarInfo(rectBar, result) {
 
   // 2種類の帯筋がある場合
   const dStirrup2 = rectBar.getAttribute('D_stirrup_2') || rectBar.getAttribute('D_hoop_2');
-  const pitchStirrup2 = parseFloat(rectBar.getAttribute('pitch_2') || rectBar.getAttribute('pitch_band_2'));
+  const pitchStirrup2 = parseFloat(
+    rectBar.getAttribute('pitch_2') || rectBar.getAttribute('pitch_band_2'),
+  );
   if (dStirrup2 && pitchStirrup2) {
     result.hoop.dia2 = dStirrup2.toUpperCase();
     result.hoop.pitch2 = pitchStirrup2;
@@ -388,12 +398,13 @@ function extractCircleBarInfo(circleBar, result) {
     parseInt(
       circleBar.getAttribute('N_main_1st') || // v2.0.2
         circleBar.getAttribute('N_main') || // v1.x
-        circleBar.getAttribute('count_main') // 旧版
+        circleBar.getAttribute('count_main'), // 旧版
     ) || 0;
 
   // 主筋径
   const dMain = circleBar.getAttribute('D_main') || circleBar.getAttribute('dia_main') || 'D25';
-  const gradeMain = circleBar.getAttribute('strength_main') || circleBar.getAttribute('grade_main') || 'SD345';
+  const gradeMain =
+    circleBar.getAttribute('strength_main') || circleBar.getAttribute('grade_main') || 'SD345';
 
   result.mainBar = {
     count: nMain,
@@ -418,7 +429,7 @@ function extractCircleBarInfo(circleBar, result) {
     parseFloat(
       circleBar.getAttribute('pitch_band') || // v2.0.2（最優先）
         circleBar.getAttribute('pitch_stirrup') ||
-        circleBar.getAttribute('pitch')
+        circleBar.getAttribute('pitch'),
     ) || 100;
 
   // 帯筋強度 - strength_bandを最優先（v2.0.2）
@@ -514,7 +525,13 @@ function getFloorSortOrder(name) {
   const upper = name.toUpperCase();
 
   // ペントハウス・屋上は最上階（大きな正の値）
-  if (upper === 'PH' || upper === 'RF' || upper === 'R' || upper.startsWith('PH') || upper.startsWith('RF')) {
+  if (
+    upper === 'PH' ||
+    upper === 'RF' ||
+    upper === 'R' ||
+    upper.startsWith('PH') ||
+    upper.startsWith('RF')
+  ) {
     // PHの後に数字がある場合（PH1, PH2等）
     const phMatch = upper.match(/^(?:PH|RF)(\d*)$/);
     if (phMatch) {
@@ -885,7 +902,7 @@ export function extractColumnSectionGrid(xmlDoc) {
 
   // 全符号を収集
   const symbolSet = new Set();
-  listData.sections.forEach(row => {
+  listData.sections.forEach((row) => {
     symbolSet.add(row.symbol);
   });
 
@@ -898,12 +915,12 @@ export function extractColumnSectionGrid(xmlDoc) {
 
   // グリッド構造を構築（Map<storyId, Map<symbol, sectionData>>）
   const grid = new Map();
-  sortedStories.forEach(story => {
+  sortedStories.forEach((story) => {
     grid.set(story.id, new Map());
   });
 
   // セクションデータをグリッドに配置
-  listData.sections.forEach(row => {
+  listData.sections.forEach((row) => {
     const floorMap = grid.get(row.storyId);
     if (floorMap) {
       floorMap.set(row.symbol, row.sectionData);
@@ -914,8 +931,8 @@ export function extractColumnSectionGrid(xmlDoc) {
     stories: sortedStories,
     symbols,
     grid,
-    sections: listData.sections,  // 互換性のため保持
-    data: listData.data,          // 互換性のため保持
+    sections: listData.sections, // 互換性のため保持
+    data: listData.data, // 互換性のため保持
   };
 }
 

@@ -289,9 +289,7 @@ export class IFCWallExporter extends IFCExporterBase {
     for (const nodeId of nodeIds) {
       const node = nodes.get(nodeId);
       if (!node) {
-        log.warn(
-          `壁 "${wallElement.id}" をスキップ: ノード ${nodeId} が見つかりません`,
-        );
+        log.warn(`壁 "${wallElement.id}" をスキップ: ノード ${nodeId} が見つかりません`);
         return null;
       }
 

@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
 import { camera, controls, scene } from '../index.js';
-import { getSelectedObjects } from '../../interaction.js';
+import { getSelectedObjects } from '../../app/interaction.js';
 
 const log = createLogger('viewer:camera');
 

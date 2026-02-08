@@ -465,16 +465,18 @@ function renderTexts(texts, group, transformOptions, visibleLayers) {
       transformOptions,
     );
 
-    const sprite = createTextSprite(
-      text.text,
-      transformed.x / scale, // createTextSpriteが内部でscaleを掛けるので戻す
-      transformed.y / scale,
-      transformed.z / scale,
+    const sprite = createTextSprite({
+      text: text.text,
+      position: {
+        x: transformed.x / scale, // createTextSpriteが内部でscaleを掛けるので戻す
+        y: transformed.y / scale,
+        z: transformed.z / scale,
+      },
       scale,
-      text.color,
-      text.height,
-      text.rotation,
-    );
+      color: text.color,
+      height: text.height,
+      rotation: text.rotation,
+    });
 
     if (sprite) {
       sprite.userData = {
@@ -720,18 +722,23 @@ function getShxCharMapping(code) {
 }
 
 /**
+ * @typedef {Object} TextSpriteConfig
+ * @property {string} text - 表示テキスト
+ * @property {{x: number, y: number, z: number}} position - 表示位置
+ * @property {number} scale - スケール
+ * @property {number} color - テキスト色 (0xRRGGBB形式)
+ * @property {number} [height=1] - テキスト高さ
+ * @property {number} [rotation=0] - 回転角度（度）
+ */
+
+/**
  * テキストスプライトを作成（TEXT/MTEXT用）
- * @param {string} text - 表示するテキスト
- * @param {number} x - X座標
- * @param {number} y - Y座標
- * @param {number} z - Z座標
- * @param {number} scale - スケール
- * @param {number} color - テキスト色
- * @param {number} height - テキスト高さ
- * @param {number} rotation - 回転角度（度）
+ * @param {TextSpriteConfig} config - テキストスプライト設定
  * @returns {THREE.Sprite} テキストスプライト
  */
-function createTextSprite(text, x, y, z, scale, color, height = 1, _rotation = 0) {
+function createTextSprite(config) {
+  const { text, position, scale, color, height = 1, rotation: _rotation = 0 } = config;
+  const { x, y, z } = position;
   // 特殊文字を変換
   const convertedText = convertDxfSpecialChars(text);
 
@@ -935,16 +942,20 @@ function renderLinearDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
     group.add(new THREE.Line(dimLineGeo, material));
 
     // 矢印を追加
-    addArrowHead(group, p1.x + offsetX, dimLineY + offsetY, (p1.z || 0) + offsetZ, 1, scale, color);
-    addArrowHead(
+    addArrowHead({
       group,
-      p2.x + offsetX,
-      dimLineY + offsetY,
-      (p2.z || 0) + offsetZ,
-      -1,
+      position: { x: p1.x + offsetX, y: dimLineY + offsetY, z: (p1.z || 0) + offsetZ },
+      direction: 1,
       scale,
       color,
-    );
+    });
+    addArrowHead({
+      group,
+      position: { x: p2.x + offsetX, y: dimLineY + offsetY, z: (p2.z || 0) + offsetZ },
+      direction: -1,
+      scale,
+      color,
+    });
 
     // 寸法テキストを追加
     const displayText = getDimensionDisplayText(dim);
@@ -953,7 +964,12 @@ function renderLinearDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
       const textX = (p1.x + p2.x) / 2 + offsetX;
       const textY = dimLineY + offsetY + 100; // 寸法線の少し上
       const textZ = (p1.z || 0) + offsetZ;
-      const textSprite = createDimensionTextSprite(displayText, textX, textY, textZ, scale, color);
+      const textSprite = createDimensionTextSprite({
+        text: displayText,
+        position: { x: textX, y: textY, z: textZ },
+        scale,
+        color,
+      });
       if (textSprite) {
         group.add(textSprite);
       }
@@ -990,15 +1006,13 @@ function renderRadiusDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
     // 矢印
     const dx = textPos.x - center.x;
     const dir = dx !== 0 ? (dx > 0 ? 1 : -1) : 0;
-    addArrowHead(
+    addArrowHead({
       group,
-      center.x + offsetX,
-      center.y + offsetY,
-      (center.z || 0) + offsetZ,
-      dir,
+      position: { x: center.x + offsetX, y: center.y + offsetY, z: (center.z || 0) + offsetZ },
+      direction: dir,
       scale,
       color,
-    );
+    });
 
     // 寸法テキストを追加（「R」プレフィックス付き）
     const displayText = getDimensionDisplayText(dim);
@@ -1006,14 +1020,12 @@ function renderRadiusDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
       const textX = textPos.x + offsetX;
       const textY = textPos.y + offsetY + 100;
       const textZ = (textPos.z || 0) + offsetZ;
-      const textSprite = createDimensionTextSprite(
-        'R' + displayText,
-        textX,
-        textY,
-        textZ,
+      const textSprite = createDimensionTextSprite({
+        text: 'R' + displayText,
+        position: { x: textX, y: textY, z: textZ },
         scale,
         color,
-      );
+      });
       if (textSprite) {
         group.add(textSprite);
       }
@@ -1049,8 +1061,20 @@ function renderDiameterDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
     group.add(new THREE.Line(geo, material));
 
     // 両端に矢印
-    addArrowHead(group, p1.x + offsetX, p1.y + offsetY, (p1.z || 0) + offsetZ, 1, scale, color);
-    addArrowHead(group, p2.x + offsetX, p2.y + offsetY, (p2.z || 0) + offsetZ, -1, scale, color);
+    addArrowHead({
+      group,
+      position: { x: p1.x + offsetX, y: p1.y + offsetY, z: (p1.z || 0) + offsetZ },
+      direction: 1,
+      scale,
+      color,
+    });
+    addArrowHead({
+      group,
+      position: { x: p2.x + offsetX, y: p2.y + offsetY, z: (p2.z || 0) + offsetZ },
+      direction: -1,
+      scale,
+      color,
+    });
 
     // 寸法テキストを追加（「φ」プレフィックス付き）
     const displayText = getDimensionDisplayText(dim);
@@ -1058,14 +1082,12 @@ function renderDiameterDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
       const textX = (p1.x + p2.x) / 2 + offsetX;
       const textY = (p1.y + p2.y) / 2 + offsetY + 100;
       const textZ = ((p1.z || 0) + (p2.z || 0)) / 2 + offsetZ;
-      const textSprite = createDimensionTextSprite(
-        'φ' + displayText,
-        textX,
-        textY,
-        textZ,
+      const textSprite = createDimensionTextSprite({
+        text: 'φ' + displayText,
+        position: { x: textX, y: textY, z: textZ },
         scale,
         color,
-      );
+      });
       if (textSprite) {
         group.add(textSprite);
       }
@@ -1122,14 +1144,12 @@ function renderAngularDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
       const textX = center.x + Math.cos(midAngle) * textRadius + offsetX;
       const textY = center.y + Math.sin(midAngle) * textRadius + offsetY;
       const textZ = (center.z || 0) + offsetZ;
-      const textSprite = createDimensionTextSprite(
-        displayText + '°',
-        textX,
-        textY,
-        textZ,
+      const textSprite = createDimensionTextSprite({
+        text: displayText + '°',
+        position: { x: textX, y: textY, z: textZ },
         scale,
         color,
-      );
+      });
       if (textSprite) {
         group.add(textSprite);
       }
@@ -1189,7 +1209,12 @@ function renderGenericDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
       const textX = textPoint.x + offsetX;
       const textY = textPoint.y + offsetY + 100;
       const textZ = (textPoint.z || 0) + offsetZ;
-      const textSprite = createDimensionTextSprite(displayText, textX, textY, textZ, scale, color);
+      const textSprite = createDimensionTextSprite({
+        text: displayText,
+        position: { x: textX, y: textY, z: textZ },
+        scale,
+        color,
+      });
       if (textSprite) {
         group.add(textSprite);
       }
@@ -1198,9 +1223,21 @@ function renderGenericDimension(dim, group, scale, offsetX, offsetY, offsetZ) {
 }
 
 /**
- * 矢印ヘッドを追加
+ * @typedef {Object} ArrowHeadConfig
+ * @property {THREE.Group} group - 追加先グループ
+ * @property {{x: number, y: number, z: number}} position - 矢印の先端位置
+ * @property {number} direction - 方向 (1 または -1)
+ * @property {number} scale - スケール
+ * @property {number} color - 矢印色 (0xRRGGBB形式)
  */
-function addArrowHead(group, x, y, z, direction, scale, color) {
+
+/**
+ * 矢印ヘッドを追加
+ * @param {ArrowHeadConfig} config - 矢印ヘッド設定
+ */
+function addArrowHead(config) {
+  const { group, position, direction, scale, color } = config;
+  const { x, y, z } = position;
   const arrowSize = 100 * scale; // 矢印のサイズ
   const arrowAngle = Math.PI / 6; // 30度
 
@@ -1228,17 +1265,22 @@ function addArrowHead(group, x, y, z, direction, scale, color) {
 }
 
 /**
+ * @typedef {Object} DimensionTextSpriteConfig
+ * @property {string} text - 表示テキスト
+ * @property {{x: number, y: number, z: number}} position - 表示位置
+ * @property {number} scale - スケール
+ * @property {number} color - テキスト色 (0xRRGGBB形式)
+ * @property {number} [rotation=0] - 回転角度（ラジアン）
+ */
+
+/**
  * 寸法テキストスプライトを作成
- * @param {string} text - 表示するテキスト
- * @param {number} x - X座標
- * @param {number} y - Y座標
- * @param {number} z - Z座標
- * @param {number} scale - スケール
- * @param {number} color - テキスト色
- * @param {number} rotation - 回転角度（ラジアン）
+ * @param {DimensionTextSpriteConfig} config - 寸法テキストスプライト設定
  * @returns {THREE.Sprite} テキストスプライト
  */
-function createDimensionTextSprite(text, x, y, z, scale, color, _rotation = 0) {
+function createDimensionTextSprite(config) {
+  const { text, position, scale, color, rotation: _rotation = 0 } = config;
+  const { x, y, z } = position;
   const fontSize = 32;
   const canvasWidth = 256;
   const canvasHeight = 64;

@@ -7,11 +7,11 @@
  */
 
 import { getState } from '../app/globalState.js';
-import { colorManager } from '../viewer/rendering/colorManager.js';
-import { applyImportanceColorMode } from '../viewer/rendering/materials.js';
 import { UI_TIMING } from '../config/uiTimingConfig.js';
 import { eventBus, ImportanceEvents, ComparisonEvents } from '../app/events/index.js';
+import { colorManager, applyImportanceColorMode } from '../viewer/index.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
+import { elementGroups as viewerElementGroups } from '../viewer/index.js';
 
 /**
  * 重要度色設定UIを初期化
@@ -25,74 +25,75 @@ export function initializeImportanceColorControls() {
     import('../app/importanceManager.js'),
     import('../constants/importanceLevels.js'),
     import('../config/importanceConfigLoader.js'),
-    import('../config/importanceConfig.js')
-  ]).then(([
-    { getImportanceManager },
-    { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES },
-    { AVAILABLE_CONFIGS },
-    { IMPORTANCE_COLORS: _IMPORTANCE_COLORS }
-  ]) => {
-        container.innerHTML = '';
+    import('../config/importanceConfig.js'),
+  ]).then(
+    ([
+      { getImportanceManager },
+      { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES },
+      { AVAILABLE_CONFIGS },
+      { IMPORTANCE_COLORS: _IMPORTANCE_COLORS },
+    ]) => {
+      container.innerHTML = '';
 
-        // === MVD設定セレクター ===
-        const configSelectorContainer = document.createElement('div');
-        configSelectorContainer.className = 'config-selector-container';
-        configSelectorContainer.style.cssText =
-          'margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #ddd;';
+      // === MVD設定セレクター ===
+      const configSelectorContainer = document.createElement('div');
+      configSelectorContainer.className = 'config-selector-container';
+      configSelectorContainer.style.cssText =
+        'margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #ddd;';
 
-        const configLabel = document.createElement('label');
-        configLabel.textContent = 'MVD設定:';
-        configLabel.style.cssText =
-          'display: block; font-size: 0.85em; margin-bottom: 5px; color: #666;';
-        configSelectorContainer.appendChild(configLabel);
+      const configLabel = document.createElement('label');
+      configLabel.textContent = 'MVD設定:';
+      configLabel.style.cssText =
+        'display: block; font-size: 0.85em; margin-bottom: 5px; color: #666;';
+      configSelectorContainer.appendChild(configLabel);
 
-        const configSelect = document.createElement('select');
-        configSelect.id = 'mvd-config-selector';
-        configSelect.style.cssText =
-          'width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em;';
+      const configSelect = document.createElement('select');
+      configSelect.id = 'mvd-config-selector';
+      configSelect.style.cssText =
+        'width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em;';
 
-        // オプションを追加
-        const defaultOption = document.createElement('option');
-        defaultOption.value = '';
-        defaultOption.textContent = 'デフォルト（組み込み）';
-        configSelect.appendChild(defaultOption);
+      // オプションを追加
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = 'デフォルト（組み込み）';
+      configSelect.appendChild(defaultOption);
 
-        AVAILABLE_CONFIGS.forEach((config) => {
-          const option = document.createElement('option');
-          option.value = config.id;
-          option.textContent = config.name;
-          option.title = config.description;
-          configSelect.appendChild(option);
-        });
+      AVAILABLE_CONFIGS.forEach((config) => {
+        const option = document.createElement('option');
+        option.value = config.id;
+        option.textContent = config.name;
+        option.title = config.description;
+        configSelect.appendChild(option);
+      });
 
-        // 設定変更イベント
-        configSelect.addEventListener('change', async (e) => {
-          const configId = e.target.value;
-          const manager = getImportanceManager();
+      // 設定変更イベント
+      configSelect.addEventListener('change', async (e) => {
+        const configId = e.target.value;
+        const manager = getImportanceManager();
 
-          if (configId) {
-            const success = await manager.loadExternalConfig(configId);
-            if (success) {
-              window.dispatchEvent(new CustomEvent('importanceConfigChanged'));
-            }
-          } else {
-            manager.resetToDefaults();
-            await manager.initialize();
+        if (configId) {
+          const success = await manager.loadExternalConfig(configId);
+          if (success) {
             window.dispatchEvent(new CustomEvent('importanceConfigChanged'));
           }
-        });
+        } else {
+          manager.resetToDefaults();
+          await manager.initialize();
+          window.dispatchEvent(new CustomEvent('importanceConfigChanged'));
+        }
+      });
 
-        configSelectorContainer.appendChild(configSelect);
-        container.appendChild(configSelectorContainer);
+      configSelectorContainer.appendChild(configSelect);
+      container.appendChild(configSelectorContainer);
 
-        // ColorManagerから現在の色を取得（単一データソース）
-        Object.entries(IMPORTANCE_LEVELS).forEach(([_key, level]) => {
-          const color = colorManager.getImportanceColor(level);
-          const name = IMPORTANCE_LEVEL_NAMES[level];
+      // ColorManagerから現在の色を取得（単一データソース）
+      Object.entries(IMPORTANCE_LEVELS).forEach(([_key, level]) => {
+        const color = colorManager.getImportanceColor(level);
+        const name = IMPORTANCE_LEVEL_NAMES[level];
 
-          const item = document.createElement('div');
-          item.className = 'legend-item';
-          item.innerHTML = `
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = `
           <input
             type="color"
             id="importance-${level}-color"
@@ -103,41 +104,42 @@ export function initializeImportanceColorControls() {
           <span class="legend-label">${name}</span>
         `;
 
-          container.appendChild(item);
+        container.appendChild(item);
 
-          // 色変更イベントリスナーを追加
-          const colorInput = item.querySelector(`#importance-${level}-color`);
+        // 色変更イベントリスナーを追加
+        const colorInput = item.querySelector(`#importance-${level}-color`);
 
-          colorInput.addEventListener('change', (e) => {
-            const newColor = e.target.value;
-            // 重要度色設定を更新
-            updateImportanceColor(level, newColor);
-          });
-
-          // リアルタイム色変更（input イベント）
-          colorInput.addEventListener('input', (e) => {
-            const newColor = e.target.value;
-            updateImportanceColor(level, newColor);
-          });
+        colorInput.addEventListener('change', (e) => {
+          const newColor = e.target.value;
+          // 重要度色設定を更新
+          updateImportanceColor(level, newColor);
         });
 
-        // リセットボタンを追加
-        import('../ui/buttonManager.js').then(({ buttonManager: importanceBtnManager }) => {
-          const resetButton = importanceBtnManager.createButton({
-            type: 'reset',
-            text: 'デフォルト色に戻す',
-            onClick: () => resetImportanceColors(),
-            ariaLabel: '重要度色をデフォルトに戻す',
-            title: '重要度色をデフォルト設定に戻します',
-            customStyle: {
-              marginTop: '10px',
-              fontSize: '0.8em',
-              width: '100%',
-            },
-          });
-          container.appendChild(resetButton);
+        // リアルタイム色変更（input イベント）
+        colorInput.addEventListener('input', (e) => {
+          const newColor = e.target.value;
+          updateImportanceColor(level, newColor);
         });
       });
+
+      // リセットボタンを追加
+      import('../ui/common/buttonManager.js').then(({ buttonManager: importanceBtnManager }) => {
+        const resetButton = importanceBtnManager.createButton({
+          type: 'reset',
+          text: 'デフォルト色に戻す',
+          onClick: () => resetImportanceColors(),
+          ariaLabel: '重要度色をデフォルトに戻す',
+          title: '重要度色をデフォルト設定に戻します',
+          customStyle: {
+            marginTop: '10px',
+            fontSize: '0.8em',
+            width: '100%',
+          },
+        });
+        container.appendChild(resetButton);
+      });
+    },
+  );
 }
 
 /**
@@ -208,6 +210,13 @@ export function setupImportanceChangeListeners() {
             });
           }
 
+          // 要素情報パネルの重要度表示も更新
+          import('../ui/panels/element-info/index.js').then(({ refreshElementInfoPanel }) => {
+            if (refreshElementInfoPanel) {
+              refreshElementInfoPanel();
+            }
+          });
+
           // 再描画をリクエスト
           scheduleRender();
         }, UI_TIMING.COLOR_MODE_APPLY_DELAY_MS);
@@ -238,8 +247,8 @@ export function setupImportanceChangeListeners() {
  * 全要素に重要度色分けを適用
  */
 export function applyImportanceColorModeToAll() {
-  const elementGroups = getState('elementGroups');
-  if (!elementGroups) {
+  const elementGroups = getState('elementGroups') || viewerElementGroups;
+  if (!elementGroups || typeof elementGroups !== 'object') {
     console.warn('[ImportanceColorMode] elementGroups not found in global state');
     return;
   }
@@ -248,16 +257,35 @@ export function applyImportanceColorModeToAll() {
   const allObjects = [];
   const groups = Array.isArray(elementGroups) ? elementGroups : Object.values(elementGroups);
 
+  // グループが空の場合は警告を出して終了
+  if (groups.length === 0 || groups.every((g) => !g || (g.children && g.children.length === 0))) {
+    console.warn(
+      '[ImportanceColorMode] No element groups or empty groups - model may not be loaded yet',
+    );
+    return;
+  }
+
   groups.forEach((group) => {
-    group.traverse((object) => {
-      if (object.isMesh) {
-        allObjects.push(object);
-      }
-    });
+    if (group && group.traverse) {
+      group.traverse((object) => {
+        if (object.isMesh) {
+          allObjects.push(object);
+        }
+      });
+    }
   });
 
   // オブジェクト数に応じて処理方法を選択
   const objectCount = allObjects.length;
+
+  if (objectCount === 0) {
+    console.warn(
+      '[ImportanceColorMode] No meshes found in elementGroups - model may not be loaded yet',
+    );
+    return;
+  }
+
+  console.log(`[ImportanceColorMode] Applying importance colors to ${objectCount} objects`);
   const useBatchProcessing = objectCount > 200;
 
   if (useBatchProcessing) {

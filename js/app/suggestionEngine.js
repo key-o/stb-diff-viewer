@@ -9,7 +9,7 @@
  */
 
 import { createLogger } from '../utils/logger.js';
-import { getAttributeInfo, isSchemaLoaded } from '../parser/xsdSchemaParser.js';
+import { getAttributeInfo, isSchemaLoaded } from '../common-stb/parser/xsdSchemaParser.js';
 import { storageHelper } from '../utils/storageHelper.js';
 
 const log = createLogger('app/suggestionEngine');
@@ -168,10 +168,7 @@ export class SuggestionEngine {
 
       return [];
     } catch (error) {
-      log.warn(
-        `${tagName}.${attributeName}の列挙サジェストの取得中にエラーが発生しました:`,
-        error,
-      );
+      log.warn(`${tagName}.${attributeName}の列挙サジェストの取得中にエラーが発生しました:`, error);
       return [];
     }
   }

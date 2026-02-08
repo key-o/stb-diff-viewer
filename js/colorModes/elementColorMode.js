@@ -7,8 +7,8 @@
  * @module colorModes/elementColorMode
  */
 
-import { colorManager } from '../viewer/rendering/colorManager.js';
 import { DEFAULT_ELEMENT_COLORS } from '../config/colorConfig.js';
+import { colorManager } from '../viewer/index.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
 
 /**
@@ -32,11 +32,13 @@ export function initializeElementColorControls() {
       colorManager.setElementColor(elementType, e.target.value);
       updateElementMaterials();
       // 部材別モードが有効な場合は全要素に色を再適用
-      import('./index.js').then(({ getCurrentColorMode, COLOR_MODES, updateElementsForColorMode }) => {
-        if (getCurrentColorMode() === COLOR_MODES.ELEMENT) {
-          updateElementsForColorMode();
-        }
-      });
+      import('./index.js').then(
+        ({ getCurrentColorMode, COLOR_MODES, updateElementsForColorMode }) => {
+          if (getCurrentColorMode() === COLOR_MODES.ELEMENT) {
+            updateElementsForColorMode();
+          }
+        },
+      );
       scheduleRender();
     });
   });

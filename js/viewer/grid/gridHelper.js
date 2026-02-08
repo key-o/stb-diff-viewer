@@ -33,7 +33,7 @@ export function createOrUpdateGridHelper(modelBounds) {
       GRID_SETTINGS.SIZE,
       GRID_SETTINGS.DIVISIONS,
       GRID_SETTINGS.CENTER_LINE_COLOR,
-      GRID_SETTINGS.GRID_LINE_COLOR
+      GRID_SETTINGS.GRID_LINE_COLOR,
     ); // 100m, 1m間隔
     newGridHelper.rotation.x = Math.PI / 2;
     scene.add(newGridHelper);

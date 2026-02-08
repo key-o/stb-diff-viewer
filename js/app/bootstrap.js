@@ -27,20 +27,20 @@ import {
 import { setupInteractionListeners, getSelectedCenter } from '../interaction.js';
 import { setupViewModeListeners, setupCameraModeListeners } from '../viewModes.js';
 import { setupColorModeListeners } from '../colorModes/index.js';
-import { setupUIEventListeners, toggleLegend, applyStoryClip, applyAxisClip } from '../ui.js';
-import { initDepth2DClippingUI } from '../ui/clipping2DImpl.js';
-import { displayElementInfo } from '../viewer/ui/element-info/index.js';
-import { regenerateAllLabels } from '../ui/labelRegeneration.js';
+import { setupUIEventListeners, toggleLegend, applyStoryClip, applyAxisClip } from '../ui/index.js';
+import { initDepth2DClippingUI } from '../ui/viewer3d/clipping2DImpl.js';
+import { displayElementInfo } from '../ui/panels/element-info/index.js';
+import { regenerateAllLabels } from '../ui/viewer3d/labelRegeneration.js';
 import { IFCConverter, IFCConverterUI } from '../export/api/ifcConverter.js';
-import displayModeManager from '../viewer/rendering/displayModeManager.js';
-import labelDisplayManager from '../viewer/rendering/labelDisplayManager.js';
 import {
+  displayModeManager,
+  labelDisplayManager,
   initLoadDisplayManager,
   getLoadDisplayManager,
-} from '../viewer/rendering/loadDisplayManager.js';
-import { initKeyboardShortcuts } from '../viewer/interaction/keyboard-shortcuts.js';
+  initKeyboardShortcuts,
+} from '../viewer/index.js';
 import { appInitializer } from './AppInitializer.js';
-import { showError } from '../ui/toast.js';
+import { showError } from '../ui/common/toast.js';
 
 const log = createLogger('bootstrap');
 
@@ -131,7 +131,7 @@ function startApp() {
   setupColorModeListeners();
   initKeyboardShortcuts();
 
-  import('../ui/diffSummary.js').then(({ setupDiffSummaryEventListeners }) => {
+  import('../ui/panels/diffSummary.js').then(({ setupDiffSummaryEventListeners }) => {
     setupDiffSummaryEventListeners();
   });
 

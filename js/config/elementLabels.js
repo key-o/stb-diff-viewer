@@ -5,7 +5,7 @@
  * 他のモジュールはここからラベル定義をインポートしてください。
  */
 
-import { SUPPORTED_ELEMENTS } from './elementTypes.js';
+import { SUPPORTED_ELEMENTS } from '../constants/elementTypes.js';
 
 // ============================================================================
 // 基本的な要素タイプラベル

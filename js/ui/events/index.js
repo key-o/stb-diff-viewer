@@ -43,11 +43,7 @@ import {
   getAccordionSectionCount,
 } from './accordionListeners.js';
 
-import {
-  toggleLegend,
-  updateLegendContent,
-  hasLegendPanel,
-} from './legendListeners.js';
+import { toggleLegend, updateLegendContent, hasLegendPanel } from './legendListeners.js';
 
 import { setupKeyboardShortcuts, setupWindowResizeListener } from './keyboardListeners.js';
 

@@ -117,40 +117,13 @@
 }
 
 /* ========================================
-   差分比較用凡例色（colorConfig.jsのDIFF_COLORSと同期）
-   6カテゴリ: 存在差分(3) + 内容差分(3)
+   差分比較用凡例色
+
+   色定義は config/diffFilterConfig.js から動的生成されます。
+   参照: config/diffFilterConfig.js, utils/cssGenerator.js
    ======================================== */
 
-/* 存在差分 */
-.legend-color-matched {
-  background-color: #4CAF50; /* マテリアルグリーン - 完全一致 */
-}
-
-.legend-color-onlya {
-  background-color: #2196F3; /* マテリアルブルー - モデルAのみ */
-}
-
-.legend-color-onlyb {
-  background-color: #F44336; /* マテリアルレッド - モデルBのみ */
-}
-
-/* 内容差分（両方に存在する要素の詳細分類） */
-.legend-color-positiontolerance {
-  background-color: #FFC107; /* マテリアルアンバー - 位置許容差内 */
-}
-
-.legend-color-attributemismatch {
-  background-color: #FF9800; /* マテリアルオレンジ - 属性不一致 */
-}
-
-.legend-color-combined {
-  background-color: #9C27B0; /* マテリアルパープル - 複合差分 */
-}
-
-/* レガシー互換 */
-.legend-color-mismatch {
-  background-color: #FF9800; /* マテリアルオレンジ - 属性不一致（後方互換） */
-}
+/* 差分フィルタの色は動的生成されます（cssGenerator.js） */
 
 /* ========================================
    ユーティリティ

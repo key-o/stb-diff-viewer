@@ -8,7 +8,7 @@
 /* global FormData */
 
 import { getEnvironmentConfig } from '../../config/environment.js';
-import { showError, showWarning } from '../../ui/toast.js';
+import { showError, showWarning } from '../../ui/common/toast.js';
 import { createLogger } from '../../utils/logger.js';
 
 const logger = createLogger('IFCConverter');

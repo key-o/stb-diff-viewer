@@ -7,16 +7,13 @@
  * @module app/controllers/validationController
  */
 
-import {
-  validateAttributeValue,
-  isSchemaLoaded,
-} from '../../parser/xsdSchemaParser.js';
+import { validateAttributeValue, isSchemaLoaded } from '../../common-stb/parser/xsdSchemaParser.js';
 import {
   SEVERITY,
   CATEGORY,
   formatValidationReport,
-} from '../../validation/stbValidator.js';
-import { formatRepairReport } from '../../repair/stbRepairEngine.js';
+} from '../../common-stb/validation/stbValidator.js';
+import { formatRepairReport } from '../../common-stb/repair/stbRepairEngine.js';
 
 /**
  * バリデーションコントローラー

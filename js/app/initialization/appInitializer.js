@@ -15,13 +15,18 @@ import {
   createOrUpdateGridHelper,
   getActiveCamera,
 } from '../../viewer/index.js';
-import { setupInteractionListeners, getSelectedCenter } from '../../interaction.js';
-import { setupViewModeListeners, setupCameraModeListeners } from '../../viewModes.js';
+import { setupInteractionListeners, getSelectedCenter } from '../interaction.js';
+import { setupViewModeListeners, setupCameraModeListeners } from '../viewModes.js';
 import { setupColorModeListeners } from '../../colorModes/index.js';
-import { setupUIEventListeners, toggleLegend, applyStoryClip, applyAxisClip } from '../../ui.js';
-import { initDepth2DClippingUI } from '../../ui/clipping2DImpl.js';
-import { displayElementInfo } from '../../viewer/ui/element-info/index.js';
-import { regenerateAllLabels } from '../../ui/labelRegeneration.js';
+import {
+  setupUIEventListeners,
+  toggleLegend,
+  applyStoryClip,
+  applyAxisClip,
+} from '../../ui/index.js';
+import { initDepth2DClippingUI } from '../../ui/viewer3d/clipping2DImpl.js';
+import { displayElementInfo } from '../../ui/panels/element-info/index.js';
+import { regenerateAllLabels } from '../../ui/viewer3d/labelRegeneration.js';
 import { clearClippingPlanes } from '../../viewer/index.js';
 import { setState, registerGlobalFunction } from '../globalState.js';
 import { viewerEventBridge } from '../../viewer/services/viewerEventBridge.js';
@@ -29,9 +34,9 @@ import { initializeSettingsManager } from '../settingsManager.js';
 import { initializeGlobalMessenger } from '../moduleMessaging.js';
 import { IFCConverter, IFCConverterUI } from '../../export/api/ifcConverter.js';
 import { initializeImportanceManager } from '../importanceManager.js';
-import { setupDiffSummaryEventListeners } from '../../ui/diffSummary.js';
+import { setupDiffSummaryEventListeners } from '../../ui/panels/diffSummary.js';
 import { initKeyboardShortcuts } from '../../viewer/interaction/keyboard-shortcuts.js';
-import { initializeViewCube } from '../../viewer/ui/viewCube/ViewCube.js';
+import { initializeViewCube } from '../../ui/viewer3d/viewCube/ViewCube.js';
 import { CAMERA_ORTHOGRAPHIC } from '../../config/renderingConstants.js';
 
 const log = createLogger('appInitializer');
@@ -111,9 +116,7 @@ function setupZoomToCursor() {
 
               const deltaZoom = -event.deltaY * ORTHOGRAPHIC_ZOOM_FACTOR;
               if (!controls?._cc) {
-                log.warn(
-                  '[WARN] CameraControls instance not ready; skipping orthographic zoom.',
-                );
+                log.warn('[WARN] CameraControls instance not ready; skipping orthographic zoom.');
                 return;
               }
 

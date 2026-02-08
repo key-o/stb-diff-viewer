@@ -17,8 +17,6 @@
 ## STB Diff Viewerとは
 
 STB Diff Viewerは、ST-Bridge（STB）形式の3D建築モデルを読み込み、2つのモデル間の差分を視覚的に比較できるWebアプリケーションです。
-下記URLで試すことができます。
-https://key-o.github.io/stb-diff-viewer/
 
 **主な用途:**
 
@@ -43,6 +41,20 @@ https://key-o.github.io/stb-diff-viewer/
 1. **`index.html`** をWebブラウザで開きます
 2. ファイル選択画面が表示されます
 3. すぐに使い始められます！
+
+---
+
+## CLI: STB バージョンコンバーター
+
+開発やバッチ処理で STB ファイルのバージョン変換が必要な場合、`scripts/stb-version-converter.js` をご利用ください。主な機能は以下の通りです。
+
+- **双方向変換**: v2.0.2 ⇄ v2.1.0 をサポート
+- **検証オプション**: `--validate` を指定すると変換後に検証を行います
+- **使い方（例）**:
+  - `node scripts/stb-version-converter.js --input sample-v202.stb --output sample-v210.stb --to 210`
+  - `node scripts/stb-version-converter.js --input sample-v210.stb --output sample-v202.stb --to 202`
+
+**注:** 旧スクリプト `scripts/convert-stb-to-210.js` / `scripts/convert-stb202-to-210.js` は**削除済み**です。日常的な変換は `scripts/stb-version-converter.js` を直接使用してください。
 
 ### モデルの読み込み
 
