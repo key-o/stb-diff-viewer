@@ -40,36 +40,12 @@ const log = createLogger('modelLoader/progressiveRendering');
  * 段階的レンダリングを有効にするかどうかのフラグ
  * パフォーマンステストや問題発生時に切り替え可能
  */
-let progressiveRenderingEnabled = true;
+const progressiveRenderingEnabled = true;
 
 /**
  * バッチレンダリングを有効にするかどうかのフラグ
  */
-let batchRenderingEnabled = true;
-
-/**
- * バッチレンダリングの有効/無効を設定
- * @param {boolean} enabled
- */
-export function setBatchRenderingEnabled(enabled) {
-  batchRenderingEnabled = enabled;
-}
-
-/**
- * バッチレンダリングが有効かどうかを取得
- * @returns {boolean}
- */
-export function isBatchRenderingEnabled() {
-  return batchRenderingEnabled;
-}
-
-/**
- * 段階的レンダリングの有効/無効を設定
- * @param {boolean} enabled
- */
-export function setProgressiveRenderingEnabled(enabled) {
-  progressiveRenderingEnabled = enabled;
-}
+const batchRenderingEnabled = true;
 
 /**
  * 段階的レンダリングが有効かどうかを取得
@@ -107,7 +83,7 @@ export async function orchestrateProgressiveRendering(
   });
 
   // DiffRenderModelの統計情報をログ出力
-  const diffStats = getDiffStatistics(diffRenderModel);
+  getDiffStatistics(diffRenderModel);
 
   const indicator = getLoadingIndicator();
   indicator.show('3Dモデルを描画中...');

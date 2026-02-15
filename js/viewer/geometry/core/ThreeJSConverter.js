@@ -124,7 +124,7 @@ export function createExtrudeGeometry(shape, length, { centerZ = true, steps = 1
  * @param {Object} vector - Plain Objectのベクトル {x, y, z}
  * @returns {THREE.Vector3} Three.jsのVector3
  */
-export function convertToThreeVector3(vector) {
+function convertToThreeVector3(vector) {
   return new THREE.Vector3(vector.x, vector.y, vector.z);
 }
 
@@ -134,7 +134,7 @@ export function convertToThreeVector3(vector) {
  * @param {Object} quaternion - Plain Objectの四元数 {x, y, z, w}
  * @returns {THREE.Quaternion} Three.jsのQuaternion
  */
-export function convertToThreeQuaternion(quaternion) {
+function convertToThreeQuaternion(quaternion) {
   return new THREE.Quaternion(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
 }
 
@@ -155,72 +155,6 @@ export function applyPlacementToMesh(mesh, placement) {
 }
 
 /**
- * プロファイルデータとジオメトリ情報からメッシュを作成
- *
- * @param {Object} profileData - プロファイルデータ
- * @param {Object} placement - 配置情報
- * @param {THREE.Material} material - マテリアル
- * @param {Object} [userData={}] - メッシュに付与するユーザーデータ
- * @returns {THREE.Mesh} 生成されたメッシュ
- */
-export function createMeshFromProfile(profileData, placement, material, userData = {}) {
-  // プロファイルをTHREE.Shapeに変換
-  const shape = convertProfileToThreeShape(profileData);
-
-  // 押し出しジオメトリを作成
-  const geometry = createExtrudeGeometry(shape, placement.length);
-
-  // メッシュを作成
-  const mesh = new THREE.Mesh(geometry, material);
-
-  // 配置情報を適用
-  applyPlacementToMesh(mesh, placement);
-
-  // ユーザーデータを設定
-  mesh.userData = {
-    ...userData,
-    length: placement.length,
-    profileBased: true,
-  };
-
-  return mesh;
-}
-
-/**
- * 配置基準線をメッシュに添付
- *
- * @param {THREE.Mesh} mesh - 親メッシュ
- * @param {number} length - 線の長さ
- * @param {THREE.Material} lineMaterial - 線のマテリアル
- * @param {Object} [userData={}] - 線に付与するユーザーデータ
- */
-export function attachPlacementAxisLine(mesh, length, lineMaterial, userData = {}) {
-  // TODO: センターラインの座標変換問題を修正するまで一時的に無効化
-  // センターラインがメッシュの子として追加されると、ワールド座標への変換が
-  // 正しく適用されず、原点に描画される問題がある
-  return;
-
-  if (!length || !isFinite(length) || length <= 0) {
-    return;
-  }
-
-  // メッシュのローカルZ軸に沿った線を作成
-  const p0 = new THREE.Vector3(0, 0, -length / 2);
-  const p1 = new THREE.Vector3(0, 0, length / 2);
-  const geometry = new THREE.BufferGeometry().setFromPoints([p0, p1]);
-  const line = new THREE.Line(geometry, lineMaterial);
-
-  // ユーザーデータを設定
-  line.userData = {
-    isPlacementLine: true,
-    ...userData,
-  };
-
-  line.matrixAutoUpdate = true;
-  mesh.add(line);
-}
-
-/**
  * プロファイルデータから輪郭線ジオメトリを作成
  *
  * @param {Object} profileData - ProfileCalculatorが生成したプロファイルデータ
@@ -229,7 +163,7 @@ export function attachPlacementAxisLine(mesh, length, lineMaterial, userData = {
  * @param {boolean} [options.includeEndCaps=true] - 端面の輪郭を含めるか
  * @returns {THREE.BufferGeometry} 輪郭線ジオメトリ
  */
-export function createProfileOutlineGeometry(profileData, length, { includeEndCaps = true } = {}) {
+function createProfileOutlineGeometry(profileData, length, { includeEndCaps = true } = {}) {
   const points = [];
   const halfLength = length / 2;
 
@@ -294,123 +228,3 @@ export function createProfileOutlineGeometry(profileData, length, { includeEndCa
   return new THREE.BufferGeometry().setFromPoints(points);
 }
 
-/**
- * プロファイルデータからラインメッシュを作成
- *
- * @param {Object} profileData - プロファイルデータ
- * @param {Object} placement - 配置情報
- * @param {THREE.Material} lineMaterial - 線のマテリアル
- * @param {Object} [userData={}] - ユーザーデータ
- * @returns {THREE.LineSegments} ラインセグメント
- */
-export function createLineFromProfile(profileData, placement, lineMaterial, userData = {}) {
-  const geometry = createProfileOutlineGeometry(profileData, placement.length);
-  const line = new THREE.LineSegments(geometry, lineMaterial);
-
-  // 配置情報を適用
-  applyPlacementToMesh(line, placement);
-
-  // ユーザーデータを設定
-  line.userData = {
-    ...userData,
-    length: placement.length,
-    profileBased: true,
-    isLine: true,
-  };
-
-  return line;
-}
-
-/**
- * Box3からワイヤーフレームジオメトリを作成
- *
- * @param {THREE.Box3} box - バウンディングボックス
- * @returns {THREE.BufferGeometry} ワイヤーフレームジオメトリ
- */
-export function createBoxWireframeGeometry(box) {
-  const min = box.min;
-  const max = box.max;
-
-  const vertices = [
-    // 底面
-    min.x,
-    min.y,
-    min.z,
-    max.x,
-    min.y,
-    min.z,
-    max.x,
-    min.y,
-    min.z,
-    max.x,
-    max.y,
-    min.z,
-    max.x,
-    max.y,
-    min.z,
-    min.x,
-    max.y,
-    min.z,
-    min.x,
-    max.y,
-    min.z,
-    min.x,
-    min.y,
-    min.z,
-    // 上面
-    min.x,
-    min.y,
-    max.z,
-    max.x,
-    min.y,
-    max.z,
-    max.x,
-    min.y,
-    max.z,
-    max.x,
-    max.y,
-    max.z,
-    max.x,
-    max.y,
-    max.z,
-    min.x,
-    max.y,
-    max.z,
-    min.x,
-    max.y,
-    max.z,
-    min.x,
-    min.y,
-    max.z,
-    // 縦線
-    min.x,
-    min.y,
-    min.z,
-    min.x,
-    min.y,
-    max.z,
-    max.x,
-    min.y,
-    min.z,
-    max.x,
-    min.y,
-    max.z,
-    max.x,
-    max.y,
-    min.z,
-    max.x,
-    max.y,
-    max.z,
-    min.x,
-    max.y,
-    min.z,
-    min.x,
-    max.y,
-    max.z,
-  ];
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-
-  return geometry;
-}

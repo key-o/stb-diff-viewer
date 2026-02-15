@@ -109,10 +109,3 @@ export function setupClippingButtonListeners() {
   }
 }
 
-/**
- * Get clipping slider status
- * @returns {number} Number of clipping range sliders found
- */
-export function getClippingSliderCount() {
-  return document.querySelectorAll('.clip-range-slider').length;
-}

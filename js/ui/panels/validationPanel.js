@@ -145,7 +145,7 @@ export class ValidationPanel {
 
       .validation-header h3 {
         margin: 0;
-        font-size: 18px;
+        font-size: var(--font-size-xl);
         color: #333;
       }
 
@@ -155,7 +155,7 @@ export class ValidationPanel {
         border: none;
         border-radius: 4px;
         cursor: pointer;
-        font-size: 14px;
+        font-size: var(--font-size-base);
       }
 
       .btn-primary { background: #007bff; color: white; }
@@ -183,7 +183,7 @@ export class ValidationPanel {
       }
 
       .stat-item {
-        font-size: 14px;
+        font-size: var(--font-size-base);
       }
 
       .stat-item.error { color: #dc3545; }
@@ -202,7 +202,7 @@ export class ValidationPanel {
         border: none;
         background: none;
         cursor: pointer;
-        font-size: 14px;
+        font-size: var(--font-size-base);
         border-bottom: 2px solid transparent;
       }
 
@@ -230,7 +230,7 @@ export class ValidationPanel {
         display: flex;
         gap: 16px;
         margin-bottom: 12px;
-        font-size: 14px;
+        font-size: var(--font-size-base);
       }
 
       .issues-filter label {
@@ -264,7 +264,7 @@ export class ValidationPanel {
       }
 
       .issue-severity {
-        font-size: 12px;
+        font-size: var(--font-size-sm);
         padding: 2px 8px;
         border-radius: 4px;
         text-transform: uppercase;
@@ -275,18 +275,18 @@ export class ValidationPanel {
       .issue-severity.info { background: #d1ecf1; color: #0c5460; }
 
       .issue-message {
-        font-size: 14px;
+        font-size: var(--font-size-base);
         color: #333;
         margin-bottom: 4px;
       }
 
       .issue-details {
-        font-size: 12px;
+        font-size: var(--font-size-sm);
         color: #666;
       }
 
       .issue-repair {
-        font-size: 12px;
+        font-size: var(--font-size-sm);
         color: #28a745;
         margin-top: 4px;
       }
@@ -295,7 +295,7 @@ export class ValidationPanel {
         background: white;
         padding: 12px;
         border-radius: 4px;
-        font-size: 12px;
+        font-size: var(--font-size-sm);
         max-height: 300px;
         overflow: auto;
         white-space: pre-wrap;
@@ -318,12 +318,12 @@ export class ValidationPanel {
 
       .repair-options h4 {
         margin: 0 0 8px 0;
-        font-size: 14px;
+        font-size: var(--font-size-base);
       }
 
       .repair-options label {
         display: block;
-        font-size: 13px;
+        font-size: var(--font-size-md);
         margin: 4px 0;
       }
 

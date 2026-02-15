@@ -3,7 +3,7 @@
  *
  * このファイルは、モデル比較結果の差分を一覧表示し、
  * クリックで3Dビューの該当要素にジャンプする機能を提供します:
- * - 差分カテゴリ（モデルA専用、モデルB専用）別の表示
+ * - 差分カテゴリ（モデルAのみ、モデルBのみ）別の表示
  * - 要素タイプでのフィルタリング
  * - 3Dビューとの連携（ハイライト・フォーカス）
  * - 統計情報との連携
@@ -142,8 +142,8 @@ export class DiffListPanel {
               <label>カテゴリ:</label>
               <select id="diff-category-filter">
                 <option value="all">すべて</option>
-                <option value="onlyA">モデルA専用</option>
-                <option value="onlyB">モデルB専用</option>
+                <option value="onlyA">モデルAのみ</option>
+                <option value="onlyB">モデルBのみ</option>
                 <option value="versionOnly">バージョン差のみ</option>
               </select>
             </div>
@@ -159,11 +159,11 @@ export class DiffListPanel {
           <div class="diff-list-summary">
             <span class="summary-item onlyA">
               <span class="color-indicator"></span>
-              🔵 A専用: <strong id="diff-count-onlyA">0</strong>
+              🔵 Aのみ: <strong id="diff-count-onlyA">0</strong>
             </span>
             <span class="summary-item onlyB">
               <span class="color-indicator"></span>
-              ⚫ B専用: <strong id="diff-count-onlyB">0</strong>
+              ⚫ Bのみ: <strong id="diff-count-onlyB">0</strong>
             </span>
             <span class="summary-item versionOnly" style="display: none;">
               <span class="color-indicator"></span>
@@ -778,7 +778,7 @@ let diffListPanelInstance = null;
  * DiffListPanelのシングルトンインスタンスを取得
  * @returns {DiffListPanel} インスタンス
  */
-export function getDiffListPanel() {
+function getDiffListPanel() {
   if (!diffListPanelInstance) {
     diffListPanelInstance = new DiffListPanel();
   }

@@ -79,42 +79,6 @@ export function deepClone(obj) {
 }
 
 /**
- * Get nested value from object using path
- * @param {object} obj - Source object
- * @param {string} path - Dot-separated path (e.g., 'StbModel.StbMembers')
- * @returns {*} Value at path or undefined
- */
-export function getPath(obj, path) {
-  return path.split('.').reduce((current, key) => {
-    if (current && current[key]) {
-      return Array.isArray(current[key]) ? current[key][0] : current[key];
-    }
-    return undefined;
-  }, obj);
-}
-
-/**
- * Set nested value in object using path
- * @param {object} obj - Target object
- * @param {string} path - Dot-separated path
- * @param {*} value - Value to set
- */
-export function setPath(obj, path, value) {
-  const keys = path.split('.');
-  let current = obj;
-
-  for (let i = 0; i < keys.length - 1; i++) {
-    const key = keys[i];
-    if (!current[key]) {
-      current[key] = [{}];
-    }
-    current = Array.isArray(current[key]) ? current[key][0] : current[key];
-  }
-
-  current[keys[keys.length - 1]] = value;
-}
-
-/**
  * Rename a key in an object
  * @param {object} obj - Target object
  * @param {string} oldKey - Old key name
@@ -160,24 +124,3 @@ export function navigateXmlPath(root, pathArray) {
   return Array.isArray(result) ? result : [result];
 }
 
-/**
- * Walk through all elements in the XML tree
- * @param {object} obj - XML object
- * @param {function} callback - Callback function(key, value, parent)
- */
-export function walkElements(obj, callback, parent = null, parentKey = null) {
-  if (!obj || typeof obj !== 'object') return;
-
-  for (const key of Object.keys(obj)) {
-    if (key === '$' || key === '_') continue;
-
-    const value = obj[key];
-    callback(key, value, obj, parentKey);
-
-    if (Array.isArray(value)) {
-      value.forEach((item) => walkElements(item, callback, obj, key));
-    } else if (typeof value === 'object') {
-      walkElements(value, callback, obj, key);
-    }
-  }
-}

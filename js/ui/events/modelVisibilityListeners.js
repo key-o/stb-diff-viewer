@@ -7,7 +7,7 @@
  */
 
 import { scheduleRender } from '../../utils/renderScheduler.js';
-import { setModelVisibility } from '../../app/viewModes.js';
+import { setModelVisibility } from '../../app/viewModes/index.js';
 
 // --- UI Element References ---
 const toggleModelACheckbox = document.getElementById('toggleModelA');

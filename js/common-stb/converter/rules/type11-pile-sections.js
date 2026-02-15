@@ -43,7 +43,7 @@ const PRECAST_PILE_RENAME_MAP = {
  * Convert RC pile sections from v2.0.2 to v2.1.0 structure
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertRcPileSectionsTo210(stbRoot) {
+function convertRcPileSectionsTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   const rootData = Array.isArray(root) ? root[0] : root;
   const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
@@ -100,7 +100,7 @@ export function convertRcPileSectionsTo210(stbRoot) {
  * Convert S pile sections from v2.0.2 to v2.1.0 structure
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertSPileSectionsTo210(stbRoot) {
+function convertSPileSectionsTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   const rootData = Array.isArray(root) ? root[0] : root;
   const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
@@ -152,7 +152,7 @@ export function convertSPileSectionsTo210(stbRoot) {
  * Convert precast pile sections from v2.0.2 to v2.1.0 structure
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertPrecastPileSectionsTo210(stbRoot) {
+function convertPrecastPileSectionsTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   const rootData = Array.isArray(root) ? root[0] : root;
   const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
@@ -220,7 +220,7 @@ export function convertPileSectionsTo210(stbRoot) {
  * Convert RC pile sections from v2.1.0 to v2.0.2 structure
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertRcPileSectionsTo202(stbRoot) {
+function convertRcPileSectionsTo202(stbRoot) {
   const root = getStbRoot(stbRoot);
   const rootData = Array.isArray(root) ? root[0] : root;
   const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
@@ -274,7 +274,7 @@ export function convertRcPileSectionsTo202(stbRoot) {
  * Convert S pile sections from v2.1.0 to v2.0.2 structure
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertSPileSectionsTo202(stbRoot) {
+function convertSPileSectionsTo202(stbRoot) {
   const root = getStbRoot(stbRoot);
   const rootData = Array.isArray(root) ? root[0] : root;
   const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
@@ -321,7 +321,7 @@ export function convertSPileSectionsTo202(stbRoot) {
  * Convert precast pile sections from v2.1.0 to v2.0.2 structure
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertPrecastPileSectionsTo202(stbRoot) {
+function convertPrecastPileSectionsTo202(stbRoot) {
   const root = getStbRoot(stbRoot);
   const rootData = Array.isArray(root) ? root[0] : root;
   const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];

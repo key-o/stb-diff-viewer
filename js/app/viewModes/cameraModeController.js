@@ -135,23 +135,38 @@ export function setupCameraModeListeners(scheduleRender) {
 
   /**
    * 3D（立体表示）モードに切り替え
+   * カメラモード変更 + ビュー設定 + UI副作用を一括実行
    */
   function switchToPerspective() {
     log.info('カメラモード切り替え: 3D（立体表示）');
     syncViewModeButtons('perspective');
     setCameraMode(CAMERA_MODES.PERSPECTIVE);
     setOrthographicView(ORTHOGRAPHIC_VIEWS.ISOMETRIC);
+    // 2Dクリッピングコントロールを非表示
+    updateDepth2DClippingVisibility(CAMERA_MODES.PERSPECTIVE);
+    // STBエクスポートパネルを非表示（3Dモードでは使用不可）
+    setStbExportPanelVisibility(false);
+    // 通り芯を3Dモード用に再描画
+    redrawAxesAtStory('all');
     scheduleRender();
   }
 
   /**
    * 2D（図面表示）モードに切り替え
+   * カメラモード変更 + ビュー設定 + UI副作用を一括実行
    */
   function switchToOrthographic() {
     log.info('カメラモード切り替え: 2D（図面表示）');
     syncViewModeButtons('orthographic');
     setCameraMode(CAMERA_MODES.ORTHOGRAPHIC);
     setOrthographicView(ORTHOGRAPHIC_VIEWS.PLAN);
+    syncViewDirectionButtons('top');
+    // 2Dクリッピングコントロールを表示
+    updateDepth2DClippingVisibility(CAMERA_MODES.ORTHOGRAPHIC);
+    // STBエクスポートパネルを表示（2Dモードで使用可能）
+    setStbExportPanelVisibility(true);
+    // 通り芯を2Dモード用に再描画
+    redrawAxesAtStory('all');
     scheduleRender();
   }
 
@@ -250,49 +265,13 @@ export function setupCameraModeListeners(scheduleRender) {
 
   cameraPerspective.addEventListener('change', function () {
     if (this.checked) {
-      log.info('カメラモード切り替え: 3D（立体表示）');
-      syncViewModeButtons('perspective');
-      setCameraMode(CAMERA_MODES.PERSPECTIVE);
-      // デフォルトで等角投影ビューを設定（初期位置にリセット）
-      try {
-        const { modelBounds } = getModelContext();
-        setView('iso', modelBounds);
-        log.info('デフォルトビュー: 等角投影');
-      } catch (error) {
-        log.warn('デフォルトビューの設定に失敗:', error);
-      }
-      // 2Dクリッピングコントロールを非表示
-      updateDepth2DClippingVisibility(CAMERA_MODES.PERSPECTIVE);
-      // STBエクスポートパネルを非表示（3Dモードでは使用不可）
-      setStbExportPanelVisibility(false);
-      // 通り芯を3Dモード用に再描画（延長を階と同じに）
-      redrawAxesAtStory('all');
-      if (scheduleRender) scheduleRender();
+      switchToPerspective();
     }
   });
 
   cameraOrthographic.addEventListener('change', function () {
     if (this.checked) {
-      log.info('カメラモード切り替え: 2D（図面表示）');
-      syncViewModeButtons('orthographic');
-      setCameraMode(CAMERA_MODES.ORTHOGRAPHIC);
-      // デフォルトで平面図ビューを設定
-      try {
-        const { modelBounds } = getModelContext();
-        setView('top', modelBounds);
-        // 平面図ボタンをアクティブに（両方の場所）
-        syncViewDirectionButtons('top');
-        log.info('デフォルトビュー: 平面図');
-      } catch (error) {
-        log.warn('デフォルトビューの設定に失敗:', error);
-      }
-      // 2Dクリッピングコントロールを表示
-      updateDepth2DClippingVisibility(CAMERA_MODES.ORTHOGRAPHIC);
-      // STBエクスポートパネルを表示（2Dモードで使用可能）
-      setStbExportPanelVisibility(true);
-      // 通り芯を2Dモード用に再描画（延長を短く）
-      redrawAxesAtStory('all');
-      if (scheduleRender) scheduleRender();
+      switchToOrthographic();
     }
   });
 

@@ -190,5 +190,5 @@ class LabelDisplayManager extends BaseElementStateManager {
 const labelDisplayManager = new LabelDisplayManager();
 
 // 定数もエクスポート
-export { labelDisplayManager, LabelDisplayManager, LABEL_TYPES };
+export { labelDisplayManager, LabelDisplayManager };
 export default labelDisplayManager;

@@ -81,10 +81,3 @@ export function updateLabelsForElement(elementType, elementId, elementData) {
   return providers?.updateLabelsForElement?.(elementType, elementId, elementData) || false;
 }
 
-/**
- * 現在のプロバイダーを取得（デバッグ用）
- * @returns {ElementInfoProviders|null} 現在のプロバイダー
- */
-export function getProviders() {
-  return providers;
-}

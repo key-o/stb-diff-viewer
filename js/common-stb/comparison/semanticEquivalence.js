@@ -3,15 +3,10 @@
  * Handles version-specific attributes and semantic equivalence between STB 2.0.2 and 2.1.0
  */
 
-import {
-  normalizeElementName,
-  areElementNamesEquivalent,
-} from '../parser/utils/elementNameMapping.js';
-
 /**
  * Version-specific attributes that exist only in certain versions
  */
-export const VERSION_SPECIFIC_ATTRIBUTES = {
+const VERSION_SPECIFIC_ATTRIBUTES = {
   '2.0.2': {
     StbColumn: ['condition_bottom', 'condition_top'],
   },
@@ -27,20 +22,13 @@ export const VERSION_SPECIFIC_ATTRIBUTES = {
  * Attribute name equivalents between versions
  * Key: v202 name, Value: v210 name
  */
-export const ATTRIBUTE_EQUIVALENTS = {
+const ATTRIBUTE_EQUIVALENTS = {
   // Open element attributes
   position_X: 'offset_X',
   position_Y: 'offset_Y',
   length_X: 'width',
   length_Y: 'height',
 };
-
-/**
- * Reverse attribute equivalents (v210 -> v202)
- */
-export const ATTRIBUTE_EQUIVALENTS_REVERSE = Object.fromEntries(
-  Object.entries(ATTRIBUTE_EQUIVALENTS).map(([k, v]) => [v, k]),
-);
 
 /**
  * Check if an attribute is version-specific
@@ -52,16 +40,6 @@ export const ATTRIBUTE_EQUIVALENTS_REVERSE = Object.fromEntries(
 export function isVersionSpecificAttribute(elementType, attrName, version) {
   const attrs = VERSION_SPECIFIC_ATTRIBUTES[version]?.[elementType];
   return attrs?.includes(attrName) || false;
-}
-
-/**
- * Get all version-specific attributes for an element type
- * @param {string} elementType - Element type
- * @param {string} version - Version
- * @returns {string[]} Array of version-specific attribute names
- */
-export function getVersionSpecificAttributes(elementType, version) {
-  return VERSION_SPECIFIC_ATTRIBUTES[version]?.[elementType] || [];
 }
 
 /**
@@ -79,7 +57,7 @@ export function normalizeAttributeName(attrName) {
  * @param {string} nameB - Second attribute name
  * @returns {boolean} True if semantically equivalent
  */
-export function areAttributeNamesEquivalent(nameA, nameB) {
+function areAttributeNamesEquivalent(nameA, nameB) {
   if (nameA === nameB) return true;
 
   const normalizedA = normalizeAttributeName(nameA);
@@ -97,39 +75,6 @@ export const DIFF_TYPE = {
   ELEMENT_NAME: 'element_name', // Difference in element naming only
   STRUCTURAL: 'structural', // Structural difference (e.g., nested vs flat)
 };
-
-/**
- * Classify a difference between two elements
- * @param {Object} diffInfo - Difference information
- * @param {string} versionA - Version of element A
- * @param {string} versionB - Version of element B
- * @returns {string} Difference type from DIFF_TYPE
- */
-export function classifyDifference(diffInfo, versionA, versionB) {
-  const { attribute, elementType, valueA, valueB } = diffInfo;
-
-  // Check if attribute is version-specific
-  if (valueA !== undefined && valueB === undefined) {
-    if (isVersionSpecificAttribute(elementType, attribute, versionA)) {
-      return DIFF_TYPE.VERSION_SPECIFIC;
-    }
-  }
-
-  if (valueB !== undefined && valueA === undefined) {
-    if (isVersionSpecificAttribute(elementType, attribute, versionB)) {
-      return DIFF_TYPE.VERSION_SPECIFIC;
-    }
-  }
-
-  // Check if attribute names are equivalent
-  if (areAttributeNamesEquivalent(attribute, diffInfo.otherAttribute)) {
-    if (valueA === valueB) {
-      return DIFF_TYPE.ELEMENT_NAME;
-    }
-  }
-
-  return DIFF_TYPE.REAL_DIFF;
-}
 
 /**
  * Compare two elements with version awareness
@@ -247,4 +192,3 @@ export function generateVersionDifferenceSummary(comparisonResult) {
   };
 }
 
-export { normalizeElementName, areElementNamesEquivalent };

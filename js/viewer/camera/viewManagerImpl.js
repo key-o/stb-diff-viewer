@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { controls } from '../core/core.js';
 import { getActiveCamera } from '../core/core.js';
+import { reaffirmControlsForCurrentMode } from './cameraManagerImpl.js';
 
 /**
  * ビュー方向定数
@@ -309,6 +310,10 @@ export function setView(viewType, modelBounds = null, enableTransition = false) 
     camera.position.copy(position);
     camera.lookAt(center);
   }
+
+  // ビュー変更後: 現在のカメラモードに適したコントロール設定を再適用
+  // ViewCubeクリックやビュー方向ボタンによるカメラ移動後の整合性を保証
+  reaffirmControlsForCurrentMode();
 
   currentView = viewType;
   return true;

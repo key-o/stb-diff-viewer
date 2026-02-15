@@ -10,7 +10,6 @@
 import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
 import { getModelContext } from './displayModeController.js';
-import { compareSolidElements } from './comparisonRenderer.js';
 import { parseElements } from '../../common-stb/parser/stbXmlParser.js';
 import {
   drawLineElements,
@@ -37,7 +36,10 @@ import {
   compareElements,
   lineElementKeyExtractor,
   polyElementKeyExtractor,
+  createAttributeComparator,
 } from '../../common-stb/comparison/index.js';
+import { COMPARISON_KEY_TYPE } from '../../config/comparisonKeyConfig.js';
+import comparisonKeyManager from '../comparisonKeyManager.js';
 
 // ロガー
 const log = createLogger('elementRedrawer');
@@ -77,8 +79,6 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
   // 必要なデータが揃っているかチェック
   if (!modelADocument && !modelBDocument) return;
 
-  // どちらか一方のモデルを使う（A優先）
-  const doc = modelADocument || modelBDocument;
   const group = elementGroups[elementType];
 
   // 既存のラベルを削除
@@ -100,14 +100,42 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
 
     // 両方のモデルがある場合は比較を実行
     if (stbDataA && stbDataB) {
-      // 要素を比較して差分を検出
-      const comparisonResult = compareSolidElements(
+      // 統一比較エンジンを使用して差分を検出
+      const comparisonKeyType = comparisonKeyManager.getKeyType();
+
+      // 要素タイプに応じたキー抽出関数を選択し、元のJSオブジェクトを保持するラッパーで包む
+      let baseExtractor;
+      if (elementType === 'Slab' || elementType === 'Wall') {
+        baseExtractor = (el, nm) =>
+          polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType);
+      } else {
+        baseExtractor = (el, nm) =>
+          lineElementKeyExtractor(el, nm, nodeStartAttr, nodeEndAttr, comparisonKeyType);
+      }
+
+      // 元のJSオブジェクトをdata.elementに保持するラッパー
+      const keyExtractor = (element, nodeMap) => {
+        const result = baseExtractor(element, nodeMap);
+        if (result.key !== null && result.data !== null) {
+          result.data.element = element;
+        }
+        return result;
+      };
+
+      // 属性比較コールバックを作成（4カテゴリ分類: matched/mismatch/onlyA/onlyB）
+      const attributeComparator = createAttributeComparator((data) => data.element || data);
+      const comparisonOptions = {
+        attributeComparator,
+        classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
+      };
+
+      const comparisonResult = compareElements(
         stbDataA[elementsKey] || [],
         stbDataB[elementsKey] || [],
         stbDataA.nodes,
         stbDataB.nodes,
-        nodeStartAttr,
-        nodeEndAttr,
+        keyExtractor,
+        comparisonOptions,
       );
 
       log.debug(
@@ -120,7 +148,7 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
 
       // マッチした要素（属性も一致）のメッシュを生成（モデルAのデータを使用）
       if (comparisonResult.matched.length > 0) {
-        const matchedElements = comparisonResult.matched.map((m) => m.elementA);
+        const matchedElements = comparisonResult.matched.map((m) => m.dataA.element);
         const matchedMeshes = generator[generatorMethod](
           matchedElements,
           stbDataA.nodes,
@@ -134,7 +162,7 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
         // matched要素のペア情報をマップに変換
         const matchedPairs = new Map();
         comparisonResult.matched.forEach((pair) => {
-          matchedPairs.set(pair.elementA.id, pair.elementB.id);
+          matchedPairs.set(pair.dataA.element.id, pair.dataB.element.id);
         });
 
         matchedMeshes.forEach((mesh) => {
@@ -152,7 +180,7 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
 
       // 不一致要素（位置は一致、属性が異なる）のメッシュを生成（モデルAのデータを使用）
       if (comparisonResult.mismatch.length > 0) {
-        const mismatchElements = comparisonResult.mismatch.map((m) => m.elementA);
+        const mismatchElements = comparisonResult.mismatch.map((m) => m.dataA.element);
         const mismatchMeshes = generator[generatorMethod](
           mismatchElements,
           stbDataA.nodes,
@@ -166,7 +194,7 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
         // mismatch要素のペア情報をマップに変換
         const mismatchPairs = new Map();
         comparisonResult.mismatch.forEach((pair) => {
-          mismatchPairs.set(pair.elementA.id, pair.elementB.id);
+          mismatchPairs.set(pair.dataA.element.id, pair.dataB.element.id);
         });
 
         mismatchMeshes.forEach((mesh) => {
@@ -184,8 +212,9 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
 
       // モデルAのみの要素のメッシュを生成
       if (comparisonResult.onlyA.length > 0) {
+        const onlyAElements = comparisonResult.onlyA.map((d) => d.element);
         const onlyAMeshes = generator[generatorMethod](
-          comparisonResult.onlyA,
+          onlyAElements,
           stbDataA.nodes,
           stbDataA[sectionsKey],
           stbDataA.steelSections,
@@ -201,8 +230,9 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
 
       // モデルBのみの要素のメッシュを生成
       if (comparisonResult.onlyB.length > 0) {
+        const onlyBElements = comparisonResult.onlyB.map((d) => d.element);
         const onlyBMeshes = generator[generatorMethod](
-          comparisonResult.onlyB,
+          onlyBElements,
           stbDataB.nodes,
           stbDataB[sectionsKey],
           stbDataB.steelSections,
@@ -224,28 +254,28 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
       if (createLabelsFlag) {
         // マッチした要素のラベル
         const matchedLabels = createLabelsForSolidElementsWithSource(
-          comparisonResult.matched.map((m) => m.elementA),
+          comparisonResult.matched.map((m) => m.dataA.element),
           stbDataA.nodes,
           elementType,
           'matched',
         );
         // 不一致要素のラベル
         const mismatchLabels = createLabelsForSolidElementsWithSource(
-          comparisonResult.mismatch.map((m) => m.elementA),
+          comparisonResult.mismatch.map((m) => m.dataA.element),
           stbDataA.nodes,
           elementType,
           'mismatch',
         );
         // モデルAのみの要素のラベル
         const onlyALabels = createLabelsForSolidElementsWithSource(
-          comparisonResult.onlyA,
+          comparisonResult.onlyA.map((d) => d.element),
           stbDataA.nodes,
           elementType,
           'A',
         );
         // モデルBのみの要素のラベル
         const onlyBLabels = createLabelsForSolidElementsWithSource(
-          comparisonResult.onlyB,
+          comparisonResult.onlyB.map((d) => d.element),
           stbDataB.nodes,
           elementType,
           'B',
@@ -317,8 +347,17 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
       const elementsA = parseElements(modelADocument, stbTagName);
       const elementsB = parseElements(modelBDocument, stbTagName);
 
-      const comparisonResult = compareElements(elementsA, elementsB, nodeMapA, nodeMapB, (el, nm) =>
-        polyElementKeyExtractor(el, nm, 'StbNodeIdOrder'),
+      const comparisonKeyType = comparisonKeyManager.getKeyType();
+      const comparisonOptions = {
+        classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
+      };
+      const comparisonResult = compareElements(
+        elementsA,
+        elementsB,
+        nodeMapA,
+        nodeMapB,
+        (el, nm) => polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType),
+        comparisonOptions,
       );
 
       labelDisplayManager.syncWithCheckbox(elementType);
@@ -352,8 +391,17 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
       // 2ノード要素の線表示（既存コード）
       const elementsA = parseElements(modelADocument, stbTagName);
       const elementsB = parseElements(modelBDocument, stbTagName);
-      const comparisonResult = compareElements(elementsA, elementsB, nodeMapA, nodeMapB, (el, nm) =>
-        lineElementKeyExtractor(el, nm, nodeStartAttr, nodeEndAttr),
+      const comparisonKeyType = comparisonKeyManager.getKeyType();
+      const comparisonOptions = {
+        classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
+      };
+      const comparisonResult = compareElements(
+        elementsA,
+        elementsB,
+        nodeMapA,
+        nodeMapB,
+        (el, nm) => lineElementKeyExtractor(el, nm, nodeStartAttr, nodeEndAttr, comparisonKeyType),
+        comparisonOptions,
       );
 
       labelDisplayManager.syncWithCheckbox(elementType);
@@ -440,72 +488,6 @@ export function redrawBeamsForViewMode(scheduleRender) {
   redrawElementByType('Girder', scheduleRender, false);
   // 小梁（Beam）を処理（ラベル更新を実行）
   redrawElementByType('Beam', scheduleRender, true);
-}
-
-/**
- * 立体表示要素用のラベルを作成する
- * @param {Array} elements - 要素配列
- * @param {Map} nodes - 節点マップ
- * @param {string} elementType - 要素タイプ
- * @returns {Array} 作成されたラベルスプライトの配列
- */
-function createLabelsForSolidElements(elements, nodes, elementType) {
-  const labels = [];
-
-  for (const element of elements) {
-    let startNode, endNode, labelText, centerPosition;
-
-    // 要素タイプに応じて座標とラベルテキストを取得
-    if (elementType === 'Column' || elementType === 'Post' || elementType === 'FoundationColumn') {
-      startNode = nodes.get(element.id_node_bottom);
-      endNode = nodes.get(element.id_node_top);
-      labelText = generateLabelText(element, elementType);
-      if (startNode && endNode) {
-        centerPosition = new THREE.Vector3().addVectors(startNode, endNode).multiplyScalar(0.5);
-      }
-    } else if (elementType === 'Girder' || elementType === 'Beam') {
-      startNode = nodes.get(element.id_node_start);
-      endNode = nodes.get(element.id_node_end);
-      labelText = generateLabelText(element, elementType);
-      if (startNode && endNode) {
-        centerPosition = new THREE.Vector3().addVectors(startNode, endNode).multiplyScalar(0.5);
-      }
-    } else if (elementType === 'Brace' || elementType === 'Pile') {
-      startNode = nodes.get(element.id_node_start || element.id_node_bottom);
-      endNode = nodes.get(element.id_node_end || element.id_node_top);
-      labelText = generateLabelText(element, elementType);
-      if (startNode && endNode) {
-        centerPosition = new THREE.Vector3().addVectors(startNode, endNode).multiplyScalar(0.5);
-      }
-    } else if (elementType === 'Footing') {
-      // 基礎は1ノード要素 - ノード位置をそのまま使用
-      const node = nodes.get(element.id_node);
-      labelText = generateLabelText(element, elementType);
-      if (node) {
-        // level_bottom を考慮してラベル位置を調整
-        const levelBottom = element.level_bottom || 0;
-        centerPosition = new THREE.Vector3(node.x, node.y, levelBottom);
-      }
-    } else {
-      continue;
-    }
-
-    if (!centerPosition) continue;
-
-    // ラベルスプライトを作成（グループは後で追加するため、nullを渡す）
-    const sprite = createLabelSprite(labelText, centerPosition, null, elementType);
-    if (sprite) {
-      sprite.userData.elementId = element.id;
-      sprite.userData.modelSource = 'solid'; // 立体表示由来のラベル
-      sprite.userData.elementType = elementType;
-
-      // 要素データを保存して再生成時に使用
-      attachElementDataToLabel(sprite, element);
-      labels.push(sprite);
-    }
-  }
-
-  return labels;
 }
 
 /**

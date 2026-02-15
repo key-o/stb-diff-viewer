@@ -230,7 +230,7 @@ let diffStatusPanelInstance = null;
  * DiffStatusPanelのシングルトンインスタンスを取得
  * @returns {DiffStatusPanel} インスタンス
  */
-export function getDiffStatusPanel() {
+function getDiffStatusPanel() {
   if (!diffStatusPanelInstance) {
     diffStatusPanelInstance = new DiffStatusPanel();
   }

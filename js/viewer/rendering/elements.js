@@ -38,16 +38,6 @@ function getSharedNodeSphereGeometry() {
   return sharedNodeSphereGeometry;
 }
 
-/**
- * 共有ジオメトリを破棄
- */
-export function disposeSharedGeometries() {
-  if (sharedNodeSphereGeometry) {
-    sharedNodeSphereGeometry.dispose();
-    sharedNodeSphereGeometry = null;
-  }
-  log.info('Shared geometries disposed');
-}
 
 /**
  * グループ内の子要素のジオメトリを適切に破棄してからクリア
@@ -130,6 +120,133 @@ function attachElementDataToLabelInternal(sprite, element) {
   if (elementsLabelProvider && elementsLabelProvider.attachElementDataToLabel) {
     elementsLabelProvider.attachElementDataToLabel(sprite, element);
   }
+}
+
+/**
+ * 座標がすべて有限数かバリデートする
+ * @param {Object} startCoords - 始点座標 {x, y, z}
+ * @param {Object} endCoords - 終点座標 {x, y, z}
+ * @returns {boolean} 有効な場合true
+ */
+function isValidLineCoords(startCoords, endCoords) {
+  return (
+    startCoords &&
+    endCoords &&
+    Number.isFinite(startCoords.x) &&
+    Number.isFinite(startCoords.y) &&
+    Number.isFinite(startCoords.z) &&
+    Number.isFinite(endCoords.x) &&
+    Number.isFinite(endCoords.y) &&
+    Number.isFinite(endCoords.z)
+  );
+}
+
+/**
+ * onlyA / onlyB 要素のライン描画を行う共通関数
+ * @param {Array} items - onlyA/onlyB 要素配列
+ * @param {string} elementType - 要素タイプ名
+ * @param {string} materialCategory - マテリアルカテゴリ ('onlyA' | 'onlyB')
+ * @param {string} modelSource - モデルソース ('A' | 'B')
+ * @param {string} labelPrefix - ラベルプレフィックス ('A' | 'B')
+ * @param {THREE.Group} group - 描画対象グループ
+ * @param {boolean} labelToggle - ラベル表示の有無
+ * @param {number} labelOffsetAmount - ラベルオフセット量
+ * @param {number} labelOffsetSign - ラベルオフセット方向 (1: add, -1: sub)
+ * @param {THREE.Box3} modelBounds - バウンディングボックス
+ * @param {Array<THREE.Sprite>} createdLabels - ラベル収集配列
+ */
+function drawOnlyLineElements(
+  items,
+  elementType,
+  materialCategory,
+  modelSource,
+  labelPrefix,
+  group,
+  labelToggle,
+  labelOffsetAmount,
+  labelOffsetSign,
+  modelBounds,
+  createdLabels,
+) {
+  let debugCount = 0;
+  items.forEach((item) => {
+    if (!item) {
+      log.warn(`Skipping undefined item in ${materialCategory} for ${elementType}`);
+      return;
+    }
+    const { startCoords, endCoords, id, element, importance } = item;
+    if (!isValidLineCoords(startCoords, endCoords)) {
+      log.warn(`Skipping ${materialCategory} line due to invalid coords: ID=${id}`);
+      return;
+    }
+
+    const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
+    const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
+
+    if (debugCount < 2) {
+      log.debug(
+        `${elementType} ${materialCategory} element ${debugCount}: Start=(${startCoords.x.toFixed(
+          0,
+        )}, ${startCoords.y.toFixed(0)}, ${startCoords.z.toFixed(
+          0,
+        )})mm, End=(${endCoords.x.toFixed(0)}, ${endCoords.y.toFixed(
+          0,
+        )}, ${endCoords.z.toFixed(0)})mm`,
+      );
+    }
+    debugCount++;
+
+    const geometry = new THREE.BufferGeometry().setFromPoints([startVec, endVec]);
+    const line = new THREE.Line(
+      geometry,
+      getMaterialForElementWithMode(elementType, materialCategory, true, false, id),
+    );
+    line.userData = {
+      elementType: elementType,
+      elementId: id,
+      modelSource: modelSource,
+      importance: importance,
+      isLine: true,
+    };
+
+    applyImportanceVisuals(line, importance);
+
+    group.add(line);
+    modelBounds.expandByPoint(startVec);
+    modelBounds.expandByPoint(endVec);
+
+    if (labelToggle && id) {
+      const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
+      const direction = endVec.clone().sub(startVec).normalize();
+      let offsetDir = new THREE.Vector3(-direction.y, direction.x, 0).normalize();
+      if (offsetDir.lengthSq() < 0.1) offsetDir = new THREE.Vector3(1, 0, 0);
+      const labelPosition = midPoint
+        .clone()
+        .add(offsetDir.multiplyScalar(labelOffsetSign * labelOffsetAmount));
+
+      const contentType = getState('ui.labelContentType') || 'id';
+      let displayText = id;
+
+      if (contentType === 'name' && element && element.name) {
+        displayText = element.name;
+      } else if (contentType === 'section') {
+        displayText = generateLabelTextInternal(element, elementType);
+      }
+
+      const labelText = `${labelPrefix}: ${displayText}`;
+      const sprite = createLabelSpriteInternal(labelText, labelPosition, group, elementType);
+      if (sprite) {
+        sprite.userData.elementId = id;
+        sprite.userData.modelSource = modelSource;
+
+        if (element) {
+          attachElementDataToLabelInternal(sprite, element);
+        }
+
+        createdLabels.push(sprite);
+      }
+    }
+  });
 }
 
 /**
@@ -232,289 +349,141 @@ export function drawLineElements(
     const idA = dataA.id;
     const idB = dataB.id;
 
-    if (
-      startCoords &&
-      endCoords &&
-      Number.isFinite(startCoords.x) &&
-      Number.isFinite(startCoords.y) &&
-      Number.isFinite(startCoords.z) &&
-      Number.isFinite(endCoords.x) &&
-      Number.isFinite(endCoords.y) &&
-      Number.isFinite(endCoords.z)
-    ) {
-      const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
-      const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
-
-      // デバッグ出力（最初の3個の一致要素のみ）
-      if (index < 3) {
-        log.debug(
-          `${elementType} matched element ${index}: Start=(${startCoords.x.toFixed(
-            0,
-          )}, ${startCoords.y.toFixed(0)}, ${startCoords.z.toFixed(
-            0,
-          )})mm, End=(${endCoords.x.toFixed(0)}, ${endCoords.y.toFixed(
-            0,
-          )}, ${endCoords.z.toFixed(0)})mm`,
-        );
-      }
-
-      const geometry = new THREE.BufferGeometry().setFromPoints([startVec, endVec]);
-      const material = getMaterialForElementWithMode(
-        elementType,
-        'matched',
-        true,
-        false,
-        idA,
-        matchType,
-      );
-      if (index < 3) {
-        log.trace(`Material for matched item ${index}:`, material);
-      }
-
-      const line = new THREE.Line(geometry, material);
-
-      // 重要度データを取得（重要度管理システムから）
-      let importance = null;
-      const importanceManager = getState('importanceManager');
-      if (importanceManager && dataA.element) {
-        // 要素の重要度を取得（まずAから、なければBから）
-        importance =
-          importanceManager.getElementImportance?.(dataA.element) ||
-          (dataB.element ? importanceManager.getElementImportance?.(dataB.element) : null);
-      }
-
-      line.userData = {
-        elementType: elementType,
-        elementId: idA, // 統一されたID参照用（colorModes.js, modelLoader.js等で使用）
-        elementIdA: idA,
-        elementIdB: idB,
-        modelSource: 'matched',
-        originalId: idA, // applyImportanceColorMode で使用
-        id: idA,
-        importance: importance, // 重要度データを設定
-        toleranceState: matchType,
-        isLine: true,
-      };
-
-      if (index < 3) {
-        log.trace(`Created line object ${index}:`, line);
-        log.trace(`Line importance:`, importance);
-        log.trace(`Line geometry points:`, geometry.attributes.position.array);
-      }
-
-      // 重要度による視覚調整を適用
-      applyImportanceVisuals(line, importance);
-
-      group.add(line);
-      addedToGroupCount++;
-
-      if (index < 3) {
-        log.debug(`Added line ${index} to group. Group children count:`, group.children.length);
-      }
-
-      modelBounds.expandByPoint(startVec);
-      modelBounds.expandByPoint(endVec);
-
-      if (labelToggle && (idA || idB)) {
-        const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
-
-        // マッチした要素の場合、設定に応じてラベルテキストを生成
-        const contentType = getState('ui.labelContentType') || 'id';
-        let labelText;
-
-        if (contentType === 'id') {
-          labelText = `${idA || '?'} / ${idB || '?'}`;
-        } else {
-          // 名前また断面名を使用する場合
-          const nameA = dataA.element && dataA.element.name ? dataA.element.name : idA;
-          const nameB = dataB.element && dataB.element.name ? dataB.element.name : idB;
-          labelText = `${nameA || '?'} / ${nameB || '?'}`;
-        }
-
-        const sprite = createLabelSpriteInternal(labelText, midPoint, group, elementType);
-        if (sprite) {
-          sprite.userData.elementIdA = idA;
-          sprite.userData.elementIdB = idB;
-          sprite.userData.modelSource = 'matched';
-
-          // 要素データを保存（両方のモデルの要素データを保存）
-          if (dataA.element) {
-            attachElementDataToLabelInternal(sprite, dataA.element);
-          }
-
-          createdLabels.push(sprite);
-        }
-      }
-    } else {
+    if (!isValidLineCoords(startCoords, endCoords)) {
       skippedCount++;
       log.warn(`Skipping matched line due to invalid coords: A=${idA}, B=${idB}`);
-    }
-  });
-
-  let onlyACount = 0;
-  comparisonResult.onlyA.forEach((item) => {
-    if (!item) {
-      log.warn(`Skipping undefined item in onlyA for ${elementType}`);
       return;
     }
-    const { startCoords, endCoords, id, element, importance } = item;
-    if (
-      startCoords &&
-      endCoords &&
-      Number.isFinite(startCoords.x) &&
-      Number.isFinite(startCoords.y) &&
-      Number.isFinite(startCoords.z) &&
-      Number.isFinite(endCoords.x) &&
-      Number.isFinite(endCoords.y) &&
-      Number.isFinite(endCoords.z)
-    ) {
-      const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
-      const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
 
-      // デバッグ出力（最初の2個のOnlyA要素のみ）
-      if (onlyACount < 2) {
-        log.debug(
-          `${elementType} onlyA element ${onlyACount}: Start=(${startCoords.x.toFixed(
-            0,
-          )}, ${startCoords.y.toFixed(0)}, ${startCoords.z.toFixed(
-            0,
-          )})mm, End=(${endCoords.x.toFixed(0)}, ${endCoords.y.toFixed(
-            0,
-          )}, ${endCoords.z.toFixed(0)})mm`,
-        );
-      }
-      onlyACount++;
-      const geometry = new THREE.BufferGeometry().setFromPoints([startVec, endVec]);
-      const line = new THREE.Line(
-        geometry,
-        getMaterialForElementWithMode(elementType, 'onlyA', true, false, id),
+    const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
+    const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
+
+    if (index < 3) {
+      log.debug(
+        `${elementType} matched element ${index}: Start=(${startCoords.x.toFixed(
+          0,
+        )}, ${startCoords.y.toFixed(0)}, ${startCoords.z.toFixed(
+          0,
+        )})mm, End=(${endCoords.x.toFixed(0)}, ${endCoords.y.toFixed(
+          0,
+        )}, ${endCoords.z.toFixed(0)})mm`,
       );
-      line.userData = {
-        elementType: elementType,
-        elementId: id,
-        modelSource: 'A',
-        importance: importance, // 重要度データを設定
-        isLine: true, // 一貫性のため追加
-      };
+    }
 
-      // 重要度による視覚調整を適用
-      applyImportanceVisuals(line, importance);
+    const geometry = new THREE.BufferGeometry().setFromPoints([startVec, endVec]);
+    const material = getMaterialForElementWithMode(
+      elementType,
+      'matched',
+      true,
+      false,
+      idA,
+      matchType,
+    );
+    if (index < 3) {
+      log.trace(`Material for matched item ${index}:`, material);
+    }
 
-      group.add(line);
-      modelBounds.expandByPoint(startVec);
-      modelBounds.expandByPoint(endVec);
+    const line = new THREE.Line(geometry, material);
 
-      if (labelToggle && id) {
-        const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
-        const direction = endVec.clone().sub(startVec).normalize();
-        let offsetDir = new THREE.Vector3(-direction.y, direction.x, 0).normalize();
-        if (offsetDir.lengthSq() < 0.1) offsetDir = new THREE.Vector3(1, 0, 0);
-        const labelPosition = midPoint.clone().add(offsetDir.multiplyScalar(labelOffsetAmount));
+    // 重要度データを取得（重要度管理システムから、比較結果の値を上書き）
+    let resolvedImportance = importance;
+    const importanceManager = getState('importanceManager');
+    if (importanceManager && dataA.element) {
+      resolvedImportance =
+        importanceManager.getElementImportance?.(dataA.element) ||
+        (dataB.element ? importanceManager.getElementImportance?.(dataB.element) : null) ||
+        importance;
+    }
 
-        // 設定に応じてラベルテキストを生成
-        const contentType = getState('ui.labelContentType') || 'id';
-        let displayText = id;
+    line.userData = {
+      elementType: elementType,
+      elementId: idA,
+      elementIdA: idA,
+      elementIdB: idB,
+      modelSource: 'matched',
+      originalId: idA,
+      id: idA,
+      importance: resolvedImportance,
+      toleranceState: matchType,
+      isLine: true,
+    };
 
-        if (contentType === 'name' && element && element.name) {
-          displayText = element.name;
-        } else if (contentType === 'section') {
-          // 断面名表示の場合、統合ラベル管理システムを使用
-          displayText = generateLabelTextInternal(element, elementType);
-        }
+    if (index < 3) {
+      log.trace(`Created line object ${index}:`, line);
+      log.trace(`Line importance:`, resolvedImportance);
+      log.trace(`Line geometry points:`, geometry.attributes.position.array);
+    }
 
-        const labelText = `A: ${displayText}`;
-        const sprite = createLabelSpriteInternal(labelText, labelPosition, group, elementType);
-        if (sprite) {
-          sprite.userData.elementId = id;
-          sprite.userData.modelSource = 'A';
+    applyImportanceVisuals(line, resolvedImportance);
 
-          // 要素データを保存
-          if (element) {
-            attachElementDataToLabelInternal(sprite, element);
-          }
+    group.add(line);
+    addedToGroupCount++;
 
-          createdLabels.push(sprite);
-        }
+    if (index < 3) {
+      log.debug(`Added line ${index} to group. Group children count:`, group.children.length);
+    }
+
+    modelBounds.expandByPoint(startVec);
+    modelBounds.expandByPoint(endVec);
+
+    if (labelToggle && (idA || idB)) {
+      const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
+
+      const contentType = getState('ui.labelContentType') || 'id';
+      let labelText;
+
+      if (contentType === 'id') {
+        labelText = `${idA || '?'} / ${idB || '?'}`;
+      } else {
+        const nameA = dataA.element && dataA.element.name ? dataA.element.name : idA;
+        const nameB = dataB.element && dataB.element.name ? dataB.element.name : idB;
+        labelText = `${nameA || '?'} / ${nameB || '?'}`;
       }
-    } else {
-      log.warn(`Skipping onlyA line due to invalid coords: ID=${id}`);
+
+      const sprite = createLabelSpriteInternal(labelText, midPoint, group, elementType);
+      if (sprite) {
+        sprite.userData.elementIdA = idA;
+        sprite.userData.elementIdB = idB;
+        sprite.userData.modelSource = 'matched';
+
+        if (dataA.element) {
+          attachElementDataToLabelInternal(sprite, dataA.element);
+        }
+
+        createdLabels.push(sprite);
+      }
     }
   });
 
-  comparisonResult.onlyB.forEach((item) => {
-    if (!item) {
-      log.warn(`Skipping undefined item in onlyB for ${elementType}`);
-      return;
-    }
-    const { startCoords, endCoords, id, element, importance } = item;
-    if (
-      startCoords &&
-      endCoords &&
-      Number.isFinite(startCoords.x) &&
-      Number.isFinite(startCoords.y) &&
-      Number.isFinite(startCoords.z) &&
-      Number.isFinite(endCoords.x) &&
-      Number.isFinite(endCoords.y) &&
-      Number.isFinite(endCoords.z)
-    ) {
-      const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
-      const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
-      const geometry = new THREE.BufferGeometry().setFromPoints([startVec, endVec]);
-      const line = new THREE.Line(
-        geometry,
-        getMaterialForElementWithMode(elementType, 'onlyB', true, false, id),
-      );
-      line.userData = {
-        elementType: elementType,
-        elementId: id,
-        modelSource: 'B',
-        importance: importance, // 重要度データを設定
-        isLine: true, // 一貫性のため追加
-      };
+  // onlyA 要素の描画
+  drawOnlyLineElements(
+    comparisonResult.onlyA,
+    elementType,
+    'onlyA',
+    'A',
+    'A',
+    group,
+    labelToggle,
+    labelOffsetAmount,
+    1,
+    modelBounds,
+    createdLabels,
+  );
 
-      // 重要度による視覚調整を適用
-      applyImportanceVisuals(line, importance);
-
-      group.add(line);
-      modelBounds.expandByPoint(startVec);
-      modelBounds.expandByPoint(endVec);
-
-      if (labelToggle && id) {
-        const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
-        const direction = endVec.clone().sub(startVec).normalize();
-        let offsetDir = new THREE.Vector3(-direction.y, direction.x, 0).normalize();
-        if (offsetDir.lengthSq() < 0.1) offsetDir = new THREE.Vector3(1, 0, 0);
-        const labelPosition = midPoint.clone().sub(offsetDir.multiplyScalar(labelOffsetAmount));
-
-        // 設定に応じてラベルテキストを生成
-        const contentType = getState('ui.labelContentType') || 'id';
-        let displayText = id;
-
-        if (contentType === 'name' && element && element.name) {
-          displayText = element.name;
-        } else if (contentType === 'section') {
-          // 断面名表示の場合、統合ラベル管理システムを使用
-          displayText = generateLabelTextInternal(element, elementType);
-        }
-
-        const labelText = `B: ${displayText}`;
-        const sprite = createLabelSpriteInternal(labelText, labelPosition, group, elementType);
-        if (sprite) {
-          sprite.userData.elementId = id;
-          sprite.userData.modelSource = 'B';
-
-          // 要素データを保存
-          if (element) {
-            attachElementDataToLabelInternal(sprite, element);
-          }
-
-          createdLabels.push(sprite);
-        }
-      }
-    } else {
-      log.warn(`Skipping onlyB line due to invalid coords: ID=${id}`);
-    }
-  });
+  // onlyB 要素の描画
+  drawOnlyLineElements(
+    comparisonResult.onlyB,
+    elementType,
+    'onlyB',
+    'B',
+    'B',
+    group,
+    labelToggle,
+    labelOffsetAmount,
+    -1,
+    modelBounds,
+    createdLabels,
+  );
 
   log.info(`${elementType} line rendering summary:`, {
     processedCount,

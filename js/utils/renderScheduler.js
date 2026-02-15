@@ -34,7 +34,7 @@ export function scheduleRender() {
  * scheduleRenderと同じ動作ですが、意図を明確にするためのエイリアス。
  * アニメーションループ外での即座の描画更新が必要な場合に使用。
  */
-export function requestImmediateRender() {
+function requestImmediateRender() {
   scheduleRender();
 }
 
@@ -43,7 +43,7 @@ export function requestImmediateRender() {
  *
  * @returns {boolean} scheduleRender関数が登録済みの場合true
  */
-export function isRenderAvailable() {
+function isRenderAvailable() {
   const fn = getState('rendering.scheduleRender');
   return typeof fn === 'function';
 }

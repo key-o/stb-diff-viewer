@@ -17,12 +17,7 @@ export {
 
 // サブモジュールの再エクスポート（必要に応じて使用）
 export { setElementInfoProviders as setProviders } from './ElementInfoProviders.js';
-export {
-  getAttributeImportanceLevel,
-  getImportanceBasedBackgroundColor,
-  getModelSourceBackgroundColor,
-  getSingleValueBackgroundColor,
-} from './ImportanceColors.js';
+export { getAttributeImportanceLevel, getImportanceCircleHtml } from './ImportanceColors.js';
 export {
   findSectionNode,
   findSteelSectionInfo,

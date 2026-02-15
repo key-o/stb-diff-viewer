@@ -14,7 +14,8 @@ import * as THREE from 'three';
 import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('modelLoader:comparison');
-import { parseElements } from '../common-stb/parser/stbXmlParser.js';
+import { parseElements, buildNodeStoryAxisLookup } from '../common-stb/parser/stbXmlParser.js';
+import { extractAllSections } from '../common-stb/parser/sectionExtractor.js';
 import {
   compareElements,
   compareElementsWithImportance,
@@ -23,10 +24,108 @@ import {
   polyElementKeyExtractor,
   nodeElementKeyExtractor,
 } from '../common-stb/comparison/comparator.js';
+import { normalizeSectionData } from '../app/sectionEquivalenceEngine.js';
 import { SUPPORTED_ELEMENTS } from '../constants/elementTypes.js';
 import { COMPARISON_KEY_TYPE } from '../config/comparisonKeyConfig.js';
 import { getToleranceConfig } from '../config/toleranceConfig.js';
 import { getImportanceManager } from '../app/importanceManager.js';
+
+const SECTION_MAP_KEY_BY_ELEMENT_TYPE = {
+  Column: 'columnSections',
+  Post: 'postSections',
+  Girder: 'girderSections',
+  Beam: 'beamSections',
+  Brace: 'braceSections',
+  Slab: 'slabSections',
+  Wall: 'wallSections',
+  Parapet: 'parapetSections',
+  Pile: 'pileSections',
+  Footing: 'footingSections',
+  FoundationColumn: 'foundationcolumnSections',
+};
+
+function getElementAttribute(element, attributeName) {
+  if (!element) return null;
+  if (typeof element.getAttribute === 'function') {
+    return element.getAttribute(attributeName);
+  }
+  const value = element[attributeName];
+  return value !== undefined && value !== null ? String(value) : null;
+}
+
+function getSectionIdFromElement(element) {
+  return getElementAttribute(element, 'id_section') || getElementAttribute(element, 'id_sec');
+}
+
+function getSectionDataFromMap(sectionMap, sectionId) {
+  if (!(sectionMap instanceof Map) || !sectionId) return null;
+
+  const candidates = new Set([sectionId, String(sectionId)]);
+  const numericId = Number(sectionId);
+  if (!Number.isNaN(numericId)) {
+    candidates.add(numericId);
+    candidates.add(String(numericId));
+  }
+
+  const parsedInteger = Number.parseInt(sectionId, 10);
+  if (!Number.isNaN(parsedInteger)) {
+    candidates.add(parsedInteger);
+    candidates.add(String(parsedInteger));
+  }
+
+  for (const candidate of candidates) {
+    if (sectionMap.has(candidate)) {
+      return sectionMap.get(candidate);
+    }
+  }
+
+  return null;
+}
+
+function toStableComparableObject(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => toStableComparableObject(item));
+  }
+
+  if (value && typeof value === 'object') {
+    const sorted = {};
+    for (const key of Object.keys(value).sort()) {
+      const normalizedValue = toStableComparableObject(value[key]);
+      if (normalizedValue !== undefined) {
+        sorted[key] = normalizedValue;
+      }
+    }
+    return sorted;
+  }
+
+  return value;
+}
+
+function buildSectionCompositionSignature(sectionData, elementType) {
+  if (!sectionData || typeof sectionData !== 'object') return null;
+
+  const normalizedSection = normalizeSectionData(sectionData, elementType);
+  const signaturePayload = {
+    normalizedSection,
+    mode: sectionData.mode ?? null,
+    shapeName: sectionData.shapeName ?? null,
+    sectionType: sectionData.sectionType ?? null,
+    section_type: sectionData.section_type ?? null,
+    profile_type: sectionData.profile_type ?? null,
+    id_steel: sectionData.id_steel ?? null,
+    dimensions: sectionData.dimensions ?? null,
+    properties: sectionData.properties ?? null,
+    shapes: sectionData.shapes ?? null,
+    steelVariants: sectionData.steelVariants ?? null,
+    sameNotSamePattern: sectionData.sameNotSamePattern ?? null,
+    multiSectionType: sectionData.multiSectionType ?? null,
+    concreteProfile: sectionData.concreteProfile ?? null,
+    isSRC: sectionData.isSRC ?? null,
+    isReferenceDirection: sectionData.isReferenceDirection ?? null,
+  };
+
+  return JSON.stringify(toStableComparableObject(signaturePayload));
+}
 
 /**
  * Process element comparison for all supported element types
@@ -43,12 +142,23 @@ export function processElementComparison(modelData, selectedElementTypes, option
 
   const comparisonResults = new Map();
   const modelBounds = new THREE.Box3();
+  const sectionMapsA = modelADocument ? extractAllSections(modelADocument) : null;
+  const sectionMapsB = modelBDocument ? extractAllSections(modelBDocument) : null;
 
   const { comparisonKeyType = COMPARISON_KEY_TYPE.POSITION_BASED } = options;
 
-  for (const elementType of SUPPORTED_ELEMENTS) {
-    if (elementType === 'Axis' || elementType === 'Story') continue;
+  // STORY_AXIS_BASED モード用: ノード所属情報ルックアップを構築
+  let storyAxisLookupA = null;
+  let storyAxisLookupB = null;
+  if (comparisonKeyType === COMPARISON_KEY_TYPE.STORY_AXIS_BASED) {
+    storyAxisLookupA = modelADocument ? buildNodeStoryAxisLookup(modelADocument) : new Map();
+    storyAxisLookupB = modelBDocument ? buildNodeStoryAxisLookup(modelBDocument) : new Map();
+  }
 
+  // Axis の XML タグ名は 'StbParallelAxis'（'StbAxis' ではない）
+  const ELEMENT_TAG_OVERRIDES = { Axis: 'StbParallelAxis' };
+
+  for (const elementType of SUPPORTED_ELEMENTS) {
     const isSelected = selectedElementTypes.includes(elementType);
 
     let elementsA = [];
@@ -72,8 +182,9 @@ export function processElementComparison(modelData, selectedElementTypes, option
 
     try {
       // Parse elements from both models
-      elementsA = parseElements(modelADocument, 'Stb' + elementType);
-      elementsB = parseElements(modelBDocument, 'Stb' + elementType);
+      const xmlTagName = ELEMENT_TAG_OVERRIDES[elementType] || 'Stb' + elementType;
+      elementsA = parseElements(modelADocument, xmlTagName);
+      elementsB = parseElements(modelBDocument, xmlTagName);
 
       // Perform comparison with importance options
       const comparisonResult = compareElementsByType(
@@ -82,7 +193,16 @@ export function processElementComparison(modelData, selectedElementTypes, option
         elementsB,
         nodeMapA,
         nodeMapB,
-        { ...options, comparisonKeyType },
+        {
+          ...options,
+          comparisonKeyType,
+          modelADocument,
+          modelBDocument,
+          sectionMapsA,
+          sectionMapsB,
+          storyAxisLookupA,
+          storyAxisLookupB,
+        },
       );
 
       // Store comparison result
@@ -144,6 +264,12 @@ function compareElementsByType(
     useImportanceFiltering = true,
     targetImportanceLevels = null,
     comparisonKeyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+    modelADocument = null,
+    modelBDocument = null,
+    sectionMapsA = null,
+    sectionMapsB = null,
+    storyAxisLookupA = null,
+    storyAxisLookupB = null,
   } = options;
 
   let comparisonResult = null;
@@ -151,6 +277,72 @@ function compareElementsByType(
   // Get tolerance configuration
   const toleranceConfig = getToleranceConfig();
   const useToleranceComparison = toleranceConfig.enabled && !toleranceConfig.strictMode;
+  const compareOptions = {
+    classifyNullKeysAsOnly:
+      comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED ||
+      comparisonKeyType === COMPARISON_KEY_TYPE.STORY_AXIS_BASED,
+  };
+  const sectionMapKey = SECTION_MAP_KEY_BY_ELEMENT_TYPE[elementType] || null;
+  const sectionSignatureCacheA = new Map();
+  const sectionSignatureCacheB = new Map();
+
+  const resolveSectionMapsForElement = (element, nodeMapRef) => {
+    if (nodeMapRef === nodeMapA) {
+      return sectionMapsA;
+    }
+    if (nodeMapRef === nodeMapB) {
+      return sectionMapsB;
+    }
+
+    const ownerDocument = element?.ownerDocument;
+    if (ownerDocument && ownerDocument === modelADocument) {
+      return sectionMapsA;
+    }
+    if (ownerDocument && ownerDocument === modelBDocument) {
+      return sectionMapsB;
+    }
+
+    return null;
+  };
+
+  const resolveStoryAxisLookup = (nodeMapRef) => {
+    if (nodeMapRef === nodeMapA) return storyAxisLookupA;
+    if (nodeMapRef === nodeMapB) return storyAxisLookupB;
+    return null;
+  };
+
+  const resolveSectionSignature = (element, nodeMapRef) => {
+    if (!sectionMapKey) {
+      return null;
+    }
+
+    const sectionId = getSectionIdFromElement(element);
+    if (!sectionId) {
+      return null;
+    }
+
+    const sectionMaps = resolveSectionMapsForElement(element, nodeMapRef);
+    const sectionMap = sectionMaps?.[sectionMapKey];
+    if (!(sectionMap instanceof Map)) {
+      return null;
+    }
+
+    const cache = sectionMaps === sectionMapsA ? sectionSignatureCacheA : sectionSignatureCacheB;
+    const cacheKey = String(sectionId);
+    if (cache.has(cacheKey)) {
+      return cache.get(cacheKey);
+    }
+
+    const sectionData = getSectionDataFromMap(sectionMap, sectionId);
+    if (!sectionData) {
+      cache.set(cacheKey, null);
+      return null;
+    }
+
+    const signature = buildSectionCompositionSignature(sectionData, elementType);
+    cache.set(cacheKey, signature);
+    return signature;
+  };
 
   // Create comparison function based on tolerance and importance filtering settings
   const performComparison = (keyExtractor) => {
@@ -164,21 +356,12 @@ function compareElementsByType(
           nodeMapB,
           keyExtractor,
           toleranceConfig,
+          comparisonKeyType,
+          compareOptions,
         );
 
-        // Convert 5-level tolerance result to 3-level result for compatibility
-        // TODO: Update rendering pipeline to support 5-level classification
-        return {
-          matched: [...toleranceResult.exact, ...toleranceResult.withinTolerance],
-          onlyA: toleranceResult.onlyA,
-          onlyB: toleranceResult.onlyB,
-          // Preserve tolerance-specific data for future use
-          _toleranceData: {
-            exact: toleranceResult.exact,
-            withinTolerance: toleranceResult.withinTolerance,
-            mismatch: toleranceResult.mismatch,
-          },
-        };
+        // Return 5-level tolerance result directly
+        return toleranceResult;
       }
 
       // Use importance-based comparison
@@ -196,10 +379,17 @@ function compareElementsByType(
           nodeMapB,
           keyExtractor,
           'Stb' + elementType,
-          { targetImportanceLevels, importanceLookup },
+          { targetImportanceLevels, importanceLookup, compareOptions },
         );
       } else {
-        return compareElements(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor);
+        return compareElements(
+          elementsA,
+          elementsB,
+          nodeMapA,
+          nodeMapB,
+          keyExtractor,
+          compareOptions,
+        );
       }
     } catch (error) {
       logger.error(`Error in performComparison for ${elementType}:`, error);
@@ -207,81 +397,131 @@ function compareElementsByType(
     }
   };
 
+  const getGuidPreferredKey = (element, fallbackKey) => {
+    if (comparisonKeyType !== COMPARISON_KEY_TYPE.GUID_BASED) {
+      return fallbackKey;
+    }
+    const guid = getElementAttribute(element, 'guid');
+    if (guid && guid.trim() !== '') {
+      return `guid:${guid.trim()}`;
+    }
+    // GUIDモードでGUIDが無い要素は比較対象から除外（nullを返す）
+    return null;
+  };
+
+  const createLineExtractor = (startAttr, endAttr) => {
+    return (element, nodeMap) =>
+      lineElementKeyExtractor(element, nodeMap, startAttr, endAttr, comparisonKeyType, {
+        sectionSignatureResolver: (targetElement) =>
+          resolveSectionSignature(targetElement, nodeMap),
+        storyAxisLookup: resolveStoryAxisLookup(nodeMap),
+      });
+  };
+
+  const createPolyExtractor = (nodeOrderTag = 'StbNodeIdOrder') => {
+    return (element, nodeMap) =>
+      polyElementKeyExtractor(element, nodeMap, nodeOrderTag, comparisonKeyType, {
+        sectionSignatureResolver: (targetElement) =>
+          resolveSectionSignature(targetElement, nodeMap),
+        storyAxisLookup: resolveStoryAxisLookup(nodeMap),
+      });
+  };
+
   try {
     switch (elementType) {
       case 'Node':
-        comparisonResult = performComparison(nodeElementKeyExtractor);
+        comparisonResult = performComparison((el, nm) =>
+          nodeElementKeyExtractor(el, nm, comparisonKeyType, {
+            storyAxisLookup: resolveStoryAxisLookup(nm),
+          }),
+        );
         break;
 
       case 'Column':
-        comparisonResult = performComparison((el, nm) =>
-          lineElementKeyExtractor(el, nm, 'id_node_bottom', 'id_node_top', comparisonKeyType),
-        );
+        comparisonResult = performComparison(createLineExtractor('id_node_bottom', 'id_node_top'));
         break;
 
       case 'Post':
-        comparisonResult = performComparison((el, nm) =>
-          lineElementKeyExtractor(el, nm, 'id_node_bottom', 'id_node_top', comparisonKeyType),
-        );
+        comparisonResult = performComparison(createLineExtractor('id_node_bottom', 'id_node_top'));
         break;
 
       case 'Girder':
       case 'Beam':
-        comparisonResult = performComparison((el, nm) =>
-          lineElementKeyExtractor(el, nm, 'id_node_start', 'id_node_end', comparisonKeyType),
-        );
+        comparisonResult = performComparison(createLineExtractor('id_node_start', 'id_node_end'));
         break;
 
       case 'Brace':
-        comparisonResult = performComparison((el, nm) =>
-          lineElementKeyExtractor(el, nm, 'id_node_start', 'id_node_end', comparisonKeyType),
-        );
+        comparisonResult = performComparison(createLineExtractor('id_node_start', 'id_node_end'));
         break;
 
       case 'Slab':
       case 'Wall':
-        comparisonResult = performComparison((el, nm) =>
-          polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType),
-        );
+        comparisonResult = performComparison(createPolyExtractor('StbNodeIdOrder'));
         break;
 
       case 'Pile':
         // Pile要素は2ノード形式（id_node_bottom/top）または1ノード形式（id_node + level_top）
         // lineElementKeyExtractorは1ノード形式にもフォールバック対応
-        comparisonResult = performComparison((el, nm) =>
-          lineElementKeyExtractor(el, nm, 'id_node_bottom', 'id_node_top', comparisonKeyType),
-        );
+        comparisonResult = performComparison(createLineExtractor('id_node_bottom', 'id_node_top'));
         break;
 
       case 'Footing':
         // Footing要素は1ノード形式（id_node + level_bottom）
         // lineElementKeyExtractorの1ノードフォールバックで対応
-        comparisonResult = performComparison((el, nm) =>
-          lineElementKeyExtractor(el, nm, 'id_node_bottom', 'id_node_top', comparisonKeyType),
-        );
+        comparisonResult = performComparison(createLineExtractor('id_node_bottom', 'id_node_top'));
         break;
 
       case 'FoundationColumn':
-        comparisonResult = performComparison((el, nm) =>
-          lineElementKeyExtractor(el, nm, 'id_node_bottom', 'id_node_top', comparisonKeyType),
-        );
+        comparisonResult = performComparison(createLineExtractor('id_node_bottom', 'id_node_top'));
         break;
 
       case 'Parapet':
-        comparisonResult = performComparison((el, nm) =>
-          lineElementKeyExtractor(el, nm, 'id_node_start', 'id_node_end', comparisonKeyType),
-        );
+        comparisonResult = performComparison(createLineExtractor('id_node_start', 'id_node_end'));
         break;
 
       case 'StripFooting':
-        comparisonResult = performComparison((el, nm) =>
-          lineElementKeyExtractor(el, nm, 'id_node_start', 'id_node_end', comparisonKeyType),
-        );
+        comparisonResult = performComparison(createLineExtractor('id_node_start', 'id_node_end'));
         break;
 
       case 'Joint':
         // 継手は梁・柱に関連付けられた定義なので、IDベースで比較
-        comparisonResult = performComparison((el) => el.id);
+        comparisonResult = performComparison((el) => {
+          const id = getElementAttribute(el, 'id');
+          return {
+            key: getGuidPreferredKey(el, id ? `joint:${id}` : null),
+            data: { id, guid: getElementAttribute(el, 'guid') || undefined },
+          };
+        });
+        break;
+
+      case 'Story':
+        // 階はname属性（"1F", "2F"等）でマッチング
+        comparisonResult = performComparison((el) => {
+          const name = getElementAttribute(el, 'name');
+          const id = getElementAttribute(el, 'id');
+          const fallbackKey = name ? `story:${name}` : null;
+          return {
+            key: getGuidPreferredKey(el, fallbackKey),
+            data: { id, name, guid: getElementAttribute(el, 'guid') || undefined },
+          };
+        });
+        break;
+
+      case 'Axis':
+        // 通り芯は親グループ名 + name属性でマッチング
+        comparisonResult = performComparison((el) => {
+          const name = getElementAttribute(el, 'name');
+          const id = getElementAttribute(el, 'id');
+          const groupName =
+            (typeof el?.parentElement?.getAttribute === 'function'
+              ? el.parentElement.getAttribute('group_name')
+              : null) || '';
+          const fallbackKey = name ? `axis:${groupName}:${name}` : null;
+          return {
+            key: getGuidPreferredKey(el, fallbackKey),
+            data: { id, name, guid: getElementAttribute(el, 'guid') || undefined },
+          };
+        });
         break;
 
       default:

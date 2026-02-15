@@ -20,7 +20,7 @@ import { ProfileBasedBeamGenerator } from './geometry/ProfileBasedBeamGenerator.
 import { ProfileBasedBraceGenerator } from './geometry/ProfileBasedBraceGenerator.js';
 import { PileGenerator } from './geometry/PileGenerator.js';
 import { FootingGenerator } from './geometry/FootingGenerator.js';
-import { extractAllSections } from '../common-stb/parser/defaultSectionExtractor.js';
+import { extractAllSections } from '../common-stb/parser/sectionExtractor.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
 
 /**

@@ -683,21 +683,21 @@ export class ParameterEditor {
       
       .parameter-editor-title {
         margin: 0;
-        font-size: 1.1em;
-        font-weight: 600;
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-semibold);
         color: #333;
       }
       
       .required-indicator {
         color: #dc3545;
-        font-weight: bold;
+        font-weight: var(--font-weight-bold);
         margin-left: 4px;
       }
       
       .parameter-editor-close {
         background: none;
         border: none;
-        font-size: 1.5em;
+        font-size: var(--font-size-3xl);
         color: #6c757d;
         cursor: pointer;
         padding: 0;
@@ -731,9 +731,9 @@ export class ParameterEditor {
       .input-container label {
         display: block;
         margin-bottom: 6px;
-        font-weight: 500;
+        font-weight: var(--font-weight-medium);
         color: #495057;
-        font-size: 0.9em;
+        font-size: var(--font-size-md);
       }
       
       .parameter-dropdown,
@@ -742,7 +742,7 @@ export class ParameterEditor {
         padding: 8px 12px;
         border: 2px solid #dee2e6;
         border-radius: 4px;
-        font-size: 0.9em;
+        font-size: var(--font-size-md);
         transition: border-color 0.2s ease;
       }
       
@@ -757,7 +757,7 @@ export class ParameterEditor {
         display: block;
         margin-top: 4px;
         color: #6c757d;
-        font-size: 0.8em;
+        font-size: var(--font-size-sm);
       }
       
       /* 混合モード */
@@ -770,7 +770,7 @@ export class ParameterEditor {
         text-align: center;
         margin: 16px 0;
         color: #6c757d;
-        font-size: 0.9em;
+        font-size: var(--font-size-md);
         position: relative;
       }
       
@@ -797,7 +797,7 @@ export class ParameterEditor {
         margin: 12px 0;
         padding: 8px 12px;
         border-radius: 4px;
-        font-size: 0.85em;
+        font-size: var(--font-size-sm);
         min-height: 20px;
       }
       
@@ -824,7 +824,7 @@ export class ParameterEditor {
         background-color: #e3f2fd;
         color: #0d47a1;
         border-radius: 4px;
-        font-size: 0.85em;
+        font-size: var(--font-size-sm);
         border: 1px solid #bbdefb;
       }
       
@@ -844,7 +844,7 @@ export class ParameterEditor {
         padding: 8px 16px;
         border: 1px solid #dee2e6;
         border-radius: 4px;
-        font-size: 0.9em;
+        font-size: var(--font-size-md);
         cursor: pointer;
         transition: all 0.2s ease;
         min-width: 80px;

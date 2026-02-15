@@ -2,8 +2,6 @@
  * @fileoverview XML フォーマット・ダウンロードユーティリティ
  *
  * STB XMLファイルのフォーマットとダウンロード機能を提供します。
- * MatrixCalcとStbDiffViewerの両方で使用される共通モジュール。
- *
  * @module common/stb/export/xmlFormatter
  */
 

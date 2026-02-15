@@ -21,7 +21,6 @@ import {
   elementGroups,
   drawNodes,
   drawLineElements,
-  drawPolyElements,
   drawAxes,
   drawStories,
   getActiveCamera,
@@ -48,7 +47,7 @@ export function orchestrateElementRendering(comparisonResults, modelBounds, glob
   });
 
   // DiffRenderModelの統計情報をログ出力
-  const diffStats = getDiffStatistics(diffRenderModel);
+  getDiffStatistics(diffRenderModel);
 
   const renderingResults = {
     nodeLabels: [],
@@ -111,7 +110,7 @@ export function registerElementsToRegistry() {
   registry.clear();
 
   // 全要素グループを走査して登録
-  for (const [elementType, group] of Object.entries(elementGroups)) {
+  for (const group of Object.values(elementGroups)) {
     if (!group || !group.children) continue;
 
     group.traverse((child) => {
@@ -121,7 +120,7 @@ export function registerElementsToRegistry() {
     });
   }
 
-  const stats = registry.getStats();
+  registry.getStats();
 }
 
 /**
@@ -132,7 +131,7 @@ export function registerElementsToRegistry() {
  * @param {Object} globalData - Global data
  * @returns {Object} Rendering result for this element type
  */
-function renderElementType(elementType, comparisonResult, modelBounds, globalData) {
+function renderElementType(elementType, comparisonResult, modelBounds, _globalData) {
   const group = elementGroups[elementType];
   if (!group) {
     throw new Error(`Element group not found for type: ${elementType}`);

@@ -161,17 +161,6 @@ export class ProfileBasedBraceGenerator extends BaseElementGenerator {
       },
     });
 
-    // 11. 配置基準線を添付（ElementGeometryUtils使用）
-    try {
-      ElementGeometryUtils.attachPlacementLine(mesh, placement.length, materials.placementLine, {
-        elementType: elementType,
-        elementId: brace.id,
-        modelSource: 'solid',
-      });
-    } catch (e) {
-      log.warn(`Brace ${brace.id}: Failed to attach placement axis line`, e);
-    }
-
     log.debug(
       `Brace ${brace.id}: length=${placement.length.toFixed(1)}mm, ` + `sectionType=${sectionType}`,
     );

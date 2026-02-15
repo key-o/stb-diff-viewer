@@ -42,7 +42,7 @@ import {
   applyJointArrangementsToElements, // 継手IDを部材に適用
   extractStripFootingElements, // 布基礎要素の抽出
 } from '../../common-stb/parser/stbXmlParser.js';
-import { extractAllSections } from '../../common-stb/parser/defaultSectionExtractor.js';
+import { extractAllSections } from '../../common-stb/parser/sectionExtractor.js';
 import { ensureUnifiedSectionType } from '../../common-stb/section/sectionTypeUtil.js';
 
 // ============================================

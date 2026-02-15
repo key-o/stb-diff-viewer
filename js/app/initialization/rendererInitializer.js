@@ -21,7 +21,7 @@ const log = createLogger('rendererInitializer');
 /**
  * デバッグ用グローバルオブジェクトのセットアップ
  */
-export function setupDebugGlobals() {
+function setupDebugGlobals() {
   // ==== 診断/デバッグ用に Three.js リソースをグローバルへ公開 ====
   if (!window.viewer) window.viewer = {};
   window.viewer.scene = scene;

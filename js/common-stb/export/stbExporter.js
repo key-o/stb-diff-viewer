@@ -7,8 +7,6 @@
  * - ファイルダウンロード機能
  * - エクスポート前のバリデーション
  *
- * MatrixCalcとStbDiffViewerの両方で使用される共通モジュール。
- *
  * @module common/stb/export/stbExporter
  */
 

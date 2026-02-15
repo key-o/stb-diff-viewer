@@ -38,7 +38,7 @@ STB Diff Viewerは、ST-Bridge（STB）形式の3D建築モデルを読み込み
 
 ### 起動方法
 
-1. **`index.html`** をWebブラウザで開きます
+1. **`https://key-o.github.io/stb-diff-viewer/`** をWebブラウザで開きます
 2. ファイル選択画面が表示されます
 3. すぐに使い始められます！
 

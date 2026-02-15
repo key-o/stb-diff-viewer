@@ -347,6 +347,7 @@ export class FloatingWindowManager {
       resizeHandle.className = 'resize-handle';
       element.appendChild(resizeHandle);
     }
+    element.classList.add('has-resize-handle');
 
     let isResizing = false;
     let startX;
@@ -398,6 +399,7 @@ export class FloatingWindowManager {
       resizeHandle.removeEventListener('mousedown', resizeStart);
       document.removeEventListener('mousemove', resize);
       document.removeEventListener('mouseup', resizeEnd);
+      element.classList.remove('has-resize-handle');
     };
   }
 

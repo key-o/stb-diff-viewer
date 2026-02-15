@@ -12,7 +12,7 @@
 
 import { loadStbXmlAutoEncoding } from '../common-stb/stbXmlLoader.js';
 import { buildNodeMap, parseStories, parseAxes } from '../common-stb/parser/stbXmlParser.js';
-import { extractAllSections } from '../common-stb/parser/defaultSectionExtractor.js';
+import { extractAllSections } from '../common-stb/parser/sectionExtractor.js';
 import { detectStbVersion, getVersionInfo } from '../common-stb/parser/utils/versionDetector.js';
 import { parseStbCalData } from '../common-stb/parser/stbCalDataParser.js';
 import { setState } from '../app/globalState.js';
@@ -220,81 +220,6 @@ export function clearModelProcessingState() {
   // 後方互換性のためwindowも維持（非推奨）
   window.docA = null;
   window.docB = null;
-}
-
-/**
- * Validate model document structure
- * @param {Document} document - XML document to validate
- * @param {string} modelId - Model identifier
- * @returns {Object} Validation result
- * @throws {TypeError} If modelId is not a string
- */
-export function validateModelDocument(document, modelId) {
-  // Validate modelId
-  if (typeof modelId !== 'string') {
-    const error = new TypeError('modelId must be a string');
-    console.error('Model validation failed:', error);
-    throw error;
-  }
-
-  if (modelId.trim().length === 0) {
-    const error = new Error('modelId must be a non-empty string');
-    console.error('Model validation failed:', error);
-    throw error;
-  }
-
-  const validation = {
-    isValid: true,
-    warnings: [],
-    errors: [],
-  };
-
-  if (!document) {
-    validation.isValid = false;
-    validation.errors.push(`Model ${modelId}: Document is null or undefined`);
-    return validation;
-  }
-
-  // Validate document type
-  if (!(document instanceof Document)) {
-    validation.isValid = false;
-    validation.errors.push(`Model ${modelId}: document must be an XML Document instance`);
-    return validation;
-  }
-
-  // Check for STB namespace
-  const stbElements = document.getElementsByTagName('StbModel');
-  if (stbElements.length === 0) {
-    validation.warnings.push(`Model ${modelId}: No StbModel root element found`);
-  }
-
-  // Check for nodes
-  const nodeElements = document.getElementsByTagName('StbNode');
-  if (nodeElements.length === 0) {
-    validation.warnings.push(`Model ${modelId}: No nodes found`);
-  }
-
-  // Check for basic structural elements
-  const structuralElements = [
-    'StbColumn',
-    'StbGirder',
-    'StbBeam',
-    'StbBrace',
-    'StbSlab',
-    'StbWall',
-  ];
-
-  let totalElements = 0;
-  structuralElements.forEach((elementType) => {
-    const elements = document.getElementsByTagName(elementType);
-    totalElements += elements.length;
-  });
-
-  if (totalElements === 0) {
-    validation.warnings.push(`Model ${modelId}: No structural elements found`);
-  }
-
-  return validation;
 }
 
 /**

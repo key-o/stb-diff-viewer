@@ -434,29 +434,6 @@ export function getLayers(dxf) {
 }
 
 /**
- * DXFのブロック定義を取得
- * @param {Object} dxf - パースされたDXFデータ
- * @returns {Object} ブロック定義のマップ
- */
-export function getBlocks(dxf) {
-  const blocks = {};
-
-  if (dxf.blocks) {
-    for (const [name, block] of Object.entries(dxf.blocks)) {
-      if (name.startsWith('*')) continue; // 内部ブロックをスキップ
-
-      blocks[name] = {
-        name,
-        position: block.position || { x: 0, y: 0, z: 0 },
-        entities: block.entities || [],
-      };
-    }
-  }
-
-  return blocks;
-}
-
-/**
  * DXFのバウンディングボックスを計算
  * @param {Object} entities - 抽出されたエンティティ
  * @returns {Object} バウンディングボックス {min, max}

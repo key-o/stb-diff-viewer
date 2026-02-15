@@ -2,8 +2,6 @@
  * @fileoverview STB共通パーサーモジュール
  *
  * ST-Bridge形式のXMLデータを解析するための共通機能を提供します。
- * MatrixCalcとStbDiffViewerの両プロジェクトで使用されます。
- *
  * @module common/stb/parser
  */
 
@@ -60,5 +58,5 @@ export * from './utils/elementNameMapping.js';
 // 座標範囲計算
 export * as coordinateRangeCalculator from './utils/coordinateRangeCalculator.js';
 
-// デフォルト設定済み断面抽出（後方互換用）
-export * as defaultSectionExtractor from './defaultSectionExtractor.js';
+// 統一断面抽出エンジン
+export * as sectionExtractor from './sectionExtractor.js';

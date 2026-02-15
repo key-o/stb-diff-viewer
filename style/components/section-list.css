@@ -45,11 +45,11 @@
   align-items: center;
   gap: 4px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--font-size-md);
 }
 
 .section-list-info {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--text-secondary, #666);
 }
 
@@ -64,7 +64,7 @@
 .column-section-list-table {
   border-collapse: collapse;
   width: 100%;
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   background: white;
 }
 
@@ -80,7 +80,7 @@
 .section-list-header-symbol,
 .section-list-header-section {
   background: var(--bg-tertiary, #e8e8e8);
-  font-weight: bold;
+  font-weight: var(--font-weight-bold);
   text-align: center;
   padding: 10px 8px;
   position: sticky;
@@ -106,7 +106,7 @@
 /* 階セル */
 .section-list-floor-cell {
   background: var(--bg-secondary, #f5f5f5);
-  font-weight: bold;
+  font-weight: var(--font-weight-bold);
   text-align: center;
   vertical-align: middle;
   width: 70px;
@@ -116,7 +116,7 @@
 /* 符号セル */
 .section-list-symbol-cell {
   background: var(--bg-secondary, #f5f5f5);
-  font-weight: bold;
+  font-weight: var(--font-weight-bold);
   text-align: center;
   vertical-align: middle;
   width: 60px;
@@ -136,8 +136,8 @@
 
 /* 断面セル内容 */
 .section-cell-name {
-  font-weight: bold;
-  font-size: 10px;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-xs);
   margin-bottom: 4px;
   color: var(--text-primary, #333);
   background: var(--bg-secondary, #f0f0f0);
@@ -163,7 +163,7 @@
 
 .section-specs-table {
   width: 100%;
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   border-collapse: collapse;
 }
 
@@ -187,7 +187,7 @@
 /* ボタン */
 .section-list-export-btn,
 .section-list-refresh-btn {
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   padding: 2px 8px;
   margin-right: 4px;
 }
@@ -281,13 +281,24 @@
   background: var(--border-color-hover, #999);
 }
 
+/* 右下リサイズハンドルとスクロールコーナーの干渉を回避 */
+.column-section-list-window.has-resize-handle .section-list-table-wrapper.grid-mode {
+  padding-right: calc(var(--resize-handle-size) + 6px);
+  padding-bottom: calc(var(--resize-handle-size) + 6px);
+}
+
+.column-section-list-window.has-resize-handle
+  .section-list-table-wrapper.grid-mode::-webkit-scrollbar-corner {
+  background: var(--resize-corner-color, var(--bg-window));
+}
+
 /* グリッドテーブル */
 .column-section-grid-table {
   border-collapse: separate;
   border-spacing: 0;
   width: auto;
   min-width: 100%;
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   background: white;
   table-layout: fixed;
 }
@@ -314,7 +325,7 @@
 .section-grid-header-floor,
 .section-grid-header-symbol {
   background: var(--bg-tertiary, #e8e8e8);
-  font-weight: bold;
+  font-weight: var(--font-weight-bold);
   text-align: center;
   padding: 10px 8px;
   position: sticky;
@@ -344,7 +355,7 @@
 /* グリッド階セル（各行の左端固定列） */
 .section-grid-floor-cell {
   background: var(--bg-secondary, #f5f5f5);
-  font-weight: bold;
+  font-weight: var(--font-weight-bold);
   text-align: center;
   vertical-align: middle;
   position: sticky;
@@ -438,7 +449,7 @@
 .section-list-table-wrapper.grid-mode .section-cell-empty {
   color: var(--text-disabled, #999);
   padding: 0;
-  font-size: 16px;
+  font-size: var(--font-size-lg);
   text-align: center;
   display: flex;
   align-items: center;
@@ -450,7 +461,7 @@
 /* レスポンシブ対応（大画面） */
 @media screen and (min-width: 1920px) {
   .column-section-grid-table {
-    font-size: 10px;
+    font-size: var(--font-size-xs);
   }
 
   .section-grid-header-symbol,

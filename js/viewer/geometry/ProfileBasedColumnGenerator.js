@@ -20,7 +20,6 @@ import {
   convertProfileToThreeShape,
   createExtrudeGeometry,
   applyPlacementToMesh,
-  attachPlacementAxisLine,
 } from './core/ThreeJSConverter.js';
 import {
   createTaperedGeometry,
@@ -210,18 +209,7 @@ export class ProfileBasedColumnGenerator extends BaseElementGenerator {
       isJsonInput: isJsonInput,
     });
 
-    // 10. 配置基準線を添付
-    try {
-      attachPlacementAxisLine(mesh, placement.length, materials.placementLine, {
-        elementType: elementType,
-        elementId: column.id,
-        modelSource: 'solid',
-      });
-    } catch (e) {
-      log.warn(`Column ${column.id}: failed to attach placement axis line`, e);
-    }
-
-    // 11. stb-diff-viewer造の場合、RC部分のメッシュも生成して配列で返す
+    // 10. stb-diff-viewer造の場合、RC部分のメッシュも生成して配列で返す
     if (sectionData.isStbDiffViewer && sectionData.concreteProfile) {
       const rcMesh = this._createStbDiffViewerConcreteGeometry(
         sectionData,
@@ -234,6 +222,25 @@ export class ProfileBasedColumnGenerator extends BaseElementGenerator {
       if (rcMesh) {
         log.debug(`Column ${column.id}: stb-diff-viewer造 - RC部分のメッシュを追加生成`);
         return [mesh, rcMesh];
+      }
+    }
+
+    // 12. ベースプレートメッシュの生成（S造・SRC造・CFT造柱脚）
+    if (sectionData.basePlate) {
+      const basePlateMesh = this._createBasePlateMesh(
+        sectionData.basePlate,
+        nodePositions.bottomNode,
+        column,
+        elementType,
+        isJsonInput,
+        rollAngle,
+        log,
+      );
+      if (basePlateMesh) {
+        log.debug(
+          `Column ${column.id}: ベースプレートメッシュを追加生成 (${sectionData.basePlate.baseType})`,
+        );
+        return [mesh, basePlateMesh];
       }
     }
 
@@ -291,15 +298,23 @@ export class ProfileBasedColumnGenerator extends BaseElementGenerator {
       `Column ${column.id}: stb-diff-viewer RC部分 - ${concreteProfile.profileType} ${width}x${height}`,
     );
 
-    // RC部分用の断面データを作成
+    // RC部分用の断面データを作成（steelShapeを含めないことでH鋼断面の誤取得を防止）
+    const rcDimensions = {
+      width: width,
+      height: height,
+      outer_width: width,
+      outer_height: height,
+    };
+
+    // 円形の場合はdiameterを明示的に設定
+    // （mapCircleParams/calculateCircleProfileがdiameter/radiusキーを要求するため）
+    if (concreteProfile.profileType === 'CIRCLE') {
+      rcDimensions.diameter = concreteProfile.diameter;
+    }
+
     const rcSectionData = {
       section_type: concreteProfile.profileType,
-      dimensions: {
-        width: width,
-        height: height,
-        outer_width: width,
-        outer_height: height,
-      },
+      dimensions: rcDimensions,
     };
 
     // RC部分のプロファイルを生成
@@ -344,6 +359,72 @@ export class ProfileBasedColumnGenerator extends BaseElementGenerator {
     rcMesh.userData.stbDiffViewerComponentType = 'RC';
 
     return rcMesh;
+  }
+
+  /**
+   * ベースプレート（柱脚プレート）のメッシュを生成
+   *
+   * S造・SRC造・CFT造の柱脚位置に矩形プレートを配置する。
+   * プレート上面が柱の下端ノードと一致するように配置。
+   *
+   * @private
+   * @param {Object} basePlate - ベースプレートデータ {baseType, B_X, B_Y, t, offset_X, offset_Y, ...}
+   * @param {Object} bottomNode - 柱の下端ノード座標 {x, y, z}
+   * @param {Object} column - 柱要素データ
+   * @param {string} elementType - 要素タイプ
+   * @param {boolean} isJsonInput - JSON入力かどうか
+   * @param {number} rollAngle - 柱の回転角度（ラジアン）
+   * @param {Object} log - ロガー
+   * @returns {THREE.Mesh|null} ベースプレートメッシュまたはnull
+   */
+  static _createBasePlateMesh(
+    basePlate,
+    bottomNode,
+    column,
+    elementType,
+    isJsonInput,
+    rollAngle,
+    log,
+  ) {
+    const { B_X, B_Y, t, offset_X, offset_Y } = basePlate;
+
+    if (!B_X || !B_Y || !t) {
+      log.warn(`Column ${column.id}: ベースプレートの寸法が不足 (B_X=${B_X}, B_Y=${B_Y}, t=${t})`);
+      return null;
+    }
+
+    // BoxGeometry: width=B_X, depth=B_Y, height=t
+    const geometry = new THREE.BoxGeometry(B_X, B_Y, t);
+
+    const mesh = new THREE.Mesh(geometry, materials.matchedMesh);
+
+    // プレート上面が柱の下端ノードと一致するように配置
+    // (z方向: プレート中心 = bottomNode.z - t/2)
+    mesh.position.set(bottomNode.x + offset_X, bottomNode.y + offset_Y, bottomNode.z - t / 2);
+
+    // 柱の回転を適用
+    if (rollAngle !== 0) {
+      mesh.rotation.z = rollAngle;
+    }
+
+    // メタデータ
+    mesh.userData = {
+      elementType: elementType,
+      elementId: column.id,
+      isJsonInput: isJsonInput,
+      isBasePlate: true,
+      basePlateData: {
+        baseType: basePlate.baseType,
+        B_X,
+        B_Y,
+        t,
+      },
+      sectionType: 'RECTANGLE',
+      profileBased: false,
+      profileMeta: { profileSource: 'BoxGeometry', profileType: 'BASE_PLATE' },
+    };
+
+    return mesh;
   }
 
   /**

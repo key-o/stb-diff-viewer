@@ -116,7 +116,11 @@ export class BeamSectionListRenderer {
         const sectionData = grid.get(gridKey);
 
         if (sectionData) {
-          tdSection.innerHTML = this.renderSectionCell(sectionData);
+          if (Array.isArray(sectionData)) {
+            tdSection.innerHTML = this.renderSectionVariants(sectionData);
+          } else {
+            tdSection.innerHTML = this.renderSectionCell(sectionData);
+          }
         } else {
           // 空セル
           tdSection.innerHTML = '<div class="section-cell-empty">-</div>';
@@ -130,6 +134,43 @@ export class BeamSectionListRenderer {
     });
 
     return tbody;
+  }
+
+  /**
+   * 同一セル内に複数断面がある場合のレンダリング
+   * @param {Array<Object>} sectionDataList - 断面データ配列
+   * @returns {string} HTML文字列
+   */
+  renderSectionVariants(sectionDataList) {
+    const uniqueVariants = [];
+    const seenSectionIds = new Set();
+
+    sectionDataList.forEach((sectionData) => {
+      const sectionId = sectionData?.sectionId || sectionData?.id || '';
+      const dedupeKey = `${sectionId}:${sectionData?.symbolNames || ''}`;
+      if (!seenSectionIds.has(dedupeKey)) {
+        seenSectionIds.add(dedupeKey);
+        uniqueVariants.push(sectionData);
+      }
+    });
+
+    if (uniqueVariants.length === 1) {
+      return this.renderSectionCell(uniqueVariants[0]);
+    }
+
+    const parts = ['<div class="section-cell-variants">'];
+    uniqueVariants.forEach((sectionData, index) => {
+      const label = sectionData?.sectionId
+        ? `断面${index + 1} (ID: ${this.escapeHtml(sectionData.sectionId)})`
+        : `断面${index + 1}`;
+      parts.push('<div class="section-cell-variant">');
+      parts.push(`<div class="section-cell-variant-label">${label}</div>`);
+      parts.push(this.renderSectionCell(sectionData));
+      parts.push('</div>');
+    });
+    parts.push('</div>');
+
+    return parts.join('');
   }
 
   /**
@@ -155,9 +196,7 @@ export class BeamSectionListRenderer {
     // 複数位置の断面図を横並び表示
     parts.push('<div class="beam-positions-container">');
 
-    const positionKeys = ['LEFT', 'CENTER', 'RIGHT'].filter(
-      (pos) => sectionData.positions && sectionData.positions[pos],
-    );
+    const positionKeys = this.getRenderablePositionKeys(sectionData.positions);
 
     positionKeys.forEach((position) => {
       const positionData = sectionData.positions[position];
@@ -248,6 +287,25 @@ export class BeamSectionListRenderer {
     parts.push('</div>');
 
     return parts.join('');
+  }
+
+  /**
+   * 描画対象の位置キーを取得
+   * LEFT/CENTER/RIGHT/SAME を優先し、無い場合は order 順でフォールバックする
+   * @param {Object} positions - 位置別データ
+   * @returns {Array<string>} 描画順の位置キー
+   */
+  getRenderablePositionKeys(positions) {
+    if (!positions) return [];
+
+    const preferred = ['LEFT', 'CENTER', 'RIGHT', 'SAME'].filter((key) => positions[key]);
+    if (preferred.length > 0) {
+      return preferred;
+    }
+
+    return Object.entries(positions)
+      .sort(([, a], [, b]) => (a?.order ?? 0) - (b?.order ?? 0))
+      .map(([key]) => key);
   }
 
   /**

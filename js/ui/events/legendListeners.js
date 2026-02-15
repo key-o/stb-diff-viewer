@@ -9,16 +9,6 @@
 // --- UI Element Reference ---
 const legendPanel = document.getElementById('legendPanel');
 
-/**
- * Setup legend toggle listener
- */
-export function setupLegendToggleListener() {
-  const toggleLegendBtn = document.getElementById('toggleLegendBtn');
-
-  if (toggleLegendBtn) {
-    toggleLegendBtn.addEventListener('click', handleLegendToggle);
-  }
-}
 
 /**
  * Handle legend toggle

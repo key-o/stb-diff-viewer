@@ -79,7 +79,7 @@ export function initializeUI() {
  */
 function initializeStateChangeCoordination() {
   // Listen for state changes and coordinate updates between modules
-  addStateChangeListener((newState) => {
+  addStateChangeListener((_newState) => {
     // Trigger label visibility update when state changes
     updateLabelVisibility();
 

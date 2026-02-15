@@ -121,12 +121,24 @@ export function handleTreeElementSelection(
     return;
   }
 
+  // Axis/Story は3D探索のuserDataとID形式が一致しない場合があるため、
+  // ツリー選択時は常にXMLベースで情報表示する。
+  if (elementType === 'Axis' || elementType === 'Story') {
+    const { idA, idB } = resolveElementInfoIds(selectedElement);
+    displayElementInfo(idA, idB, elementType, modelSource).catch((err) =>
+      log.error(`${sourceName}: displayElementInfo エラー:`, err),
+    );
+    return;
+  }
+
   const elementGroup = elementGroups[elementType];
-  if (!elementGroup) {
-    log.warn(`${sourceName}: 要素グループが見つかりません: ${elementType}`);
-    if (enableDebugInfo) {
-      log.warn('利用可能な要素グループ:', Object.keys(elementGroups));
-    }
+  const hasNo3DChildren = !elementGroup || elementGroup.children.length === 0;
+  if (hasNo3DChildren) {
+    // Story/Axis等の3D表現を持たない要素: パラメータ情報のみ表示
+    const { idA, idB } = resolveElementInfoIds(selectedElement);
+    displayElementInfo(idA, idB, elementType, modelSource).catch((err) =>
+      log.error(`${sourceName}: displayElementInfo エラー:`, err),
+    );
     return;
   }
 
@@ -207,7 +219,37 @@ export function handleTreeElementSelection(
         log.warn('最初の候補オブジェクト (デバッグ用):', candidateMatches);
       }
     }
+
+    // 3D上で見つからなくても、XMLから情報表示は可能なのでフォールバックする
+    const { idA, idB } = resolveElementInfoIds(selectedElement);
+    displayElementInfo(idA, idB, elementType, modelSource).catch((err) =>
+      log.error(`${sourceName}: displayElementInfo エラー(フォールバック):`, err),
+    );
   }
+}
+
+/**
+ * ツリー選択情報から要素情報パネル表示用の A/B ID を解決
+ * @param {Object} selectedElement - ツリー選択要素
+ * @returns {{idA: string|null, idB: string|null}}
+ */
+function resolveElementInfoIds(selectedElement) {
+  const { elementId, modelSource } = selectedElement || {};
+  const elem = selectedElement?.element || {};
+  let idA = null;
+  let idB = null;
+
+  if (modelSource === 'matched') {
+    idA = String(elem.elementA?.id || elementId || '');
+    idB = elem.elementB?.id ? String(elem.elementB.id) : null;
+    if (!idA) idA = null;
+  } else if (modelSource === 'onlyA' || modelSource === 'A') {
+    idA = elementId != null ? String(elementId) : null;
+  } else if (modelSource === 'onlyB' || modelSource === 'B') {
+    idB = elementId != null ? String(elementId) : null;
+  }
+
+  return { idA, idB };
 }
 
 /**

@@ -421,17 +421,3 @@ export function formatValidationResult(result, sectionId = 'unknown') {
   return lines.join('\n');
 }
 
-/**
- * 簡易バリデーション（後方互換性のため）
- * sectionDataAccessor.jsのvalidateSectionDataと同等
- *
- * @param {Object} sectionData - 断面データ
- * @returns {Object} 簡易バリデーション結果 { valid, errors }
- */
-export function validateSectionDataSimple(sectionData) {
-  const result = validateSectionDataComprehensive(sectionData);
-  return {
-    valid: result.valid,
-    errors: result.errors,
-  };
-}

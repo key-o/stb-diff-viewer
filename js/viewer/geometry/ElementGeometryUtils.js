@@ -37,7 +37,7 @@ import {
   calculateBeamPlacement,
   inferSectionTypeFromDimensions,
 } from './core/GeometryCalculator.js';
-import { convertProfileToThreeShape, attachPlacementAxisLine } from './core/ThreeJSConverter.js';
+import { convertProfileToThreeShape } from './core/ThreeJSConverter.js';
 import { ensureUnifiedSectionType } from '../../common-stb/section/sectionTypeUtil.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -527,23 +527,6 @@ export class ElementGeometryUtils {
     );
 
     return mesh;
-  }
-
-  /**
-   * メッシュに配置基準線を添付（オプション）
-   *
-   * @param {THREE.Mesh} mesh - 対象メッシュ
-   * @param {number} length - 線の長さ
-   * @param {THREE.Material} material - 線のマテリアル
-   * @param {Object} userData - 線のuserData
-   */
-  static attachPlacementLine(mesh, length, material, userData) {
-    try {
-      attachPlacementAxisLine(mesh, length, material, userData);
-      log.debug(`Placement line attached for ${userData.elementType} ${userData.elementId}`);
-    } catch (error) {
-      log.warn(`Failed to attach placement line for ${userData.elementId}:`, error);
-    }
   }
 
   // ========================================

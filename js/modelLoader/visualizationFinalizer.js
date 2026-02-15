@@ -21,7 +21,7 @@ import {
   updateAxisSelectors,
   updateLabelVisibility,
 } from '../ui/index.js';
-import { initViewModes, updateModelVisibility } from '../app/viewModes.js';
+import { initViewModes, updateModelVisibility } from '../app/viewModes/index.js';
 import { createOrUpdateGridHelper, setView, VIEW_DIRECTIONS } from '../viewer/index.js';
 import { setColorMode, COLOR_MODES } from '../colorModes/index.js';
 import { eventBus, ModelEvents } from '../app/events/index.js';
@@ -157,7 +157,7 @@ function initializeViewModes(modelData, scheduleRender) {
  * @param {THREE.Box3} modelBounds - Model bounding box
  * @param {Object} cameraControls - Camera and controls objects
  */
-function setupCameraAndGrid(modelBounds, cameraControls) {
+function setupCameraAndGrid(modelBounds, _cameraControls) {
   try {
     // グリッドヘルパーを更新
     createOrUpdateGridHelper(modelBounds);
@@ -177,7 +177,7 @@ function setupCameraAndGrid(modelBounds, cameraControls) {
  * Set global models loaded state
  * @param {boolean} loaded - Whether models are loaded
  */
-function setModelsLoadedState(loaded) {
+function setModelsLoadedState(_loaded) {
   // This would typically update a global state manager
   // For now, we'll use the existing pattern
 }
@@ -187,7 +187,7 @@ function setModelsLoadedState(loaded) {
  * @param {Error} error - Error that occurred
  * @param {Object} cleanupData - Data needed for cleanup
  */
-export function handleFinalizationError(error, cleanupData) {
+export function handleFinalizationError(error, _cleanupData) {
   logger.error('Finalization error occurred:', error);
 
   try {
@@ -247,53 +247,4 @@ export function createFinalizationSummary(modelData, renderingStats) {
     },
     timestamp: new Date().toISOString(),
   };
-}
-
-/**
- * Validate finalization data before processing
- * @param {Object} finalizationData - Data to validate
- * @returns {Object} Validation result
- */
-export function validateFinalizationData(finalizationData) {
-  const validation = {
-    isValid: true,
-    errors: [],
-    warnings: [],
-  };
-
-  const requiredFields = ['nodeLabels', 'stories', 'axesData', 'modelBounds', 'renderingStats'];
-
-  for (const field of requiredFields) {
-    if (!finalizationData.hasOwnProperty(field)) {
-      validation.isValid = false;
-      validation.errors.push(`Missing required field: ${field}`);
-    }
-  }
-
-  // Validate specific field types
-  if (finalizationData.nodeLabels && !Array.isArray(finalizationData.nodeLabels)) {
-    validation.errors.push('nodeLabels must be an array');
-    validation.isValid = false;
-  }
-
-  if (finalizationData.stories && !Array.isArray(finalizationData.stories)) {
-    validation.errors.push('stories must be an array');
-    validation.isValid = false;
-  }
-
-  if (finalizationData.axesData && typeof finalizationData.axesData !== 'object') {
-    validation.errors.push('axesData must be an object');
-    validation.isValid = false;
-  }
-
-  // Warnings for potentially problematic data
-  if (finalizationData.nodeLabels && finalizationData.nodeLabels.length === 0) {
-    validation.warnings.push('No node labels found');
-  }
-
-  if (finalizationData.renderingStats && finalizationData.renderingStats.errors > 0) {
-    validation.warnings.push(`${finalizationData.renderingStats.errors} rendering errors occurred`);
-  }
-
-  return validation;
 }

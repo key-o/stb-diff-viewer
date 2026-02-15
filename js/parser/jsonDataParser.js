@@ -92,6 +92,16 @@ export class JsonDataParser {
     for (const b of beams) {
       const sectionType = normalizeSectionType(b.section?.profile_type, b.section?.shape_name);
       const dims = { ...(b.section?.dimensions || {}) };
+      if (sectionType === 'H') {
+        // STB style dimensions (A/B) are commonly used for H-sections.
+        // Keep A/B and also provide normalized width/height for downstream logic.
+        if (dims.B != null && dims.width == null) {
+          dims.width = Number(dims.B);
+        }
+        if (dims.A != null && dims.height == null) {
+          dims.height = Number(dims.A);
+        }
+      }
 
       const normalized = {
         id: b.id,

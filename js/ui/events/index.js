@@ -32,7 +32,11 @@ import {
   setupLabelContentListener,
 } from './labelVisibilityListeners.js';
 
-import { setupIfcExportListener, setupStbExportListener } from './exportListeners.js';
+import {
+  setupIfcExportListener,
+  setupStbExportListener,
+  setupReportExportListener,
+} from './exportListeners.js';
 
 import { setupClippingRangeListeners, setupClippingButtonListeners } from './clippingListeners.js';
 
@@ -64,6 +68,7 @@ export function setupUIEventListeners() {
     setupLabelContentListener();
     setupIfcExportListener();
     setupStbExportListener();
+    setupReportExportListener();
     setupAccordionListeners();
     setupClippingRangeListeners();
     setupClippingButtonListeners();

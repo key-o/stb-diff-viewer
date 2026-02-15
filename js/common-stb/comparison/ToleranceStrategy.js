@@ -9,6 +9,7 @@ import { BaseStrategy } from './BaseStrategy.js';
 import { BasicComparisonStrategy } from './ComparisonStrategy.js';
 import { getToleranceConfig } from '../../config/toleranceConfig.js';
 import { compareElementDataWithTolerance } from '../../app/toleranceComparison.js';
+import { COMPARISON_KEY_TYPE } from '../../config/comparisonKeyConfig.js';
 
 /**
  * 許容差を考慮した比較戦略
@@ -39,6 +40,9 @@ export class ToleranceStrategy extends BaseStrategy {
    */
   compare(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor, options = {}) {
     const config = options.toleranceConfig || this.defaultConfig || getToleranceConfig();
+    const keyType = options.keyType || COMPARISON_KEY_TYPE.POSITION_BASED;
+    const isGuidBased = keyType === COMPARISON_KEY_TYPE.GUID_BASED;
+    const classifyNullKeysAsOnly = options.classifyNullKeysAsOnly === true;
 
     // 厳密モードまたは許容差無効の場合は基本比較
     if (config.strictMode || !config.enabled) {
@@ -81,13 +85,20 @@ export class ToleranceStrategy extends BaseStrategy {
           mapA.set(key, []);
         }
         mapA.get(key).push(data);
+      } else if (classifyNullKeysAsOnly && data !== null) {
+        result.onlyA.push(data);
       }
     }
 
     // モデルBの要素をマッピングし、マッチングを試行
     for (const elementB of elementsB) {
       const { key, data } = keyExtractor(elementB, nodeMapB);
-      if (key === null) continue;
+      if (key === null) {
+        if (classifyNullKeysAsOnly && data !== null) {
+          result.onlyB.push(data);
+        }
+        continue;
+      }
 
       let foundMatch = false;
 
@@ -118,7 +129,15 @@ export class ToleranceStrategy extends BaseStrategy {
 
       // 完全一致が見つからない場合、許容差内の一致を探す
       if (!foundMatch) {
-        for (const [keyA, candidatesA] of mapA.entries()) {
+        const candidateEntries = isGuidBased
+          ? mapA.has(key)
+            ? [[key, mapA.get(key)]]
+            : []
+          : mapA.entries();
+
+        for (const [keyA, candidatesA] of candidateEntries) {
+          if (!candidatesA) continue;
+
           for (let i = 0; i < candidatesA.length; i++) {
             const dataA = candidatesA[i];
             const comparisonResult = compareElementDataWithTolerance(dataA, data, config);
@@ -174,6 +193,3 @@ export class ToleranceStrategy extends BaseStrategy {
     return compareElementDataWithTolerance(dataA, dataB, config);
   }
 }
-
-// デフォルトインスタンス
-export const toleranceStrategy = new ToleranceStrategy();

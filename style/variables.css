@@ -76,15 +76,19 @@
   --font-family-base: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
   --font-family-monospace: 'Courier New', monospace;
 
-  --font-size-xs: 0.75em;
-  --font-size-sm: 0.85em;
-  --font-size-md: 0.9em;
-  --font-size-base: 1em;
-  --font-size-lg: 1.1em;
-  --font-size-xl: 1.25em;
+  --font-size-2xs: 0.5rem;     /* 8px  - グリッドラベル等 */
+  --font-size-xs:  0.625rem;   /* 10px - 小ラベル・バッジ */
+  --font-size-sm:  0.75rem;    /* 12px - テーブル本文・コンパクト */
+  --font-size-md:  0.8125rem;  /* 13px - カテゴリ・メニュー */
+  --font-size-base: 0.875rem;  /* 14px - 標準本文 */
+  --font-size-lg:  1rem;       /* 16px - パネルタイトル */
+  --font-size-xl:  1.125rem;   /* 18px - セクション見出し */
+  --font-size-2xl: 1.25rem;    /* 20px - 大見出し */
+  --font-size-3xl: 1.5rem;     /* 24px - カードアイコン等 */
 
   --font-weight-normal: 400;
   --font-weight-medium: 500;
+  --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
   /* ========================================

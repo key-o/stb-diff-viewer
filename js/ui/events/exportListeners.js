@@ -8,7 +8,11 @@
  */
 
 // 分割されたハンドラーから再エクスポート
-export { setupIfcExportListener, setupStbExportListener } from './exportHandlers/index.js';
+export {
+  setupIfcExportListener,
+  setupStbExportListener,
+  setupReportExportListener,
+} from './exportHandlers/index.js';
 
 // データ収集ユーティリティも再エクスポート（後方互換性のため）
 export {

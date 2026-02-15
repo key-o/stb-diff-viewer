@@ -179,5 +179,3 @@ export function areAttributesEquivalent(attrA, attrB) {
 // DIFF_TYPE定数の再エクスポート
 export { DIFF_TYPE };
 
-// デフォルトインスタンス
-export const versionAwareStrategy = new VersionAwareStrategy();

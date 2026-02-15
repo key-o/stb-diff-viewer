@@ -76,7 +76,7 @@ function applyTheme() {
  * 実際に適用されるテーマを取得
  * @returns {'light' | 'dark'}
  */
-export function getEffectiveTheme() {
+function getEffectiveTheme() {
   if (currentThemeSetting === 'system') {
     return systemThemeQuery?.matches ? 'dark' : 'light';
   }
@@ -107,75 +107,10 @@ export function setThemeSetting(setting) {
 }
 
 /**
- * テーマをトグル（ライト→ダーク→システム→ライト...）
- */
-export function toggleTheme() {
-  const order = ['light', 'dark', 'system'];
-  const currentIndex = order.indexOf(currentThemeSetting);
-  const nextIndex = (currentIndex + 1) % order.length;
-  setThemeSetting(order[nextIndex]);
-}
-
-/**
  * ライト/ダークのみをトグル
  */
-export function toggleLightDark() {
+function toggleLightDark() {
   const current = getEffectiveTheme();
   setThemeSetting(current === 'light' ? 'dark' : 'light');
 }
 
-/**
- * テーマ切り替えボタンを作成
- * @param {HTMLElement} container - ボタンを追加するコンテナ
- * @returns {HTMLButtonElement}
- */
-export function createThemeToggleButton(container) {
-  const button = document.createElement('button');
-  button.id = 'theme-toggle-btn';
-  button.className = 'theme-toggle-btn';
-  button.title = 'テーマを切り替え';
-  updateThemeButtonIcon(button);
-
-  button.addEventListener('click', () => {
-    toggleLightDark();
-    updateThemeButtonIcon(button);
-  });
-
-  if (container) {
-    container.appendChild(button);
-  }
-
-  return button;
-}
-
-/**
- * テーマボタンのアイコンを更新
- * @param {HTMLButtonElement} button
- */
-function updateThemeButtonIcon(button) {
-  const effectiveTheme = getEffectiveTheme();
-  const setting = getThemeSetting();
-
-  // アイコンを設定（絵文字形式に統一）
-  if (setting === 'system') {
-    button.innerHTML = '<span class="theme-icon">☀️</span>'; // 太陽（システム）
-    button.title = 'テーマ: システム設定に従う';
-  } else if (effectiveTheme === 'dark') {
-    button.innerHTML = '<span class="theme-icon">🌙</span>'; // 月
-    button.title = 'テーマ: ダーク（クリックでライトに）';
-  } else {
-    button.innerHTML = '<span class="theme-icon">☀️</span>'; // 太陽
-    button.title = 'テーマ: ライト（クリックでダークに）';
-  }
-}
-
-/**
- * クリーンアップ
- */
-export function destroyTheme() {
-  if (systemThemeQuery) {
-    systemThemeQuery.removeEventListener('change', handleSystemThemeChange);
-    systemThemeQuery = null;
-  }
-  onThemeChangeCallback = null;
-}

@@ -73,7 +73,7 @@ export const FILE_TYPE_DEFINITIONS = [
  * ファイルバリデーションルール
  * @type {Object}
  */
-export const FILE_VALIDATION_RULES = {
+const FILE_VALIDATION_RULES = {
   maxFileSize: 100 * 1024 * 1024, // 100MB
   allowedCategories: ['stb'], // 現在有効なファイルタイプID
   requireValidation: true,
@@ -88,7 +88,7 @@ export const FILE_VALIDATION_RULES = {
  * 有効なファイルタイプを取得
  * @returns {Array<Object>} 有効なファイルタイプの配列
  */
-export function getEnabledFileTypes() {
+function getEnabledFileTypes() {
   return FILE_TYPE_DEFINITIONS.filter((ft) => ft.enabled);
 }
 
@@ -96,7 +96,7 @@ export function getEnabledFileTypes() {
  * 有効な拡張子リストを取得
  * @returns {string[]} 拡張子の配列（例: ['.stb', '.xml']）
  */
-export function getEnabledExtensions() {
+function getEnabledExtensions() {
   return getEnabledFileTypes().flatMap((ft) => ft.extensions);
 }
 
@@ -104,7 +104,7 @@ export function getEnabledExtensions() {
  * accept属性用の文字列を取得
  * @returns {string} accept属性値（例: '.stb,.xml'）
  */
-export function getAcceptAttribute() {
+function getAcceptAttribute() {
   return getEnabledExtensions().join(',');
 }
 
@@ -183,26 +183,6 @@ export function validateFileType(file) {
   };
 }
 
-/**
- * ファイル選択UI用の情報を取得
- * @param {string} [locale='ja'] - ロケール
- * @returns {Object} UI用情報
- */
-export function getFileSelectionUIConfig(locale = 'ja') {
-  const enabledTypes = getEnabledFileTypes();
-
-  return {
-    acceptAttribute: getAcceptAttribute(),
-    supportedFormats: enabledTypes.map((ft) => ({
-      id: ft.id,
-      name: ft.name[locale] || ft.name.ja,
-      extensions: ft.extensions.join(', '),
-      icon: ft.icon,
-    })),
-    placeholder: enabledTypes.map((ft) => ft.name[locale] || ft.name.ja).join(' / '),
-  };
-}
-
 // ============================================================================
 // デフォルトエクスポート
 // ============================================================================
@@ -216,5 +196,4 @@ export default {
   getFileTypeByExtension,
   getFileTypeById,
   validateFileType,
-  getFileSelectionUIConfig,
 };

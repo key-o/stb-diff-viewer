@@ -11,7 +11,7 @@
 
 import { parseElements, buildNodeMap, parseStories, parseAxes } from '../parser/stbXmlParser.js';
 import { validateSectionDataComprehensive } from '../../data/validators/sectionDataValidator.js';
-import { extractAllSections } from '../parser/defaultSectionExtractor.js';
+import { extractAllSections } from '../parser/sectionExtractor.js';
 import { createLogger } from '../../utils/logger.js';
 
 const logger = createLogger('validation:validator');

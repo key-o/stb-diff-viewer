@@ -97,5 +97,4 @@ class ImportanceColorManager extends BaseColorStateManager {
 // シングルトンインスタンスを作成してエクスポート
 const importanceColorManager = new ImportanceColorManager();
 
-export { importanceColorManager, ImportanceColorManager, IMPORTANCE_LEVEL_TYPES };
 export default importanceColorManager;

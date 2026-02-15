@@ -9,9 +9,9 @@
    ======================================== */
 
 .load-label {
-  font-family: var(--font-family-base);
-  font-size: 12px;
-  font-weight: 500;
+  font-family: var(--font-family-monospace);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
   color: #ffffff;
   background-color: rgba(0, 0, 0, 0.7);
   padding: 2px 6px;
@@ -44,17 +44,17 @@
 
 /* Label size variants */
 .load-label.small {
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   padding: 1px 4px;
 }
 
 .load-label.medium {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   padding: 2px 6px;
 }
 
 .load-label.large {
-  font-size: 14px;
+  font-size: var(--font-size-base);
   padding: 3px 8px;
 }
 
@@ -83,8 +83,8 @@
 }
 
 .load-display-mode-label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-primary, #333333);
   margin-bottom: 4px;
 }
@@ -97,14 +97,14 @@
 
 .load-display-mode-btn {
   padding: 6px 8px;
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   background-color: #ffffff;
   border: 1px solid var(--border-color, #e0e0e0);
   border-radius: var(--border-radius);
   cursor: pointer;
   transition: all 0.2s;
   text-align: center;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .load-display-mode-btn:hover {
@@ -137,9 +137,9 @@
 }
 
 .load-setting-label {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--text-secondary, #666666);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
   flex-shrink: 0;
 }
 
@@ -152,7 +152,7 @@
 .load-setting-input select {
   width: 100%;
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   border: 1px solid var(--border-color, #e0e0e0);
   border-radius: var(--border-radius);
   background-color: #ffffff;
@@ -177,8 +177,8 @@
 }
 
 .load-color-legend-title {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-primary, #333333);
   margin-bottom: 4px;
 }
@@ -187,7 +187,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--font-size-sm);
 }
 
 .load-color-indicator {
@@ -207,7 +207,7 @@
 
 @media (max-width: 768px) {
   .load-label {
-    font-size: 10px;
+    font-size: var(--font-size-xs);
     padding: 1px 4px;
   }
 

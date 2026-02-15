@@ -91,52 +91,25 @@ export function getEnvironmentConfig() {
   };
 }
 
-// API エンドポイント取得
-export function getApiEndpoint(service = 'stb2ifc') {
+/**
+ * 指定された機能が有効かどうかを確認
+ * @param {string} featureName - 機能名（例: 'ifcConversion', 'devTools'）
+ * @returns {boolean} 機能が有効な場合true
+ */
+export function isFeatureEnabled(featureName) {
   const config = getEnvironmentConfig();
-  if (service === 'stb2ifc') {
-    return config.stb2ifc.apiBaseUrl;
-  }
-  throw new Error(`Unknown service: ${service}`);
+  return config.features?.[featureName] ?? false;
 }
 
-// 機能フラグチェック
-export function isFeatureEnabled(feature) {
-  const config = getEnvironmentConfig();
-  return config.features[feature] || false;
-}
-
-// デバッグモード判定
-export function isDebugMode() {
-  const config = getEnvironmentConfig();
-  return config.stb2ifc.debug;
-}
-
-// ログレベル取得
-export function getLogLevel() {
-  const config = getEnvironmentConfig();
-  return config.logging.level;
-}
-
-// 環境情報表示（開発用）
+/**
+ * 環境情報をコンソールに表示（開発用）
+ */
 export function displayEnvironmentInfo() {
   const config = getEnvironmentConfig();
-  if (config.stb2ifc.debug) {
-  }
-}
-
-// 設定のオーバーライド（テスト用）
-export function overrideConfig(overrides) {
-  const config = getEnvironmentConfig();
-  if (config.stb2ifc.debug) {
-    // グローバル設定を一時的に上書き
-    Object.assign(globalConfig.environments[config.environment], overrides);
-    console.warn('⚠️ Configuration overridden:', overrides);
-  }
-}
-
-// 同期版のエイリアス（後方互換性のため）
-export function getEnvironmentConfigSync() {
-  // 現在は全て同期なので、そのまま呼び出す
-  return getEnvironmentConfig();
+  console.group('🌍 環境設定情報');
+  console.log('環境:', config.environment);
+  console.log('API URL:', config.stb2ifc?.apiBaseUrl);
+  console.log('デバッグモード:', config.stb2ifc?.debug);
+  console.log('有効な機能:', config.features);
+  console.groupEnd();
 }

@@ -139,12 +139,12 @@
 
 .diff-group-header .count-a {
   color: #388E3C;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .diff-group-header .count-b {
   color: #D32F2F;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 /* ========================================
@@ -175,7 +175,7 @@
   background-color: #e0e0e0;
 }
 
-/* モデルA専用 */
+/* モデルAのみ */
 .diff-item.item-onlyA {
   border-left: 3px solid #4CAF50;
 }
@@ -184,7 +184,7 @@
   background-color: #E8F5E9;
 }
 
-/* モデルB専用 */
+/* モデルBのみ */
 .diff-item.item-onlyB {
   border-left: 3px solid #F44336;
 }
@@ -292,7 +292,7 @@
 /* バージョン差分カウント */
 .diff-group-header .count-version {
   color: #757575;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 /* バージョン固有差分アイテム */
@@ -316,7 +316,7 @@
   width: auto;
   padding: 0 6px;
   background-color: #757575;
-  font-size: 10px;
+  font-size: var(--font-size-xs);
 }
 
 /* バージョン差分カウント表示 */
@@ -330,7 +330,7 @@
 /* 差分アイコン */
 .diff-item .diff-icon {
   margin-right: 6px;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 /* ========================================

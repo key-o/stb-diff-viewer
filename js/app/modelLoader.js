@@ -35,6 +35,7 @@ import { scheduleRender } from '../utils/renderScheduler.js';
 import { EventTypes, ModelEvents, ComparisonEvents } from './events/eventTypes.js';
 import comparisonKeyManager from './comparisonKeyManager.js';
 import { clearParseCache } from '../viewer/index.js';
+import { COMPARISON_KEY_TYPE } from '../config/comparisonKeyConfig.js';
 
 // Refactored modules
 import {
@@ -68,7 +69,7 @@ import {
   handleFinalizationError,
 } from '../modelLoader/visualizationFinalizer.js';
 import { showError } from '../ui/common/toast.js';
-import { syncDisplayModeFromUI } from './viewModes.js';
+import { syncDisplayModeFromUI } from './viewModes/index.js';
 
 // モデル状態管理
 let stories = [];
@@ -81,6 +82,19 @@ let modelADocument = null;
 let modelBDocument = null;
 let modelsLoaded = false;
 let sectionMaps = null; // 断面データ
+
+// 比較キータイプ変更時に自動再比較を実行
+comparisonKeyManager.onChange(async (newKeyType, oldKeyType) => {
+  if (!modelsLoaded) return;
+  log.info(`比較キータイプが変更されました (${oldKeyType} → ${newKeyType})、再比較を実行します`);
+  try {
+    if (typeof window.handleCompareModelsClick === 'function') {
+      await window.handleCompareModelsClick();
+    }
+  } catch (error) {
+    log.error('キータイプ変更後の再比較に失敗:', error);
+  }
+});
 
 /**
  * モデルデータへの参照を取得
@@ -278,7 +292,19 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     }
 
     // Phase 3: Element Comparison
-    const comparisonKeyType = comparisonKeyManager.getKeyType();
+    let comparisonKeyType = comparisonKeyManager.getKeyType();
+    const selectedKeyRadio = document.querySelector('input[name="comparisonKeyType"]:checked');
+    const keyTypeFromUI = selectedKeyRadio?.value;
+    if (
+      keyTypeFromUI &&
+      Object.values(COMPARISON_KEY_TYPE).includes(keyTypeFromUI) &&
+      keyTypeFromUI !== comparisonKeyType
+    ) {
+      comparisonKeyManager.setKeyType(keyTypeFromUI);
+      comparisonKeyType = keyTypeFromUI;
+      log.info(`[Debug] UI選択から比較キータイプを同期: ${comparisonKeyType}`);
+    }
+    log.info(`[Debug] 比較キータイプ: ${comparisonKeyType}`);
 
     const comparisonOptions = {
       useImportanceFiltering: true,
@@ -291,6 +317,24 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
       comparisonOptions,
     );
     const { comparisonResults } = comparisonResult;
+
+    let totalMatched = 0;
+    for (const [elementType, result] of comparisonResults.entries()) {
+      const matchedCount = result.matched?.length || 0;
+      totalMatched += matchedCount;
+      if (matchedCount > 0) {
+        log.info(`[Debug] matched>0: ${elementType}=${matchedCount}`);
+      }
+    }
+    log.info(`[Debug] 合計matched件数: ${totalMatched}`);
+
+    if (typeof window !== 'undefined') {
+      window.lastComparisonDebug = {
+        comparisonKeyType,
+        totalMatched,
+        timestamp: new Date().toISOString(),
+      };
+    }
 
     // 比較結果をグローバル状態に保存
     setState('comparisonResults', comparisonResults);

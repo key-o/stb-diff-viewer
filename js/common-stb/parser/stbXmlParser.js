@@ -306,6 +306,52 @@ export function parseAxes(doc, options = {}) {
   return { xAxes, yAxes };
 }
 
+// --- ノード所属情報ルックアップ構築関数 ---
+/**
+ * XMLドキュメントからノードIDをキーとする所属階・所属通芯の逆引きマップを構築する。
+ *
+ * StbStory と StbParallelAxis の StbNodeIdList を解析し、
+ * 各ノードがどの階・どの通芯に所属しているかを高速に検索できるMapを返します。
+ *
+ * @param {Document} doc - パース済みのXMLドキュメント。
+ * @returns {Map<string, {storyName: string|null, axisNames: string[]}>}
+ *   ノードIDをキー、所属情報を値とするMap。
+ */
+export function buildNodeStoryAxisLookup(doc) {
+  const lookup = new Map();
+  if (!doc) return lookup;
+
+  // 階情報から所属階を構築
+  const stories = parseStories(doc, { includeNodeIds: true });
+  for (const story of stories) {
+    if (story.node_ids) {
+      for (const nodeId of story.node_ids) {
+        if (!lookup.has(nodeId)) {
+          lookup.set(nodeId, { storyName: null, axisNames: [] });
+        }
+        lookup.get(nodeId).storyName = story.name;
+      }
+    }
+  }
+
+  // 通芯情報から所属通芯を構築
+  const axes = parseAxes(doc, { includeNodeIds: true });
+  const allAxes = [...axes.xAxes, ...axes.yAxes];
+  for (const axis of allAxes) {
+    if (axis.node_ids) {
+      for (const nodeId of axis.node_ids) {
+        if (!lookup.has(nodeId)) {
+          lookup.set(nodeId, { storyName: null, axisNames: [] });
+        }
+        lookup.get(nodeId).axisNames.push(axis.name);
+      }
+    }
+  }
+
+  logger.log(`[Load] ノード所属情報ルックアップ構築完了: ${lookup.size}ノード`);
+  return lookup;
+}
+
 // --- 鋼材形状データ抽出関数 ---
 /**
  * 鋼材形状データを抽出する
@@ -530,6 +576,7 @@ export function extractColumnElements(xmlDoc) {
     const idNodeTop = colEl.getAttribute('id_node_top');
     const idSection = colEl.getAttribute('id_section');
     const name = colEl.getAttribute('name');
+    const guid = colEl.getAttribute('guid');
     const rotate = colEl.getAttribute('rotate');
 
     const offset_bottom_X = colEl.getAttribute('offset_bottom_X');
@@ -544,6 +591,7 @@ export function extractColumnElements(xmlDoc) {
         id_node_top: idNodeTop,
         id_section: idSection,
         name: name,
+        guid: guid || undefined,
         rotate: rotate ? parseFloat(rotate) : 0,
         offset_bottom_X: offset_bottom_X ? parseFloat(offset_bottom_X) : 0,
         offset_bottom_Y: offset_bottom_Y ? parseFloat(offset_bottom_Y) : 0,
@@ -576,6 +624,7 @@ function extractBeamLikeElements(xmlDoc, elementType) {
     const idNodeEnd = el.getAttribute('id_node_end');
     const idSection = el.getAttribute('id_section');
     const name = el.getAttribute('name');
+    const guid = el.getAttribute('guid');
 
     const offset_start_X = el.getAttribute('offset_start_X');
     const offset_start_Y = el.getAttribute('offset_start_Y');
@@ -602,6 +651,7 @@ function extractBeamLikeElements(xmlDoc, elementType) {
         id_node_end: idNodeEnd,
         id_section: idSection,
         name: name,
+        guid: guid || undefined,
       };
 
       if (
@@ -695,6 +745,7 @@ export function extractPostElements(xmlDoc) {
     const idNodeTop = postEl.getAttribute('id_node_top');
     const idSection = postEl.getAttribute('id_section');
     const name = postEl.getAttribute('name');
+    const guid = postEl.getAttribute('guid');
 
     const offset_bottom_X = postEl.getAttribute('offset_bottom_X');
     const offset_bottom_Y = postEl.getAttribute('offset_bottom_Y');
@@ -709,6 +760,7 @@ export function extractPostElements(xmlDoc) {
         id_node_top: idNodeTop,
         id_section: idSection,
         name: name,
+        guid: guid || undefined,
         offset_bottom_X: offset_bottom_X ? parseFloat(offset_bottom_X) : 0,
         offset_bottom_Y: offset_bottom_Y ? parseFloat(offset_bottom_Y) : 0,
         offset_top_X: offset_top_X ? parseFloat(offset_top_X) : 0,
@@ -741,6 +793,7 @@ export function extractPileElements(xmlDoc) {
     const id = pileEl.getAttribute('id');
     const idSection = pileEl.getAttribute('id_section');
     const name = pileEl.getAttribute('name');
+    const guid = pileEl.getAttribute('guid');
     const kind = pileEl.getAttribute('kind');
     const kindStructure = pileEl.getAttribute('kind_structure');
 
@@ -768,6 +821,7 @@ export function extractPileElements(xmlDoc) {
         id_node_top: idNodeTop,
         id_section: idSection,
         name: name,
+        guid: guid || undefined,
         kind: kind,
         kind_structure: kindStructure,
         length_all: lengthAll ? parseFloat(lengthAll) : undefined,
@@ -788,6 +842,7 @@ export function extractPileElements(xmlDoc) {
         level_top: parseFloat(levelTop),
         id_section: idSection,
         name: name,
+        guid: guid || undefined,
         kind: kind,
         kind_structure: kindStructure,
         length_all: lengthAll ? parseFloat(lengthAll) : undefined,
@@ -821,6 +876,7 @@ export function extractFootingElements(xmlDoc) {
     const idNode = footingEl.getAttribute('id_node');
     const idSection = footingEl.getAttribute('id_section');
     const name = footingEl.getAttribute('name');
+    const guid = footingEl.getAttribute('guid');
 
     const levelBottom = footingEl.getAttribute('level_bottom');
     const offsetX = footingEl.getAttribute('offset_X');
@@ -833,6 +889,7 @@ export function extractFootingElements(xmlDoc) {
         id_node: idNode,
         id_section: idSection,
         name: name,
+        guid: guid || undefined,
         level_bottom: levelBottom ? parseFloat(levelBottom) : 0,
         offset_X: offsetX ? parseFloat(offsetX) : 0,
         offset_Y: offsetY ? parseFloat(offsetY) : 0,
@@ -862,6 +919,7 @@ export function extractFoundationColumnElements(xmlDoc) {
     const idNodeTop = fcEl.getAttribute('id_node_top');
     const idSection = fcEl.getAttribute('id_section');
     const name = fcEl.getAttribute('name');
+    const guid = fcEl.getAttribute('guid');
 
     const offset_bottom_X = fcEl.getAttribute('offset_bottom_X');
     const offset_bottom_Y = fcEl.getAttribute('offset_bottom_Y');
@@ -876,6 +934,7 @@ export function extractFoundationColumnElements(xmlDoc) {
         id_node_top: idNodeTop,
         id_section: idSection,
         name: name,
+        guid: guid || undefined,
         offset_bottom_X: offset_bottom_X ? parseFloat(offset_bottom_X) : 0,
         offset_bottom_Y: offset_bottom_Y ? parseFloat(offset_bottom_Y) : 0,
         offset_top_X: offset_top_X ? parseFloat(offset_top_X) : 0,
@@ -912,6 +971,7 @@ export function extractSlabElements(xmlDoc) {
     const kindSlab = slabEl.getAttribute('kind_slab');
     const directionLoad = slabEl.getAttribute('direction_load');
     const isFoundation = slabEl.getAttribute('isFoundation');
+    const guid = slabEl.getAttribute('guid');
 
     const nodeIdOrderEl = slabEl.getElementsByTagName('StbNodeIdOrder')[0];
     const nodeIdText = nodeIdOrderEl
@@ -940,6 +1000,7 @@ export function extractSlabElements(xmlDoc) {
         id: id,
         id_section: idSection,
         name: name,
+        guid: guid || undefined,
         kind_structure: kindStructure,
         kind_slab: kindSlab,
         direction_load: directionLoad,
@@ -972,6 +1033,7 @@ export function extractWallElements(xmlDoc) {
     const kindStructure = wallEl.getAttribute('kind_structure');
     const kindLayout = wallEl.getAttribute('kind_layout');
     const kindWall = wallEl.getAttribute('kind_wall');
+    const guid = wallEl.getAttribute('guid');
 
     const nodeIdOrderEl = wallEl.getElementsByTagName('StbNodeIdOrder')[0];
     const nodeIdText = nodeIdOrderEl
@@ -1010,6 +1072,7 @@ export function extractWallElements(xmlDoc) {
         id: id,
         id_section: idSection,
         name: name,
+        guid: guid || undefined,
         kind_structure: kindStructure,
         kind_layout: kindLayout,
         kind_wall: kindWall,

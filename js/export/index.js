@@ -6,8 +6,8 @@
 
 // IFC エクスポート
 export { IFCExporterBase } from './ifc/IFCExporterBase.js';
-export { IFCBeamExporter, exportSingleBeamToIFC } from './ifc/IFCBeamExporter.js';
-export { IFCSlabExporter, exportSingleSlabToIFC } from './ifc/IFCSlabExporter.js';
+export { IFCBeamExporter } from './ifc/IFCBeamExporter.js';
+export { IFCSlabExporter } from './ifc/IFCSlabExporter.js';
 export { IFCWallExporter, exportSingleWallToIFC } from './ifc/IFCWallExporter.js';
 export { IFCSTBExporter } from './ifc/IFCSTBExporter.js';
 export { StepWriter, generateIfcGuid } from './ifc/StepWriter.js';
@@ -42,6 +42,12 @@ export {
   downloadStbFile,
   downloadTextFile,
 } from './stb/stbExporter.js';
+
+// Report エクスポート
+export { generateReport } from './report/reportGenerator.js';
+export { collectReportData } from './report/reportDataCollector.js';
+export { captureCurrentView, captureMultipleViews } from './report/reportScreenshot.js';
+export { buildReportHtml } from './report/reportHtmlBuilder.js';
 
 // API 連携
 export { IFCConverter, IFCConverterUI } from './api/ifcConverter.js';

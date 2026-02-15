@@ -46,7 +46,7 @@
 .accordion-header span:first-child {
   display: flex;
   align-items: center;
-  font-size: 0.95em;
+  font-size: var(--font-size-base);
 }
 
 /* ========================================
@@ -54,7 +54,7 @@
    ======================================== */
 
 .accordion-arrow {
-  font-size: 0.8em;
+  font-size: var(--font-size-sm);
   transition: transform var(--transition-base);
   color: var(--text-secondary);
 }
@@ -125,7 +125,7 @@
   background: var(--bg-body);
   border-radius: var(--border-radius);
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   color: var(--text-heading);
   text-align: center;
   transition: all var(--transition-fast);
@@ -169,7 +169,7 @@
 }
 
 .version-badge-inline {
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   padding: 2px 6px;
   border-radius: var(--border-radius);
   background: var(--bg-secondary);

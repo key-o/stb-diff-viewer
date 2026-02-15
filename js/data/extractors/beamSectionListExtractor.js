@@ -98,7 +98,10 @@ function extractStories(xmlDoc) {
   storyElements.forEach((el) => {
     const id = el.getAttribute('id');
     const name = el.getAttribute('name') || `階${id}`;
-    const level = parseFloat(el.getAttribute('level')) || 0;
+    const levelAttr = el.getAttribute('level');
+    const parsedLevel =
+      levelAttr !== null && levelAttr !== '' ? Number.parseFloat(levelAttr) : Number.NaN;
+    const level = Number.isFinite(parsedLevel) ? parsedLevel : null;
 
     // このStoryに属するノードIDを抽出
     const nodeIds = new Set();
@@ -116,6 +119,62 @@ function extractStories(xmlDoc) {
   });
 
   return stories;
+}
+
+/**
+ * 階名の順序値を取得（降順ソート用）
+ * @param {string} name - 階名（例: "1FL", "RFL", "PH1", "B1"）
+ * @returns {number} 大きいほど上階
+ */
+function getFloorSortOrder(name) {
+  if (!name) return 0;
+
+  const upper = String(name).toUpperCase().trim();
+
+  if (upper === 'PH' || upper.startsWith('PH')) {
+    const phNum = Number.parseInt((upper.match(/^PH(\d*)$/) || [])[1] || '0', 10);
+    return 20000 + (Number.isFinite(phNum) ? phNum : 0);
+  }
+
+  if (upper === 'R' || upper === 'RF' || upper === 'RFL' || upper.startsWith('RF')) {
+    const rfNum = Number.parseInt((upper.match(/^RF(\d*)$/) || [])[1] || '0', 10);
+    return 10000 + (Number.isFinite(rfNum) ? rfNum : 0);
+  }
+
+  const basementMatch = upper.match(/^B(\d+)/);
+  if (basementMatch) {
+    return -Number.parseInt(basementMatch[1], 10);
+  }
+
+  const numMatch = upper.match(/(\d+)/);
+  if (numMatch) {
+    return Number.parseInt(numMatch[1], 10);
+  }
+
+  return 0;
+}
+
+/**
+ * 階を上階から下階へソート
+ * @param {{ level?: number|null, name?: string }} a
+ * @param {{ level?: number|null, name?: string }} b
+ * @returns {number}
+ */
+function compareStoriesDescending(a, b) {
+  const levelA = typeof a?.level === 'number' ? a.level : null;
+  const levelB = typeof b?.level === 'number' ? b.level : null;
+
+  if (levelA !== null && levelB !== null && levelA !== levelB) {
+    return levelB - levelA;
+  }
+
+  const orderA = getFloorSortOrder(a?.name);
+  const orderB = getFloorSortOrder(b?.name);
+  if (orderA !== orderB) {
+    return orderB - orderA;
+  }
+
+  return String(a?.name || '').localeCompare(String(b?.name || ''));
 }
 
 /**
@@ -155,16 +214,27 @@ function extractGirders(xmlDoc) {
  * @returns {Array<string>} 階IDの配列
  */
 function getStoryIdsForGirder(girder, stories) {
-  const storyIds = [];
+  const startStoryIds = [];
+  const endStoryIds = [];
 
-  // 梁のノード（開始または終了）を含む階を探す
+  // 梁は通常同一階内の部材として扱うため、開始ノード側を優先して1階に割り当てる。
   stories.forEach((story, storyId) => {
-    if (story.nodeIds.has(girder.idNodeStart) || story.nodeIds.has(girder.idNodeEnd)) {
-      storyIds.push(storyId);
+    if (story.nodeIds.has(girder.idNodeStart)) {
+      startStoryIds.push(storyId);
+    }
+    if (story.nodeIds.has(girder.idNodeEnd)) {
+      endStoryIds.push(storyId);
     }
   });
 
-  return storyIds;
+  if (startStoryIds.length > 0) {
+    return [startStoryIds[0]];
+  }
+  if (endStoryIds.length > 0) {
+    return [endStoryIds[0]];
+  }
+
+  return [];
 }
 
 /**
@@ -709,10 +779,18 @@ function determinePositionPattern(result) {
  */
 function extractBaseSymbol(sectionName) {
   if (!sectionName) return '';
-  // 数字を除去して基本符号を抽出
-  // 例："3G1" → "G1", "10C1a" → "C1a"
-  const match = sectionName.match(/([A-Z]+\d+[A-Za-z]*)/);
-  return match ? match[1] : sectionName;
+
+  // 先頭の階プレフィックス（例: 3, 10F）だけを除去し、残りの末尾トークンを符号として採用する。
+  // 例: "3G1" -> "G1", "10B1G1" -> "B1G1", "3F-G1" -> "G1"
+  const normalized = sectionName.trim();
+  const withoutFloorPrefix = normalized.replace(/^\d+F?/i, '');
+  const tokens = withoutFloorPrefix.match(/[A-Za-z][A-Za-z0-9]*/g);
+
+  if (tokens && tokens.length > 0) {
+    return tokens[tokens.length - 1].toUpperCase();
+  }
+
+  return (withoutFloorPrefix || normalized).toUpperCase();
 }
 
 /**
@@ -777,9 +855,7 @@ function extractBeamSectionGridV210(xmlDoc) {
 
   // 1. 階データを抽出
   const storiesMap = extractStories(xmlDoc);
-  const storiesList = Array.from(storiesMap.values()).sort(
-    (a, b) => (b.level || 0) - (a.level || 0),
-  ); // level降順
+  const storiesList = Array.from(storiesMap.values()).sort(compareStoriesDescending);
   console.log('[extractBeamSectionGridV210] Stories extracted:', storiesList.length);
 
   // 2. 梁要素を抽出
@@ -816,9 +892,7 @@ function extractBeamSectionGridV202(xmlDoc) {
 
   // 1. 階データを抽出
   const storiesMap = extractStories(xmlDoc);
-  const storiesList = Array.from(storiesMap.values()).sort(
-    (a, b) => (b.level || 0) - (a.level || 0),
-  ); // level降順
+  const storiesList = Array.from(storiesMap.values()).sort(compareStoriesDescending);
   console.log('[extractBeamSectionGridV202] Stories extracted:', storiesList.length);
 
   // 2. 梁要素を抽出
@@ -855,9 +929,7 @@ function extractBeamSectionGridFallback(xmlDoc) {
 
   // 1. 階データを抽出
   const storiesMap = extractStories(xmlDoc);
-  const storiesList = Array.from(storiesMap.values()).sort(
-    (a, b) => (b.level || 0) - (a.level || 0),
-  ); // level降順
+  const storiesList = Array.from(storiesMap.values()).sort(compareStoriesDescending);
 
   // 2. 梁要素を抽出
   const girders = extractGirders(xmlDoc);
@@ -903,7 +975,9 @@ function buildBeamSectionGrid(
 
   girders.forEach((girder) => {
     const storyIds = getStoryIdsForGirder(girder, storiesMap);
-    const symbol = extractBaseSymbol(girder.name);
+    const sectionDetail = sectionsMap.get(girder.idSection);
+    const symbolSource = sectionDetail?.name || girder.name;
+    const symbol = extractBaseSymbol(symbolSource);
 
     storyIds.forEach((storyId) => {
       if (!sectionUsageMap.has(girder.idSection)) {
@@ -944,6 +1018,7 @@ function buildBeamSectionGrid(
 
       const key = `${storyId}:${symbol}`;
       const cellData = {
+        sectionId,
         storyId,
         storyName: story.name,
         storyLevel: story.level,
@@ -956,7 +1031,24 @@ function buildBeamSectionGrid(
         cover: sectionData.cover,
       };
 
-      grid.set(key, cellData);
+      const existingCell = grid.get(key);
+      if (!existingCell) {
+        grid.set(key, cellData);
+      } else {
+        const variants = Array.isArray(existingCell) ? existingCell : [existingCell];
+        const alreadyRegistered = variants.some((variant) => variant.sectionId === sectionId);
+
+        if (!alreadyRegistered) {
+          variants.push(cellData);
+          grid.set(key, variants);
+          console.warn(
+            `[buildBeamSectionGrid] (${parserVersion}) Multiple sections detected in same cell:`,
+            key,
+            variants.map((variant) => variant.sectionId),
+          );
+        }
+      }
+
       symbolSet.add(symbol);
       console.log(`[buildBeamSectionGrid] (${parserVersion}) Grid cell added:`, key);
     });
@@ -990,11 +1082,16 @@ export function extractBeamSectionList(xmlDoc) {
 
   // グリッドデータをリスト形式に変換
   // 階を降順、符号を昇順でソート
-  const rows = Array.from(gridData.grid.values()).sort((a, b) => {
-    const levelComp = (b.storyLevel || 0) - (a.storyLevel || 0);
-    if (levelComp !== 0) return levelComp;
-    return compareSymbols(a.symbol, b.symbol);
-  });
+  const rows = Array.from(gridData.grid.values())
+    .flatMap((cell) => (Array.isArray(cell) ? cell : [cell]))
+    .sort((a, b) => {
+      const storyComp = compareStoriesDescending(
+        { level: a.storyLevel, name: a.storyName },
+        { level: b.storyLevel, name: b.storyName },
+      );
+      if (storyComp !== 0) return storyComp;
+      return compareSymbols(a.symbol, b.symbol);
+    });
 
   sections.push(...rows);
 

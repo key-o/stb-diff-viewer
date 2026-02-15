@@ -58,8 +58,8 @@
 }
 
 .range-control-group label {
-  font-size: 0.85em;
-  font-weight: 600;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
   margin-bottom: 4px;
 }
@@ -71,7 +71,7 @@
 }
 
 .range-label {
-  font-size: 0.75em;
+  font-size: var(--font-size-xs);
   color: var(--text-secondary);
   white-space: nowrap;
   min-width: 30px;
@@ -80,8 +80,8 @@
 
 .range-value-display {
   text-align: center;
-  font-size: 0.9em;
-  font-weight: 600;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
   background: var(--bg-body);
   padding: 4px 8px;

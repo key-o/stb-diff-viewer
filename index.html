@@ -214,6 +214,14 @@
             <button type="button" id="exportIfcBtn" class="btn btn-secondary">
               📦 IFCファイルに変換
             </button>
+            <button type="button" id="exportReportBtn" class="btn btn-secondary" disabled
+              title="比較結果をHTMLレポートとして出力（比較実行後に有効化）">
+              比較レポート出力
+            </button>
+            <label style="font-size: 0.85em; display: flex; align-items: center; gap: 4px; cursor: pointer;">
+              <input type="checkbox" id="reportMultiViewCheck">
+              複数アングルを含める
+            </label>
           </div>
 
           <!-- RC柱断面リストセクション -->
@@ -316,11 +324,11 @@
         </div>
         <div class="legend-item">
           <span class="legend-color legend-color-onlya"></span>
-          <span><strong>モデルA専用</strong></span>
+          <span><strong>モデルAのみ</strong></span>
         </div>
         <div class="legend-item">
           <span class="legend-color legend-color-onlyb"></span>
-          <span><strong>モデルB専用</strong></span>
+          <span><strong>モデルBのみ</strong></span>
         </div>
         <hr />
         <div class="legend-item">

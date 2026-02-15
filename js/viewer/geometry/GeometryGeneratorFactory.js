@@ -31,55 +31,81 @@ const log = createLogger('GeometryGeneratorFactory');
  */
 const GENERATOR_MAP = {
   Column: {
-    class: ProfileBasedColumnGenerator,
+    get class() {
+      return ProfileBasedColumnGenerator;
+    },
     method: 'createColumnMeshes',
   },
   Post: {
-    class: ProfileBasedPostGenerator,
+    get class() {
+      return ProfileBasedPostGenerator;
+    },
     method: 'createPostMeshes',
   },
   Girder: {
-    class: ProfileBasedBeamGenerator,
+    get class() {
+      return ProfileBasedBeamGenerator;
+    },
     method: 'createBeamMeshes',
   },
   Beam: {
-    class: ProfileBasedBeamGenerator,
+    get class() {
+      return ProfileBasedBeamGenerator;
+    },
     method: 'createBeamMeshes',
   },
   Brace: {
-    class: ProfileBasedBraceGenerator,
+    get class() {
+      return ProfileBasedBraceGenerator;
+    },
     method: 'createBraceMeshes',
   },
   Pile: {
-    class: PileGenerator,
+    get class() {
+      return PileGenerator;
+    },
     method: 'createPileMeshes',
   },
   Footing: {
-    class: FootingGenerator,
+    get class() {
+      return FootingGenerator;
+    },
     method: 'createFootingMeshes',
   },
   StripFooting: {
-    class: StripFootingGenerator,
+    get class() {
+      return StripFootingGenerator;
+    },
     method: 'createStripFootingMeshes',
   },
   FoundationColumn: {
-    class: ProfileBasedFoundationColumnGenerator,
+    get class() {
+      return ProfileBasedFoundationColumnGenerator;
+    },
     method: 'createFoundationColumnMeshes',
   },
   Slab: {
-    class: SlabGenerator,
+    get class() {
+      return SlabGenerator;
+    },
     method: 'createSlabMeshes',
   },
   Wall: {
-    class: WallGenerator,
+    get class() {
+      return WallGenerator;
+    },
     method: 'createWallMeshes',
   },
   Parapet: {
-    class: ParapetGenerator,
+    get class() {
+      return ParapetGenerator;
+    },
     method: 'createParapetMeshes',
   },
   Joint: {
-    class: JointGenerator,
+    get class() {
+      return JointGenerator;
+    },
     method: 'createJointMeshes',
   },
 };

@@ -12,7 +12,7 @@ const log = createLogger('viewer:PerformanceMonitor');
 /**
  * パフォーマンス計測クラス
  */
-export class PerformanceMonitor {
+class PerformanceMonitor {
   constructor() {
     /** @type {number[]} 直近のフレーム時間（ms） */
     this.frameTimes = [];
@@ -234,8 +234,8 @@ export class PerformanceMonitor {
       right: 10px;
       background: rgba(0, 0, 0, 0.8);
       color: #0f0;
-      font-family: monospace;
-      font-size: 12px;
+      font-family: var(--font-family-monospace);
+      font-size: var(--font-size-sm);
       padding: 10px;
       border-radius: 4px;
       z-index: 10000;
@@ -264,7 +264,7 @@ export class PerformanceMonitor {
         FPS: ${s.fps.toFixed(1)}
       </div>
       <div>Frame: ${s.avgFrameTime.toFixed(2)}ms</div>
-      <div style="font-size: 10px; color: #888; margin-top: 5px;">
+      <div style="font-size: var(--font-size-xs); color: #888; margin-top: 5px;">
         Draw: ${s.drawCalls}<br>
         Tris: ${(s.triangles / 1000).toFixed(1)}K<br>
         Geom: ${s.geometries}<br>
@@ -322,27 +322,6 @@ export function getPerformanceMonitor() {
   return instance;
 }
 
-/**
- * パフォーマンス計測デコレータ
- * 関数の実行時間を自動計測
- * @param {string} name - 計測名
- * @returns {Function} デコレータ関数
- */
-export function measurePerformance(name) {
-  return function (target, propertyKey, descriptor) {
-    const originalMethod = descriptor.value;
-
-    descriptor.value = function (...args) {
-      const monitor = getPerformanceMonitor();
-      monitor.mark(name);
-      const result = originalMethod.apply(this, args);
-      monitor.logMeasure(name);
-      return result;
-    };
-
-    return descriptor;
-  };
-}
 
 /**
  * 非同期関数のパフォーマンス計測

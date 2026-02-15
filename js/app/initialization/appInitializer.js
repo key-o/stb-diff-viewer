@@ -16,7 +16,7 @@ import {
   getActiveCamera,
 } from '../../viewer/index.js';
 import { setupInteractionListeners, getSelectedCenter } from '../interaction.js';
-import { setupViewModeListeners, setupCameraModeListeners } from '../viewModes.js';
+import { setupViewModeListeners, setupCameraModeListeners } from '../viewModes/index.js';
 import { setupColorModeListeners } from '../../colorModes/index.js';
 import {
   setupUIEventListeners,

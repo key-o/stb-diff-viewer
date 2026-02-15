@@ -53,5 +53,5 @@ class LoadColorManager extends BaseColorStateManager {
 // シングルトンインスタンスを作成してエクスポート
 const loadColorManager = new LoadColorManager();
 
-export { loadColorManager, LoadColorManager, LOAD_TYPES, DEFAULT_LOAD_COLORS };
+export { LOAD_TYPES };
 export default loadColorManager;

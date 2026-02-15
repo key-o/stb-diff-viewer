@@ -31,7 +31,7 @@ import {
 } from '../../config/diffFilterConfig.js';
 
 // 他モジュールからの利便性のため再エクスポート
-export { DIFF_STATUS, DIFF_STATUS_NAMES, DIFF_STATUS_VALUES };
+export { DIFF_STATUS_VALUES };
 
 const log = createLogger('diffStatusFilter');
 

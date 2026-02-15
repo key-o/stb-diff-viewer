@@ -5,8 +5,6 @@
  * 他のモジュールはここからラベル定義をインポートしてください。
  */
 
-import { SUPPORTED_ELEMENTS } from '../constants/elementTypes.js';
-
 // ============================================================================
 // 基本的な要素タイプラベル
 // ============================================================================
@@ -90,7 +88,7 @@ export const ELEMENT_ICONS = {
  * 内部要素タイプ名とSTB XML要素名のマッピング
  * @type {Object.<string, string>}
  */
-export const ELEMENT_TO_STB_NAME = {
+const ELEMENT_TO_STB_NAME = {
   Node: 'StbNode',
   Column: 'StbColumn',
   Post: 'StbPost',
@@ -105,15 +103,9 @@ export const ELEMENT_TO_STB_NAME = {
   Footing: 'StbFooting',
   StripFooting: 'StbStripFooting',
   FoundationColumn: 'StbFoundationColumn',
+  Story: 'StbStory',
+  Axis: 'StbParallelAxis',
 };
-
-/**
- * STB XML要素名から内部要素タイプ名へのマッピング
- * @type {Object.<string, string>}
- */
-export const STB_NAME_TO_ELEMENT = Object.fromEntries(
-  Object.entries(ELEMENT_TO_STB_NAME).map(([k, v]) => [v, k]),
-);
 
 // ============================================================================
 // ヘルパー関数
@@ -124,34 +116,8 @@ export const STB_NAME_TO_ELEMENT = Object.fromEntries(
  * @param {string} elementType - 要素タイプ名
  * @returns {string} 日本語表示名（未定義の場合は元のタイプ名）
  */
-export function getElementLabel(elementType) {
+function getElementLabel(elementType) {
   return ELEMENT_LABELS[elementType] || elementType;
-}
-
-/**
- * 断面タイプの表示名を取得
- * @param {string} sectionType - 断面タイプ名
- * @returns {string} 日本語表示名（未定義の場合は「〜断面」形式で生成）
- */
-export function getSectionLabel(sectionType) {
-  return SECTION_LABELS[sectionType] || `${getElementLabel(sectionType)}断面`;
-}
-
-/**
- * 要素タイプのアイコンを取得
- * @param {string} elementType - 要素タイプ名
- * @returns {string} アイコン文字（未定義の場合は空文字）
- */
-export function getElementIcon(elementType) {
-  return ELEMENT_ICONS[elementType] || '';
-}
-
-/**
- * すべてのサポートされる要素タイプにラベルが定義されているか検証
- * @returns {string[]} ラベルが未定義の要素タイプ名の配列
- */
-export function validateLabelCompleteness() {
-  return SUPPORTED_ELEMENTS.filter((type) => !ELEMENT_LABELS[type]);
 }
 
 // ============================================================================
@@ -163,9 +129,5 @@ export default {
   SECTION_LABELS,
   ELEMENT_ICONS,
   ELEMENT_TO_STB_NAME,
-  STB_NAME_TO_ELEMENT,
   getElementLabel,
-  getSectionLabel,
-  getElementIcon,
-  validateLabelCompleteness,
 };

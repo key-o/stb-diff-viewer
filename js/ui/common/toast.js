@@ -160,7 +160,7 @@ function createToastElement(id, message, type, closable) {
       background: none;
       border: none;
       color: inherit;
-      font-size: 18px;
+      font-size: var(--font-size-xl);
       cursor: pointer;
       padding: 0 0 0 8px;
       opacity: 0.7;
@@ -204,7 +204,7 @@ function getToastStyles(type) {
     color: ${text};
     border-radius: var(--border-radius-lg, 6px);
     box-shadow: var(--shadow-lg, 0 10px 25px rgba(0, 0, 0, 0.15));
-    font-size: 14px;
+    font-size: var(--font-size-base);
     pointer-events: auto;
     opacity: 0;
     transform: translateX(100%);
@@ -230,7 +230,7 @@ function getTypeIcon(type) {
  * トーストを非表示
  * @param {number} toastId - トーストID
  */
-export function hideToast(toastId) {
+function hideToast(toastId) {
   const toastData = activeToasts.get(toastId);
   if (!toastData) return;
 
@@ -256,7 +256,7 @@ export function hideToast(toastId) {
 /**
  * すべてのトーストを非表示
  */
-export function hideAllToasts() {
+function hideAllToasts() {
   for (const toastId of activeToasts.keys()) {
     hideToast(toastId);
   }
@@ -298,16 +298,6 @@ export function showInfo(message, options = {}) {
   return showToast({ message, type: 'info', ...options });
 }
 
-/**
- * クリーンアップ
- */
-export function destroyToast() {
-  hideAllToasts();
-  if (toastContainer) {
-    toastContainer.remove();
-    toastContainer = null;
-  }
-}
 
 // イベントバスのインポート
 import { eventBus, ToastEvents } from '../../app/events/index.js';

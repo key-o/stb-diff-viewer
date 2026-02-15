@@ -162,7 +162,7 @@ export function deriveDimensionsFromAttributes(attrMap) {
 
   // 互換性のための追加フィールド
   if (out.height && !out.overall_depth) out.overall_depth = out.height;
-  if (out.height && !out.depth) out.depth = out.height; // 'depth' エイリアスを追加（MatrixCalc互換性）
+  if (out.height && !out.depth) out.depth = out.height; // 'depth' エイリアスを追加
   if (out.width && !out.overall_width) out.overall_width = out.width;
 
   // 円形断面の処理
@@ -339,45 +339,6 @@ export function getThickness(dimensions, defaultValue = undefined) {
   }
 
   return defaultValue;
-}
-
-/**
- * 円形断面かどうかを判定
- *
- * @param {Object} dimensions - 寸法データ
- * @returns {boolean} 円形断面の場合 true
- */
-export function isCircularProfile(dimensions) {
-  if (!dimensions) return false;
-
-  // profile_hint が明示的に指定されている場合
-  if (dimensions.profile_hint === 'CIRCLE') return true;
-
-  // 直径が存在し、明示的な幅・高さがない場合
-  const hasDiameter = getDiameter(dimensions) !== undefined;
-  const hasWidth = dimensions.width !== undefined || dimensions.Width !== undefined;
-  const hasHeight = dimensions.height !== undefined || dimensions.Height !== undefined;
-
-  return hasDiameter && !hasWidth && !hasHeight;
-}
-
-/**
- * 矩形断面かどうかを判定
- *
- * @param {Object} dimensions - 寸法データ
- * @returns {boolean} 矩形断面の場合 true
- */
-export function isRectangularProfile(dimensions) {
-  if (!dimensions) return false;
-
-  // profile_hint が明示的に指定されている場合
-  if (dimensions.profile_hint === 'RECTANGLE') return true;
-
-  // 幅と高さが両方存在する場合
-  const width = getWidth(dimensions);
-  const height = getHeight(dimensions);
-
-  return width !== undefined && height !== undefined;
 }
 
 /**

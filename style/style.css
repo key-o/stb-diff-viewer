@@ -1,4 +1,8 @@
 /* Reset default styles and basic setup */
+html {
+  font-size: 16px; /* rem基準値 */
+}
+
 html,
 body {
   margin: 0;
@@ -6,6 +10,13 @@ body {
   height: 100%; /* Ensure body takes full height */
   overflow: hidden; /* Prevent body scrollbars */
   font-family: var(--font-family-base);
+  font-size: var(--font-size-base);
+}
+
+/* フォーム要素のフォント継承リセット */
+button, input, select, textarea {
+  font-family: inherit;
+  font-size: inherit;
 }
 
 body {
@@ -67,7 +78,7 @@ body {
 .element-settings-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9em;
+  font-size: var(--font-size-md);
   margin-top: 8px;
   margin-bottom: 8px;
 }
@@ -81,8 +92,8 @@ body {
 
 .element-settings-table th {
   background-color: var(--bg-secondary);
-  font-weight: 600;
-  font-size: 0.85em;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-sm);
   white-space: nowrap;
 }
 
@@ -104,7 +115,7 @@ body {
 .line-only-indicator {
   display: inline-block;
   color: var(--text-muted, #888);
-  font-size: 1.2em;
+  font-size: var(--font-size-lg);
   text-align: center;
   cursor: help;
 }
@@ -132,7 +143,7 @@ body {
 }
 
 .element-color-reset-container .btn-reset {
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
   padding: 4px 12px;
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -181,7 +192,7 @@ label {
   border-radius: var(--border-radius-lg);
   color: var(--sidebar-btn-text);
   font-weight: var(--font-weight-medium);
-  font-size: 0.95em;
+  font-size: var(--font-size-base);
   cursor: pointer;
   transition: all var(--transition-fast);
   text-align: left;
@@ -216,7 +227,7 @@ button:hover {
 }
 
 .panel-header {
-  font-weight: bold;
+  font-weight: var(--font-weight-bold);
   margin-bottom: 10px;
 }
 
@@ -235,8 +246,8 @@ canvas {
 }
 
 .comparison-table td.differs {
-  background-color: #ffeeba; /* 例: 薄い黄色 */
-  font-weight: bold;
+  background-color: #fff3cd; /* 比較結果: 値が異なるセル */
+  font-weight: var(--font-weight-bold);
 }
 
 .info-table {

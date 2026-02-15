@@ -13,6 +13,9 @@
   position: fixed;
   top: 80px;
   left: calc(50% - 200px); /* 中央寄せ */
+  --resize-handle-size: 16px;
+  --resize-handle-inset: 2px;
+  --resize-corner-color: var(--bg-window);
   background-color: var(--bg-window);
   border: var(--border-width) solid var(--border-color);
   border-radius: var(--border-radius);
@@ -55,7 +58,7 @@
 
 .float-window-title {
   font-weight: var(--font-weight-bold);
-  font-size: 0.95em;
+  font-size: var(--font-size-base);
 }
 
 .float-window-controls {
@@ -110,7 +113,7 @@
   left: calc(50% - 220px); /* 中央寄せ (min-widthの半分) */
   min-width: 440px;
   max-width: 90vw;
-  resize: both;
+  resize: none;
   overflow: hidden; /* コンテンツ側でスクロールさせるため */
 }
 
@@ -180,10 +183,10 @@
 /* リサイズハンドル */
 .resize-handle {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 16px;
-  height: 16px;
+  right: var(--resize-handle-inset);
+  bottom: var(--resize-handle-inset);
+  width: var(--resize-handle-size);
+  height: var(--resize-handle-size);
   cursor: se-resize;
   background: linear-gradient(135deg, transparent 0%, transparent 50%, var(--color-primary, #0066cc) 50%, var(--color-primary, #0066cc) 100%);
   opacity: 0.8;
@@ -199,6 +202,16 @@
 .floating-window.resizing {
   opacity: 0.95;
   box-shadow: var(--shadow-xl);
+}
+
+/* リサイズ対象ウィンドウのスクロールコーナーを統一して白い角を抑制 */
+.floating-window.has-resize-handle *::-webkit-scrollbar-corner {
+  background: var(--resize-corner-color);
+}
+
+/* リサイズ対象はスクロールガターを安定化して右下角の見え方を揃える */
+.floating-window.has-resize-handle .float-window-content {
+  scrollbar-gutter: stable both-edges;
 }
 
 /* ========================================

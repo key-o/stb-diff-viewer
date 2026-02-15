@@ -21,7 +21,6 @@ import {
   convertProfileToThreeShape,
   createExtrudeGeometry,
   applyPlacementToMesh,
-  attachPlacementAxisLine,
 } from './core/ThreeJSConverter.js';
 import { materials } from '../rendering/materials.js';
 import { IFCProfileFactory } from './IFCProfileFactory.js';
@@ -188,18 +187,7 @@ export class ProfileBasedPostGenerator extends BaseElementGenerator {
       isJsonInput: isJsonInput,
     });
 
-    // 10. 配置基準線を添付
-    try {
-      attachPlacementAxisLine(mesh, placement.length, materials.placementLine, {
-        elementType: elementType,
-        elementId: post.id,
-        modelSource: 'solid',
-      });
-    } catch (e) {
-      log.warn(`Post ${post.id}: failed to attach placement axis line`, e);
-    }
-
-    // 11. stb-diff-viewer造の場合、RC部分のメッシュも生成して配列で返す
+    // 10. stb-diff-viewer造の場合、RC部分のメッシュも生成して配列で返す
     if (sectionData.isStbDiffViewer && sectionData.concreteProfile) {
       const rcMesh = this._createStbDiffViewerConcreteGeometry(
         sectionData,
@@ -214,6 +202,76 @@ export class ProfileBasedPostGenerator extends BaseElementGenerator {
         return [mesh, rcMesh];
       }
     }
+
+    // 12. ベースプレートメッシュの生成（S造・SRC造・CFT造柱脚）
+    if (sectionData.basePlate) {
+      const basePlateMesh = this._createBasePlateMesh(
+        sectionData.basePlate,
+        nodePositions.bottomNode,
+        post,
+        elementType,
+        isJsonInput,
+        rollAngle,
+        log,
+      );
+      if (basePlateMesh) {
+        log.debug(
+          `Post ${post.id}: ベースプレートメッシュを追加生成 (${sectionData.basePlate.baseType})`,
+        );
+        return [mesh, basePlateMesh];
+      }
+    }
+
+    return mesh;
+  }
+
+  /**
+   * ベースプレート（柱脚プレート）のメッシュを生成
+   * @private
+   * @param {Object} basePlate - ベースプレートデータ
+   * @param {Object} bottomNode - 下端ノード座標
+   * @param {Object} post - 間柱要素データ
+   * @param {string} elementType - 要素タイプ
+   * @param {boolean} isJsonInput - JSON入力かどうか
+   * @param {number} rollAngle - 回転角度（ラジアン）
+   * @param {Object} log - ロガー
+   * @returns {THREE.Mesh|null}
+   */
+  static _createBasePlateMesh(
+    basePlate,
+    bottomNode,
+    post,
+    elementType,
+    isJsonInput,
+    rollAngle,
+    log,
+  ) {
+    const { B_X, B_Y, t, offset_X, offset_Y } = basePlate;
+
+    if (!B_X || !B_Y || !t) {
+      log.warn(`Post ${post.id}: ベースプレートの寸法が不足 (B_X=${B_X}, B_Y=${B_Y}, t=${t})`);
+      return null;
+    }
+
+    const geometry = new THREE.BoxGeometry(B_X, B_Y, t);
+    const mesh = new THREE.Mesh(geometry, materials.matchedMesh);
+
+    mesh.position.set(bottomNode.x + offset_X, bottomNode.y + offset_Y, bottomNode.z - t / 2);
+
+    if (rollAngle !== 0) {
+      mesh.rotation.z = rollAngle;
+    }
+
+    mesh.userData = {
+      elementType: elementType,
+      elementId: post.id,
+      isJsonInput: isJsonInput,
+      isBasePlate: true,
+      basePlateData: { baseType: basePlate.baseType, B_X, B_Y, t },
+      sectionType: 'RECTANGLE',
+      profileBased: false,
+      profileMeta: { profileSource: 'BoxGeometry', profileType: 'BASE_PLATE' },
+    };
 
     return mesh;
   }

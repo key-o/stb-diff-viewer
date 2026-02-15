@@ -426,8 +426,12 @@ export class ColumnSectionListRenderer {
 
         const sectionData = floorMap?.get(symbol);
         if (sectionData) {
-          // 既存のrenderSectionCell()を再利用
-          tdSection.innerHTML = this.renderSectionCell(sectionData);
+          if (Array.isArray(sectionData)) {
+            tdSection.innerHTML = this.renderSectionVariants(sectionData);
+          } else {
+            // 既存のrenderSectionCell()を再利用
+            tdSection.innerHTML = this.renderSectionCell(sectionData);
+          }
         } else {
           // 空セル
           tdSection.innerHTML = '<div class="section-cell-empty">-</div>';
@@ -441,6 +445,43 @@ export class ColumnSectionListRenderer {
     });
 
     return tbody;
+  }
+
+  /**
+   * 同一セル内に複数断面がある場合のレンダリング
+   * @param {Array<Object>} sectionDataList - 断面データ配列
+   * @returns {string} HTML文字列
+   */
+  renderSectionVariants(sectionDataList) {
+    const uniqueVariants = [];
+    const seenSectionIds = new Set();
+
+    sectionDataList.forEach((sectionData) => {
+      const sectionId = sectionData?.id || '';
+      const dedupeKey = `${sectionId}:${sectionData?.symbolNames || ''}`;
+      if (!seenSectionIds.has(dedupeKey)) {
+        seenSectionIds.add(dedupeKey);
+        uniqueVariants.push(sectionData);
+      }
+    });
+
+    if (uniqueVariants.length === 1) {
+      return this.renderSectionCell(uniqueVariants[0]);
+    }
+
+    const parts = ['<div class="section-cell-variants">'];
+    uniqueVariants.forEach((sectionData, index) => {
+      const label = sectionData?.id
+        ? `断面${index + 1} (ID: ${this.escapeHtml(sectionData.id)})`
+        : `断面${index + 1}`;
+      parts.push('<div class="section-cell-variant">');
+      parts.push(`<div class="section-cell-variant-label">${label}</div>`);
+      parts.push(this.renderSectionCell(sectionData));
+      parts.push('</div>');
+    });
+    parts.push('</div>');
+
+    return parts.join('');
   }
 }
 

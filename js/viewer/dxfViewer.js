@@ -737,7 +737,7 @@ function getShxCharMapping(code) {
  * @returns {THREE.Sprite} テキストスプライト
  */
 function createTextSprite(config) {
-  const { text, position, scale, color, height = 1, rotation: _rotation = 0 } = config;
+  const { text, position, scale, color, height = 1 } = config;
   const { x, y, z } = position;
   // 特殊文字を変換
   const convertedText = convertDxfSpecialChars(text);
@@ -1279,7 +1279,7 @@ function addArrowHead(config) {
  * @returns {THREE.Sprite} テキストスプライト
  */
 function createDimensionTextSprite(config) {
-  const { text, position, scale, color, rotation: _rotation = 0 } = config;
+  const { text, position, scale, color } = config;
   const { x, y, z } = position;
   const fontSize = 32;
   const canvasWidth = 256;

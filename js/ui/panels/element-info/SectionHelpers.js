@@ -139,8 +139,8 @@ export function generateEquivalenceSection(result) {
       <td colspan="3" style="background-color: ${statusBg}; padding: 8px; border-left: 4px solid ${statusColor};">
         <div style="display: flex; align-items: center; justify-content: space-between;">
           <div>
-            <strong style="color: ${statusColor}; font-size: 1.1em;">${statusText}</strong>
-            <span style="margin-left: 10px; color: #666; font-size: 0.9em;">${result.summary} (${result.passRate}%)</span>
+            <strong style="color: ${statusColor}; font-size: var(--font-size-lg);">${statusText}</strong>
+            <span style="margin-left: 10px; color: #666; font-size: var(--font-size-md);">${result.summary} (${result.passRate}%)</span>
           </div>
         </div>
       </td>
@@ -155,11 +155,11 @@ export function generateEquivalenceSection(result) {
 
     html += `
       <tr class="equivalence-check-row" style="background-color: ${rowBg};">
-        <td style="padding-left: 2em; font-weight: bold;">
+        <td style="padding-left: 2em; font-weight: var(--font-weight-bold);">
           <span style="color: ${iconColor}; margin-right: 5px;">${icon}</span>
           ${check.category}
         </td>
-        <td colspan="2" style="font-size: 0.9em; color: #555;">
+        <td colspan="2" style="font-size: var(--font-size-md); color: #555;">
           ${check.name}: ${check.details}
         </td>
       </tr>
@@ -173,11 +173,11 @@ export function generateEquivalenceSection(result) {
 
         html += `
           <tr class="equivalence-subcheck-row">
-            <td style="padding-left: 4em; font-size: 0.85em; color: #666;">
+            <td style="padding-left: 4em; font-size: var(--font-size-sm); color: #666;">
               <span style="color: ${subColor}; margin-right: 3px;">${subIcon}</span>
               ${subCheck.name}
             </td>
-            <td colspan="2" style="font-size: 0.85em; color: #666;">
+            <td colspan="2" style="font-size: var(--font-size-sm); color: #666;">
               ${subCheck.details}
             </td>
           </tr>
@@ -246,13 +246,13 @@ export function renderShapeWithSteelInfo(shape) {
   if (!steelInfo) return `<span>${shape}</span>`;
 
   if (steelInfo.type === 'H') {
-    return `<span>${shape} <span style="color:#888;font-size:0.9em;">[A=${steelInfo.A}, B=${steelInfo.B}, t1=${steelInfo.t1}, t2=${steelInfo.t2}, r=${steelInfo.r}]</span></span>`;
+    return `<span>${shape} <span style="color:#888;font-size:var(--font-size-md);">[A=${steelInfo.A}, B=${steelInfo.B}, t1=${steelInfo.t1}, t2=${steelInfo.t2}, r=${steelInfo.r}]</span></span>`;
   }
   if (steelInfo.type === 'BOX') {
-    return `<span>${shape} <span style="color:#888;font-size:0.9em;">[A=${steelInfo.A}, B=${steelInfo.B}, t=${steelInfo.t}, r=${steelInfo.r}]</span></span>`;
+    return `<span>${shape} <span style="color:#888;font-size:var(--font-size-md);">[A=${steelInfo.A}, B=${steelInfo.B}, t=${steelInfo.t}, r=${steelInfo.r}]</span></span>`;
   }
   if (steelInfo.type === 'L') {
-    return `<span>${shape} <span style="color:#888;font-size:0.9em;">[A=${steelInfo.A}, B=${steelInfo.B}, t1=${steelInfo.t1}, t2=${steelInfo.t2}, r1=${steelInfo.r1}, r2=${steelInfo.r2}]</span></span>`;
+    return `<span>${shape} <span style="color:#888;font-size:var(--font-size-md);">[A=${steelInfo.A}, B=${steelInfo.B}, t1=${steelInfo.t1}, t2=${steelInfo.t2}, r1=${steelInfo.r1}, r2=${steelInfo.r2}]</span></span>`;
   }
   return `<span>${shape}</span>`;
 }

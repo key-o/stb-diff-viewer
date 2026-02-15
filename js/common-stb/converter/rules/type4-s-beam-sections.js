@@ -189,7 +189,7 @@ function convertSegmentBasedElements(elements, startOrder, useTaper = false) {
  * Convert S Beam sections from v2.0.2 to v2.1.0
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertSBeamSectionsTo210(stbRoot) {
+function convertSBeamSectionsTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   const rootData = Array.isArray(root) ? root[0] : root;
   const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
@@ -353,7 +353,7 @@ function convertDirectElements(beam) {
  * Convert S Beam sections from v2.1.0 to v2.0.2
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertSBeamSectionsTo202(stbRoot) {
+function convertSBeamSectionsTo202(stbRoot) {
   const root = getStbRoot(stbRoot);
   const rootData = Array.isArray(root) ? root[0] : root;
   const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
@@ -512,7 +512,7 @@ function reconstructPositionElements(shapes) {
  * directly in both versions. No conversion needed.
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertSColumnSectionsTo210(stbRoot) {
+function convertSColumnSectionsTo210(stbRoot) {
   // S Column structure is identical between v2.0.2 and v2.1.0
   // No conversion needed - only log for debugging
   const root = getStbRoot(stbRoot);
@@ -535,7 +535,7 @@ export function convertSColumnSectionsTo210(stbRoot) {
  * No conversion needed.
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertSColumnSectionsTo202(stbRoot) {
+function convertSColumnSectionsTo202(stbRoot) {
   // S Column structure is identical between v2.0.2 and v2.1.0
   // No conversion needed
   logger.debug('S Column sections: No conversion needed (structure identical)');

@@ -7,7 +7,7 @@
  * - ソート機能（ID/名前/GUID順）
  * - テキスト検索（ID、名前、GUID）
  * - 正規表現サポート（/pattern/ 形式）
- * - 差分ステータスフィルタ（一致/A専用/B専用）
+ * - 差分ステータスフィルタ（一致/Aのみ/Bのみ）
  */
 
 import { getState } from '../../app/globalState.js';
@@ -299,7 +299,7 @@ function createTypeNode(elementType, elements, searchPattern = null) {
     virtualBadge.textContent = '仮想';
     virtualBadge.title = '仮想スクロールが有効（パフォーマンス最適化）';
     virtualBadge.style.cssText = `
-      font-size: 10px;
+      font-size: var(--font-size-xs);
       background: #228be6;
       color: white;
       padding: 1px 4px;
@@ -440,9 +440,9 @@ function createLeafNode(element, elementType, searchPattern = null) {
   if (element.modelSource === 'matched') {
     status.textContent = '一致';
   } else if (element.modelSource === 'onlyA') {
-    status.textContent = 'A専用';
+    status.textContent = 'Aのみ';
   } else if (element.modelSource === 'onlyB') {
-    status.textContent = 'B専用';
+    status.textContent = 'Bのみ';
   }
 
   label.appendChild(status);
@@ -613,7 +613,7 @@ function selectTreeElement(elementKey, headerElement, options = {}) {
  * 選択されているすべてのツリー要素のキーを取得
  * @returns {string[]}
  */
-export function getSelectedTreeElementKeys() {
+function getSelectedTreeElementKeys() {
   return Array.from(selectedElementKeys);
 }
 
@@ -702,26 +702,6 @@ export function clearTree() {
   selectedElementKeys.clear();
 }
 
-/**
- * ソートモードを設定
- * @param {string} mode - ソートモード ('id', 'name', 'guid')
- */
-export function setSortMode(mode) {
-  if (['id', 'name', 'guid'].includes(mode)) {
-    sortMode = mode;
-    console.log(`要素ツリーのソートモードを ${mode} に設定しました`);
-  } else {
-    console.warn(`無効なソートモード: ${mode}. 'id', 'name', 'guid' のいずれかを指定してください`);
-  }
-}
-
-/**
- * 現在のソートモードを取得
- * @returns {string} 現在のソートモード
- */
-export function getSortMode() {
-  return sortMode;
-}
 
 /**
  * 検索UIを初期化
@@ -788,42 +768,6 @@ function clearTreeContent() {
   });
 }
 
-/**
- * 検索をリセット
- */
-export function resetSearch() {
-  currentSearchText = '';
-  currentStatusFilter = { ...DEFAULT_STATUS_FILTER };
-  currentTargetFilter = { ...DEFAULT_ELEMENT_TARGET_FILTER };
-  if (searchUI) {
-    searchUI.reset();
-  }
-  if (currentComparisonResult) {
-    buildTree(currentComparisonResult);
-  }
-}
-
-/**
- * 検索テキストを設定して検索を実行
- * @param {string} searchText - 検索テキスト
- */
-export function setSearchText(searchText) {
-  currentSearchText = searchText;
-  if (currentComparisonResult) {
-    buildTree(currentComparisonResult);
-  }
-}
-
-/**
- * 差分ステータスフィルタを設定
- * @param {Object} filter - {matched: bool, onlyA: bool, onlyB: bool}
- */
-export function setStatusFilter(filter) {
-  currentStatusFilter = { ...DEFAULT_STATUS_FILTER, ...filter };
-  if (currentComparisonResult) {
-    buildTree(currentComparisonResult);
-  }
-}
 
 /**
  * 要素のコンテキストメニューを表示
@@ -1000,9 +944,9 @@ function handleCopyProperties(element, elementType) {
       element.modelSource === 'matched'
         ? '一致'
         : element.modelSource === 'onlyA'
-          ? 'A専用'
+          ? 'Aのみ'
           : element.modelSource === 'onlyB'
-            ? 'B専用'
+            ? 'Bのみ'
             : '-',
   };
 

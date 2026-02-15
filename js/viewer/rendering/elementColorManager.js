@@ -53,5 +53,5 @@ class ElementColorManager extends BaseColorStateManager {
 // シングルトンインスタンスを作成してエクスポート
 const elementColorManager = new ElementColorManager();
 
-export { elementColorManager, ElementColorManager, ELEMENT_TYPES, DEFAULT_ELEMENT_COLORS };
+export { ELEMENT_TYPES, DEFAULT_ELEMENT_COLORS };
 export default elementColorManager;

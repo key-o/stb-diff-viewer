@@ -18,7 +18,7 @@ import { normalizeSectionType } from '../common-stb/section/sectionTypeUtil.js';
 /**
  * 断面等価性評価の設定
  */
-export const EQUIVALENCE_CONFIG = {
+const EQUIVALENCE_CONFIG = {
   // 許容誤差（パーセント）
   tolerances: {
     dimension: 1.0, // 寸法: 1%

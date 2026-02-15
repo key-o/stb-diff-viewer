@@ -40,14 +40,13 @@ const log = createLogger('DXFLoader');
 let currentDxfData = null;
 let currentEntities = null;
 let currentLayers = [];
-let dxfLoaded = false;
 const selectedExportLayers = new Set(); // エクスポート用に選択されたレイヤー
 
 /**
  * DXF配置オプションを取得
  * @returns {Object} 配置オプション {plane, offsetX, offsetY, offsetZ, rotation}
  */
-export function getDxfPlacementOptions() {
+function getDxfPlacementOptions() {
   const planeSelect = document.getElementById('dxfPlacementPlane');
   const positionSelect = document.getElementById('dxfPlacementPosition');
   const manualOffsetCheckbox = document.getElementById('dxfManualOffset');
@@ -185,7 +184,6 @@ export async function loadDxfFile(file, options = null) {
     scheduleRender();
 
     // 状態を更新
-    dxfLoaded = true;
     setState('dxf.loaded', true);
     setState('dxf.data', currentDxfData);
     setState('dxf.entities', currentEntities);
@@ -432,12 +430,11 @@ function readFileAsText(file) {
 /**
  * DXFデータをクリア
  */
-export function clearDxfData() {
+function clearDxfData() {
   clearDxfGroup();
   currentDxfData = null;
   currentEntities = null;
   currentLayers = [];
-  dxfLoaded = false;
 
   setState('dxf.loaded', false);
   setState('dxf.data', null);
@@ -451,27 +448,11 @@ export function clearDxfData() {
 }
 
 /**
- * DXFが読み込まれているか確認
- * @returns {boolean}
- */
-export function isDxfLoaded() {
-  return dxfLoaded;
-}
-
-/**
- * 現在のレイヤー情報を取得
- * @returns {Array}
- */
-export function getDxfLayers() {
-  return currentLayers;
-}
-
-/**
  * レイヤーの表示/非表示を切り替え
  * @param {string} layerName - レイヤー名
  * @param {boolean} visible - 表示状態
  */
-export function toggleDxfLayer(layerName, visible) {
+function toggleDxfLayer(layerName, visible) {
   setLayerVisibility(layerName, visible);
 
   // 再描画をリクエスト

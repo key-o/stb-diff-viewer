@@ -2,7 +2,7 @@
  * @fileoverview マテリアル定義・管理モジュール
  *
  * このファイルは、3Dビューワーの描画に使用するマテリアルを定義・管理します:
- * - モデル比較用カラーマテリアル（一致、モデルA専用、モデルB専用）
+ * - モデル比較用カラーマテリアル（一致、モデルAのみ、モデルBのみ）
  * - 線要素用マテリアル
  * - メッシュ要素用マテリアル
  * - 通り芯・階表示用マテリアル
@@ -142,13 +142,13 @@ export const materials = {
     side: THREE.DoubleSide,
   }),
   onlyA: new THREE.MeshStandardMaterial({
-    color: 0x4caf50, // マテリアルグリーン（モデルA専用）
+    color: 0x4caf50, // マテリアルグリーン（モデルAのみ）
     roughness: 0.6,
     metalness: 0.1,
     side: THREE.DoubleSide,
   }),
   onlyB: new THREE.MeshStandardMaterial({
-    color: 0xf44336, // マテリアルレッド（モデルB専用）
+    color: 0xf44336, // マテリアルレッド（モデルBのみ）
     roughness: 0.6,
     metalness: 0.1,
     side: THREE.DoubleSide,
@@ -171,7 +171,7 @@ export const materials = {
     opacity: 1.0,
   }),
   onlyAMesh: new THREE.MeshStandardMaterial({
-    color: 0x4caf50, // マテリアルグリーン（モデルA専用）
+    color: 0x4caf50, // マテリアルグリーン（モデルAのみ）
     roughness: 0.6,
     metalness: 0.1,
     side: THREE.DoubleSide,
@@ -179,7 +179,7 @@ export const materials = {
     opacity: 1.0,
   }),
   onlyBMesh: new THREE.MeshStandardMaterial({
-    color: 0xf44336, // マテリアルレッド（モデルB専用）
+    color: 0xf44336, // マテリアルレッド（モデルBのみ）
     roughness: 0.6,
     metalness: 0.1,
     side: THREE.DoubleSide,
@@ -377,7 +377,7 @@ export function getMaterialForElementWithMode(
  * @param {string} importance - 重要度レベル
  * @returns {THREE.Material} 重要度調整済みマテリアル
  */
-export function createImportanceAwareMaterial(baseMaterial, importance) {
+function createImportanceAwareMaterial(baseMaterial, importance) {
   if (!importance || !IMPORTANCE_VISUAL_STYLES[importance]) {
     return baseMaterial;
   }
@@ -454,44 +454,6 @@ export function createImportanceOutlineMaterial(importance) {
   return outlineMaterial;
 }
 
-/**
- * 要素と重要度に基づいた完全なマテリアルセット作成
- * @param {string} elementType - 要素タイプ
- * @param {string} comparisonState - 比較状態
- * @param {boolean} isLine - 線要素かどうか
- * @param {boolean} isPoly - ポリゴン要素かどうか
- * @param {string} importance - 重要度レベル
- * @param {string} elementId - 要素ID
- * @returns {Object} {material: THREE.Material, outlineMaterial: THREE.Material|null}
- */
-export function createElementMaterialWithImportance(
-  elementType,
-  comparisonState,
-  isLine = false,
-  isPoly = false,
-  importance = null,
-  elementId = null,
-) {
-  // ベースマテリアルを取得
-  const baseMaterial = getMaterialForElementWithMode(
-    elementType,
-    comparisonState,
-    isLine,
-    isPoly,
-    elementId,
-  );
-
-  // 重要度調整を適用
-  const adjustedMaterial = createImportanceAwareMaterial(baseMaterial, importance);
-
-  // アウトライン用マテリアルを作成（必要な場合）
-  const outlineMaterial = createImportanceOutlineMaterial(importance);
-
-  return {
-    material: adjustedMaterial,
-    outlineMaterial,
-  };
-}
 
 /**
  * 重要度に基づく材料プールの管理
@@ -540,13 +502,13 @@ class ImportanceMaterialPool {
 }
 
 // グローバルなマテリアルプール
-export const importanceMaterialPool = new ImportanceMaterialPool();
+const importanceMaterialPool = new ImportanceMaterialPool();
 
 /**
  * 静的マテリアルをすべて破棄する（メモリリーク防止）
  * アプリケーション終了時またはシーンリセット時に呼び出す
  */
-export function disposeStaticMaterials() {
+function disposeStaticMaterials() {
   for (const key in materials) {
     const material = materials[key];
     if (material && typeof material.dispose === 'function') {
@@ -555,47 +517,8 @@ export function disposeStaticMaterials() {
   }
 }
 
-/**
- * すべてのマテリアルリソースを破棄する
- * アプリケーションのクリーンアップ時に使用
- */
-export function disposeAllMaterialResources() {
-  // 静的マテリアルの破棄
-  disposeStaticMaterials();
 
-  // マテリアルプールのクリア
-  importanceMaterialPool.clear();
 
-  // 重要度マテリアルキャッシュのクリア
-  clearImportanceMaterialCache();
-}
-
-/**
- * 重要度フィルタリング用の要素可視性制御
- * @param {THREE.Object3D} object - 制御対象オブジェクト
- * @param {Set<string>} activeImportanceLevels - アクティブな重要度レベル
- */
-export function applyImportanceVisibilityFilter(object, activeImportanceLevels) {
-  const importance = object.userData.importance;
-
-  if (importance) {
-    object.visible = activeImportanceLevels.has(importance);
-  } else {
-    // 重要度情報がない場合はREQUIREDとして扱う
-    object.visible = activeImportanceLevels.has(IMPORTANCE_LEVELS.REQUIRED);
-  }
-}
-
-/**
- * 色付けモードが変更された時にマテリアルを更新する関数
- */
-export function updateMaterialsForColorMode() {
-  // 既存のマテリアルのクリッピング平面を更新
-  updateMaterialClippingPlanes();
-
-  // 重要度マテリアルプールをクリア（色モード変更時は再作成）
-  importanceMaterialPool.clear();
-}
 
 // --- 重要度別色分け機能 ---
 
@@ -680,7 +603,7 @@ const importanceMaterialCache = new ImportanceMaterialCache();
  * @param {Object} options - オプション設定
  * @returns {THREE.Material} マテリアル
  */
-export function createImportanceMaterial(importanceLevel, options = {}) {
+function createImportanceMaterial(importanceLevel, options = {}) {
   // ColorManagerを使用してマテリアルを取得
   const materialParams = {
     elementType: options.elementType,
@@ -827,16 +750,6 @@ export function clearMaterialCache() {
   colorManager.clearMaterialCache();
 }
 
-/**
- * マテリアルキャッシュの統計情報を取得
- * @returns {Object} 統計情報
- */
-export function getMaterialCacheStats() {
-  return {
-    importanceMaterialCache: importanceMaterialCache.getStats(),
-    importanceMaterialPool: importanceMaterialPool.getStats(),
-  };
-}
 
 // --- 静的マテリアルの動的更新設定 ---
 // ElementColorManagerの変更を監視して静的マテリアルを更新

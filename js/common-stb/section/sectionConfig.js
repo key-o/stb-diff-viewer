@@ -3,7 +3,7 @@
  *
  * 全要素タイプの断面データ抽出設定を一元管理します。
  * 新要素追加時は、この設定にエントリを追加するだけで
- * 自動的に全システム（MatrixCalc、StbDiffViewer）に反映されます。
+ * 自動的にシステム全体に反映されます。
  *
  * @module common/stb/section/sectionConfig
  */
@@ -206,8 +206,8 @@ export const SECTION_CONFIG = {
       'StbSecSlab_RC',
       'StbSecSlab_S',
       'StbSecSlab_SRC',
-      'StbSecSlabDeck', // デッキスラブ (MatrixCalc)
-      'StbSecSlabPrecast', // プレキャストスラブ (MatrixCalc)
+      'StbSecSlabDeck', // デッキスラブ
+      'StbSecSlabPrecast', // プレキャストスラブ
     ],
     concreteFigures: [
       'StbSecFigureSlab_RC',
@@ -215,12 +215,12 @@ export const SECTION_CONFIG = {
       'StbSecFigureSlabPrecast',
       // 直下定義
       'StbSecSlab_RC_Straight', // 均一厚スラブ
-      'StbSecSlab_RC_Taper', // テーパースラブ (MatrixCalc)
-      'StbSecSlab_RC_Haunch', // ハンチスラブ (MatrixCalc)
+      'StbSecSlab_RC_Taper', // テーパースラブ
+      'StbSecSlab_RC_Haunch', // ハンチスラブ
       'StbSecSlab_RC_Hollow', // 中空スラブ
       'StbSecSlab_RC_Waffle', // ワッフルスラブ
-      'StbSecSlabDeckStraight', // (MatrixCalc)
-      'StbSecSlabPrecastStraight', // (MatrixCalc)
+      'StbSecSlabDeckStraight',
+      'StbSecSlabPrecastStraight',
     ],
   },
 
@@ -301,25 +301,3 @@ export function getSupportedElementTypes() {
   return Object.keys(SECTION_CONFIG);
 }
 
-/**
- * 指定された要素タイプの設定を取得
- * @param {string} elementType - 要素タイプ名
- * @returns {SectionConfigEntry|undefined} 設定オブジェクト
- */
-export function getSectionConfig(elementType) {
-  return SECTION_CONFIG[elementType];
-}
-
-/**
- * セレクタータグから要素タイプを逆引き
- * @param {string} selectorTag - XMLタグ名（例: 'StbSecColumn_RC'）
- * @returns {string|undefined} 要素タイプ名
- */
-export function getElementTypeBySelector(selectorTag) {
-  for (const [elementType, config] of Object.entries(SECTION_CONFIG)) {
-    if (config.selectors.includes(selectorTag)) {
-      return elementType;
-    }
-  }
-  return undefined;
-}

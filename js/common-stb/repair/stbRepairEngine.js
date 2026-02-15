@@ -34,7 +34,7 @@ export const REPAIR_ACTION = {
 /**
  * デフォルト値の設定
  */
-export const DEFAULT_VALUES = {
+const DEFAULT_VALUES = {
   // 座標デフォルト
   X: 0,
   Y: 0,
@@ -73,7 +73,7 @@ export const DEFAULT_VALUES = {
 /**
  * 値の範囲制限
  */
-export const VALUE_CONSTRAINTS = {
+const VALUE_CONSTRAINTS = {
   // 座標（mm）
   coordinates: { min: -1e9, max: 1e9 },
 

@@ -677,7 +677,6 @@ export class LoadDisplayManager {
     div.style.borderRadius = '3px';
     div.style.userSelect = 'none';
     div.style.pointerEvents = 'none';
-    div.style.fontFamily = 'monospace';
     div.style.whiteSpace = 'nowrap';
 
     const label = new CSS2DObject(div);
@@ -717,7 +716,6 @@ export class LoadDisplayManager {
     div.style.borderRadius = '3px';
     div.style.userSelect = 'none';
     div.style.pointerEvents = 'none';
-    div.style.fontFamily = 'monospace';
     div.style.whiteSpace = 'nowrap';
 
     const label = new CSS2DObject(div);

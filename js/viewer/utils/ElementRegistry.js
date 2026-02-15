@@ -36,7 +36,7 @@ function normalizeModelSource(modelSource) {
  * 要素レジストリクラス
  * HashMapを使用して要素を管理し、高速な検索を提供
  */
-export class ElementRegistry {
+class ElementRegistry {
   constructor() {
     /** @type {Map<string, THREE.Object3D>} ID+Source → 要素 */
     this.byCompositeKey = new Map();
@@ -261,12 +261,3 @@ export function getElementRegistry() {
   return instance;
 }
 
-/**
- * グローバルなElementRegistryをリセット（テスト用）
- */
-export function resetElementRegistry() {
-  if (instance) {
-    instance.clear();
-  }
-  instance = null;
-}

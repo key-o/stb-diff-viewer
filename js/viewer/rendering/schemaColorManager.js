@@ -53,5 +53,5 @@ class SchemaColorManager extends BaseColorStateManager {
 // シングルトンインスタンスを作成してエクスポート
 const schemaColorManager = new SchemaColorManager();
 
-export { schemaColorManager, SchemaColorManager, SCHEMA_STATES, DEFAULT_SCHEMA_COLORS };
+export { DEFAULT_SCHEMA_COLORS };
 export default schemaColorManager;

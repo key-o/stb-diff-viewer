@@ -2,8 +2,6 @@
  * RenderModel - 描画層入力の型定義
  *
  * STB構造モデルを描画層が受け取る形式で定義します。
- * MatrixCalcの rendering/types/rendering-input.js と互換性を持つ設計です。
- *
  * 座標単位: mm（STBファイルと同じ）
  *
  * @module viewer/types/render-model

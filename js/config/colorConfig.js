@@ -175,64 +175,6 @@ export const DEFAULT_LOAD_COLORS = {
 };
 
 // ============================================================================
-// UI色
-// ============================================================================
-
-/**
- * UIハイライト・インタラクションカラー
- * @type {Object.<string, string>}
- */
-export const UI_COLORS = {
-  highlight: COLORS.AMBER, // ハイライト
-  selected: COLORS.AMBER_LIGHT, // 選択状態
-  hover: COLORS.GREY_LIGHT, // ホバー状態
-  background: '#F0F0F0', // 背景（シーン）
-  backgroundDark: '#111111', // 背景（ダーク）
-  border: COLORS.GREY_LIGHT, // ボーダー
-};
-
-/**
- * 軸・階表示カラー
- * @type {Object.<string, string>}
- */
-export const LAYOUT_COLORS = {
-  axis: '#888888', // 通り芯
-  story: '#AAAAAA', // 階
-  grid: COLORS.GREY_LIGHT, // グリッド
-};
-
-// ============================================================================
-// Three.js用 16進数変換
-// ============================================================================
-
-/**
- * CSS色コード（#RRGGBB）をThree.js用の数値（0xRRGGBB）に変換
- * @param {string} hexColor - CSS色コード（例: '#4CAF50'）
- * @returns {number} Three.js用の数値（例: 0x4CAF50）
- */
-export function toThreeColor(hexColor) {
-  return parseInt(hexColor.replace('#', ''), 16);
-}
-
-/**
- * マテリアルデザイン基本色のThree.js用数値
- */
-export const THREE_COLORS = {
-  GREEN: toThreeColor(COLORS.GREEN),
-  GREEN_LIGHT: toThreeColor(COLORS.GREEN_LIGHT),
-  RED: toThreeColor(COLORS.RED),
-  RED_LIGHT: toThreeColor(COLORS.RED_LIGHT),
-  BLUE: toThreeColor(COLORS.BLUE),
-  BLUE_LIGHT: toThreeColor(COLORS.BLUE_LIGHT),
-  ORANGE: toThreeColor(COLORS.ORANGE),
-  AMBER: toThreeColor(COLORS.AMBER),
-  BROWN: toThreeColor(COLORS.BROWN),
-  GREY: toThreeColor(COLORS.GREY),
-  WHITE: toThreeColor(COLORS.WHITE),
-  BLACK: toThreeColor(COLORS.BLACK),
-};
-
-// ============================================================================
 // デフォルトエクスポート
 // ============================================================================
 
@@ -244,8 +186,4 @@ export default {
   TOLERANCE_DIFF_COLORS,
   IMPORTANCE_COLORS,
   DEFAULT_LOAD_COLORS,
-  UI_COLORS,
-  LAYOUT_COLORS,
-  THREE_COLORS,
-  toThreeColor,
 };

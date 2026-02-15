@@ -19,9 +19,16 @@ export const COMPARISON_KEY_TYPE = {
   /**
    * GUIDベース: 要素のGUID属性をキーとして使用
    * - GUID属性が存在する場合のみ有効
-   * - GUID属性が無い要素は位置情報ベースにフォールバック
+   * - GUID属性が無い要素は比較対象から除外（「Aのみ」「Bのみ」に分類）
    */
   GUID_BASED: 'guid',
+
+  /**
+   * 所属通芯・階ベース: ノードが所属する階名と通芯名をキーとして使用
+   * - StbStory / StbParallelAxis の StbNodeIdList で関連付けられた情報を使用
+   * - 所属情報が無いノード・要素は比較対象から除外（「Aのみ」「Bのみ」に分類）
+   */
+  STORY_AXIS_BASED: 'story_axis',
 };
 
 /**
@@ -37,6 +44,7 @@ export const DEFAULT_COMPARISON_KEY_TYPE = COMPARISON_KEY_TYPE.POSITION_BASED;
 export const COMPARISON_KEY_TYPE_LABELS = {
   [COMPARISON_KEY_TYPE.POSITION_BASED]: '位置情報',
   [COMPARISON_KEY_TYPE.GUID_BASED]: 'GUID',
+  [COMPARISON_KEY_TYPE.STORY_AXIS_BASED]: '所属通芯・階',
 };
 
 /**
@@ -46,11 +54,7 @@ export const COMPARISON_KEY_TYPE_LABELS = {
 export const COMPARISON_KEY_TYPE_DESCRIPTIONS = {
   [COMPARISON_KEY_TYPE.POSITION_BASED]: '要素の座標位置を基準に対応関係を判定します',
   [COMPARISON_KEY_TYPE.GUID_BASED]:
-    '要素のGUID属性を基準に対応関係を判定します（GUID無しの要素は位置情報で判定）',
+    '要素のGUID属性を基準に対応関係を判定します（GUID無しの要素は比較対象外）',
+  [COMPARISON_KEY_TYPE.STORY_AXIS_BASED]:
+    'ノードの所属階と所属通芯の名前を基準に対応関係を判定します（所属情報が無い要素は比較対象外）',
 };
-
-/**
- * LocalStorageに保存する際のキー名
- * @type {string}
- */
-export const COMPARISON_KEY_TYPE_STORAGE_KEY = 'stb-diff-viewer-comparison-key-type';

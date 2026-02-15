@@ -14,13 +14,13 @@
   border-radius: var(--border-radius);
   padding: 10px;
   margin: 10px 0;
-  font-size: 0.9em;
+  font-size: var(--font-size-md);
   color: #856404;
   display: none;
 }
 
 .cors-warning .warning-title {
-  font-weight: bold;
+  font-weight: var(--font-weight-bold);
   margin-bottom: 8px;
   color: #d63031;
 }
@@ -78,8 +78,8 @@
 }
 
 .selector-label {
-  font-weight: 600;
-  font-size: 0.95em;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-base);
   color: #495057;
 }
 
@@ -127,12 +127,12 @@
 }
 
 .radio-text strong {
-  font-size: 0.9em;
+  font-size: var(--font-size-md);
   color: #212529;
 }
 
 .radio-description {
-  font-size: 0.8em;
+  font-size: var(--font-size-sm);
   color: #6c757d;
   line-height: 1.4;
 }
@@ -148,7 +148,7 @@
 }
 
 .selector-info small {
-  font-size: 0.75em;
+  font-size: var(--font-size-xs);
   color: #6c757d;
   font-style: italic;
 }

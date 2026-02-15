@@ -412,28 +412,3 @@ export const resetApplicationState = () => globalState.reset();
 // 重要度機能専用の便利関数
 export const setImportanceState = (path, value) => globalState.set(`importance.${path}`, value);
 export const getImportanceState = (path) => globalState.get(`importance.${path}`);
-
-/**
- * モデルドキュメントを取得（window.docA/docB の代替）
- * @param {'A'|'B'} modelId - モデル識別子
- * @returns {Document|null} XMLドキュメント
- */
-export function getModelDocument(modelId) {
-  if (modelId === 'A') {
-    return globalState.get('models.documentA');
-  } else if (modelId === 'B') {
-    return globalState.get('models.documentB');
-  }
-  return null;
-}
-
-/**
- * 両方のモデルドキュメントを取得
- * @returns {{docA: Document|null, docB: Document|null}}
- */
-export function getModelDocuments() {
-  return {
-    docA: globalState.get('models.documentA'),
-    docB: globalState.get('models.documentB'),
-  };
-}

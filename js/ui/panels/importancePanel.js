@@ -8,7 +8,6 @@
 import { getImportanceManager, STB_ELEMENT_TABS } from '../../app/importanceManager.js';
 import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../../constants/importanceLevels.js';
 import { IMPORTANCE_COLORS } from '../../config/importanceConfig.js';
-import { AVAILABLE_CONFIGS } from '../../config/importanceConfigLoader.js';
 import { getState, setState } from '../../app/globalState.js';
 import { comparisonController } from '../../app/controllers/comparisonController.js';
 import { floatingWindowManager } from './floatingWindowManager.js';
@@ -24,6 +23,76 @@ import { createLogger } from '../../utils/logger.js';
 const log = createLogger('importancePanel');
 
 /**
+ * XSDスキーマに基づくカテゴリ階層定義
+ * STB要素の親子関係をサイドバーで表現するための構造
+ */
+const CATEGORY_HIERARCHY = [
+  { type: 'item', id: 'StbCommon' },
+  {
+    type: 'group',
+    label: 'StbAxes',
+    children: [
+      { type: 'item', id: 'StbParallelAxes' },
+      { type: 'item', id: 'StbArcAxes' },
+      { type: 'item', id: 'StbRadialAxes' },
+      {
+        type: 'group',
+        label: 'StbDrawingAxes',
+        children: [
+          { type: 'item', id: 'StbDrawingLineAxis' },
+          { type: 'item', id: 'StbDrawingArcAxis' },
+        ],
+      },
+    ],
+  },
+  { type: 'group', label: 'StbNodes', items: ['StbNodes'] },
+  { type: 'group', label: 'StbStories', items: ['StbStories'] },
+  {
+    type: 'group',
+    label: 'StbMembers',
+    children: [
+      { type: 'item', id: 'StbColumns' },
+      { type: 'item', id: 'StbPosts' },
+      { type: 'item', id: 'StbGirders' },
+      { type: 'item', id: 'StbBeams' },
+      { type: 'item', id: 'StbBraces' },
+      { type: 'item', id: 'StbSlabs' },
+      { type: 'item', id: 'StbWalls' },
+      { type: 'item', id: 'StbFootings' },
+      { type: 'item', id: 'StbStripFootings' },
+      { type: 'item', id: 'StbPiles' },
+      { type: 'item', id: 'StbFoundationColumns' },
+      { type: 'item', id: 'StbParapets' },
+      { type: 'item', id: 'StbOpens' },
+    ],
+  },
+  {
+    type: 'group',
+    label: 'StbSections',
+    children: [
+      { type: 'item', id: 'StbSecColumn_RC' },
+      { type: 'item', id: 'StbSecColumn_S' },
+      { type: 'item', id: 'StbSecColumn_SRC' },
+      { type: 'item', id: 'StbSecColumn_CFT' },
+      { type: 'item', id: 'StbSecBeam_RC' },
+      { type: 'item', id: 'StbSecBeam_S' },
+      { type: 'item', id: 'StbSecBeam_SRC' },
+      { type: 'item', id: 'StbSecBrace_S' },
+      { type: 'item', id: 'StbSecSlab_RC' },
+      { type: 'item', id: 'StbSecSlabDeck' },
+      { type: 'item', id: 'StbSecSlabPrecast' },
+      { type: 'item', id: 'StbSecWall_RC' },
+      { type: 'item', id: 'StbSecFoundation_RC' },
+      { type: 'item', id: 'StbSecPile_RC' },
+      { type: 'item', id: 'StbSecPile_S' },
+      { type: 'item', id: 'StbSecPileProduct' },
+      { type: 'item', id: 'StbSecParapet_RC' },
+    ],
+  },
+  { type: 'group', label: 'StbJoints', items: ['StbJoints'] },
+];
+
+/**
  * 重要度設定パネルクラス
  */
 class ImportancePanel {
@@ -36,6 +105,7 @@ class ImportancePanel {
     this.isVisible = false;
     this.elementContainer = null;
     this.statisticsContainer = null;
+    this.treeNodeCounter = 0;
 
     this.setupEventListeners();
   }
@@ -181,12 +251,12 @@ class ImportancePanel {
   initialize(containerElement) {
     this.containerElement = containerElement;
     this.createPanelHTML();
-    
+
     // 要素参照の更新
     this.elementContainer = document.getElementById('importance-elements');
     this.statisticsContainer = document.getElementById('importance-statistics');
     this.categoryListContainer = document.getElementById('importance-category-list');
-    
+
     this.bindEvents();
 
     // Windowマネージャに登録
@@ -194,7 +264,6 @@ class ImportancePanel {
 
     // 初期描画
     this.refreshCurrentTab();
-    this.syncMvdConfigSelector();
 
     log.info('ImportancePanel initialized');
   }
@@ -214,7 +283,6 @@ class ImportancePanel {
       onShow: () => {
         this.isVisible = true;
         this.refreshCurrentTab();
-        this.syncMvdConfigSelector();
         setState('ui.importancePanelVisible', true);
       },
       onHide: () => {
@@ -250,19 +318,16 @@ class ImportancePanel {
           <div class="importance-main-content">
             <div class="content-toolbar">
               <div class="mvd-config-section">
-                <div class="config-selector-group">
-                  <label for="importance-mvd-config-select">MVD:</label>
-                  <select id="importance-mvd-config-select" class="mvd-config-select">
-                    ${AVAILABLE_CONFIGS.map(
-                      (config) => `
-                      <option value="${config.id}" ${config.id === 'mvd-combined' ? 'selected' : ''}>
-                        ${config.name}
-                      </option>
-                    `,
-                    ).join('')}
-                  </select>
+                <div id="importance-config-description" class="config-description">
+                  S4はS2を包含します。各パラメータで S2 / S4 を個別に設定してください。
                 </div>
-                <div id="importance-config-description" class="config-description"></div>
+              </div>
+
+              <div class="importance-column-guide" aria-label="列説明">
+                <span><strong>項目名</strong>: 要素名/属性名</span>
+                <span><strong>S2</strong>: 必須MVDでの重要度</span>
+                <span><strong>S4</strong>: S2を含むMVDでの重要度</span>
+                <span><strong>S2+S4</strong>: 評価・色付けで使用する最終重要度</span>
               </div>
 
               <div class="search-box">
@@ -344,14 +409,14 @@ class ImportancePanel {
     const menuBtn = document.getElementById('importance-menu-btn');
     const menuContent = document.getElementById('importance-menu-content');
     if (menuBtn && menuContent) {
-        menuBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            menuContent.style.display = menuContent.style.display === 'block' ? 'none' : 'block';
-        });
-        document.addEventListener('click', () => {
-            menuContent.style.display = 'none';
-        });
-        menuContent.addEventListener('click', (e) => e.stopPropagation());
+      menuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menuContent.style.display = menuContent.style.display === 'block' ? 'none' : 'block';
+      });
+      document.addEventListener('click', () => {
+        menuContent.style.display = 'none';
+      });
+      menuContent.addEventListener('click', (e) => e.stopPropagation());
     }
 
     document.getElementById('importance-filter-level').addEventListener('change', (e) => {
@@ -367,12 +432,12 @@ class ImportancePanel {
     // CSV機能
     document.getElementById('importance-export-csv').addEventListener('click', () => {
       this.exportToCSV();
-      if(menuContent) menuContent.style.display = 'none';
+      if (menuContent) menuContent.style.display = 'none';
     });
 
     document.getElementById('importance-import-csv-btn').addEventListener('click', () => {
       document.getElementById('importance-import-csv').click();
-      if(menuContent) menuContent.style.display = 'none';
+      if (menuContent) menuContent.style.display = 'none';
     });
 
     document.getElementById('importance-import-csv').addEventListener('change', (e) => {
@@ -382,12 +447,7 @@ class ImportancePanel {
     // デフォルトリセット
     document.getElementById('importance-reset-defaults').addEventListener('click', () => {
       this.resetToDefaults();
-      if(menuContent) menuContent.style.display = 'none';
-    });
-
-    // MVD設定切り替え
-    document.getElementById('importance-mvd-config-select').addEventListener('change', (e) => {
-      this.switchMvdConfig(e.target.value);
+      if (menuContent) menuContent.style.display = 'none';
     });
   }
 
@@ -421,13 +481,13 @@ class ImportancePanel {
 
     // カテゴリリストの選択状態を更新
     if (this.categoryListContainer) {
-        this.categoryListContainer.querySelectorAll('.category-item').forEach(item => {
-            if (item.dataset.id === categoryId) {
-                item.classList.add('active');
-            } else {
-                item.classList.remove('active');
-            }
-        });
+      this.categoryListContainer.querySelectorAll('.category-item').forEach((item) => {
+        if (item.dataset.id === categoryId) {
+          item.classList.add('active');
+        } else {
+          item.classList.remove('active');
+        }
+      });
     }
 
     this.refreshParameterTable();
@@ -486,32 +546,84 @@ class ImportancePanel {
    * カテゴリリストを描画する
    */
   renderCategoryList() {
-      if (!this.categoryListContainer) return;
-      const settings = this.manager.getAllImportanceSettings();
+    if (!this.categoryListContainer) return;
+    const settings = this.manager.getAllImportanceSettings();
 
-      const html = STB_ELEMENT_TABS.map(tab => {
-          const paths = this.manager.getElementPathsByTab(tab.id);
-          const count = paths.filter((path) => settings.has(path)).length;
-          const isActive = this.currentTab === tab.id;
-          
-          return `
-          <li class="category-item ${isActive ? 'active' : ''}" data-id="${tab.id}">
-              <span class="category-name">${tab.name}</span>
-              <span class="count-badge">${count}</span>
-          </li>
-          `;
-      }).join('');
+    const html = this.renderHierarchy(CATEGORY_HIERARCHY, settings, 0);
 
-      this.categoryListContainer.innerHTML = html;
+    this.categoryListContainer.innerHTML = html;
 
-      // イベントリスナー再設定
-      this.categoryListContainer.querySelectorAll('.category-item').forEach(item => {
-          item.addEventListener('click', () => {
-              this.selectCategory(item.dataset.id);
-          });
+    // カテゴリ項目のクリックイベント
+    this.categoryListContainer.querySelectorAll('.category-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        this.selectCategory(item.dataset.id);
       });
+    });
 
-      this.applyCategoryListFilter();
+    // グループヘッダーの折りたたみイベント
+    this.categoryListContainer.querySelectorAll('.category-group-header').forEach((header) => {
+      header.addEventListener('click', () => {
+        const group = header.closest('.category-group');
+        if (group) {
+          group.classList.toggle('collapsed');
+        }
+      });
+    });
+
+    this.applyCategoryListFilter();
+  }
+
+  /**
+   * 階層構造を再帰的にHTMLへ変換する
+   * @param {Array} nodes - 階層ノード配列
+   * @param {Map} settings - 重要度設定
+   * @param {number} depth - 現在の深さ
+   * @returns {string} HTML文字列
+   */
+  renderHierarchy(nodes, settings, depth) {
+    return nodes
+      .map((node) => {
+        if (node.type === 'item') {
+          return this.renderCategoryItem(node.id, settings, depth);
+        }
+        // group type
+        const childrenHtml = node.children
+          ? this.renderHierarchy(node.children, settings, depth + 1)
+          : (node.items || [])
+              .map((id) => this.renderCategoryItem(id, settings, depth + 1))
+              .join('');
+
+        return `
+        <li class="category-group">
+          <div class="category-group-header" style="padding-left: ${8 + depth * 12}px">
+            <span class="group-toggle-icon"></span>
+            <span class="group-label">${node.label}</span>
+          </div>
+          <ul class="category-group-children">${childrenHtml}</ul>
+        </li>`;
+      })
+      .join('');
+  }
+
+  /**
+   * 単一カテゴリ項目のHTMLを生成する
+   * @param {string} tabId - タブID
+   * @param {Map} settings - 重要度設定
+   * @param {number} depth - インデント深さ
+   * @returns {string} HTML文字列
+   */
+  renderCategoryItem(tabId, settings, depth) {
+    const tab = STB_ELEMENT_TABS.find((t) => t.id === tabId);
+    if (!tab) return '';
+    const paths = this.manager.getElementPathsByTab(tab.id);
+    const count = paths.filter((path) => settings.has(path)).length;
+    const isActive = this.currentTab === tab.id;
+
+    return `
+      <li class="category-item ${isActive ? 'active' : ''}" data-id="${tab.id}" style="padding-left: ${8 + depth * 12}px">
+        <span class="category-name">${tab.name}</span>
+        <span class="count-badge">${count}</span>
+      </li>`;
   }
 
   /**
@@ -521,7 +633,24 @@ class ImportancePanel {
     const filterText = (this.categoryFilterText || '').toLowerCase();
     if (!this.categoryListContainer) return;
 
-    this.categoryListContainer.querySelectorAll('.category-item').forEach((item) => {
+    this.categoryListContainer.querySelectorAll('.category-group').forEach((group) => {
+      const items = group.querySelectorAll('.category-item');
+      let anyVisible = false;
+      items.forEach((item) => {
+        const name = (item.querySelector('.category-name')?.textContent || '').toLowerCase();
+        const visible = name.includes(filterText);
+        item.style.display = visible ? 'flex' : 'none';
+        if (visible) anyVisible = true;
+      });
+      group.style.display = anyVisible ? '' : 'none';
+      // フィルタ時はグループを自動展開
+      if (filterText && anyVisible) {
+        group.classList.remove('collapsed');
+      }
+    });
+
+    // トップレベルの直接 category-item（グループ外）
+    this.categoryListContainer.querySelectorAll(':scope > .category-item').forEach((item) => {
       const name = (item.querySelector('.category-name')?.textContent || '').toLowerCase();
       item.style.display = name.includes(filterText) ? 'flex' : 'none';
     });
@@ -532,7 +661,7 @@ class ImportancePanel {
    * @param {string} path - XPath
    * @returns {string[]} セグメント配列
    */
-  parsePathSegments(path) {
+  parsePathSegments(path, tabId = this.currentTab) {
     if (!path || typeof path !== 'string') {
       return [];
     }
@@ -541,7 +670,31 @@ class ImportancePanel {
     if (segments[0] === 'ST_BRIDGE') {
       segments.shift();
     }
-    return segments;
+
+    if (!tabId || segments.length === 0) {
+      return segments;
+    }
+
+    const tab = STB_ELEMENT_TABS.find((item) => item.id === tabId);
+    const xsdElemLower = tab?.xsdElem?.toLowerCase();
+    if (xsdElemLower) {
+      const xsdIndex = segments.findIndex((segment) => segment.toLowerCase() === xsdElemLower);
+      if (xsdIndex > 0) {
+        return segments.slice(xsdIndex);
+      }
+    }
+
+    const candidates = this.manager.buildTabPathCandidates(tabId);
+    const tabIndex = segments.findIndex((segment) => {
+      const lower = segment.toLowerCase();
+      if (candidates.has(lower)) return true;
+      for (const candidate of candidates) {
+        if (lower.startsWith(`${candidate}_`)) return true;
+      }
+      return false;
+    });
+
+    return tabIndex > 0 ? segments.slice(tabIndex) : segments;
   }
 
   /**
@@ -557,7 +710,7 @@ class ImportancePanel {
     };
 
     elementPaths.forEach((path) => {
-      const segments = this.parsePathSegments(path);
+      const segments = this.parsePathSegments(path, this.currentTab);
       if (segments.length === 0) return;
 
       let node = root;
@@ -571,7 +724,10 @@ class ImportancePanel {
         }
         node = node.children.get(segment);
       });
-      node.terminalPaths.push(path);
+      // 重複チェックを追加
+      if (!node.terminalPaths.includes(path)) {
+        node.terminalPaths.push(path);
+      }
     });
 
     return root;
@@ -591,20 +747,22 @@ class ImportancePanel {
   }
 
   /**
-   * ノード直下で編集可能なパス（要素＋属性）を取得する
+   * ノード直下で編集可能なパス（属性のみ）を取得する
    * @param {Object} node - ツリーノード
    * @returns {string[]} 直下のパス配列
    */
   collectDirectPaths(node) {
-    const directPaths = [...node.terminalPaths];
+    const directPaths = [];
 
+    // 属性のみを収集（要素自体は含めない）
     node.children.forEach((childNode, childName) => {
       if (childName.startsWith('@')) {
         directPaths.push(...childNode.terminalPaths);
       }
     });
 
-    return directPaths;
+    // 重複を除去して返す
+    return [...new Set(directPaths)];
   }
 
   /**
@@ -626,32 +784,56 @@ class ImportancePanel {
   renderParameterRows(paths) {
     return paths
       .map((path) => {
-        const importance = this.manager.getImportanceLevel(path);
-        const importanceName = IMPORTANCE_LEVEL_NAMES[importance];
-        const color = IMPORTANCE_COLORS[importance];
+        const s2Importance = this.manager.getMvdImportanceLevel(path, 's2');
+        const s4Importance = this.manager.getMvdImportanceLevel(path, 's4');
+        const effectiveImportance = this.manager.getImportanceLevel(path);
+        const effectiveName = IMPORTANCE_LEVEL_NAMES[effectiveImportance];
         const paramName = this.extractParameterName(path);
         const isAttribute = path.includes('@');
+        const rowTypeClass = isAttribute ? 'attribute-row' : 'element-row';
 
         return `
-          <tr>
+          <tr class="importance-path-row ${rowTypeClass}" data-path="${path}">
             <td title="${path}">
               <span class="param-name">${paramName}</span>
               ${isAttribute ? '<span class="param-type">属性</span>' : '<span class="param-type">要素</span>'}
             </td>
-            <td>
+            <td class="mvd-col">
               <div class="importance-select-wrapper">
-                <span class="status-dot" style="background-color: ${color};" title="${importanceName}"></span>
-                <select class="importance-select" data-path="${path}">
+                <span class="status-dot status-dot-s2" style="background-color: ${IMPORTANCE_COLORS[s2Importance]};" title="${IMPORTANCE_LEVEL_NAMES[s2Importance]}"></span>
+                <select class="importance-select importance-select-s2" data-path="${path}" data-mvd="s2">
                   ${Object.entries(IMPORTANCE_LEVELS)
                     .map(
                       ([, value]) => `
-                        <option value="${value}" ${value === importance ? 'selected' : ''}>
+                        <option value="${value}" ${value === s2Importance ? 'selected' : ''}>
                           ${IMPORTANCE_LEVEL_NAMES[value]}
                         </option>
                       `,
                     )
                     .join('')}
                 </select>
+              </div>
+            </td>
+            <td class="mvd-col">
+              <div class="importance-select-wrapper">
+                <span class="status-dot status-dot-s4" style="background-color: ${IMPORTANCE_COLORS[s4Importance]};" title="${IMPORTANCE_LEVEL_NAMES[s4Importance]}"></span>
+                <select class="importance-select importance-select-s4" data-path="${path}" data-mvd="s4">
+                  ${Object.entries(IMPORTANCE_LEVELS)
+                    .map(
+                      ([, value]) => `
+                        <option value="${value}" ${value === s4Importance ? 'selected' : ''}>
+                          ${IMPORTANCE_LEVEL_NAMES[value]}
+                        </option>
+                      `,
+                    )
+                    .join('')}
+                </select>
+              </div>
+            </td>
+            <td class="effective-col">
+              <div class="importance-effective">
+                <span class="status-dot status-dot-effective" style="background-color: ${IMPORTANCE_COLORS[effectiveImportance]};" title="${effectiveName}"></span>
+                <span class="effective-label">${effectiveName}</span>
               </div>
             </td>
           </tr>
@@ -671,21 +853,33 @@ class ImportancePanel {
       return '';
     }
 
+    const evaluationLabel = 'S2+S4';
+
     const rowsHTML = this.renderParameterRows(paths);
     if (compact) {
       return `
-        <table class="importance-table importance-table-compact">
+        <table class="importance-table importance-table-compact unified-comparison-table">
+          <thead>
+            <tr>
+              <th>項目名</th>
+              <th class="mvd-col">S2</th>
+              <th class="mvd-col">S4</th>
+              <th class="effective-col">${evaluationLabel}</th>
+            </tr>
+          </thead>
           <tbody>${rowsHTML}</tbody>
         </table>
       `;
     }
 
     return `
-      <table class="importance-table">
+      <table class="importance-table unified-comparison-table">
         <thead>
           <tr>
-            <th>パラメータ名</th>
-            <th>重要度設定</th>
+            <th>項目名</th>
+            <th class="mvd-col">S2</th>
+            <th class="mvd-col">S4</th>
+            <th class="effective-col">${evaluationLabel}</th>
           </tr>
         </thead>
         <tbody>${rowsHTML}</tbody>
@@ -703,19 +897,22 @@ class ImportancePanel {
     const directPaths = this.collectDirectPaths(node);
     const childNodes = this.getSortedElementChildren(node);
     const pathCount = this.countTreePaths(node);
-    const isOpen = depth === 0 ? 'open' : '';
+    const nodeId = `importance-node-${++this.treeNodeCounter}`;
+    const isExpanded = depth === 0;
+    const indent = Math.min(depth, 6) * 16;
 
     return `
-      <details class="importance-tree-node depth-${Math.min(depth, 6)}" ${isOpen}>
-        <summary class="importance-tree-summary">
+      <div class="importance-tree-node depth-${Math.min(depth, 6)}">
+        <div class="importance-tree-summary" style="padding-left:${10 + indent}px;">
+          <span class="toggle-btn importance-toggle-btn" data-target-id="${nodeId}">${isExpanded ? '-' : '+'}</span>
           <span class="tree-node-name">${node.name}</span>
           <span class="tree-node-count">${pathCount}</span>
-        </summary>
-        <div class="importance-tree-content">
+        </div>
+        <div class="importance-tree-content" data-tree-id="${nodeId}" style="display:${isExpanded ? 'block' : 'none'};">
           ${directPaths.length ? this.renderPathsTable(directPaths, true) : ''}
           ${childNodes.map((childNode) => this.renderTreeNode(childNode, depth + 1)).join('')}
         </div>
-      </details>
+      </div>
     `;
   }
 
@@ -725,15 +922,18 @@ class ImportancePanel {
    */
   renderParameterTable(elementPaths) {
     if (!elementPaths.length) {
-      this.elementContainer.innerHTML = '<div class="no-elements">該当するパラメータがありません</div>';
+      this.elementContainer.innerHTML =
+        '<div class="no-elements">該当するパラメータがありません</div>';
       return;
     }
 
     const uniquePaths = [...new Set(elementPaths)];
+    this.treeNodeCounter = 0;
     const tree = this.buildParameterTree(uniquePaths);
     const rootNodes = this.getSortedElementChildren(tree);
     if (!rootNodes.length) {
-      this.elementContainer.innerHTML = '<div class="no-elements">該当するパラメータがありません</div>';
+      this.elementContainer.innerHTML =
+        '<div class="no-elements">該当するパラメータがありません</div>';
       return;
     }
 
@@ -747,14 +947,70 @@ class ImportancePanel {
     this.elementContainer.querySelectorAll('.importance-select').forEach((select) => {
       select.addEventListener('change', (e) => {
         const path = e.target.dataset.path;
+        const mvdMode = e.target.dataset.mvd;
         const newImportance = e.target.value;
-
-        // 色更新
-        const dot = select.parentElement.querySelector('.status-dot');
-        if(dot) dot.style.backgroundColor = IMPORTANCE_COLORS[newImportance];
-
-        this.handleImportanceChange(path, newImportance);
+        this.manager.setMvdImportanceLevel(path, mvdMode, newImportance);
+        this.updateRenderedPathState(path);
       });
+    });
+
+    // ツリー折りたたみイベントを関連付け
+    this.elementContainer.querySelectorAll('.importance-toggle-btn').forEach((toggleBtn) => {
+      toggleBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const targetId = toggleBtn.dataset.targetId;
+        const targetEl = this.elementContainer.querySelector(`[data-tree-id="${targetId}"]`);
+        if (!targetEl) return;
+        const isVisible = targetEl.style.display !== 'none';
+        targetEl.style.display = isVisible ? 'none' : 'block';
+        toggleBtn.textContent = isVisible ? '+' : '-';
+      });
+    });
+  }
+
+  /**
+   * 描画済み行の表示状態（S2/S4/評価）を同期
+   * @param {string} path
+   */
+  updateRenderedPathState(path) {
+    const rows = this.elementContainer?.querySelectorAll(`tr[data-path="${path}"]`);
+    if (!rows || rows.length === 0) {
+      return;
+    }
+
+    const s2Importance = this.manager.getMvdImportanceLevel(path, 's2');
+    const s4Importance = this.manager.getMvdImportanceLevel(path, 's4');
+    const effectiveImportance = this.manager.getImportanceLevel(path);
+
+    rows.forEach((row) => {
+      const s2Select = row.querySelector('.importance-select-s2');
+      const s4Select = row.querySelector('.importance-select-s4');
+      const s2Dot = row.querySelector('.status-dot-s2');
+      const s4Dot = row.querySelector('.status-dot-s4');
+      const effectiveDot = row.querySelector('.status-dot-effective');
+      const effectiveLabel = row.querySelector('.effective-label');
+
+      if (s2Select && s2Select.value !== s2Importance) {
+        s2Select.value = s2Importance;
+      }
+      if (s4Select && s4Select.value !== s4Importance) {
+        s4Select.value = s4Importance;
+      }
+      if (s2Dot) {
+        s2Dot.style.backgroundColor = IMPORTANCE_COLORS[s2Importance];
+        s2Dot.title = IMPORTANCE_LEVEL_NAMES[s2Importance];
+      }
+      if (s4Dot) {
+        s4Dot.style.backgroundColor = IMPORTANCE_COLORS[s4Importance];
+        s4Dot.title = IMPORTANCE_LEVEL_NAMES[s4Importance];
+      }
+      if (effectiveDot) {
+        effectiveDot.style.backgroundColor = IMPORTANCE_COLORS[effectiveImportance];
+        effectiveDot.title = IMPORTANCE_LEVEL_NAMES[effectiveImportance];
+      }
+      if (effectiveLabel) {
+        effectiveLabel.textContent = IMPORTANCE_LEVEL_NAMES[effectiveImportance];
+      }
     });
   }
 
@@ -762,23 +1018,23 @@ class ImportancePanel {
    * パスからパラメータ名を抽出する
    */
   extractParameterName(path) {
-      if (!path) return '';
-      // 属性の場合 @name
-      if (path.includes('@')) {
-          return path.split('@')[1];
-      }
-      // 要素の場合、最後の要素名
-      const parts = path.split('/');
-      return parts[parts.length - 1] || path;
+    if (!path) return '';
+    // 属性の場合 @name
+    if (path.includes('@')) {
+      return path.split('@')[1];
+    }
+    // 要素の場合、最後の要素名
+    const parts = path.split('/');
+    return parts[parts.length - 1] || path;
   }
 
   /**
    * 重要度変更時の処理
    */
   handleImportanceChange(path, importance) {
-      // マネージャーのメソッドを呼び出す
-      // イベント発行はマネージャー側で行われる
-      this.manager.setImportanceLevel(path, importance);
+    // マネージャーのメソッドを呼び出す
+    // イベント発行はマネージャー側で行われる
+    this.manager.setImportanceLevel(path, importance);
   }
 
   /**
@@ -834,7 +1090,7 @@ class ImportancePanel {
   }
 
   /**
-   * 現在のタブに一括で重要度を適用する
+   * 現在のタブに一括で重要度を適用する（属性のみ）
    */
   applyBulkImportance() {
     const bulkLevel = document.getElementById('importance-bulk-level').value;
@@ -846,32 +1102,34 @@ class ImportancePanel {
     const elementPaths = this.manager.getElementPathsByTab(this.currentTab);
     const filteredPaths = this.filterElementPaths(elementPaths);
 
-    if (filteredPaths.length === 0) {
-      showWarning('適用対象の要素がありません。');
+    // 属性のみに絞り込み（要素は除外）
+    const attributePaths = filteredPaths.filter((path) => path.includes('@'));
+
+    if (attributePaths.length === 0) {
+      showWarning('適用対象の属性がありません。');
       return;
     }
 
-    const confirmMessage = `現在のタブの${filteredPaths.length}個の要素を「${IMPORTANCE_LEVEL_NAMES[bulkLevel]}」に設定しますか？`;
+    const confirmMessage = `現在のタブの${attributePaths.length}個の属性を「${IMPORTANCE_LEVEL_NAMES[bulkLevel]}」に設定しますか？\n（S2/S4 の両方に適用）`;
     if (!confirm(confirmMessage)) {
       return;
     }
 
-    filteredPaths.forEach((path) => {
-      this.manager.setImportanceLevel(path, bulkLevel);
+    attributePaths.forEach((path) => {
+      this.manager.setMvdImportanceLevel(path, 's2', bulkLevel, {
+        notify: false,
+        rebuild: false,
+      });
+      this.manager.setMvdImportanceLevel(path, 's4', bulkLevel, {
+        notify: false,
+        rebuild: false,
+      });
     });
-
-    // 一括変更の詳細情報をイベントで通知（EventBus経由）
-    eventBus.emit(ImportanceEvents.SETTINGS_CHANGED, {
-      type: 'bulk',
-      paths: filteredPaths,
-      newImportance: bulkLevel,
-      tab: this.currentTab,
-      count: filteredPaths.length,
-      timestamp: new Date().toISOString(),
-    });
+    this.manager.rebuildEffectiveImportanceSettings();
+    this.manager.notifySettingsChanged();
 
     this.refreshCurrentTab();
-    showSuccess(`${filteredPaths.length}個の要素の重要度を変更しました。`);
+    showSuccess(`${attributePaths.length}個の属性の重要度を変更しました。`);
   }
 
   /**
@@ -950,69 +1208,8 @@ class ImportancePanel {
 
     this.manager.resetToDefaults();
 
-    // リセットの詳細情報をイベントで通知（EventBus経由）
-    eventBus.emit(ImportanceEvents.SETTINGS_CHANGED, {
-      type: 'reset',
-      timestamp: new Date().toISOString(),
-    });
-
     this.refreshCurrentTab();
-    this.syncMvdConfigSelector();
     showSuccess('重要度設定をデフォルトに戻しました。');
-  }
-
-  /**
-   * MVD設定を切り替える
-   * @param {string} configId - 設定ID ('mvd-combined', 's2', 's4')
-   */
-  async switchMvdConfig(configId) {
-    try {
-      const success = await this.manager.loadExternalConfig(configId);
-
-      if (success) {
-        const configInfo = AVAILABLE_CONFIGS.find((c) => c.id === configId);
-        const descEl = document.getElementById('importance-config-description');
-        if (descEl && configInfo) {
-          descEl.textContent = configInfo.description;
-        }
-
-        this.updateStatistics();
-        this.refreshCurrentTab();
-
-        await this.triggerAutoRedraw({
-          type: 'configSwitch',
-          configId: configId,
-          configName: configInfo?.name,
-          timestamp: new Date().toISOString(),
-        });
-
-        showSuccess(`MVD設定を「${configInfo?.name || configId}」に切り替えました。`);
-      } else {
-        showError('MVD設定の切り替えに失敗しました。');
-      }
-    } catch (error) {
-      log.error('MVD config switch failed:', error);
-      showError('MVD設定の読み込み中にエラーが発生しました。');
-    }
-  }
-
-  /**
-   * MVD設定セレクターの表示状態を現在の設定と同期する
-   */
-  syncMvdConfigSelector() {
-    const selectEl = document.getElementById('importance-mvd-config-select');
-    if (selectEl && this.manager.getCurrentConfigId()) {
-      selectEl.value = this.manager.getCurrentConfigId();
-    }
-
-    const descEl = document.getElementById('importance-config-description');
-    if (descEl) {
-      const currentId = this.manager.getCurrentConfigId() || 'mvd-combined';
-      const configInfo = AVAILABLE_CONFIGS.find((c) => c.id === currentId);
-      if (configInfo) {
-        descEl.textContent = configInfo.description;
-      }
-    }
   }
 
   /**

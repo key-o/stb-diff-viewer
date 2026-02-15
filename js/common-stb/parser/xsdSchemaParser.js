@@ -567,14 +567,6 @@ export function isSchemaLoaded() {
   return xsdSchema !== null && elementDefinitions.size > 0;
 }
 
-/**
- * 読み込まれている要素定義の一覧を取得
- * @returns {Array<string>} 要素名の配列
- */
-export function getAvailableElements() {
-  return Array.from(elementDefinitions.keys());
-}
-
 // clearSchema関数は削除されました（未使用のため）
 
 // debugPrintSchema関数は削除されました（未使用のため）
@@ -728,20 +720,6 @@ function getEnumerationValues(typeName) {
 
 // getAttributeTypeInfo関数は削除されました（未使用のため）
 
-/**
- * 指定された要素タイプ・属性名が列挙値を持つかチェック
- * @param {string} elementType - 要素タイプ名 (StbColumn等)
- * @param {string} attributeName - 属性名
- * @returns {boolean} 列挙値を持つかどうか
- */
-export function hasEnumerationValues(elementType, attributeName) {
-  const attrInfo = getAttributeInfo(elementType, attributeName);
-  if (!attrInfo || !attrInfo.type) return false;
-
-  const enumValues = getEnumerationValues(attrInfo.type);
-  return enumValues.length > 0;
-}
-
 // getAttributeConstraints関数は削除されました（未使用のため）
 
 /**
@@ -750,7 +728,7 @@ export function hasEnumerationValues(elementType, attributeName) {
  * @param {Object} attributes - 現在の属性値オブジェクト
  * @returns {Array<string>} 未設定の必須属性名の配列
  */
-export function getMissingRequiredAttributes(elementType, attributes) {
+function getMissingRequiredAttributes(elementType, attributes) {
   const elementDef = elementDefinitions.get(elementType);
   if (!elementDef) return [];
 

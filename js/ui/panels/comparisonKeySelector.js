@@ -93,9 +93,9 @@ function setupEventListeners(container, onKeyTypeChanged) {
   const radioButtons = container.querySelectorAll('input[name="comparisonKeyType"]');
 
   radioButtons.forEach((radio) => {
-    radio.addEventListener('change', (event) => {
+    radio.addEventListener('change', async (event) => {
       const newKeyType = event.target.value;
-      handleKeyTypeChange(newKeyType, onKeyTypeChanged);
+      await handleKeyTypeChange(newKeyType, onKeyTypeChanged);
     });
   });
 
@@ -109,10 +109,12 @@ function setupEventListeners(container, onKeyTypeChanged) {
 /**
  * キータイプ変更を処理する
  * @param {string} newKeyType - 新しいキータイプ
- * @param {function} onKeyTypeChanged - コールバック関数
+ * @param {function} onKeyTypeChanged - コールバック関数（async対応）
  */
-function handleKeyTypeChange(newKeyType, onKeyTypeChanged) {
+async function handleKeyTypeChange(newKeyType, onKeyTypeChanged) {
   try {
+    console.info(`[ComparisonKeySelector] requested key type change: ${newKeyType}`);
+
     // ComparisonKeyManagerに設定を保存（これによりイベントが発火される）
     const success = comparisonKeyManager.setKeyType(newKeyType);
 
@@ -122,7 +124,7 @@ function handleKeyTypeChange(newKeyType, onKeyTypeChanged) {
 
     // コールバックを実行（再比較をトリガー）
     if (typeof onKeyTypeChanged === 'function') {
-      onKeyTypeChanged(newKeyType);
+      await onKeyTypeChanged(newKeyType);
     } else {
       console.warn('[ComparisonKeySelector] No callback provided for key type change');
     }
@@ -144,17 +146,3 @@ function updateUISelection(container, keyType) {
   });
 }
 
-/**
- * 現在選択されているキータイプを取得する
- * @param {string} containerSelector - UIコンテナーのセレクター
- * @returns {string|null} 選択されているキータイプ、またはnull
- */
-export function getSelectedKeyType(containerSelector) {
-  const container = document.querySelector(containerSelector);
-  if (!container) {
-    return null;
-  }
-
-  const selectedRadio = container.querySelector('input[name="comparisonKeyType"]:checked');
-  return selectedRadio ? selectedRadio.value : null;
-}

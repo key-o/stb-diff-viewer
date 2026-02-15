@@ -646,16 +646,6 @@ export function renameCommonElementsTo210(stbRoot) {
   }
 }
 
-/**
- * Rename StbCommon child elements from v2.1.0 to v2.0.2
- * @param {object} stbRoot - ST-Bridge root element
- */
-export function renameCommonElementsTo202(stbRoot) {
-  // v2.0.2 expects StbReinforcementStrengthList with correct casing
-  // so no reverse operation is needed
-  logger.debug('renameCommonElementsTo202: No operation needed');
-}
-
 export {
   ELEMENT_RENAME_MAP_202_TO_210,
   ELEMENT_RENAME_MAP_210_TO_202,

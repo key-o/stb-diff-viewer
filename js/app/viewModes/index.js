@@ -31,9 +31,6 @@ export {
   redrawElementByType,
 } from './elementRedrawer.js';
 
-// comparisonRenderer.js からの再エクスポート
-export { compareSolidElements } from './comparisonRenderer.js';
-
 // cameraModeController.js からの再エクスポート
 export { setupCameraModeListeners } from './cameraModeController.js';
 

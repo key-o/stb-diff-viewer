@@ -48,6 +48,7 @@ import {
 import {
   renderComparisonRecursive,
   renderSectionInfo,
+  renderOpeningInfo,
   generateTableStyles,
   setupCollapseHandlers,
 } from './ComparisonRenderer.js';
@@ -298,7 +299,7 @@ function tryFallbackDisplay(elementType, idA, idB, contentDiv) {
         .map(([key, v]) => `${key}: ${v}`)
         .join('<br>');
       contentDiv.innerHTML = `
-        <div style="font-weight:bold;margin-bottom:4px;">${elementType} (Mesh UserData)</div>
+        <div style="font-weight:var(--font-weight-bold);margin-bottom:4px;">${elementType} (Mesh UserData)</div>
         <div><strong>ID:</strong> ${ud.elementId || '-'}</div>
         <div><strong>Section Type:</strong> ${
           ud.sectionType || ud.profileMeta?.sectionTypeResolved || '-'
@@ -495,6 +496,11 @@ function showInfo(
   // 断面情報の比較表示（継手以外）
   content += renderSectionInfo(nodeA, nodeB, showSingleColumn, modelSource, elementType);
 
+  // 壁・スラブの開口情報表示（v2.1.0: StbOpenArrangement経由）
+  if (elementType === 'Wall' || elementType === 'Slab') {
+    content += renderOpeningInfo(nodeA, nodeB, showSingleColumn);
+  }
+
   // 継手の場合は親部材情報を追加
   if (jointMeshDataA || jointMeshDataB) {
     content += renderJointParentInfo(jointMeshDataA, jointMeshDataB, showSingleColumn, modelSource);
@@ -550,7 +556,7 @@ function renderJointParentInfo(jointMeshDataA, jointMeshDataB, showSingleColumn,
   // セクションヘッダー
   html += `<tr class="element-row" data-id="${rowId}">`;
   html += '<td style="padding-left: 0; white-space: nowrap;">';
-  html += `<span class="toggle-btn" data-target-id="${rowId}" style="margin-right:5px;display:inline-block;width:1em;text-align:center;font-weight:bold;cursor:pointer;color:#666;">-</span>`;
+  html += `<span class="toggle-btn" data-target-id="${rowId}" style="margin-right:5px;display:inline-block;width:1em;text-align:center;font-weight:var(--font-weight-bold);cursor:pointer;color:#666;">-</span>`;
   html += '<span class="tag-name">親部材情報</span>';
   html += '</td>';
   if (showSingleColumn) {
@@ -618,9 +624,9 @@ function renderJointParentRow(label, valueA, valueB, showSingleColumn, parentRow
     html += `<td>${value}</td>`;
   } else {
     const isDiff = valueA !== valueB;
-    const diffStyle = isDiff ? 'background-color: rgba(255, 200, 0, 0.3);' : '';
-    html += `<td style="${diffStyle}">${valueA}</td>`;
-    html += `<td style="${diffStyle}">${valueB}</td>`;
+    const highlightClass = isDiff ? ' class="differs"' : '';
+    html += `<td${highlightClass}>${valueA}</td>`;
+    html += `<td${highlightClass}>${valueB}</td>`;
   }
 
   html += '</tr>';
@@ -661,7 +667,7 @@ function showJointMeshDataOnly(panel, title, contentDiv, jointMeshDataA, jointMe
 
   content += '</tbody></table>';
   content +=
-    '<p style="color: orange; font-size: 0.9em; margin-top: 8px;">※ XML内に継手定義が見つかりませんでした。メッシュデータのみを表示しています。</p>';
+    '<p style="color: orange; font-size: var(--font-size-md); margin-top: 8px;">※ XML内に継手定義が見つかりませんでした。メッシュデータのみを表示しています。</p>';
 
   contentDiv.innerHTML = content;
 
@@ -777,7 +783,12 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
     }
   } else {
     // 通常の要素
-    const tagName = elementType === 'Node' ? 'StbNode' : `Stb${elementType}`;
+    const tagName =
+      elementType === 'Axis'
+        ? 'StbParallelAxis'
+        : elementType === 'Node'
+          ? 'StbNode'
+          : `Stb${elementType}`;
 
     // モデルAの要素を取得試行
     if (idA && window.docA) {
@@ -820,7 +831,7 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
       const jointId = jointMeshData?.jointId || extractJointIdFromMeshId(idA || idB);
 
       title = `継手 ID:${jointId} (${parentInfoStr})`;
-      title += ' <span style="color: orange; font-size: 0.8em;">[XML未検出]</span>';
+      title += ' <span style="color: orange; font-size: var(--font-size-sm);">[XML未検出]</span>';
 
       // メッシュデータのみで簡易表示
       showJointMeshDataOnly(panel, title, contentDiv, jointMeshDataA, jointMeshDataB);
@@ -841,19 +852,19 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
   if (isSchemaLoaded()) {
     const attrCount = getAllAttributeNames(schemaElementName).length;
     if (attrCount > 0) {
-      schemaInfo = ` <span style="color: green; font-size: 0.8em;">[XSD: ${attrCount}属性]</span>`;
+      schemaInfo = ` <span style="color: green; font-size: var(--font-size-sm);">[XSD: ${attrCount}属性]</span>`;
     } else {
-      schemaInfo = ` <span style="color: orange; font-size: 0.8em;">[XSD: ${schemaElementName}未定義]</span>`;
+      schemaInfo = ` <span style="color: orange; font-size: var(--font-size-sm);">[XSD: ${schemaElementName}未定義]</span>`;
       logger.warn(`XSD schema loaded but ${schemaElementName} not found in definitions`);
     }
   } else {
-    schemaInfo = ' <span style="color: red; font-size: 0.8em;">[XSD: 未読込]</span>';
+    schemaInfo = ' <span style="color: red; font-size: var(--font-size-sm);">[XSD: 未読込]</span>';
   }
 
   // タイトル生成
   const typeNote =
     actualElementType !== elementType && elementType !== 'Joint'
-      ? ` <span style="color: orange; font-size: 0.8em;">[実際は${actualElementType}]</span>`
+      ? ` <span style="color: orange; font-size: var(--font-size-sm);">[実際は${actualElementType}]</span>`
       : '';
 
   // 継手の場合は親部材情報をタイトルに含める
@@ -897,7 +908,7 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
       // XSDバージョンの短縮
       const xsdLabel = activeXsdVersion === '2.1.0' ? '210' : '202';
 
-      return ` <span style="background: rgba(0,120,215,0.15); padding: 2px 6px; border-radius: 3px; font-size: 0.75em; font-weight: normal; margin-left: 4px;">[評価: ${shortName}, XSD:${xsdLabel}]</span>`;
+      return ` <span style="background: rgba(0,120,215,0.15); padding: 2px 6px; border-radius: 3px; font-size: var(--font-size-xs); font-weight: normal; margin-left: 4px;">[評価: ${shortName}, XSD:${xsdLabel}]</span>`;
     } catch (error) {
       logger.warn('Failed to generate evaluation badge:', error);
       return '';

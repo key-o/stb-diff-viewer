@@ -66,7 +66,7 @@ function resolveExpectedDimensions(sectionMeta) {
  * - XY 平面でのバウンディングを断面とみなす（押し出し前提）
  * - 差異率を算出して返す
  */
-export function inspectSectionMismatch(mesh) {
+function inspectSectionMismatch(mesh) {
   if (!mesh || !mesh.geometry) {
     log.warn('inspectSectionMismatch: mesh or geometry missing');
     return null;
@@ -107,7 +107,7 @@ export function inspectSectionMismatch(mesh) {
 /**
  * シーン内の指定タイプのメッシュを走査し、断面差異を集計
  */
-export function scanSceneForSectionMismatches(scene, elementType = null, limit = 50) {
+function scanSceneForSectionMismatches(scene, elementType = null, limit = 50) {
   const out = [];
   let count = 0;
   scene.traverse((obj) => {
@@ -129,7 +129,7 @@ export function scanSceneForSectionMismatches(scene, elementType = null, limit =
 /**
  * 既知のグローバルからシーンを推測してスキャン
  */
-export function scanDefaultScene(elementType = null, limit = 50) {
+function scanDefaultScene(elementType = null, limit = 50) {
   const s = getDefaultScene();
   if (!s) {
     log.warn('scanDefaultScene: scene not found in known globals');
@@ -157,7 +157,7 @@ export function getDefaultScene() {
 /**
  * 差異のある要素をハイライト表示
  */
-export function highlightMismatches(scene, results, tolerance = 0.02) {
+function highlightMismatches(scene, results, tolerance = 0.02) {
   const ids = new Set(
     results
       .filter((r) => {
@@ -191,7 +191,7 @@ export function highlightMismatches(scene, results, tolerance = 0.02) {
 /**
  * 結果を簡易パネルで表示
  */
-export function showMismatchPanel(results, tolerance = 0.02) {
+function showMismatchPanel(results, tolerance = 0.02) {
   const id = 'diag-mismatch-panel';
   let el = document.getElementById(id);
   if (!el) {
@@ -254,7 +254,7 @@ export function showMismatchPanel(results, tolerance = 0.02) {
 /**
  * 断面比較ログをコンソール出力（1要素=1行）
  */
-export function logSectionComparisons(scene, elementType = null, limit = 100, options = {}) {
+function logSectionComparisons(scene, elementType = null, limit = 100, options = {}) {
   const { tolerance = 0.02, level = 'info' } = options;
   const logger = typeof clog[level] === 'function' ? clog[level] : clog.info;
   let total = 0;
@@ -291,7 +291,7 @@ export function logSectionComparisons(scene, elementType = null, limit = 100, op
   return { total, flagged };
 }
 
-export function logDefaultSceneComparisons(elementType = null, limit = 100, options = {}) {
+function logDefaultSceneComparisons(elementType = null, limit = 100, options = {}) {
   const s = getDefaultScene();
   if (!s) {
     clog.warn('logDefaultSceneComparisons: scene not found');
@@ -305,7 +305,7 @@ export function logDefaultSceneComparisons(elementType = null, limit = 100, opti
  * - width / height のどちらかが未解決 (undefined) のものを対象
  * - 利用可能なキー一覧とネスト1段目までのオブジェクト構造を簡易出力
  */
-export function debugMissingExpectedDimensions(scene, elementType = null, limit = 50) {
+function debugMissingExpectedDimensions(scene, elementType = null, limit = 50) {
   const s = scene || getDefaultScene();
   if (!s) {
     clog.warn('debugMissingExpectedDimensions: scene not found');

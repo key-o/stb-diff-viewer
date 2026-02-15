@@ -129,14 +129,6 @@ export function getSelectedObjects() {
   return [...selectedObjects];
 }
 
-/**
- * 選択数を取得
- * @returns {number}
- */
-export function getSelectionCount() {
-  return selectedObjects.length;
-}
-
 // 左ボタン押下中かどうか
 let isPointerDownLeft = false;
 // ドラッグ開始判定用の押下座標
@@ -407,7 +399,7 @@ function displayMultiSelectionSummary() {
 
   // サマリーHTMLを生成
   let summaryHtml = `
-    <div style="font-weight:bold;margin-bottom:8px;font-size:1.1em;">
+    <div style="font-weight:var(--font-weight-bold);margin-bottom:8px;font-size:var(--font-size-lg);">
       複数選択: ${selectedObjects.length}要素
     </div>
     <div style="margin-bottom:8px;">
@@ -450,7 +442,7 @@ function displayMultiSelectionSummary() {
  * @param {Event} event - マウスイベント
  * @param {Function} scheduleRender - 再描画要求関数
  */
-export function processElementSelection(event, scheduleRender) {
+function processElementSelection(event, scheduleRender) {
   event.preventDefault();
 
   const canvas = document.getElementById('three-canvas');
@@ -879,9 +871,9 @@ function handle3DCopyProperties(targetObject) {
       userData.modelSource === 'matched'
         ? '一致'
         : userData.modelSource === 'onlyA'
-          ? 'A専用'
+          ? 'Aのみ'
           : userData.modelSource === 'onlyB'
-            ? 'B専用'
+            ? 'Bのみ'
             : '-',
   };
 

@@ -22,7 +22,7 @@ let diffListBtnHandler = null;
  * 差分結果のサマリーを表示する
  * @param {Object} comparisonResults - 比較結果オブジェクト
  */
-export function updateDiffSummary(comparisonResults) {
+function updateDiffSummary(comparisonResults) {
   const summaryElement = document.getElementById('diff-summary');
   const contentElement = document.getElementById('diff-summary-content');
 
@@ -123,11 +123,11 @@ function generateSummaryHTML(stats) {
   if (versionInfo.isCrossVersion) {
     html += `
       <div class="version-notice cross-version" style="display: flex; align-items: flex-start; gap: 8px; padding: 8px; margin-bottom: 10px; background: var(--bg-secondary, #f3f4f6); border-radius: 4px; border-left: 3px solid var(--color-warning, #d97706);">
-        <span style="font-size: 14px;">⚠️</span>
-        <span style="font-size: 12px; color: var(--text-primary, #374151);">異なるバージョン間の比較です</span>
+        <span style="font-size: var(--font-size-base);">⚠️</span>
+        <span style="font-size: var(--font-size-sm); color: var(--text-primary, #374151);">異なるバージョン間の比較です</span>
       </div>
       <div class="version-filter-option" style="margin-bottom: 10px; padding: 8px; background: var(--bg-secondary, #f3f4f6); border-radius: 4px;">
-        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: var(--font-size-sm);">
           <input type="checkbox" id="version-diff-filter" ${shouldShowVersionSpecificDifferences() ? 'checked' : ''} style="width: 14px; height: 14px; cursor: pointer;">
           <span>バージョン固有の差異も表示</span>
         </label>
@@ -152,14 +152,14 @@ function generateSummaryHTML(stats) {
 
   if (stats.totalOnlyA > 0) {
     html += `<div class="diff-stat-item">`;
-    html += `  <span>🟢 モデルA専用</span>`;
+    html += `  <span>🟢 モデルAのみ</span>`;
     html += `  <span class="diff-stat-value diff-stat-only-a">${stats.totalOnlyA}</span>`;
     html += `</div>`;
   }
 
   if (stats.totalOnlyB > 0) {
     html += `<div class="diff-stat-item">`;
-    html += `  <span>🔴 モデルB専用</span>`;
+    html += `  <span>🔴 モデルBのみ</span>`;
     html += `  <span class="diff-stat-value diff-stat-only-b">${stats.totalOnlyB}</span>`;
     html += `</div>`;
   }
@@ -169,13 +169,13 @@ function generateSummaryHTML(stats) {
   // 要素タイプ別詳細
   const elementTypeEntries = Object.entries(stats.elementTypes);
   if (elementTypeEntries.length > 1) {
-    html += '<div style="font-size: 0.85em;">';
+    html += '<div style="font-size: var(--font-size-sm);">';
     html +=
-      '<div style="font-weight: 600; margin-bottom: 6px; color: #495057;">要素タイプ別:</div>';
+      '<div style="font-weight: var(--font-weight-semibold); margin-bottom: 6px; color: #495057;">要素タイプ別:</div>';
 
     elementTypeEntries.forEach(([elementType, typeStats]) => {
       const typeName = getElementTypeDisplayName(elementType);
-      html += `<div class="diff-stat-item" style="font-size: 0.9em;">`;
+      html += `<div class="diff-stat-item" style="font-size: var(--font-size-md);">`;
       html += `  <span>${typeName}</span>`;
       html += `  <span class="diff-stat-value">`;
 
@@ -196,7 +196,7 @@ function generateSummaryHTML(stats) {
   if (stats.totalOnlyA > 0 || stats.totalOnlyB > 0) {
     html += `
       <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #dee2e6;">
-        <button type="button" id="open-diff-list-from-summary" class="btn btn-sm btn-secondary" style="width: 100%; padding: 8px; font-size: 13px;">
+        <button type="button" id="open-diff-list-from-summary" class="btn btn-sm btn-secondary" style="width: 100%; padding: 8px; font-size: var(--font-size-md);">
           📋 差分一覧を表示
         </button>
       </div>
@@ -230,18 +230,3 @@ export function setupDiffSummaryEventListeners() {
   console.log('Diff summary event listeners set up');
 }
 
-/**
- * 差分サマリーをクリアする
- */
-export function clearDiffSummary() {
-  const summaryElement = document.getElementById('diff-summary');
-  const contentElement = document.getElementById('diff-summary-content');
-
-  if (summaryElement) {
-    summaryElement.classList.add('hidden');
-  }
-
-  if (contentElement) {
-    contentElement.innerHTML = '';
-  }
-}

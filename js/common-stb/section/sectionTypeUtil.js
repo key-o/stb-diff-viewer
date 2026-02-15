@@ -4,8 +4,6 @@
  * 目的: section_type / profile_type / 大文字小文字ゆれを一本化
  * 標準キー: section_type (大文字識別子: H, BOX, PIPE, C, L, T, FB, RECTANGLE, CIRCLE, CFT, SRC)
  *
- * MatrixCalcとStbDiffViewerの両方で使用される共通モジュール。
- *
  * @module common/stb/section/sectionTypeUtil
  */
 
@@ -167,35 +165,3 @@ export function ensureUnifiedSectionType(obj) {
   return obj;
 }
 
-/**
- * 断面タイプが鋼構造かどうかを判定
- *
- * @param {string} sectionType - 断面タイプ
- * @returns {boolean} 鋼構造の場合true
- */
-export function isSteelSection(sectionType) {
-  const norm = normalizeSectionType(sectionType);
-  return ['H', 'BOX', 'PIPE', 'C', 'L', 'T', 'FB'].includes(norm);
-}
-
-/**
- * 断面タイプがRC構造かどうかを判定
- *
- * @param {string} sectionType - 断面タイプ
- * @returns {boolean} RC構造の場合true
- */
-export function isConcreteSection(sectionType) {
-  const norm = normalizeSectionType(sectionType);
-  return ['RECTANGLE', 'CIRCLE'].includes(norm);
-}
-
-/**
- * 断面タイプが複合構造かどうかを判定
- *
- * @param {string} sectionType - 断面タイプ
- * @returns {boolean} 複合構造（SRC/CFT）の場合true
- */
-export function isCompositeSection(sectionType) {
-  const norm = normalizeSectionType(sectionType);
-  return ['SRC', 'CFT'].includes(norm);
-}

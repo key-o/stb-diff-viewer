@@ -126,20 +126,20 @@ function injectToleranceStyles() {
 
     .tolerance-section-title {
       margin: 0 0 8px 0;
-      font-size: 1em;
+      font-size: var(--font-size-base);
       color: #343a40;
-      font-weight: 600;
+      font-weight: var(--font-weight-semibold);
     }
 
     .tolerance-subsection-title {
       margin: 0 0 8px 0;
-      font-size: 0.9em;
+      font-size: var(--font-size-md);
       color: #495057;
-      font-weight: 600;
+      font-weight: var(--font-weight-semibold);
     }
 
     .tolerance-description {
-      font-size: 0.85em;
+      font-size: var(--font-size-sm);
       color: #666;
       margin: 0 0 10px 0;
       line-height: 1.4;
@@ -148,7 +148,7 @@ function injectToleranceStyles() {
     .tolerance-checkbox-label {
       display: flex;
       align-items: center;
-      font-size: 0.9em;
+      font-size: var(--font-size-md);
       cursor: pointer;
     }
 
@@ -177,8 +177,8 @@ function injectToleranceStyles() {
 
     .tolerance-axis-item label {
       min-width: 40px;
-      font-size: 0.9em;
-      font-weight: 500;
+      font-size: var(--font-size-md);
+      font-weight: var(--font-weight-medium);
       color: #495057;
     }
 
@@ -187,7 +187,7 @@ function injectToleranceStyles() {
       padding: 4px 8px;
       border: 1px solid #ced4da;
       border-radius: 3px;
-      font-size: 0.9em;
+      font-size: var(--font-size-md);
       width: 80px;
     }
 
@@ -198,7 +198,7 @@ function injectToleranceStyles() {
     }
 
     .tolerance-unit {
-      font-size: 0.85em;
+      font-size: var(--font-size-sm);
       color: #6c757d;
       min-width: 30px;
     }
@@ -212,7 +212,7 @@ function injectToleranceStyles() {
     .tolerance-actions .btn {
       flex: 1;
       padding: 8px 12px;
-      font-size: 0.9em;
+      font-size: var(--font-size-md);
       border-radius: 4px;
       cursor: pointer;
       border: none;

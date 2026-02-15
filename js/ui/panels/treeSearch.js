@@ -5,7 +5,7 @@
  * - テキスト検索（ID、名前、GUID）
  * - 検索対象フィルタ（ID/名前/GUID を個別に選択可能）
  * - 正規表現サポート（/pattern/ 形式）
- * - 差分ステータスフィルタ（一致/A専用/B専用）
+ * - 差分ステータスフィルタ（一致/Aのみ/Bのみ）
  * - デバウンス処理
  */
 
@@ -501,8 +501,8 @@ function createFilterDropdown(statusFilter, onChange) {
 
   const filters = [
     { key: 'matched', label: '一致', color: '#12b886' },
-    { key: 'onlyA', label: 'A専用', color: '#37b24d' },
-    { key: 'onlyB', label: 'B専用', color: '#f03e3e' },
+    { key: 'onlyA', label: 'Aのみ', color: '#37b24d' },
+    { key: 'onlyB', label: 'Bのみ', color: '#f03e3e' },
   ];
 
   filters.forEach(({ key, label, color }) => {

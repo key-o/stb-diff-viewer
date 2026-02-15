@@ -31,7 +31,7 @@ export function initializeContextMenu() {
     max-width: 280px;
     z-index: 10000;
     padding: 4px 0;
-    font-size: 13px;
+    font-size: var(--font-size-md);
     color: #e0e0e0;
   `;
 
@@ -123,7 +123,7 @@ export function showContextMenu(x, y, items) {
     if (item.shortcut) {
       const shortcut = document.createElement('span');
       shortcut.textContent = item.shortcut;
-      shortcut.style.cssText = 'font-size: 11px; color: #888; margin-left: 16px;';
+      shortcut.style.cssText = 'font-size: var(--font-size-sm); color: #888; margin-left: 16px;';
       menuItem.appendChild(shortcut);
     }
 
@@ -172,16 +172,9 @@ export function showContextMenu(x, y, items) {
 /**
  * コンテキストメニューを非表示
  */
-export function hideContextMenu() {
+function hideContextMenu() {
   if (menuElement) {
     menuElement.style.display = 'none';
   }
 }
 
-/**
- * コンテキストメニューが表示中かどうか
- * @returns {boolean}
- */
-export function isContextMenuVisible() {
-  return menuElement && menuElement.style.display !== 'none';
-}

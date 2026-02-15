@@ -10,7 +10,7 @@
  * id: CSS classとdata-view属性に使用
  * label: 表示テキスト
  */
-export const FACE_CONFIG = [
+const FACE_CONFIG = [
   { id: 'top', label: '上' },
   { id: 'bottom', label: '下' },
   { id: 'front', label: '前' }, // CSS Front(Z+) = World Y-方向から見る = 正面図
@@ -23,7 +23,7 @@ export const FACE_CONFIG = [
  * 辺の設定（12個）
  * 2面の境界線をクリックして45度ビューに切り替え
  */
-export const EDGE_CONFIG = [
+const EDGE_CONFIG = [
   // 上面の辺
   { id: 'top-front' },
   { id: 'top-back' },
@@ -45,7 +45,7 @@ export const EDGE_CONFIG = [
  * 角の設定（8個）
  * キューブの頂点をクリックしてアイソメトリックビューに切り替え
  */
-export const CORNER_CONFIG = [
+const CORNER_CONFIG = [
   // 上面の角
   { id: 'top-front-right' },
   { id: 'top-front-left' },
@@ -127,11 +127,3 @@ export function getCubeElement(container) {
   return container?.querySelector('.view-cube') ?? null;
 }
 
-/**
- * 面IDからビュー方向を取得
- * @param {string} faceId - 面のID
- * @returns {Object|null} 面の設定
- */
-export function getFaceConfig(faceId) {
-  return FACE_CONFIG.find((face) => face.id === faceId) ?? null;
-}

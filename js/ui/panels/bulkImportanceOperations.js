@@ -1128,7 +1128,7 @@ let bulkImportanceOperationsInstance = null;
  * BulkImportanceOperationsのシングルトンインスタンスを取得する
  * @returns {BulkImportanceOperations} インスタンス
  */
-export function getBulkImportanceOperations() {
+function getBulkImportanceOperations() {
   if (!bulkImportanceOperationsInstance) {
     bulkImportanceOperationsInstance = new BulkImportanceOperations();
   }

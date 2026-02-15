@@ -246,9 +246,3 @@ export function getFrustumCuller(camera) {
   return instance;
 }
 
-/**
- * グローバルなFrustumCullerをリセット（テスト用）
- */
-export function resetFrustumCuller() {
-  instance = null;
-}

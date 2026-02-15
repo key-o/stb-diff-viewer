@@ -119,5 +119,5 @@ class ModelVisibilityManager extends BaseElementStateManager {
 // シングルトンインスタンスを作成してエクスポート
 const modelVisibilityManager = new ModelVisibilityManager();
 
-export { modelVisibilityManager, ModelVisibilityManager, MODEL_TYPES };
+export { modelVisibilityManager };
 export default modelVisibilityManager;

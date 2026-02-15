@@ -16,7 +16,7 @@ const logger = createLogger('ModuleMessaging');
 /**
  * モジュール間メッセージング システム
  */
-export class ModuleMessenger {
+class ModuleMessenger {
   constructor() {
     this.subscribers = new Map();
     this.messageQueue = [];
@@ -387,17 +387,6 @@ export class ModuleMessenger {
 let globalMessenger = null;
 
 /**
- * グローバルメッセンジャーのインスタンスを取得する
- * @returns {ModuleMessenger} メッセンジャーインスタンス
- */
-export function getGlobalMessenger() {
-  if (!globalMessenger) {
-    globalMessenger = new ModuleMessenger();
-  }
-  return globalMessenger;
-}
-
-/**
  * グローバルメッセンジャーを初期化する
  * @param {Object} config - 初期設定
  * @returns {ModuleMessenger} 初期化されたメッセンジャー
@@ -415,98 +404,4 @@ export function initializeGlobalMessenger(config = {}) {
   }
 
   return globalMessenger;
-}
-
-// 便利な関数をエクスポート
-export const subscribe = (event, callback, options) => {
-  return getGlobalMessenger().subscribe(event, callback, options);
-};
-
-export const once = (event, callback, options) => {
-  return getGlobalMessenger().once(event, callback, options);
-};
-
-export const publish = (event, data, options) => {
-  return getGlobalMessenger().publish(event, data, options);
-};
-
-export const unsubscribeAll = (event) => {
-  return getGlobalMessenger().unsubscribeAll(event);
-};
-
-export const getMessagingStats = () => {
-  return getGlobalMessenger().getStats();
-};
-
-export const debugMessaging = () => {
-  return getGlobalMessenger().debug();
-};
-
-/**
- * 重要度機能専用のメッセージング定数
- */
-export const IMPORTANCE_MESSAGING_EVENTS = {
-  // 重要度評価関連
-  EVALUATION_REQUEST: 'importance:evaluationRequest',
-  EVALUATION_PROGRESS: 'importance:evaluationProgress',
-  EVALUATION_RESULT: 'importance:evaluationResult',
-
-  // 設定関連
-  SETTINGS_CHANGE: 'importance:settingsChange',
-  SETTINGS_SYNC: 'importance:settingsSync',
-
-  // UI関連
-  UI_UPDATE_REQUEST: 'importance:uiUpdateRequest',
-  UI_STATE_CHANGE: 'importance:uiStateChange',
-
-  // レンダリング関連
-  RENDER_REQUEST: 'importance:renderRequest',
-  MATERIAL_UPDATE: 'importance:materialUpdate',
-
-  // エラー関連
-  ERROR_OCCURRED: 'importance:errorOccurred',
-  WARNING_OCCURRED: 'importance:warningOccurred',
-};
-
-/**
- * 重要度評価リクエストを発行する
- * @param {Object} options - 評価オプション
- */
-export function requestImportanceEvaluation(options = {}) {
-  return publish(IMPORTANCE_MESSAGING_EVENTS.EVALUATION_REQUEST, options, {
-    priority: 5,
-    async: true,
-  });
-}
-
-/**
- * 重要度設定変更を通知する
- * @param {Object} changes - 変更内容
- */
-export function notifyImportanceSettingsChange(changes) {
-  return publish(IMPORTANCE_MESSAGING_EVENTS.SETTINGS_CHANGE, changes, {
-    priority: 3,
-  });
-}
-
-/**
- * UI更新を要求する
- * @param {Object} updateInfo - 更新情報
- */
-export function requestImportanceUIUpdate(updateInfo) {
-  return publish(IMPORTANCE_MESSAGING_EVENTS.UI_UPDATE_REQUEST, updateInfo, {
-    priority: 2,
-    async: true,
-  });
-}
-
-/**
- * レンダリング更新を要求する
- * @param {Object} renderInfo - レンダリング情報
- */
-export function requestImportanceRender(renderInfo) {
-  return publish(IMPORTANCE_MESSAGING_EVENTS.RENDER_REQUEST, renderInfo, {
-    priority: 1,
-    async: true,
-  });
 }

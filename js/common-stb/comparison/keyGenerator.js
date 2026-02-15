@@ -44,36 +44,61 @@ export function getLineElementKey(startCoords, endCoords, precision = PRECISION)
 }
 
 /**
- * ポリゴン要素（頂点座標リスト、床ID、断面ID）から比較用のキー文字列を生成する。
+ * ポリゴン要素（頂点座標リスト）から比較用のキー文字列を生成する。
  * @param {Array<{x: number, y: number, z: number}>} vertexCoordsList - 頂点座標のリスト。
- * @param {string} [floorId=''] - 床ID。
- * @param {string} [sectionId=''] - 断面ID。
  * @param {number} [precision=PRECISION] - 座標キー生成に使用する小数点以下の桁数。
  * @returns {string|null} 生成されたキー文字列、または無効な頂点が含まれる場合はnull。
  */
-export function getPolyElementKey(
-  vertexCoordsList,
-  floorId = '',
-  sectionId = '',
-  precision = PRECISION,
-) {
+export function getPolyElementKey(vertexCoordsList, precision = PRECISION) {
   if (!vertexCoordsList || vertexCoordsList.length === 0) return null;
   const coordKeys = vertexCoordsList.map((coords) => getNodeCoordKey(coords, precision));
   if (coordKeys.some((key) => key === null)) return null;
-  return coordKeys.sort().join(',') + `|F:${floorId}|S:${sectionId}`;
+  return coordKeys.sort().join(',');
 }
 
 /**
- * 要素のGUID属性からキーを生成する
- * @param {Element} element - XML要素
+ * 要素からプロパティ値を取得する（XML DOM/JSオブジェクト両対応）
+ * @param {Element|Object} element - 要素
+ * @param {string} attrName - 属性名
+ * @returns {string|null} 属性値
+ */
+export function getAttr(element, attrName) {
+  if (!element) return null;
+  if (typeof element.getAttribute === 'function') {
+    return element.getAttribute(attrName);
+  }
+  const val = element[attrName];
+  return val !== undefined ? String(val) : null;
+}
+
+/**
+ * 要素のGUID属性からキーを生成する（XML DOM/JSオブジェクト両対応）
+ * @param {Element|Object} element - XML要素またはJSオブジェクト
  * @returns {string|null} GUID文字列、またはGUID属性が無い場合はnull
  */
-export function getGuidKey(element) {
-  if (!element || !element.getAttribute) {
-    return null;
-  }
-  const guid = element.getAttribute('guid');
+function getGuidKey(element) {
+  const guid = getAttr(element, 'guid');
   return guid && guid.trim() !== '' ? guid.trim() : null;
+}
+
+/**
+ * ノードIDから所属階・所属通芯名に基づく比較用キー文字列を生成する。
+ * @param {string} nodeId - ノードID。
+ * @param {Map<string, {storyName: string|null, axisNames: string[]}>} storyAxisLookup - 所属情報ルックアップ。
+ * @returns {string|null} 生成されたキー文字列、または所属情報が無い場合はnull。
+ */
+export function getNodeStoryAxisKey(nodeId, storyAxisLookup) {
+  if (!storyAxisLookup || !nodeId) return null;
+  const info = storyAxisLookup.get(String(nodeId));
+  if (!info) return null;
+
+  const storyPart = info.storyName || '';
+  const axisPart = [...info.axisNames].sort().join(',');
+
+  // 階名も通芯名も無い場合はキー生成不可
+  if (!storyPart && !axisPart) return null;
+
+  return `sa:${storyPart}|${axisPart}`;
 }
 
 /**
@@ -81,7 +106,7 @@ export function getGuidKey(element) {
  * @param {Element} element - XML要素
  * @param {string} keyType - 比較キータイプ（COMPARISON_KEY_TYPE.POSITION_BASED または GUID_BASED）
  * @param {function} positionKeyGenerator - 位置ベースのキー生成関数
- * @returns {string|null} 生成されたキー文字列
+ * @returns {string|null} 生成されたキー文字列、GUIDモードでGUIDが無い場合はnull
  */
 export function getElementKey(element, keyType, positionKeyGenerator) {
   if (keyType === COMPARISON_KEY_TYPE.GUID_BASED) {
@@ -89,12 +114,11 @@ export function getElementKey(element, keyType, positionKeyGenerator) {
     if (guidKey !== null) {
       return `guid:${guidKey}`;
     }
-    // GUIDが無い場合は位置ベースにフォールバック
-    console.warn(
-      `[keyGenerator] 比較キー: GUIDなし、位置ベースにフォールバック (id=${element.getAttribute('id')})`,
-    );
+    // GUIDモードでGUIDが無い要素は比較対象から除外（nullを返す）
+    // これにより、GUIDが無い要素は「Aのみ」または「Bのみ」として分類される
+    return null;
   }
 
-  // 位置ベースのキー生成
+  // 位置ベースのキー生成（POSITION_BASED および STORY_AXIS_BASED のフォールバック）
   return positionKeyGenerator();
 }

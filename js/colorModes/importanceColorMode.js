@@ -44,13 +44,13 @@ export function initializeImportanceColorControls() {
       const configLabel = document.createElement('label');
       configLabel.textContent = 'MVD設定:';
       configLabel.style.cssText =
-        'display: block; font-size: 0.85em; margin-bottom: 5px; color: #666;';
+        'display: block; font-size: var(--font-size-sm); margin-bottom: 5px; color: #666;';
       configSelectorContainer.appendChild(configLabel);
 
       const configSelect = document.createElement('select');
       configSelect.id = 'mvd-config-selector';
       configSelect.style.cssText =
-        'width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em;';
+        'width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: var(--font-size-md);';
 
       // オプションを追加
       const defaultOption = document.createElement('option');

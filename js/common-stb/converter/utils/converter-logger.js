@@ -73,4 +73,4 @@ class Logger {
 const logger = new Logger();
 
 export default logger;
-export { Logger, LOG_LEVELS };
+export { Logger };

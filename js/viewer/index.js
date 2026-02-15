@@ -223,6 +223,10 @@ export * as GeometryDebugger from './geometry/debug/GeometryDebugger.js';
 // ============================================
 
 // カメラモード管理
-export { setCameraMode, getCameraMode } from './camera/cameraManagerImpl.js';
+export {
+  setCameraMode,
+  getCameraMode,
+  reaffirmControlsForCurrentMode,
+} from './camera/cameraManagerImpl.js';
 
 // ビュー管理（setView, VIEW_DIRECTIONS は既にエクスポート済み）

@@ -26,44 +26,6 @@ export const CAMERA_CONTROLS = {
 };
 
 // ============================================================================
-// マテリアル設定
-// ============================================================================
-
-/**
- * マテリアルの物理プロパティ
- */
-export const MATERIAL_PROPERTIES = {
-  // 標準メッシュ用
-  STANDARD_ROUGHNESS: 0.6,
-  STANDARD_METALNESS: 0.1,
-
-  // ポリゴン用（より粗い表面）
-  POLY_ROUGHNESS: 0.8,
-  POLY_METALNESS: 0.1,
-  POLY_OPACITY: 0.7,
-
-  // 透明メッシュ用（コンクリート部分）
-  TRANSPARENT_ROUGHNESS: 0.7,
-  TRANSPARENT_METALNESS: 0.0,
-  TRANSPARENT_OPACITY: 0.4,
-
-  // ハイライト用
-  HIGHLIGHT_ROUGHNESS: 0.5,
-  HIGHLIGHT_METALNESS: 0.2,
-  HIGHLIGHT_EMISSIVE_COLOR: 0x554400, // アンバー系のエミッシブカラー
-
-  // 線の太さ
-  LINE_WIDTH_DEFAULT: 1,
-  LINE_WIDTH_HIGHLIGHT: 5,
-
-  // 平面透明度
-  PLANE_OPACITY_AXIS: 0.1,
-  PLANE_OPACITY_STORY: 0.08,
-  LINE_OPACITY_STORY: 0.5,
-  PLACEMENT_LINE_OPACITY: 0.85,
-};
-
-// ============================================================================
 // ラベル表示設定
 // ============================================================================
 
@@ -150,7 +112,6 @@ export const AXIS_LINE_PATTERN = {
 export default {
   CAMERA_ORTHOGRAPHIC,
   CAMERA_CONTROLS,
-  MATERIAL_PROPERTIES,
   LABEL_SETTINGS,
   LABEL_OCCLUSION_SETTINGS,
   GRID_SETTINGS,

@@ -19,7 +19,7 @@
  *
  * 読み込み進捗を視覚的に表示します。
  */
-export class LoadingIndicator {
+class LoadingIndicator {
   /**
    * @param {string} containerId - コンテナ要素のID
    */
@@ -125,15 +125,15 @@ export class LoadingIndicator {
       }
 
       .loading-indicator-message {
-        font-size: 14px;
-        font-weight: 500;
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-medium);
       }
 
       .loading-indicator-percent {
-        font-size: 18px;
-        font-weight: bold;
+        font-size: var(--font-size-xl);
+        font-weight: var(--font-weight-bold);
         color: #4CAF50;
-        font-family: monospace;
+        font-family: var(--font-family-monospace);
       }
 
       .loading-indicator-progress-container {
@@ -153,14 +153,14 @@ export class LoadingIndicator {
       }
 
       .loading-indicator-detail {
-        font-size: 12px;
+        font-size: var(--font-size-sm);
         color: #aaa;
         margin-bottom: 8px;
         min-height: 18px;
       }
 
       .loading-indicator-time {
-        font-size: 11px;
+        font-size: var(--font-size-sm);
         color: #666;
         text-align: right;
       }
@@ -380,16 +380,6 @@ export function showLoading(message) {
   getLoadingIndicator().show(message);
 }
 
-/**
- * ローディング進捗を更新
- *
- * @param {number} progress - 進捗率
- * @param {string} [message] - メッセージ
- * @param {string} [detail] - 詳細
- */
-export function updateLoading(progress, message, detail) {
-  getLoadingIndicator().update(progress, message, detail);
-}
 
 /**
  * ローディングを非表示

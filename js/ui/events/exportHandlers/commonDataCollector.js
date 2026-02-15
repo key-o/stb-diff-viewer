@@ -126,7 +126,7 @@ export async function getOrParseStructureData() {
  * @param {string} profileType - プロファイルタイプ (H, BOX, PIPE等)
  * @returns {Function|null} 頂点計算関数
  */
-export function getProfileCalculator(profileType) {
+function getProfileCalculator(profileType) {
   const type = (profileType || '').toUpperCase();
   switch (type) {
     case 'H':
@@ -189,7 +189,7 @@ export function calculateProfileVertices(profile) {
  * @param {number} beamLength - 梁の長さ (mm)
  * @returns {number} 相対位置 (0-1)
  */
-export function convertPositionToRatio(pos, allShapes, element, beamLength) {
+function convertPositionToRatio(pos, allShapes, element, beamLength) {
   const posUpper = (pos || 'CENTER').toUpperCase();
 
   // ジョイント長さ（要素にある場合）

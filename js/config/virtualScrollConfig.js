@@ -28,21 +28,4 @@ export const VIRTUAL_SCROLL_CONFIG = {
   SCROLL_DEBOUNCE_MS: 16,
 };
 
-/**
- * 仮想スクロールの閾値を取得
- * @returns {number} 閾値
- */
-export function getVirtualScrollThreshold() {
-  return VIRTUAL_SCROLL_CONFIG.THRESHOLD;
-}
-
-/**
- * コンテキストに応じたアイテム高さを取得
- * @param {string} context - コンテキスト名（'element', 'section', 'default'）
- * @returns {number} アイテム高さ（px）
- */
-export function getVirtualItemHeight(context = 'default') {
-  return VIRTUAL_SCROLL_CONFIG.ITEM_HEIGHT[context] || VIRTUAL_SCROLL_CONFIG.ITEM_HEIGHT.default;
-}
-
 export default VIRTUAL_SCROLL_CONFIG;

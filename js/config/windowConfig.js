@@ -43,7 +43,7 @@ export const WINDOW_DEFINITIONS = {
     toggleButtonId: 'toggle-component-info-btn',
     draggable: true,
     resizable: true,
-    autoShow: true,
+    autoShow: false,
     isDynamic: false,
     cssClass: 'component-info-resizable',
   },
@@ -182,17 +182,6 @@ export function getStaticWindows() {
 }
 
 /**
- * 全ウィンドウのリストを取得
- * @returns {Array<Object>} ウィンドウ定義の配列
- */
-export function getAllWindows() {
-  return Object.entries(WINDOW_DEFINITIONS).map(([windowId, def]) => ({
-    windowId,
-    ...def,
-  }));
-}
-
-/**
  * 登録用の設定オブジェクトを生成
  * @param {string} windowId - ウィンドウID
  * @returns {Object|null} 登録用設定オブジェクト
@@ -222,26 +211,11 @@ export function getRegisterConfig(windowId) {
  * @returns {boolean} 有効かどうか
  * @throws {Error} 無効な場合
  */
-export function validateWindowDefinition(definition) {
+function validateWindowDefinition(definition) {
   const required = ['title', 'toggleButtonId'];
   for (const field of required) {
     if (!definition[field]) {
       throw new Error(`Missing required field in window definition: ${field}`);
-    }
-  }
-  return true;
-}
-
-/**
- * 全ウィンドウ定義を検証
- * @returns {boolean} 全て有効かどうか
- */
-export function validateAllWindowDefinitions() {
-  for (const [windowId, def] of Object.entries(WINDOW_DEFINITIONS)) {
-    try {
-      validateWindowDefinition(def);
-    } catch (error) {
-      throw new Error(`Invalid window definition for ${windowId}: ${error.message}`);
     }
   }
   return true;
@@ -258,8 +232,6 @@ export default {
   getWindowTemplate,
   getDynamicWindows,
   getStaticWindows,
-  getAllWindows,
   getRegisterConfig,
   validateWindowDefinition,
-  validateAllWindowDefinitions,
 };

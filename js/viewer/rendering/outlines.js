@@ -19,7 +19,7 @@ import { IMPORTANCE_VISUAL_STYLES, createImportanceOutlineMaterial } from './mat
  * アウトライン管理クラス
  * 重要度に基づくアウトライン表示を効率的に管理
  */
-export class OutlineManager {
+class OutlineManager {
   constructor() {
     this.outlineObjects = new Map(); // オリジナルオブジェクト -> アウトラインオブジェクト
     this.outlineGroups = new Map(); // 要素タイプ -> アウトライングループ
@@ -268,32 +268,13 @@ export class OutlineManager {
 /**
  * グローバルアウトラインマネージャー
  */
-export const globalOutlineManager = new OutlineManager();
+const globalOutlineManager = new OutlineManager();
 
-/**
- * 要素描画時にアウトラインを自動追加するヘルパー関数
- * @param {THREE.Object3D} element - 要素オブジェクト
- * @param {string} importance - 重要度レベル
- * @param {THREE.Group} parentGroup - 親グループ
- */
-export function addImportanceOutline(element, importance, parentGroup) {
-  globalOutlineManager.addOutline(element, importance, parentGroup);
-}
-
-/**
- * 重要度変更時のアウトライン更新ヘルパー関数
- * @param {THREE.Object3D} element - 要素オブジェクト
- * @param {string} newImportance - 新しい重要度レベル
- * @param {THREE.Group} parentGroup - 親グループ
- */
-export function updateElementOutline(element, newImportance, parentGroup) {
-  globalOutlineManager.updateOutlineImportance(element, newImportance, parentGroup);
-}
 
 /**
  * アウトライン表示設定の管理
  */
-export class OutlineSettings {
+class OutlineSettings {
   constructor() {
     this.settings = {
       enabled: true,
@@ -338,7 +319,7 @@ export class OutlineSettings {
 /**
  * グローバルアウトライン設定
  */
-export const globalOutlineSettings = new OutlineSettings();
+const globalOutlineSettings = new OutlineSettings();
 
 /**
  * アウトライン機能の初期化

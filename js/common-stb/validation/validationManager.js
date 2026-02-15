@@ -853,14 +853,14 @@ export function getValidationStyles() {
   
       .validation-header {
         margin: 0 0 8px 0;
-        font-size: 13px;
-        font-weight: 600;
+        font-size: var(--font-size-md);
+        font-weight: var(--font-weight-semibold);
         color: #495057;
       }
   
       .validation-category {
-        font-size: 12px;
-        font-weight: 500;
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
         margin-bottom: 4px;
         padding: 4px 8px;
         border-radius: 4px;
@@ -884,7 +884,7 @@ export function getValidationStyles() {
       .validation-list {
         margin: 0 0 8px 0;
         padding-left: 20px;
-        font-size: 11px;
+        font-size: var(--font-size-sm);
       }
   
       .validation-item {
@@ -913,7 +913,7 @@ export function getValidationStyles() {
         padding: 6px 8px;
         margin-bottom: 4px;
         border-radius: 4px;
-        font-size: 11px;
+        font-size: var(--font-size-sm);
         line-height: 1.4;
       }
   
@@ -933,8 +933,8 @@ export function getValidationStyles() {
         flex-shrink: 0;
         padding: 2px 6px;
         border-radius: 3px;
-        font-size: 10px;
-        font-weight: 600;
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
         white-space: nowrap;
       }
   
@@ -960,7 +960,7 @@ export function getValidationStyles() {
   
       .suggestion-attr {
         color: #757575;
-        font-size: 10px;
+        font-size: var(--font-size-xs);
       }
   
       .validation-summary {
@@ -985,15 +985,15 @@ export function getValidationStyles() {
       }
   
       .summary-status {
-        font-weight: 600;
-        font-size: 12px;
+        font-weight: var(--font-weight-semibold);
+        font-size: var(--font-size-sm);
         margin-bottom: 4px;
       }
   
       .summary-details {
         display: flex;
         gap: 12px;
-        font-size: 11px;
+        font-size: var(--font-size-sm);
       }
   
       .summary-item.error {

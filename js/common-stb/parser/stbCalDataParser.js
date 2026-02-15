@@ -37,29 +37,15 @@ export const LOAD_TYPES = {
 /**
  * 荷重ケースカテゴリ
  */
-export const LOAD_CASE_CATEGORY = {
+const LOAD_CASE_CATEGORY = {
   STANDARD: 'STANDARD', // 標準荷重
   ANALYSIS: 'ANALYSIS', // 解析用荷重
 };
 
 /**
- * 荷重ケース種別
- */
-export const LOAD_CASE_KIND = {
-  DL: 'DL', // 固定荷重 (Dead Load)
-  LL: 'LL', // 積載荷重 (Live Load)
-  LLf: 'LLf', // 積載荷重(床用)
-  LLe: 'LLe', // 積載荷重(地震用)
-  S: 'S', // 積雪荷重 (Snow)
-  W: 'W', // 風荷重 (Wind)
-  K: 'K', // 地震荷重
-  T: 'T', // 温度荷重
-};
-
-/**
  * 座標系タイプ
  */
-export const COORDINATE_SYSTEM = {
+const COORDINATE_SYSTEM = {
   LOCAL: 'LOCAL', // 部材座標系
   GLOBAL: 'GLOBAL', // 全体座標系（実長）
   PROJECTION: 'PROJECTION', // 全体座標系（投影）
@@ -305,7 +291,7 @@ function parseBeamLoadArrangements(arrangements) {
  * @param {string} loadId - 荷重ID
  * @returns {Object|null} 荷重データ
  */
-export function findMemberLoadById(memberLoads, loadId) {
+function findMemberLoadById(memberLoads, loadId) {
   return memberLoads.find((ml) => ml.id === loadId) || null;
 }
 
@@ -325,16 +311,6 @@ export function getMemberLoads(calData, memberType, memberId) {
   return loadIds
     .map((id) => findMemberLoadById(calData.memberLoads, id))
     .filter((load) => load !== null);
-}
-
-/**
- * 荷重値の単位変換（N/mm → kN/m）
- * @param {number} value - N/mm単位の値
- * @returns {number} kN/m単位の値
- */
-export function convertLoadUnit(value) {
-  // N/mm → kN/m: 1 N/mm = 1000 N/m = 1 kN/m
-  return value;
 }
 
 /**

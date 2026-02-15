@@ -14,27 +14,6 @@ import {
   resolveDefaults,
 } from './type3-attribute-config.js';
 
-// Note: Default values are now defined in type3-attribute-config.js
-// Legacy exports for backward compatibility (deprecated)
-const V210_DEFAULTS = {
-  StbStory: {
-    kind: 'GENERAL',
-  },
-  StbSlab: {
-    kind_structure: 'RC',
-    kind_slab: 'NORMAL',
-    direction_load: '2WAY',
-    isFoundation: 'false',
-  },
-};
-
-const V202_DEFAULTS = {
-  StbColumn: {
-    condition_bottom: 'PIN',
-    condition_top: 'PIN',
-  },
-};
-
 // ============================================================================
 // Generic Attribute Conversion Functions
 // ============================================================================
@@ -2125,4 +2104,3 @@ export function applyAttributeChangesTo202(stbRoot) {
   });
 }
 
-export { V210_DEFAULTS, V202_DEFAULTS };

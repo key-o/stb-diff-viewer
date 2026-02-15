@@ -15,26 +15,10 @@ import { ELEMENT_TYPE_COLORS } from './DxfProviders.js';
 let handleCounter = 0x100;
 
 /**
- * 次のハンドル値を取得
- * @returns {string} 16進数ハンドル文字列
- */
-export function nextHandle() {
-  return (handleCounter++).toString(16).toUpperCase();
-}
-
-/**
  * ハンドルカウンタをリセット
  */
-export function resetHandles() {
+function resetHandles() {
   handleCounter = 0x100;
-}
-
-/**
- * 現在のハンドルシード値を取得
- * @returns {string} 16進数ハンドルシード文字列
- */
-export function getHandleSeed() {
-  return handleCounter.toString(16).toUpperCase();
 }
 
 // ========================================

@@ -13,8 +13,6 @@
  * - D25: ⊙ 中心点付き円
  * - D29: ⊗ ×印入り円
  * - D32: ◎ 二重円
- *
- * MatrixCalcより移植・改変
  */
 
 const SVG_NS = 'http://www.w3.org/2000/svg';

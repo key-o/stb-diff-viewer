@@ -167,15 +167,19 @@
 /* Font Weight */
 .font-normal { font-weight: var(--font-weight-normal) !important; }
 .font-medium { font-weight: var(--font-weight-medium) !important; }
+.font-semibold { font-weight: var(--font-weight-semibold) !important; }
 .font-bold { font-weight: var(--font-weight-bold) !important; }
 
 /* Font Size */
+.text-2xs { font-size: var(--font-size-2xs) !important; }
 .text-xs { font-size: var(--font-size-xs) !important; }
 .text-sm { font-size: var(--font-size-sm) !important; }
 .text-md { font-size: var(--font-size-md) !important; }
 .text-base { font-size: var(--font-size-base) !important; }
 .text-lg { font-size: var(--font-size-lg) !important; }
 .text-xl { font-size: var(--font-size-xl) !important; }
+.text-2xl { font-size: var(--font-size-2xl) !important; }
+.text-3xl { font-size: var(--font-size-3xl) !important; }
 
 /* Text Color */
 .text-primary { color: var(--text-primary) !important; }
@@ -376,7 +380,7 @@
   padding: var(--spacing-xs) var(--spacing-sm);
   text-decoration: none;
   border-radius: var(--border-radius-sm);
-  font-size: 11px;
+  font-size: var(--font-size-sm);
   opacity: 0.7;
 }
 

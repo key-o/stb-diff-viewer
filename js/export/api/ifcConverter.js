@@ -668,7 +668,7 @@ style.textContent = `
   
   .progress-text {
     text-align: center;
-    font-size: 0.9em;
+    font-size: var(--font-size-md);
     color: #495057;
     font-weight: 500;
   }

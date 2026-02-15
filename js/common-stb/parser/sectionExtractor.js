@@ -5,41 +5,24 @@
  * 従来の個別関数（extractColumnSections等）を統合し、
  * 重複コードを排除した効率的な実装を実現します。
  *
- * SECTION_CONFIG は依存性注入により外部から設定します。
- *
  * @module common/stb/parser/sectionExtractor
  */
 
 import { deriveDimensionsFromAttributes } from '../data/dimensionNormalizer.js';
 import { ensureUnifiedSectionType } from '../section/sectionTypeUtil.js';
 import { SameNotSameProcessor } from './SameNotSameProcessor.js';
+import { SECTION_CONFIG } from '../section/sectionConfig.js';
 
 // STB 名前空間（querySelector がヒットしない場合にフォールバック）
 const STB_NS = 'https://www.building-smart.or.jp/dl';
 
-// 依存性注入用のモジュールレベル変数
-let _sectionConfig = {};
-let _logger = {
+// プロジェクト固有の設定とロガーを直接使用
+const _sectionConfig = SECTION_CONFIG;
+const _logger = {
   log: () => {},
   warn: console.warn,
   error: console.error,
 };
-
-/**
- * SECTION_CONFIG を設定（依存性注入）
- * @param {Object} config - 断面抽出設定
- */
-export function setSectionConfig(config) {
-  _sectionConfig = config || {};
-}
-
-/**
- * ロガーを設定（依存性注入）
- * @param {Object} logger - ロガーオブジェクト { log, warn, error }
- */
-export function setLogger(logger) {
-  _logger = { ..._logger, ...logger };
-}
 
 /**
  * 全要素タイプの断面データを一括抽出
@@ -320,6 +303,17 @@ function extractSectionData(element, config) {
         profileType: dims.profile_hint === 'CIRCLE' ? 'CIRCLE' : 'RECTANGLE',
       };
     }
+  }
+
+  // ベースプレート（柱脚）データの抽出
+  // S造・SRC造・CFT造の柱断面に付属するベースプレート情報を読み取る
+  try {
+    const basePlateData = extractBasePlateData(element, config);
+    if (basePlateData) {
+      sectionData.basePlate = basePlateData;
+    }
+  } catch (e) {
+    _logger.warn(`[Data] 断面: ベースプレートデータ解析失敗 (id=${id})`, e);
   }
 
   return sectionData;
@@ -715,7 +709,7 @@ function extractConcreteDimensions(element, config) {
  * @param {Object} config - 抽出設定
  * @returns {Object|null} 寸法データ { length_pile, D, t, diameter, profile_hint, pile_type, segments }
  */
-export function extractSteelPileDimensions(element, _config) {
+function extractSteelPileDimensions(element, _config) {
   const tagName = element.tagName || element.localName;
 
   // StbSecPile_S以外は処理しない
@@ -853,7 +847,7 @@ export function extractSteelPileDimensions(element, _config) {
  * @param {Object} config - 抽出設定
  * @returns {Object|null} 寸法データ { length_pile, D, diameter, profile_hint, pile_type, segments }
  */
-export function extractPileProductDimensions(element, _config) {
+function extractPileProductDimensions(element, _config) {
   const tagName = element.tagName || element.localName;
 
   // StbSecPileProduct以外は処理しない
@@ -984,7 +978,7 @@ export function extractPileProductDimensions(element, _config) {
  * @param {string} tagName - XML要素のタグ名
  * @returns {string|null} 杭タイプ ('ExtendedFoot', 'ExtendedTop', 'ExtendedTopFoot', 'Straight') または null
  */
-export function extractPileTypeFromTagName(tagName) {
+function extractPileTypeFromTagName(tagName) {
   if (!tagName) return null;
 
   // StbSecPile_RC_ExtendedTopFoot - 頭部・根固め部拡大杭（先に判定）
@@ -1152,4 +1146,95 @@ function normalizeSectionMode(sectionData, steelFigureInfo) {
   if (!sectionData.mode) {
     sectionData.mode = 'single';
   }
+}
+
+// ==================== ベースプレート（柱脚）データ抽出 ====================
+
+/**
+ * ベースプレートデータを抽出（STB 2.0.2 / 2.1.0 両対応）
+ *
+ * S造・SRC造・CFT造の柱断面に付属するベースプレート情報を読み取る。
+ * Conventional（在来型）のみプレート寸法を保持。Product（既製品）は型番のみで寸法なし。
+ *
+ * v2.0.2: StbSecBaseConventional_S / _SRC / _CFT > *_Plate
+ * v2.1.0: StbSecBaseConventional > StbSecBaseConventionalPlate
+ *
+ * @param {Element} element - 柱断面のDOM要素（StbSecColumn_S / _SRC / _CFT）
+ * @param {Object} config - 断面抽出設定
+ * @returns {Object|null} ベースプレートデータまたはnull
+ */
+function extractBasePlateData(element, config) {
+  // base_type属性を鋼材図形要素から取得（メタデータとして保持）
+  const baseType = extractBaseType(element, config);
+
+  // Conventionalベースプレートを検索
+  // base_type="NONE" でもStbSecBaseConventional要素が存在する場合があるため、
+  // 要素の存在を優先して判定する
+  // v2.1.0 統一形式 → v2.0.2 タイプ別形式 の順に検索
+  const conventionalSelectors = [
+    'StbSecBaseConventional', // v2.1.0
+    'StbSecBaseConventional_S', // v2.0.2 S造
+    'StbSecBaseConventional_SRC', // v2.0.2 SRC造
+    'StbSecBaseConventional_CFT', // v2.0.2 CFT造
+  ];
+
+  for (const convSel of conventionalSelectors) {
+    const conventionalEl = findFigureElement(element, convSel);
+    if (!conventionalEl) continue;
+
+    // プレート要素名を決定
+    const plateSel =
+      convSel === 'StbSecBaseConventional'
+        ? 'StbSecBaseConventionalPlate' // v2.1.0
+        : `${convSel}_Plate`; // v2.0.2: _S_Plate / _SRC_Plate / _CFT_Plate
+
+    const plateEl = findFigureElement(conventionalEl, plateSel);
+    if (!plateEl) continue;
+
+    const B_X = parseFloat(plateEl.getAttribute('B_X'));
+    const B_Y = parseFloat(plateEl.getAttribute('B_Y'));
+    const t = parseFloat(plateEl.getAttribute('t'));
+
+    // 必須寸法チェック
+    if (!B_X || !B_Y || !t) continue;
+
+    return {
+      baseType: baseType || 'CONVENTIONAL',
+      B_X,
+      B_Y,
+      t,
+      C1_X: parseFloat(plateEl.getAttribute('C1_X')) || 0,
+      C1_Y: parseFloat(plateEl.getAttribute('C1_Y')) || 0,
+      C2_X: parseFloat(plateEl.getAttribute('C2_X')) || 0,
+      C2_Y: parseFloat(plateEl.getAttribute('C2_Y')) || 0,
+      C3_X: parseFloat(plateEl.getAttribute('C3_X')) || 0,
+      C3_Y: parseFloat(plateEl.getAttribute('C3_Y')) || 0,
+      C4_X: parseFloat(plateEl.getAttribute('C4_X')) || 0,
+      C4_Y: parseFloat(plateEl.getAttribute('C4_Y')) || 0,
+      offset_X: parseFloat(plateEl.getAttribute('offset_X')) || 0,
+      offset_Y: parseFloat(plateEl.getAttribute('offset_Y')) || 0,
+      strength: plateEl.getAttribute('strength') || '',
+      height_mortar: parseFloat(conventionalEl.getAttribute('height_mortar')) || 0,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * 鋼材図形要素からbase_type属性を取得
+ * @param {Element} element - 柱断面のDOM要素
+ * @param {Object} config - 断面抽出設定（steelFigures配列を含む）
+ * @returns {string|null} base_type値（NONE/EXPOSE/EMBEDDED/WRAP）またはnull
+ */
+function extractBaseType(element, config) {
+  const steelFigureSelectors = config.steelFigures || [];
+  for (const sel of steelFigureSelectors) {
+    const figEl = findFigureElement(element, sel);
+    if (figEl) {
+      const bt = figEl.getAttribute('base_type');
+      if (bt) return bt;
+    }
+  }
+  return null;
 }

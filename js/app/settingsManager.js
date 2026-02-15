@@ -18,7 +18,7 @@ const log = createLogger('app:settings');
 /**
  * 重要度設定管理クラス
  */
-export class SettingsManager {
+class SettingsManager {
   constructor() {
     this.defaultSettings = this.loadDefaultImportanceSettings();
     this.userSettings = this.loadUserSettings();
@@ -568,17 +568,6 @@ export class SettingsManager {
 let globalSettingsManager = null;
 
 /**
- * グローバル設定マネージャーのインスタンスを取得する
- * @returns {SettingsManager} 設定マネージャーインスタンス
- */
-function getGlobalSettingsManager() {
-  if (!globalSettingsManager) {
-    globalSettingsManager = new SettingsManager();
-  }
-  return globalSettingsManager;
-}
-
-/**
  * 設定マネージャーを初期化する
  * @returns {SettingsManager} 初期化された設定マネージャー
  */
@@ -592,16 +581,3 @@ export function initializeSettingsManager() {
 
   return globalSettingsManager;
 }
-
-// 便利な関数をエクスポート
-export const getElementImportance = (elementPath) => {
-  return getGlobalSettingsManager().getImportance(elementPath);
-};
-
-export const setElementImportance = (elementPath, importance) => {
-  return getGlobalSettingsManager().setImportance(elementPath, importance);
-};
-
-export const resetImportanceSettings = () => {
-  return getGlobalSettingsManager().resetToDefaults();
-};

@@ -184,8 +184,8 @@ export class ImportanceStatistics {
                   <tr>
                     <th>重要度</th>
                     <th>一致</th>
-                    <th>A専用</th>
-                    <th>B専用</th>
+                    <th>Aのみ</th>
+                    <th>Bのみ</th>
                     <th>差分計</th>
                     <th>割合</th>
                   </tr>

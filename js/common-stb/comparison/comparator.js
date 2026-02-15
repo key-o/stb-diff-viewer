@@ -29,15 +29,15 @@
 import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../../constants/importanceLevels.js';
 import { COMPARISON_KEY_TYPE } from '../../config/comparisonKeyConfig.js';
 import { getToleranceConfig } from '../../config/toleranceConfig.js';
-import { COORDINATE_PRECISION } from '../../config/geometryConfig.js';
 
 // キー生成関数をインポート
 import {
   getNodeCoordKey,
   getLineElementKey,
   getPolyElementKey,
-  getGuidKey,
   getElementKey,
+  getAttr,
+  getNodeStoryAxisKey,
 } from './keyGenerator.js';
 
 // 比較戦略をインポート
@@ -45,14 +45,10 @@ import { BasicStrategy } from './BaseStrategy.js';
 import { ToleranceStrategy } from './ToleranceStrategy.js';
 import {
   VersionAwareStrategy,
-  isCrossVersionComparison,
-  filterVersionSpecificDifferences,
-  areAttributesEquivalent,
   DIFF_TYPE,
 } from './VersionAwareStrategy.js';
 
 // --- 定数 ---
-const PRECISION = COORDINATE_PRECISION; // 座標比較時の精度（共有定数を使用）
 const STB_NAMESPACE = 'https://www.building-smart.or.jp/dl'; // ST-Bridge 名前空間 (stbParserと重複するが、独立性のため保持)
 
 // 戦略インスタンス
@@ -68,11 +64,12 @@ const versionAwareStrategy = new VersionAwareStrategy();
  * @param {Map<string, {x: number, y: number, z: number}>} nodeMapA - モデルAのノードマップ。
  * @param {Map<string, {x: number, y: number, z: number}>} nodeMapB - モデルBのノードマップ。
  * @param {function(Element, Map): {key: string|null, data: any}} keyExtractor - 要素から比較キーと関連データを抽出する関数。
- * @returns {{matched: Array<{dataA: any, dataB: any}>, onlyA: Array<any>, onlyB: Array<any>}} 比較結果オブジェクト。
+ * @param {Object} [options={}] - 比較オプション（attributeComparator等）
+ * @returns {{matched: Array<{dataA: any, dataB: any}>, mismatch: Array<{dataA: any, dataB: any}>, onlyA: Array<any>, onlyB: Array<any>}} 比較結果オブジェクト。
  */
-export function compareElements(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor) {
+export function compareElements(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor, options = {}) {
   // BasicStrategyに委譲
-  return basicStrategy.compare(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor);
+  return basicStrategy.compare(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor, options);
 }
 
 // --- 要素タイプごとのキー抽出関数 ---
@@ -84,6 +81,9 @@ export function compareElements(elementsA, elementsB, nodeMapA, nodeMapB, keyExt
  * @param {string} idStartAttr - 始点ノードIDの属性名。
  * @param {string} idEndAttr - 終点ノードIDの属性名。
  * @param {string} [keyType] - 比較キータイプ（省略時はPOSITION_BASED）
+ * @param {Object} [options={}] - オプション
+ * @param {function} [options.sectionSignatureResolver] - 断面シグネチャ解決関数
+ * @param {Map} [options.storyAxisLookup] - 所属階・通芯ルックアップ（STORY_AXIS_BASEDモード用）
  * @returns {{key: string|null, data: {startCoords: object, endCoords: object, id: string}|null}} キーとデータのオブジェクト。
  */
 export function lineElementKeyExtractor(
@@ -92,24 +92,25 @@ export function lineElementKeyExtractor(
   idStartAttr,
   idEndAttr,
   keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+  options = {},
 ) {
-  let startId = element.getAttribute(idStartAttr);
-  let endId = element.getAttribute(idEndAttr);
-  const elementId = element.getAttribute('id');
+  let startId = getAttr(element, idStartAttr);
+  let endId = getAttr(element, idEndAttr);
+  const elementId = getAttr(element, 'id');
   let startCoords = nodeMap.get(startId);
   let endCoords = nodeMap.get(endId);
 
   // 1-node format fallback (for Pile with id_node + level_top)
   if ((!startCoords || !endCoords) && !startId && !endId) {
-    const idNode = element.getAttribute('id_node');
-    const levelTop = element.getAttribute('level_top');
-    const levelBottom = element.getAttribute('level_bottom');
+    const idNode = getAttr(element, 'id_node');
+    const levelTop = getAttr(element, 'level_top');
+    const levelBottom = getAttr(element, 'level_bottom');
 
     // Pile: id_node + level_top 形式
     if (idNode && levelTop && nodeMap.has(idNode)) {
       const topNode = nodeMap.get(idNode);
-      const offsetX = parseFloat(element.getAttribute('offset_X')) || 0;
-      const offsetY = parseFloat(element.getAttribute('offset_Y')) || 0;
+      const offsetX = parseFloat(getAttr(element, 'offset_X')) || 0;
+      const offsetY = parseFloat(getAttr(element, 'offset_Y')) || 0;
       const levelTopValue = parseFloat(levelTop);
 
       // Default pile length for line display (actual length from section data used in 3D)
@@ -136,12 +137,9 @@ export function lineElementKeyExtractor(
     // Footing: id_node + level_bottom 形式
     else if (idNode && levelBottom !== null && nodeMap.has(idNode)) {
       const refNode = nodeMap.get(idNode);
-      const offsetX = parseFloat(element.getAttribute('offset_X')) || 0;
-      const offsetY = parseFloat(element.getAttribute('offset_Y')) || 0;
+      const offsetX = parseFloat(getAttr(element, 'offset_X')) || 0;
+      const offsetY = parseFloat(getAttr(element, 'offset_Y')) || 0;
       const levelBottomValue = parseFloat(levelBottom) || 0;
-
-      // Default footing height for line display
-      // const defaultFootingHeight = 500; // 500mm default - unused
 
       // Calculate bottom position (level_bottom)
       startCoords = {
@@ -172,21 +170,33 @@ export function lineElementKeyExtractor(
     };
 
     // name属性やその他の属性も取得
-    const name = element.getAttribute('name');
+    const name = getAttr(element, 'name');
     if (name) elementData.name = name;
 
-    const idSection = element.getAttribute('id_section');
+    const idSection = getAttr(element, 'id_section');
     if (idSection) elementData.id_section = idSection;
 
-    const kindStructure = element.getAttribute('kind_structure');
+    const kindStructure = getAttr(element, 'kind_structure');
     if (kindStructure) elementData.kind_structure = kindStructure;
 
     // GUID属性も取得
-    const guid = element.getAttribute('guid');
+    const guid = getAttr(element, 'guid');
     if (guid) elementData.guid = guid;
 
     // キータイプに応じたキー生成
-    const key = getElementKey(element, keyType, () => getLineElementKey(startCoords, endCoords));
+    let baseKey;
+    if (keyType === COMPARISON_KEY_TYPE.STORY_AXIS_BASED && options.storyAxisLookup) {
+      const startSaKey = getNodeStoryAxisKey(startId, options.storyAxisLookup);
+      const endSaKey = getNodeStoryAxisKey(endId, options.storyAxisLookup);
+      baseKey = startSaKey && endSaKey ? [startSaKey, endSaKey].sort().join('|') : null;
+    } else {
+      baseKey = getElementKey(element, keyType, () => getLineElementKey(startCoords, endCoords));
+    }
+    const sectionSignature =
+      typeof options.sectionSignatureResolver === 'function'
+        ? options.sectionSignatureResolver(element)
+        : null;
+    const key = baseKey && sectionSignature ? `${baseKey}|sec:${sectionSignature}` : baseKey;
 
     return {
       key,
@@ -194,9 +204,9 @@ export function lineElementKeyExtractor(
         startCoords,
         endCoords,
         id: elementId,
-        name: name || undefined, // ツリー表示用にトップレベルに追加
-        guid: guid || undefined, // ツリー表示用にトップレベルに追加
-        element: elementData, // 要素データを追加
+        name: name || undefined,
+        guid: guid || undefined,
+        element: elementData,
       },
     };
   }
@@ -212,6 +222,9 @@ export function lineElementKeyExtractor(
  * @param {Map<string, {x: number, y: number, z: number}>} nodeMap - 対応するノードマップ。
  * @param {string} [nodeOrderTag="StbNodeIdOrder"] - 頂点ノードIDリストが含まれるタグ名。
  * @param {string} [keyType] - 比較キータイプ（省略時はPOSITION_BASED）
+ * @param {Object} [options={}] - オプション
+ * @param {function} [options.sectionSignatureResolver] - 断面シグネチャ解決関数
+ * @param {Map} [options.storyAxisLookup] - 所属階・通芯ルックアップ（STORY_AXIS_BASEDモード用）
  * @returns {{key: string|null, data: {vertexCoordsList: Array<object>, id: string}|null}} キーとデータのオブジェクト。
  */
 export function polyElementKeyExtractor(
@@ -219,32 +232,54 @@ export function polyElementKeyExtractor(
   nodeMap,
   nodeOrderTag = 'StbNodeIdOrder',
   keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+  options = {},
 ) {
-  const floorId = element.getAttribute('id_floor') || '';
-  const sectionId = element.getAttribute('id_section') || '';
-  const elementId = element.getAttribute('id');
-  const orderElem = element.getElementsByTagNameNS(STB_NAMESPACE, nodeOrderTag)[0];
-  if (orderElem && orderElem.textContent) {
-    const nodeIds = orderElem.textContent.trim().split(/\s+/);
-    const vertexCoordsList = nodeIds.map((id) => nodeMap.get(id)).filter((coords) => coords);
+  const elementId = getAttr(element, 'id');
+
+  // ノードID取得: XML DOM (getElementsByTagNameNS) または JSオブジェクト (node_ids)
+  let nodeIds = null;
+  if (typeof element.getElementsByTagNameNS === 'function') {
+    const orderElem = element.getElementsByTagNameNS(STB_NAMESPACE, nodeOrderTag)[0];
+    if (orderElem && orderElem.textContent) {
+      nodeIds = orderElem.textContent.trim().split(/\s+/);
+    }
+  } else if (element.node_ids && Array.isArray(element.node_ids)) {
+    nodeIds = element.node_ids;
+  }
+
+  if (nodeIds) {
+    const vertexCoordsList = nodeIds
+      .map((id) => nodeMap.get(String(id)))
+      .filter((coords) => coords);
 
     if (vertexCoordsList.length === nodeIds.length && vertexCoordsList.length >= 3) {
-      // name属性とGUID属性を取得
-      const name = element.getAttribute('name');
-      const guid = element.getAttribute('guid');
+      const name = getAttr(element, 'name');
+      const guid = getAttr(element, 'guid');
 
       // キータイプに応じたキー生成
-      const key = getElementKey(element, keyType, () =>
-        getPolyElementKey(vertexCoordsList, floorId, sectionId),
-      );
+      let baseKey;
+      if (keyType === COMPARISON_KEY_TYPE.STORY_AXIS_BASED && options.storyAxisLookup) {
+        const vertexSaKeys = nodeIds.map((id) =>
+          getNodeStoryAxisKey(String(id), options.storyAxisLookup),
+        );
+        baseKey = vertexSaKeys.every((k) => k !== null) ? vertexSaKeys.sort().join(',') : null;
+      } else {
+        baseKey = getElementKey(element, keyType, () => getPolyElementKey(vertexCoordsList));
+      }
+      const sectionSignature =
+        typeof options.sectionSignatureResolver === 'function'
+          ? options.sectionSignatureResolver(element)
+          : null;
+      const key = baseKey && sectionSignature ? `${baseKey}|sec:${sectionSignature}` : baseKey;
 
       return {
         key,
         data: {
           vertexCoordsList,
           id: elementId,
-          name: name || undefined, // ツリー表示用にトップレベルに追加
-          guid: guid || undefined, // ツリー表示用にトップレベルに追加
+          name: name || undefined,
+          guid: guid || undefined,
+          element,
         },
       };
     } else {
@@ -262,24 +297,37 @@ export function polyElementKeyExtractor(
  * 節点要素から比較キーと関連データ（座標、ノードID）を抽出する。
  * @param {Element} element - 節点要素のXML要素 (StbNode)。
  * @param {Map<string, {x: number, y: number, z: number}>} nodeMap - 対応するノードマップ。
+ * @param {string} [keyType] - 比較キータイプ（省略時はPOSITION_BASED）
+ * @param {Object} [options={}] - オプション
+ * @param {Map} [options.storyAxisLookup] - 所属階・通芯ルックアップ（STORY_AXIS_BASEDモード用）
  * @returns {{key: string|null, data: {coords: object, id: string}|null}} キーとデータのオブジェクト。
  */
-export function nodeElementKeyExtractor(element, nodeMap) {
-  const nodeId = element.getAttribute('id');
+export function nodeElementKeyExtractor(
+  element,
+  nodeMap,
+  keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+  options = {},
+) {
+  const nodeId = getAttr(element, 'id');
   const coords = nodeMap.get(nodeId);
   if (coords) {
-    // name属性とGUID属性を取得（Nodeには通常ないが、存在する場合に備えて）
-    const name = element.getAttribute('name');
-    const guid = element.getAttribute('guid');
+    const name = getAttr(element, 'name');
+    const guid = getAttr(element, 'guid');
 
-    const key = getNodeCoordKey(coords);
+    let key;
+    if (keyType === COMPARISON_KEY_TYPE.STORY_AXIS_BASED && options.storyAxisLookup) {
+      key = getNodeStoryAxisKey(nodeId, options.storyAxisLookup);
+    } else {
+      key = getElementKey(element, keyType, () => getNodeCoordKey(coords));
+    }
+
     return {
       key,
       data: {
         coords,
         id: nodeId,
-        name: name || undefined, // ツリー表示用にトップレベルに追加
-        guid: guid || undefined, // ツリー表示用にトップレベルに追加
+        name: name || undefined,
+        guid: guid || undefined,
       },
     };
   }
@@ -371,6 +419,7 @@ export function compareElementsWithImportance(
     targetImportanceLevels = null,
     includeImportanceInfo = true,
     importanceLookup = null,
+    compareOptions = {},
   } = options;
 
   // 重要度フィルタリング
@@ -399,6 +448,7 @@ export function compareElementsWithImportance(
     nodeMapA,
     nodeMapB,
     keyExtractor,
+    compareOptions,
   );
 
   // 重要度情報を付加
@@ -609,10 +659,14 @@ export function compareElementsWithTolerance(
   nodeMapB,
   keyExtractor,
   toleranceConfig = null,
+  keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+  strategyOptions = {},
 ) {
   // ToleranceStrategyに委譲
   return toleranceStrategy.compare(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor, {
     toleranceConfig: toleranceConfig || getToleranceConfig(),
+    keyType,
+    ...strategyOptions,
   });
 }
 
@@ -634,9 +688,6 @@ export function compareElementsWithTolerance(
  * @property {Array} versionDifferences - バージョン固有の差異
  * @property {Object} versionInfo - バージョン情報
  */
-
-// 以下の関数はVersionAwareStrategyから再エクスポート
-export { isCrossVersionComparison, filterVersionSpecificDifferences, areAttributesEquivalent };
 
 // エクスポート: DIFF_TYPE定数の再エクスポート
 export { DIFF_TYPE };

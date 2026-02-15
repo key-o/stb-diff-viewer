@@ -21,7 +21,7 @@ import {
 /**
  * 差分フィルタ凡例レンダラークラス
  */
-export class DiffLegendRenderer {
+class DiffLegendRenderer {
   /**
    * @param {string} [locale='ja'] - 言語コード
    */
@@ -194,34 +194,6 @@ export function getDiffLegendRenderer(locale) {
     diffLegendRendererInstance.setLocale(locale);
   }
   return diffLegendRendererInstance;
-}
-
-/**
- * 凡例を初期化（DOM挿入）
- * @param {string} [legendContainerId='diff-filter-legend-container'] - 凡例コンテナのID
- * @param {string} [presetContainerId='diff-filter-presets-container'] - プリセットコンテナのID
- * @returns {DiffLegendRenderer} レンダラーインスタンス
- */
-export function initializeDiffLegend(
-  legendContainerId = 'diff-filter-legend-container',
-  presetContainerId = 'diff-filter-presets-container',
-) {
-  const renderer = getDiffLegendRenderer();
-
-  // 凡例の挿入
-  const legendParent = document.getElementById(legendContainerId);
-  if (legendParent) {
-    legendParent.innerHTML = renderer.renderLegend();
-  }
-
-  // プリセットボタンの挿入
-  const presetParent = document.getElementById(presetContainerId);
-  if (presetParent) {
-    presetParent.innerHTML = renderer.renderPresetButtons();
-  }
-
-  console.log('[Event] 差分フィルタ凡例を動的生成しました');
-  return renderer;
 }
 
 export default DiffLegendRenderer;

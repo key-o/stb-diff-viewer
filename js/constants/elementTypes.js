@@ -83,26 +83,6 @@ export const COLOR_ELEMENTS = [
 ];
 
 /**
- * 断面を持つ要素タイプ
- * @type {string[]}
- */
-export const SECTION_ELEMENTS = [
-  'Column',
-  'Post',
-  'Girder',
-  'Beam',
-  'Brace',
-  'Slab',
-  'Wall',
-  'Parapet',
-  'Joint',
-  'Pile',
-  'Footing',
-  'StripFooting',
-  'FoundationColumn',
-];
-
-/**
  * 要素カテゴリ（用途別グループ化）
  * @type {Object.<string, string[]>}
  */

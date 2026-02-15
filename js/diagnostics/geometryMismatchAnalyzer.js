@@ -56,7 +56,7 @@ const DEFAULT_SCAN_OPTIONS = {
   thresholds: DEFAULT_THRESHOLDS,
 };
 
-export function scanSceneForGeometryMismatches(scene, options = {}) {
+function scanSceneForGeometryMismatches(scene, options = {}) {
   const targetScene = scene || getDefaultScene();
   if (!targetScene) {
     log.warn('Scene not available for geometry mismatch scan');
@@ -102,7 +102,7 @@ export function analyzeMeshGeometry(mesh, options = {}) {
   return analyzeMeshInternal(mesh, nodeMaps, thresholds);
 }
 
-export function highlightGeometryMismatches(scene, report, options = {}) {
+function highlightGeometryMismatches(scene, report, options = {}) {
   if (!scene || !report?.results?.length) {
     return 0;
   }
@@ -136,7 +136,7 @@ export function highlightGeometryMismatches(scene, report, options = {}) {
   return highlighted;
 }
 
-export function showGeometryMismatchPanel(report, options = {}) {
+function showGeometryMismatchPanel(report, options = {}) {
   if (!report?.results?.length) {
     return;
   }
@@ -205,7 +205,7 @@ export function showGeometryMismatchPanel(report, options = {}) {
   });
 }
 
-export function getDefaultGeometryMismatchReport(options = {}) {
+function getDefaultGeometryMismatchReport(options = {}) {
   const scene = getDefaultScene();
   return scanSceneForGeometryMismatches(scene, options);
 }

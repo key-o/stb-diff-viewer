@@ -8,6 +8,7 @@
 
 export { setupIfcExportListener } from './ifcExportHandler.js';
 export { setupStbExportListener } from './stbExportHandler.js';
+export { setupReportExportListener } from './reportExportHandler.js';
 
 // データ収集ユーティリティ（他モジュールから使用する場合用）
 export { getOrParseStructureData } from './commonDataCollector.js';

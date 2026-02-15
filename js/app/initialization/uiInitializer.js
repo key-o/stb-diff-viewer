@@ -170,20 +170,9 @@ export function initializeUIComponents(scheduleRender, elementGroups) {
   }
 
   // 比較キー選択UIを初期化
-  initializeComparisonKeySelector('#comparison-key-selector-container', async (newKeyType) => {
+  // 再比較のトリガーはmodelLoader.jsのcomparisonKeyManager.onChange()で処理
+  initializeComparisonKeySelector('#comparison-key-selector-container', (newKeyType) => {
     log.info(`比較キータイプが変更されました: ${newKeyType}`);
-
-    const fileAInput = document.getElementById('fileA');
-    const fileBInput = document.getElementById('fileB');
-    const hasFiles = fileAInput?.files[0] || fileBInput?.files[0];
-
-    if (hasFiles) {
-      log.info('再比較を実行します...');
-      await window.handleCompareModelsClick();
-      log.info('再比較が完了しました');
-    } else {
-      log.warn('再比較をスキップしました: モデルが読み込まれていません');
-    }
   });
   log.info('比較キー選択UIが初期化されました');
 

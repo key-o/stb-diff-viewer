@@ -9,6 +9,7 @@
  * 比較結果の型定義
  * @typedef {Object} ComparisonResult
  * @property {Array<{dataA: any, dataB: any}>} matched - 一致した要素ペア
+ * @property {Array<{dataA: any, dataB: any}>} [mismatch] - キー一致だが属性不一致の要素ペア
  * @property {Array<any>} onlyA - モデルAのみに存在する要素
  * @property {Array<any>} onlyB - モデルBのみに存在する要素
  */
@@ -19,6 +20,8 @@
  * @property {string} [keyType] - 比較キータイプ
  * @property {Object} [toleranceConfig] - 許容差設定
  * @property {Object} [versionInfo] - バージョン情報
+ * @property {function(any, any): boolean} [attributeComparator] - 属性比較関数（trueで一致）
+ * @property {boolean} [classifyNullKeysAsOnly=false] - key=null要素をonlyA/onlyBに分類するか
  */
 
 /**
@@ -82,17 +85,21 @@ export class BasicStrategy extends BaseStrategy {
   /**
    * @override
    */
-  compare(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor, _options = {}) {
+  compare(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor, options = {}) {
+    const { attributeComparator, classifyNullKeysAsOnly = false } = options;
     const keysA = new Map();
     const keysB = new Map();
-    const dataA = [];
-    const dataB = [];
-    const matchedData = [];
+    const onlyA = [];
+    const onlyB = [];
+    const matched = [];
+    const mismatch = [];
 
     for (const elementA of elementsA) {
       const { key, data } = keyExtractor(elementA, nodeMapA);
       if (key !== null) {
         keysA.set(key, data);
+      } else if (classifyNullKeysAsOnly && data !== null) {
+        onlyA.push(data);
       }
     }
 
@@ -100,23 +107,27 @@ export class BasicStrategy extends BaseStrategy {
       const { key, data } = keyExtractor(elementB, nodeMapB);
       if (key !== null) {
         keysB.set(key, data);
+      } else if (classifyNullKeysAsOnly && data !== null) {
+        onlyB.push(data);
       }
     }
 
     for (const [key, dataAItem] of keysA.entries()) {
       if (keysB.has(key)) {
-        matchedData.push({ dataA: dataAItem, dataB: keysB.get(key) });
+        const dataBItem = keysB.get(key);
+        if (attributeComparator && !attributeComparator(dataAItem, dataBItem)) {
+          mismatch.push({ dataA: dataAItem, dataB: dataBItem });
+        } else {
+          matched.push({ dataA: dataAItem, dataB: dataBItem });
+        }
         keysB.delete(key);
       } else {
-        dataA.push(dataAItem);
+        onlyA.push(dataAItem);
       }
     }
 
-    for (const dataBItem of keysB.values()) {
-      dataB.push(dataBItem);
-    }
-
-    return { matched: matchedData, onlyA: dataA, onlyB: dataB };
+    onlyB.push(...keysB.values());
+    return { matched, mismatch, onlyA, onlyB };
   }
 
   /**

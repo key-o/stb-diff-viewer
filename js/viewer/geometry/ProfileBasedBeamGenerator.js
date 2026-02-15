@@ -220,17 +220,6 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       placementMode: placement.placementMode,
     });
 
-    // 12. 配置基準線を添付（ElementGeometryUtils使用）
-    try {
-      ElementGeometryUtils.attachPlacementLine(mesh, placement.length, materials.placementLine, {
-        elementType: elementType,
-        elementId: beam.id,
-        modelSource: 'solid',
-      });
-    } catch (e) {
-      log.warn(`Beam ${beam.id}: Failed to attach placement axis line`, e);
-    }
-
     log.debug(
       `Beam ${beam.id}: length=${placement.length.toFixed(1)}mm, ` +
         `sectionHeight=${sectionHeight.toFixed(1)}mm, ` +
@@ -310,15 +299,23 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       `Beam ${beam.id}: stb-diff-viewer RC部分 - ${concreteProfile.profileType} ${width}x${height}`,
     );
 
-    // RC部分用の断面データを作成
+    // RC部分用の断面データを作成（steelShapeを含めないことでH鋼断面の誤取得を防止）
+    const rcDimensions = {
+      width: width,
+      height: height,
+      outer_width: width,
+      outer_height: height,
+    };
+
+    // 円形の場合はdiameterを明示的に設定
+    // （mapCircleParams/calculateCircleProfileがdiameter/radiusキーを要求するため）
+    if (concreteProfile.profileType === 'CIRCLE') {
+      rcDimensions.diameter = concreteProfile.diameter;
+    }
+
     const rcSectionData = {
       section_type: concreteProfile.profileType,
-      dimensions: {
-        width: width,
-        height: height,
-        outer_width: width,
-        outer_height: height,
-      },
+      dimensions: rcDimensions,
     };
 
     // RC部分のプロファイルを生成

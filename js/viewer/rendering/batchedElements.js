@@ -400,34 +400,6 @@ export function getElementFromBatchedIntersection(intersection) {
   return getHitElementFromBatch(intersection);
 }
 
-/**
- * バッチレンダリングの統計情報を取得
- *
- * @param {THREE.Group} group - 描画グループ
- * @returns {Object} 統計情報
- */
-export function getBatchRenderingStats(group) {
-  let totalSegments = 0;
-  let batchCount = 0;
-  let regularMeshCount = 0;
-
-  group.traverse((child) => {
-    if (child.userData?.isBatched) {
-      batchCount++;
-      totalSegments += child.userData.segmentCount || 0;
-    } else if (child instanceof THREE.Line || child instanceof THREE.Mesh) {
-      regularMeshCount++;
-    }
-  });
-
-  return {
-    batchCount,
-    totalSegments,
-    regularMeshCount,
-    estimatedDrawCallReduction:
-      totalSegments > 0 ? Math.round((1 - batchCount / totalSegments) * 100) : 0,
-  };
-}
 
 /**
  * 共有球体ジオメトリ（全節点で再利用）
@@ -694,12 +666,3 @@ export function drawNodesBatched(comparisonResult, materials, group, labelToggle
   return createdLabels;
 }
 
-/**
- * 共有ジオメトリをクリア（メモリ解放用）
- */
-export function clearSharedNodeGeometry() {
-  if (sharedSphereGeometry) {
-    sharedSphereGeometry.dispose();
-    sharedSphereGeometry = null;
-  }
-}

@@ -174,17 +174,6 @@ export class PileGenerator extends BaseElementGenerator {
       pileType: dims.pile_type || 'Straight',
     });
 
-    // 10. 配置基準線を添付（ElementGeometryUtils使用）
-    try {
-      ElementGeometryUtils.attachPlacementLine(mesh, placement.length, materials.placementLine, {
-        elementType: elementType,
-        elementId: pile.id,
-        modelSource: 'solid',
-      });
-    } catch (e) {
-      log.warn(`Pile ${pile.id}: Failed to attach placement axis line`, e);
-    }
-
     return mesh;
   }
 

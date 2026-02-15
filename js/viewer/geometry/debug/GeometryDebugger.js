@@ -8,7 +8,7 @@
  * メッシュのジオメトリ情報を詳細にダンプ
  * @param {THREE.Mesh} mesh - 対象メッシュ
  */
-export function dumpGeometryInfo(mesh) {
+function dumpGeometryInfo(mesh) {
   if (!mesh || !mesh.geometry) {
     console.error('Invalid mesh or missing geometry');
     return null;
@@ -79,7 +79,7 @@ export function dumpGeometryInfo(mesh) {
  * @param {THREE.Scene} scene - Three.jsシーン
  * @returns {Array} 多断面メッシュの配列
  */
-export function findMultiSectionMeshes(scene) {
+function findMultiSectionMeshes(scene) {
   const multiSectionMeshes = [];
 
   scene.traverse((object) => {
@@ -105,7 +105,7 @@ export function findMultiSectionMeshes(scene) {
  * @param {number} zPosition - 調査するZ位置（-length/2 ～ length/2）
  * @param {number} tolerance - Z位置の許容誤差
  */
-export function getSectionHeightAtZ(geometry, zPosition, tolerance = 1) {
+function getSectionHeightAtZ(geometry, zPosition, tolerance = 1) {
   const position = geometry.attributes.position;
   if (!position) return null;
 
@@ -138,7 +138,7 @@ export function getSectionHeightAtZ(geometry, zPosition, tolerance = 1) {
  * @param {THREE.Mesh} mesh - 梁メッシュ
  * @param {number} length - 梁の長さ（mm）
  */
-export function verifyTopEdgePlacement(mesh, length) {
+function verifyTopEdgePlacement(mesh, length) {
   if (!mesh || !mesh.geometry) {
     console.error('Invalid mesh');
     return;

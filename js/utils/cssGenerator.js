@@ -15,7 +15,7 @@ import { DIFF_CATEGORIES } from '../config/diffFilterConfig.js';
  * @param {Array<Object>} [categories=DIFF_CATEGORIES] - カテゴリ定義配列
  * @returns {string} CSS文字列
  */
-export function generateDiffLegendCSS(categories = DIFF_CATEGORIES) {
+function generateDiffLegendCSS(categories = DIFF_CATEGORIES) {
   const cssRules = categories
     .map(
       (cat) => `
@@ -51,7 +51,7 @@ ${cssRules}
  * @param {string} [id='dynamic-diff-legend-styles'] - style要素のID
  * @returns {HTMLStyleElement} 挿入されたstyle要素
  */
-export function injectStyleSheet(css, id = 'dynamic-diff-legend-styles') {
+function injectStyleSheet(css, id = 'dynamic-diff-legend-styles') {
   let styleEl = document.getElementById(id);
 
   if (!styleEl) {
@@ -70,7 +70,7 @@ export function injectStyleSheet(css, id = 'dynamic-diff-legend-styles') {
  * @param {string} [id='dynamic-diff-legend-styles'] - style要素のID
  * @returns {boolean} 削除成功かどうか
  */
-export function removeStyleSheet(id = 'dynamic-diff-legend-styles') {
+function removeStyleSheet(id = 'dynamic-diff-legend-styles') {
   const styleEl = document.getElementById(id);
   if (styleEl) {
     styleEl.remove();
@@ -96,7 +96,7 @@ export function initializeDiffLegendCSS(categories = DIFF_CATEGORIES) {
  * @param {Array<Object>} [categories=DIFF_CATEGORIES] - カテゴリ定義配列
  * @returns {string} CSS変数定義
  */
-export function generateDiffColorVariables(categories = DIFF_CATEGORIES) {
+function generateDiffColorVariables(categories = DIFF_CATEGORIES) {
   const variables = categories.map((cat) => `  --diff-color-${cat.id}: ${cat.color};`).join('\n');
 
   return `
@@ -111,7 +111,7 @@ ${variables}
  * @param {Array<Object>} [categories=DIFF_CATEGORIES] - カテゴリ定義配列
  * @returns {HTMLStyleElement} 挿入されたstyle要素
  */
-export function initializeDiffColorVariables(categories = DIFF_CATEGORIES) {
+function initializeDiffColorVariables(categories = DIFF_CATEGORIES) {
   const css = generateDiffColorVariables(categories);
   return injectStyleSheet(css, 'dynamic-diff-color-variables');
 }

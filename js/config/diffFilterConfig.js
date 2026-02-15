@@ -272,7 +272,7 @@ export const DIFF_FILTER_UI_CONFIG = {
  * @param {string} id - カテゴリID
  * @returns {Object|undefined} カテゴリ定義
  */
-export function getCategoryById(id) {
+function getCategoryById(id) {
   return DIFF_CATEGORIES.find((cat) => cat.id === id);
 }
 
@@ -281,18 +281,8 @@ export function getCategoryById(id) {
  * @param {string} id - プリセットID
  * @returns {Object|undefined} プリセット定義
  */
-export function getPresetById(id) {
+function getPresetById(id) {
   return DIFF_FILTER_PRESETS.find((preset) => preset.id === id);
-}
-
-/**
- * カテゴリIDから色を取得
- * @param {string} id - カテゴリID
- * @returns {string|undefined} 色コード
- */
-export function getCategoryColor(id) {
-  const category = getCategoryById(id);
-  return category ? category.color : undefined;
 }
 
 /**
@@ -317,17 +307,6 @@ export function getPresetName(id, locale = 'ja') {
   const preset = getPresetById(id);
   if (!preset) return undefined;
   return preset.name[locale] || preset.name.ja;
-}
-
-/**
- * プリセットからSetを生成（DiffStatusFilterクラス用）
- * @param {string} presetId - プリセットID
- * @returns {Set<string>|null} カテゴリIDのSet
- */
-export function getPresetAsSet(presetId) {
-  const preset = getPresetById(presetId);
-  if (!preset) return null;
-  return new Set(preset.categories);
 }
 
 /**
@@ -392,7 +371,7 @@ export const DIFF_STATUS_VALUES = DIFF_CATEGORIES.map((cat) => cat.id);
  * @returns {boolean} 有効かどうか
  * @throws {Error} 無効な場合
  */
-export function validateCategory(category) {
+function validateCategory(category) {
   const required = ['id', 'label', 'color', 'group', 'order'];
   for (const field of required) {
     if (category[field] === undefined) {
@@ -414,7 +393,7 @@ export function validateCategory(category) {
  * @returns {boolean} 有効かどうか
  * @throws {Error} 無効な場合
  */
-export function validatePreset(preset) {
+function validatePreset(preset) {
   const required = ['id', 'name', 'categories'];
   for (const field of required) {
     if (preset[field] === undefined) {
@@ -437,16 +416,6 @@ export function validatePreset(preset) {
   return true;
 }
 
-/**
- * 全設定を検証
- * @returns {boolean} 全て有効かどうか
- */
-export function validateAllConfigs() {
-  DIFF_CATEGORIES.forEach(validateCategory);
-  DIFF_FILTER_PRESETS.forEach(validatePreset);
-  return true;
-}
-
 // ============================================================================
 // デフォルトエクスポート
 // ============================================================================
@@ -458,10 +427,8 @@ export default {
   // ヘルパー関数
   getCategoryById,
   getPresetById,
-  getCategoryColor,
   getCategoryLabel,
   getPresetName,
-  getPresetAsSet,
   getPresetsForFilter,
   // 後方互換エイリアス
   DIFF_STATUS,
@@ -470,5 +437,4 @@ export default {
   // バリデーション
   validateCategory,
   validatePreset,
-  validateAllConfigs,
 };

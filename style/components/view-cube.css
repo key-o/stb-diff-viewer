@@ -355,7 +355,7 @@
   bottom: -25px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 10px;
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
   white-space: nowrap;
 }

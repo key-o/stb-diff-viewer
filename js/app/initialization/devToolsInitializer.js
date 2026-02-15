@@ -90,4 +90,23 @@ export function setupDevelopmentTools() {
   };
 
   log.info('デバッグコマンド利用可能: window.debugLoadData().');
+
+  // 重要度デバッグツール
+  import('../../utils/importanceDebug.js')
+    .then((module) => {
+      // デバッグツールを初期化
+      if (module.initializeDebugTools) {
+        module.initializeDebugTools();
+      }
+
+      // デバッグ関数が利用可能か確認
+      if (window.importanceDebug) {
+        log.info('重要度デバッグツール利用可能: window.importanceDebug.logDuplicateReport()');
+      } else {
+        log.warn('重要度デバッグツールの初期化に失敗しました');
+      }
+    })
+    .catch((error) => {
+      log.warn('重要度デバッグツールの読み込みに失敗:', error);
+    });
 }

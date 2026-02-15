@@ -8,3 +8,4 @@ export * from './keyGenerator.js';
 export * from './semanticEquivalence.js';
 export * from './ToleranceStrategy.js';
 export * from './VersionAwareStrategy.js';
+export * from './attributeComparator.js';

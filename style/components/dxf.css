@@ -6,7 +6,7 @@
 .dxf-intro {
   margin-bottom: 12px;
   color: var(--text-secondary, #6c757d);
-  font-size: 0.9em;
+  font-size: var(--font-size-md);
 }
 
 .dxf-intro p {
@@ -24,20 +24,6 @@
   flex: 1;
 }
 
-.dxf-buttons .btn-secondary {
-  background-color: var(--btn-secondary-bg, #6c757d);
-  color: var(--btn-secondary-text, #fff);
-  border: none;
-  padding: 8px 16px;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  font-size: 0.9em;
-}
-
-.dxf-buttons .btn-secondary:hover {
-  background-color: var(--btn-secondary-hover-bg, #5a6268);
-}
-
 /* DXF読み込み結果サマリー */
 #dxf-summary {
   background-color: var(--panel-bg, #f8f9fa);
@@ -48,7 +34,7 @@
 }
 
 .dxf-summary-title {
-  font-weight: bold;
+  font-weight: var(--font-weight-bold);
   margin-bottom: 8px;
   color: var(--success-color, #28a745);
 }
@@ -57,7 +43,7 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 4px;
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
 }
 
 .dxf-summary-content div {
@@ -84,7 +70,7 @@
   gap: 8px;
   padding: 4px 0;
   cursor: pointer;
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
 }
 
 .dxf-layer-item:hover {
@@ -115,7 +101,7 @@
 .dxf-export-intro {
   margin-bottom: 12px;
   color: var(--text-secondary, #6c757d);
-  font-size: 0.9em;
+  font-size: var(--font-size-md);
 }
 
 .dxf-export-intro p {
@@ -132,7 +118,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
 }
 
 .dxf-export-layer-actions {
@@ -146,7 +132,7 @@
   border: none;
   color: var(--link-color, #007bff);
   cursor: pointer;
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
   padding: 0;
   text-decoration: underline;
 }
@@ -174,7 +160,7 @@
   gap: 8px;
   padding: 4px 0;
   cursor: pointer;
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
 }
 
 .dxf-export-layer-item:hover {
@@ -202,7 +188,7 @@
 
 .dxf-export-layer-item .layer-count {
   color: var(--text-muted, #999);
-  font-size: 0.8em;
+  font-size: var(--font-size-sm);
 }
 
 /* エクスポート統計 */
@@ -211,7 +197,7 @@
   padding: 8px 12px;
   background-color: var(--info-bg, #e7f3ff);
   border-radius: var(--border-radius);
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
   color: var(--info-text, #0c5460);
 }
 
@@ -224,7 +210,7 @@
 }
 
 .dxf-export-filename label {
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
   white-space: nowrap;
 }
 
@@ -233,7 +219,7 @@
   padding: 6px 10px;
   border: 1px solid var(--border-color, #dee2e6);
   border-radius: var(--border-radius);
-  font-size: 0.9em;
+  font-size: var(--font-size-md);
   background-color: var(--input-bg, #fff);
   color: var(--text-primary, #212529);
 }
@@ -248,8 +234,8 @@
 .dxf-export-btn {
   width: 100%;
   padding: 10px 16px;
-  font-size: 0.95em;
-  font-weight: 500;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
 }
 
 .dxf-export-btn:disabled {
@@ -266,7 +252,7 @@
 }
 
 .stb-export-note {
-  font-size: 0.8em;
+  font-size: var(--font-size-sm);
   color: var(--text-muted, #999);
   margin-top: 4px;
 }
@@ -275,7 +261,7 @@
   margin-bottom: 12px;
   padding: 8px 12px;
   border-radius: var(--border-radius);
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
 }
 
 .stb-export-status.status-ready {
@@ -316,7 +302,7 @@
 
 .dxf-placement-plane label,
 .dxf-placement-position label {
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
   white-space: nowrap;
   min-width: 70px;
 }
@@ -327,7 +313,7 @@
   padding: 6px 10px;
   border: 1px solid var(--border-color, #dee2e6);
   border-radius: var(--border-radius);
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
   background-color: var(--input-bg, #fff);
   color: var(--text-primary, #212529);
   cursor: pointer;
@@ -349,7 +335,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
   cursor: pointer;
 }
 
@@ -377,9 +363,9 @@
 }
 
 .offset-input-row label {
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
   min-width: 20px;
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .offset-input-row input[type="number"] {
@@ -387,7 +373,7 @@
   padding: 4px 8px;
   border: 1px solid var(--border-color, #dee2e6);
   border-radius: var(--border-radius);
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
   background-color: var(--input-bg, #fff);
   color: var(--text-primary, #212529);
 }
@@ -399,7 +385,7 @@
 }
 
 .offset-input-row span {
-  font-size: 0.8em;
+  font-size: var(--font-size-sm);
   color: var(--text-muted, #999);
 }
 
@@ -410,7 +396,7 @@
   gap: 8px;
   padding: 4px 0;
   cursor: pointer;
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
 }
 
 .stb-export-type-item:hover {
@@ -435,7 +421,7 @@
 
 .stb-export-type-item .type-count {
   color: var(--text-muted, #999);
-  font-size: 0.8em;
+  font-size: var(--font-size-sm);
 }
 
 /* ========================================
@@ -451,7 +437,7 @@
 
 .dxf-batch-btn {
   padding: 8px 12px;
-  font-size: 0.85em;
+  font-size: var(--font-size-sm);
   background-color: var(--btn-secondary-bg, #6c757d);
   color: var(--btn-secondary-text, #fff);
   border: none;
@@ -469,21 +455,3 @@
   cursor: not-allowed;
 }
 
-.batch-export-progress {
-  padding: 8px 12px;
-  background-color: var(--info-bg, #e7f3ff);
-  border-radius: var(--border-radius);
-  font-size: 0.85em;
-  color: var(--info-text, #0c5460);
-  text-align: center;
-  animation: pulse 1.5s infinite;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}

@@ -14,7 +14,6 @@ import { calculateProfile } from './core/ProfileCalculator.js';
 import {
   convertProfileToThreeShape,
   createExtrudeGeometry,
-  attachPlacementAxisLine,
 } from './core/ThreeJSConverter.js';
 import { materials } from '../rendering/materials.js';
 import { IFCProfileFactory } from './IFCProfileFactory.js';
@@ -278,18 +277,7 @@ export class ProfileBasedFoundationColumnGenerator extends BaseElementGenerator 
       return null;
     }
 
-    // 7. 配置基準線を添付（最初のメッシュにのみ）
-    try {
-      attachPlacementAxisLine(meshes[0], placement.length, materials.placementLine, {
-        elementType: elementType,
-        elementId: foundationColumn.id,
-        modelSource: 'solid',
-      });
-    } catch (e) {
-      log.warn(`FoundationColumn ${foundationColumn.id}: failed to attach placement axis line`, e);
-    }
-
-    // 8. 配列で返す（複数メッシュの場合があるため）
+    // 7. 配列で返す（複数メッシュの場合があるため）
     return meshes.length === 1 ? meshes[0] : meshes;
   }
 

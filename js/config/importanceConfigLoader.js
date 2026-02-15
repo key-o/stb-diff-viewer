@@ -32,12 +32,6 @@ export const AVAILABLE_CONFIGS = [
 ];
 
 /**
- * 現在読み込まれている設定
- */
-let currentConfig = null;
-let currentConfigId = null;
-
-/**
  * 外部JSONファイルから重要度設定を読み込む
  * @param {string} configPath - 設定ファイルのパス
  * @returns {Promise<Object>} 設定オブジェクト
@@ -56,10 +50,22 @@ export async function loadImportanceConfig(configPath) {
       normalizedSettings[path] = normalizeImportanceLevel(level);
     }
 
+    // パターン設定を正規化
+    const normalizedPatterns = [];
+    if (config.patterns) {
+      for (const [pattern, level] of Object.entries(config.patterns)) {
+        normalizedPatterns.push({
+          contains: pattern,
+          level: normalizeImportanceLevel(level),
+        });
+      }
+    }
+
     return {
       name: config.name || 'カスタム設定',
       description: config.description || '',
       defaultLevel: normalizeImportanceLevel(config.defaultLevel || 'optional'),
+      patterns: normalizedPatterns,
       settings: normalizedSettings,
     };
   } catch (error) {
@@ -100,39 +106,8 @@ export async function loadConfigById(configId) {
   const fullPath = new URL(configInfo.path, basePath).href;
 
   const config = await loadImportanceConfig(fullPath);
-  currentConfig = config;
-  currentConfigId = configId;
 
   return config;
-}
-
-/**
- * 現在の設定を取得
- * @returns {Object|null} 現在の設定
- */
-export function getCurrentConfig() {
-  return currentConfig;
-}
-
-/**
- * 現在の設定IDを取得
- * @returns {string|null} 現在の設定ID
- */
-export function getCurrentConfigId() {
-  return currentConfigId;
-}
-
-/**
- * 設定をIMPORTANCE_SETTINGS形式に変換
- * @param {Object} config - 読み込んだ設定
- * @returns {Object} IMPORTANCE_SETTINGS形式のオブジェクト
- */
-export function configToImportanceSettings(config) {
-  const settings = {};
-  for (const [path, level] of Object.entries(config.settings)) {
-    settings[path] = level;
-  }
-  return settings;
 }
 
 /**

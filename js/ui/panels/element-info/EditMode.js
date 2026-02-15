@@ -435,12 +435,12 @@ export function updateEditingSummary() {
       修正: ${modifications.length}件
       ${
         modifications.length > 0
-          ? '<button id="export-btn" style="font-size: 0.6em; padding: 1px 4px; margin-left: 3px; background: #d4edda; border: 1px solid #c3e6cb; color: #155724;" onclick="window.exportModifications()">出力</button>'
+          ? '<button id="export-btn" style="font-size: var(--font-size-2xs); padding: 1px 4px; margin-left: 3px; background: #d4edda; border: 1px solid #c3e6cb; color: #155724;" onclick="window.exportModifications()">出力</button>'
           : ''
       }
       ${
         modifications.length > 0
-          ? '<button id="clear-modifications-btn" style="font-size: 0.6em; padding: 1px 4px; margin-left: 2px; background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24;" onclick="window.clearModifications()">削除</button>'
+          ? '<button id="clear-modifications-btn" style="font-size: var(--font-size-2xs); padding: 1px 4px; margin-left: 2px; background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24;" onclick="window.clearModifications()">削除</button>'
           : ''
       }
     `;

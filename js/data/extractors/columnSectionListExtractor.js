@@ -159,16 +159,38 @@ function extractColumns(xmlDoc) {
  * @returns {Array<string>} 階IDの配列
  */
 function getStoryIdsForColumn(column, stories) {
-  const storyIds = [];
+  const bottomStoryIds = [];
+  const topStoryIds = [];
 
-  // 柱のノード（下端または上端）を含む階を探す
   stories.forEach((story, storyId) => {
-    if (story.nodeIds.has(column.idNodeBottom) || story.nodeIds.has(column.idNodeTop)) {
-      storyIds.push(storyId);
+    if (story.nodeIds.has(column.idNodeBottom)) {
+      bottomStoryIds.push(storyId);
+    }
+    if (story.nodeIds.has(column.idNodeTop)) {
+      topStoryIds.push(storyId);
     }
   });
 
-  return storyIds;
+  // 柱は下端階に所属させる。下端が取れない場合のみ上端階をフォールバックで採用する。
+  if (bottomStoryIds.length > 0) {
+    const sorted = [...bottomStoryIds].sort((a, b) => {
+      const levelA = stories.get(a)?.level ?? Number.POSITIVE_INFINITY;
+      const levelB = stories.get(b)?.level ?? Number.POSITIVE_INFINITY;
+      return levelA - levelB;
+    });
+    return [sorted[0]];
+  }
+
+  if (topStoryIds.length > 0) {
+    const sorted = [...topStoryIds].sort((a, b) => {
+      const levelA = stories.get(a)?.level ?? Number.NEGATIVE_INFINITY;
+      const levelB = stories.get(b)?.level ?? Number.NEGATIVE_INFINITY;
+      return levelB - levelA;
+    });
+    return [sorted[0]];
+  }
+
+  return [];
 }
 
 /**
@@ -915,20 +937,53 @@ export function extractColumnSectionGrid(xmlDoc) {
 
   // グリッド構造を構築（Map<storyId, Map<symbol, sectionData>>）
   const grid = new Map();
-  sortedStories.forEach((story) => {
-    grid.set(story.id, new Map());
-  });
 
   // セクションデータをグリッドに配置
   listData.sections.forEach((row) => {
+    if (!grid.has(row.storyId)) {
+      grid.set(row.storyId, new Map());
+    }
+
     const floorMap = grid.get(row.storyId);
-    if (floorMap) {
+    const existing = floorMap.get(row.symbol);
+
+    if (!existing) {
       floorMap.set(row.symbol, row.sectionData);
+      return;
+    }
+
+    if (Array.isArray(existing)) {
+      if (!existing.some((section) => section?.id === row.sectionData?.id)) {
+        existing.push(row.sectionData);
+        floorMap.set(row.symbol, existing);
+        console.warn(
+          '[extractColumnSectionGrid] Multiple sections detected in same cell:',
+          `${row.storyId}:${row.symbol}`,
+          existing.map((section) => section?.id),
+        );
+      }
+      return;
+    }
+
+    if (existing.id !== row.sectionData.id) {
+      const variants = [existing, row.sectionData];
+      floorMap.set(row.symbol, variants);
+      console.warn(
+        '[extractColumnSectionGrid] Multiple sections detected in same cell:',
+        `${row.storyId}:${row.symbol}`,
+        variants.map((section) => section?.id),
+      );
     }
   });
 
+  // 断面が1つも無い階は表示対象から除外
+  const storiesWithSections = sortedStories.filter((story) => {
+    const floorMap = grid.get(story.id);
+    return floorMap && floorMap.size > 0;
+  });
+
   return {
-    stories: sortedStories,
+    stories: storiesWithSections,
     symbols,
     grid,
     sections: listData.sections, // 互換性のため保持

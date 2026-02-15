@@ -12,8 +12,6 @@ import {
   controls,
   getActiveCamera,
   setActiveCamera,
-  scene,
-  renderer,
 } from '../core/core.js';
 import { CAMERA_MODES } from '../../constants/displayModes.js';
 
@@ -147,12 +145,23 @@ function updateControlsForMode(mode) {
       RIGHT: THREE.MOUSE.PAN,
     };
 
-    // コントロールの内部状態を更新（2D→3D切り替え時の回転基準をリセット）
+    // Orthographic モードで設定された値をリセット + 回転基準をリセット
     if (controls._cc) {
+      controls._cc.minZoom = 0.01;
+      controls._cc.maxZoom = Infinity;
+      controls._cc.dollySpeed = 1.0;
       controls._cc.normalizeRotations();
       controls._cc.update(0);
     }
   }
+}
+
+/**
+ * 現在のカメラモードのコントロール設定を再適用
+ * ビュー変更後にコントロールの整合性を保証するために使用
+ */
+export function reaffirmControlsForCurrentMode() {
+  updateControlsForMode(currentMode);
 }
 
 /**
