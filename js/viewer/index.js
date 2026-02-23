@@ -35,10 +35,11 @@ import {
   getActiveCamera,
   setFrustumCullingEnabled,
   isFrustumCullingEnabled,
+  setXRSessionActive,
+  isXRSessionActive,
 } from './core/core.js';
 import { SUPPORTED_ELEMENTS } from '../constants/elementTypes.js';
 import {
-  materials,
   ELEMENT_MATERIAL_SIDE,
   getMaterialSideForElement,
   setSingleSidedOptimizationEnabled,
@@ -75,6 +76,7 @@ import {
   applyClipPlanes,
   updateMaterialClippingPlanes,
 } from './clipping/clippingManager.js';
+import { SectionBox } from './clipping/SectionBox.js';
 import { setElementInfoProviders } from './services/elementInfoAdapter.js';
 import { setClippingStateProvider } from './clipping/clippingManager.js';
 
@@ -101,8 +103,10 @@ export {
   // パフォーマンス最適化: フラスタムカリング
   setFrustumCullingEnabled,
   isFrustumCullingEnabled,
+  // WebXR AR/VR 状態管理
+  setXRSessionActive,
+  isXRSessionActive,
   // マテリアル関連
-  materials,
   ELEMENT_MATERIAL_SIDE,
   getMaterialSideForElement,
   setSingleSidedOptimizationEnabled,
@@ -124,6 +128,7 @@ export {
   clearClippingPlanes,
   applyClipPlanes,
   updateMaterialClippingPlanes,
+  SectionBox,
   adjustCameraToFitModel,
   focusOnSelected,
   fitCameraToModel,
@@ -156,13 +161,6 @@ export {
   setOrbitCenterToSelected,
   resetOrbitCenter,
 } from './interaction/keyboard-shortcuts.js';
-
-// ViewCubeナビゲーション
-export {
-  initializeViewCube,
-  getViewCube,
-  destroyViewCube,
-} from '../ui/viewer3d/viewCube/ViewCube.js';
 
 // ============================================
 // レンダリング管理 (rendering/)
@@ -230,3 +228,29 @@ export {
 } from './camera/cameraManagerImpl.js';
 
 // ビュー管理（setView, VIEW_DIRECTIONS は既にエクスポート済み）
+
+// ============================================
+// 要素動的更新 (elementUpdater.js)
+// ============================================
+
+export { regenerateElementGeometry } from './elementUpdater.js';
+
+// ============================================
+// AR/WebXR (ar/)
+// ============================================
+
+export { arSessionManager } from './ar/arSessionManager.js';
+export { ArPlacement } from './ar/arPlacement.js';
+
+// ============================================
+// DXFビューア (dxfViewer.js)
+// ============================================
+
+export {
+  renderDxfEntities,
+  clearDxfGroup,
+  getDxfGroup,
+  fitCameraToDxfBounds,
+  setLayerVisibility,
+  toggleDxfEditMode,
+} from './dxfViewer.js';

@@ -5,6 +5,7 @@
  */
 
 import { validationController } from '../../app/controllers/validationController.js';
+import { escapeHtml as escapeHtmlUtil } from '../../utils/htmlUtils.js';
 
 /**
  * バリデーションパネルクラス
@@ -18,6 +19,7 @@ export class ValidationPanel {
     this.validationReport = null;
     this.repairReport = null;
     this.selectedIssues = new Set();
+    this.onValidateCallback = null;
     this.onRepairCallback = null;
     this.onExportCallback = null;
 
@@ -37,6 +39,20 @@ export class ValidationPanel {
             <button id="btn-repair" class="btn-secondary" disabled>自動修復</button>
             <button id="btn-export" class="btn-success" disabled>エクスポート</button>
           </div>
+        </div>
+
+        <div class="validation-options">
+          <label>
+            対象モデル
+            <select id="validation-target-model">
+              <option value="auto">自動（モデルA優先）</option>
+              <option value="A">モデルA</option>
+              <option value="B">モデルB</option>
+            </select>
+          </label>
+          <label><input type="checkbox" id="validation-opt-references" checked> 参照整合性</label>
+          <label><input type="checkbox" id="validation-opt-geometry" checked> 幾何チェック</label>
+          <label><input type="checkbox" id="validation-opt-include-info"> 情報レベルを含める</label>
         </div>
 
         <div class="validation-summary" id="validation-summary">
@@ -107,6 +123,10 @@ export class ValidationPanel {
     const btnRepair = this.container.querySelector('#btn-repair');
     const btnExport = this.container.querySelector('#btn-export');
 
+    if (btnValidate) {
+      btnValidate.addEventListener('click', () => this.executeValidate());
+    }
+
     if (btnRepair) {
       btnRepair.addEventListener('click', () => this.executeRepair());
     }
@@ -145,7 +165,7 @@ export class ValidationPanel {
 
       .validation-header h3 {
         margin: 0;
-        font-size: var(--font-size-xl);
+        font-size: var(--font-size-lg);
         color: #333;
       }
 
@@ -176,6 +196,27 @@ export class ValidationPanel {
       .validation-summary.valid { border-left: 4px solid #28a745; }
       .validation-summary.invalid { border-left: 4px solid #dc3545; }
 
+      .validation-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 12px;
+        font-size: var(--font-size-sm);
+      }
+
+      .validation-options label {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .validation-options select {
+        padding: 4px 6px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+      }
+
       .summary-stats {
         display: flex;
         gap: 16px;
@@ -197,18 +238,26 @@ export class ValidationPanel {
         margin-bottom: 12px;
       }
 
-      .tab-btn {
+      .validation-panel .tab-btn {
         padding: 8px 16px;
         border: none;
         background: none;
+        color: #495057;
+        margin-top: 0;
         cursor: pointer;
         font-size: var(--font-size-base);
         border-bottom: 2px solid transparent;
       }
 
-      .tab-btn.active {
+      .validation-panel .tab-btn:hover {
+        color: #0056b3;
+        background: rgba(0, 123, 255, 0.08);
+      }
+
+      .validation-panel .tab-btn.active {
         border-bottom-color: #007bff;
         color: #007bff;
+        font-weight: 600;
       }
 
       .validation-content {
@@ -285,6 +334,14 @@ export class ValidationPanel {
         color: #666;
       }
 
+      .issue-xpath {
+        margin-top: 4px;
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 12px;
+        color: #495057;
+        word-break: break-all;
+      }
+
       .issue-repair {
         font-size: var(--font-size-sm);
         color: #28a745;
@@ -323,7 +380,7 @@ export class ValidationPanel {
 
       .repair-options label {
         display: block;
-        font-size: var(--font-size-md);
+        font-size: var(--font-size-sm);
         margin: 4px 0;
       }
 
@@ -450,10 +507,13 @@ export class ValidationPanel {
     const onlyRepairable = this.container.querySelector('#filter-repairable')?.checked;
 
     const filteredIssues = this.validationReport.issues.filter((issue) => {
+      // 「修復可能のみ」が有効な場合は重大度フィルターを無視し、修復可能な問題のみ表示
+      if (onlyRepairable) {
+        return !!issue.repairable;
+      }
       if (issue.severity === validationController.SEVERITY.ERROR && !showErrors) return false;
       if (issue.severity === validationController.SEVERITY.WARNING && !showWarnings) return false;
       if (issue.severity === validationController.SEVERITY.INFO && !showInfo) return false;
-      if (onlyRepairable && !issue.repairable) return false;
       return true;
     });
 
@@ -473,6 +533,11 @@ export class ValidationPanel {
         <div class="issue-details">
           ${issue.elementType} ${issue.elementId ? `(ID: ${issue.elementId})` : ''}
           ${issue.attribute ? `/ ${issue.attribute}` : ''}
+          ${
+            issue.idXPath || issue.xpath
+              ? `<div class="issue-xpath">XPath: ${this.escapeHtml(issue.idXPath || issue.xpath)}</div>`
+              : ''
+          }
         </div>
         ${
           issue.repairable && issue.repairSuggestion
@@ -564,6 +629,15 @@ export class ValidationPanel {
   /**
    * 修復を実行
    */
+  executeValidate() {
+    if (!this.onValidateCallback) {
+      console.warn('Validate callback not set');
+      return;
+    }
+
+    this.onValidateCallback(this.getValidationRequest());
+  }
+
   executeRepair() {
     if (!this.onRepairCallback) {
       console.warn('Repair callback not set');
@@ -602,6 +676,10 @@ export class ValidationPanel {
     this.onRepairCallback = callback;
   }
 
+  onValidate(callback) {
+    this.onValidateCallback = callback;
+  }
+
   /**
    * エクスポートコールバックを設定
    *
@@ -611,13 +689,30 @@ export class ValidationPanel {
     this.onExportCallback = callback;
   }
 
+  getValidationRequest() {
+    const targetModel = this.container.querySelector('#validation-target-model')?.value || 'auto';
+    const validateReferences =
+      this.container.querySelector('#validation-opt-references')?.checked !== false;
+    const validateGeometry =
+      this.container.querySelector('#validation-opt-geometry')?.checked !== false;
+    const includeInfo =
+      this.container.querySelector('#validation-opt-include-info')?.checked === true;
+
+    return {
+      targetModel,
+      options: {
+        validateReferences,
+        validateGeometry,
+        includeInfo,
+      },
+    };
+  }
+
   /**
    * HTMLエスケープ
    */
   escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    return escapeHtmlUtil(text);
   }
 
   /**

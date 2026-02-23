@@ -1,5 +1,5 @@
 import { createLogger } from '../utils/logger.js';
-import { ensureUnifiedSectionType } from '../common-stb/section/sectionTypeUtil.js';
+import { resolveGeometryProfileTypeInPlace } from '../common-stb/section/sectionTypeUtil.js';
 import { getWidth, getHeight } from '../data/accessors/sectionDataAccessor.js';
 
 const log = createLogger('diagnostics:geom');
@@ -82,7 +82,7 @@ function inspectSectionMismatch(mesh) {
     mesh.userData?.beamData?.section ||
     mesh.userData?.columnData?.section;
   // section_type を正規化（profile_type 等の別名を吸収）
-  if (meta) ensureUnifiedSectionType(meta);
+  if (meta) resolveGeometryProfileTypeInPlace(meta);
   const { width: expectedW, height: expectedD } = resolveExpectedDimensions(meta);
   const sectionTypeUnified = meta?.section_type;
 
@@ -243,7 +243,7 @@ function showMismatchPanel(results, tolerance = 0.02) {
     )}% を超える差異、または profileSource=manual を強調表示</div>
     <table style="width:100%;border-collapse:collapse">
       <thead>
-  <tr><th style="text-align:left">Type</th><th style="text-align:left">ID</th><th>stb-diff-viewer</th><th>section_type</th><th>Actual (W x D)</th><th>Expected</th><th>ΔW / ΔD</th></tr>
+  <tr><th style="text-align:left">Type</th><th style="text-align:left">ID</th><th>Source</th><th>section_type</th><th>Actual (W x D)</th><th>Expected</th><th>ΔW / ΔD</th></tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
@@ -278,7 +278,7 @@ function logSectionComparisons(scene, elementType = null, limit = 100, options =
     const sDD = dd == null ? '-' : `${dd >= 0 ? '+' : ''}${fmt(dd, 1)}%`;
     const msg = `${over ? '!' : ' '} [${r.elementType ?? ''}] id=${
       r.elementId ?? ''
-    } stb-diff-viewer=${r.profileSource ?? ''}/${r.sectionTypeUnified ?? ''} actual=${fmt(
+    } source=${r.profileSource ?? ''}/${r.sectionTypeUnified ?? ''} actual=${fmt(
       r.actual.width,
     )}x${fmt(r.actual.depth)} expected=${fmt(r.expected.width)}x${fmt(
       r.expected.depth,
@@ -359,7 +359,7 @@ function debugMissingExpectedDimensions(scene, elementType = null, limit = 50) {
     out.push(sample);
     counted++;
     clog.warn(
-      `[MISSING] id=${sample.elementId} type=${sample.elementType} stb-diff-viewer=${
+      `[MISSING] id=${sample.elementId} type=${sample.elementType} source=${
         sample.profileSource
       }/${sample.sectionTypeUnified ?? ''} keys=${sample.dimensionsKeys.join(
         ',',
@@ -386,3 +386,4 @@ if (typeof window !== 'undefined') {
     debugMissingExpectedDimensions,
   };
 }
+

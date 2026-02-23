@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <xs:schema xmlns:stb="https://www.building-smart.or.jp/dl" xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="https://www.building-smart.or.jp/dl" elementFormDefault="qualified">
   <xs:element name="ST_BRIDGE">
     <xs:complexType>
@@ -3794,7 +3794,7 @@
   <xs:element name="StbCalStoryDivided">
     <xs:complexType>
       <xs:simpleContent>
-        <xs:extension base="stb:monolist">
+        <xs:extension base="stb:positiveIntegerList">
           <xs:attribute name="id_story" type="xs:positiveInteger" use="required" />
           <xs:attribute name="name_floor" type="xs:string" />
         </xs:extension>
@@ -5180,9 +5180,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalColumnFinish_RC_LoadList" type="stb:monolist" />
-  <xs:element name="StbCalColumnFinish_RC_MemList" type="stb:monolist" />
-  <xs:element name="StbCalColumnFinish_RC_CalMemList" type="stb:monolist" />
+  <xs:element name="StbCalColumnFinish_RC_LoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnFinish_RC_MemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnFinish_RC_CalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalColumnFinish_S_Arr">
     <xs:complexType>
       <xs:sequence>
@@ -5192,9 +5192,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalColumnFinish_S_LoadList" type="stb:monolist" />
-  <xs:element name="StbCalColumnFinish_S_MemList" type="stb:monolist" />
-  <xs:element name="StbCalColumnFinish_S_CalMemList" type="stb:monolist" />
+  <xs:element name="StbCalColumnFinish_S_LoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnFinish_S_MemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnFinish_S_CalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalColumnMemberLoadArr">
     <xs:complexType>
       <xs:sequence>
@@ -5204,9 +5204,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalColumnMemberLoadList" type="stb:monolist" />
-  <xs:element name="StbCalColumnMemberLoadMemList" type="stb:monolist" />
-  <xs:element name="StbCalColumnMemberLoadCalMemList" type="stb:monolist" />
+  <xs:element name="StbCalColumnMemberLoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnMemberLoadMemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnMemberLoadCalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalGirderFinish_RC_Arr">
     <xs:complexType>
       <xs:sequence>
@@ -5216,9 +5216,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalGirderFinish_RC_LoadList" type="stb:monolist" />
-  <xs:element name="StbCalGirderFinish_RC_MemList" type="stb:monolist" />
-  <xs:element name="StbCalGirderFinish_RC_CalMemList" type="stb:monolist" />
+  <xs:element name="StbCalGirderFinish_RC_LoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderFinish_RC_MemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderFinish_RC_CalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalGirderFinish_S_Arr">
     <xs:complexType>
       <xs:sequence>
@@ -5228,9 +5228,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalGirderFinish_S_LoadList" type="stb:monolist" />
-  <xs:element name="StbCalGirderFinish_S_MemList" type="stb:monolist" />
-  <xs:element name="StbCalGirderFinish_S_CalMemList" type="stb:monolist" />
+  <xs:element name="StbCalGirderFinish_S_LoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderFinish_S_MemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderFinish_S_CalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalGirderMemberLoadArr">
     <xs:complexType>
       <xs:sequence>
@@ -5240,9 +5240,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalGirderMemberLoadList" type="stb:monolist" />
-  <xs:element name="StbCalGirderMemberLoadMemList" type="stb:monolist" />
-  <xs:element name="StbCalGirderMemberLoadCalMemList" type="stb:monolist" />
+  <xs:element name="StbCalGirderMemberLoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderMemberLoadMemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderMemberLoadCalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalBeamFinish_RC_Arr">
     <xs:complexType>
       <xs:sequence>
@@ -5251,8 +5251,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalBeamFinish_RC_LoadList" type="stb:monolist" />
-  <xs:element name="StbCalBeamFinish_RC_MemList" type="stb:monolist" />
+  <xs:element name="StbCalBeamFinish_RC_LoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalBeamFinish_RC_MemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalBeamFinish_S_Arr">
     <xs:complexType>
       <xs:sequence>
@@ -5261,8 +5261,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalBeamFinish_S_LoadList" type="stb:monolist" />
-  <xs:element name="StbCalBeamFinish_S_MemList" type="stb:monolist" />
+  <xs:element name="StbCalBeamFinish_S_LoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalBeamFinish_S_MemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalBeamMemberLoadArr">
     <xs:complexType>
       <xs:sequence>
@@ -5271,8 +5271,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalBeamMemberLoadList" type="stb:monolist" />
-  <xs:element name="StbCalBeamMemberLoadMemList" type="stb:monolist" />
+  <xs:element name="StbCalBeamMemberLoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalBeamMemberLoadMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalBraceFinish_S_Arr">
     <xs:complexType>
       <xs:sequence>
@@ -5281,8 +5281,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalBraceFinish_S_LoadList" type="stb:monolist" />
-  <xs:element name="StbCalBraceFinish_S_MemList" type="stb:monolist" />
+  <xs:element name="StbCalBraceFinish_S_LoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalBraceFinish_S_MemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalSlabLiveLoadArr">
     <xs:complexType>
       <xs:sequence>
@@ -5291,8 +5291,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalSlabLiveLoadList" type="stb:monolist" />
-  <xs:element name="StbCalSlabLiveLoadMemList" type="stb:monolist" />
+  <xs:element name="StbCalSlabLiveLoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalSlabLiveLoadMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalSlabFinish_RC_Arr">
     <xs:complexType>
       <xs:sequence>
@@ -5301,8 +5301,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalSlabFinish_RC_LoadList" type="stb:monolist" />
-  <xs:element name="StbCalSlabFinish_RC_MemList" type="stb:monolist" />
+  <xs:element name="StbCalSlabFinish_RC_LoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalSlabFinish_RC_MemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalSlabAreaLoadArr">
     <xs:complexType>
       <xs:sequence>
@@ -5311,8 +5311,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalSlabAreaLoadList" type="stb:monolist" />
-  <xs:element name="StbCalSlabAreaLoadMemList" type="stb:monolist" />
+  <xs:element name="StbCalSlabAreaLoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalSlabAreaLoadMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalSlabPressureLoadArr">
     <xs:complexType>
       <xs:sequence>
@@ -5321,8 +5321,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalSlabPressureLoadList" type="stb:monolist" />
-  <xs:element name="StbCalSlabPressureLoadMemList" type="stb:monolist" />
+  <xs:element name="StbCalSlabPressureLoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalSlabPressureLoadMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalWallFinish_RC_Arr">
     <xs:complexType>
       <xs:sequence>
@@ -5331,8 +5331,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalWallFinish_RC_LoadList" type="stb:monolist" />
-  <xs:element name="StbCalWallFinish_RC_MemList" type="stb:monolist" />
+  <xs:element name="StbCalWallFinish_RC_LoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalWallFinish_RC_MemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalWallAreaLoadArr">
     <xs:complexType>
       <xs:sequence>
@@ -5341,8 +5341,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalWallAreaLoadList" type="stb:monolist" />
-  <xs:element name="StbCalWallAreaLoadMemList" type="stb:monolist" />
+  <xs:element name="StbCalWallAreaLoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalWallAreaLoadMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalWallPressureLoadArr">
     <xs:complexType>
       <xs:sequence>
@@ -5351,8 +5351,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalWallPressureLoadList" type="stb:monolist" />
-  <xs:element name="StbCalWallPressureLoadMemList" type="stb:monolist" />
+  <xs:element name="StbCalWallPressureLoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalWallPressureLoadMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalNodeWeightArr">
     <xs:complexType>
       <xs:sequence>
@@ -5361,8 +5361,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalNodeWeightLoadList" type="stb:monolist" />
-  <xs:element name="StbCalNodeWeightNodeList" type="stb:monolist" />
+  <xs:element name="StbCalNodeWeightLoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalNodeWeightNodeList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalNodePointLoadArr">
     <xs:complexType>
       <xs:sequence>
@@ -5371,8 +5371,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalNodePointLoadList" type="stb:monolist" />
-  <xs:element name="StbCalNodePointLoadNodeList" type="stb:monolist" />
+  <xs:element name="StbCalNodePointLoadList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalNodePointLoadNodeList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalConditionArrangements">
     <xs:complexType>
       <xs:sequence>
@@ -5405,9 +5405,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalColumnConditionList" type="stb:monolist" />
-  <xs:element name="StbCalColumnConditionMemList" type="stb:monolist" />
-  <xs:element name="StbCalColumnConditionCalMemList" type="stb:monolist" />
+  <xs:element name="StbCalColumnConditionList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnConditionMemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnConditionCalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalColumnRigidzoneArr">
     <xs:complexType>
       <xs:sequence>
@@ -5417,9 +5417,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalColumnRigidzoneList" type="stb:monolist" />
-  <xs:element name="StbCalColumnRigidzoneMemList" type="stb:monolist" />
-  <xs:element name="StbCalColumnRigidzoneCalMemList" type="stb:monolist" />
+  <xs:element name="StbCalColumnRigidzoneList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnRigidzoneMemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnRigidzoneCalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalColumnCriticalPositionArr">
     <xs:complexType>
       <xs:sequence>
@@ -5429,9 +5429,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalColumnCriticalPositionList" type="stb:monolist" />
-  <xs:element name="StbCalColumnCriticalPositionMemList" type="stb:monolist" />
-  <xs:element name="StbCalColumnCriticalPositionCalMemList" type="stb:monolist" />
+  <xs:element name="StbCalColumnCriticalPositionList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnCriticalPositionMemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnCriticalPositionCalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalColumnStiffnessArr">
     <xs:complexType>
       <xs:sequence>
@@ -5441,9 +5441,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalColumnStiffnessList" type="stb:monolist" />
-  <xs:element name="StbCalColumnStiffnessMemList" type="stb:monolist" />
-  <xs:element name="StbCalColumnStiffnessCalMemList" type="stb:monolist" />
+  <xs:element name="StbCalColumnStiffnessList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnStiffnessMemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnStiffnessCalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalGirderConditionArr">
     <xs:complexType>
       <xs:sequence>
@@ -5453,9 +5453,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalGirderConditionList" type="stb:monolist" />
-  <xs:element name="StbCalGirderConditionMemList" type="stb:monolist" />
-  <xs:element name="StbCalGirderConditionCalMemList" type="stb:monolist" />
+  <xs:element name="StbCalGirderConditionList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderConditionMemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderConditionCalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalGirderRigidzoneArr">
     <xs:complexType>
       <xs:sequence>
@@ -5465,9 +5465,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalGirderRigidzoneList" type="stb:monolist" />
-  <xs:element name="StbCalGirderRigidzoneMemList" type="stb:monolist" />
-  <xs:element name="StbCalGirderRigidzoneCalMemList" type="stb:monolist" />
+  <xs:element name="StbCalGirderRigidzoneList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderRigidzoneMemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderRigidzoneCalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalGirderCriticalPositionArr">
     <xs:complexType>
       <xs:sequence>
@@ -5477,9 +5477,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalGirderCriticalPositionList" type="stb:monolist" />
-  <xs:element name="StbCalGirderCriticalPositionMemList" type="stb:monolist" />
-  <xs:element name="StbCalGirderCriticalPositionCalMemList" type="stb:monolist" />
+  <xs:element name="StbCalGirderCriticalPositionList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderCriticalPositionMemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderCriticalPositionCalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalGirderStiffnessArr">
     <xs:complexType>
       <xs:sequence>
@@ -5489,9 +5489,9 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalGirderStiffnessList" type="stb:monolist" />
-  <xs:element name="StbCalGirderStiffnessMemList" type="stb:monolist" />
-  <xs:element name="StbCalGirderStiffnessCalMemList" type="stb:monolist" />
+  <xs:element name="StbCalGirderStiffnessList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderStiffnessMemList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderStiffnessCalMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalBraceStiffnessArr">
     <xs:complexType>
       <xs:sequence>
@@ -5500,8 +5500,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalBraceStiffnessList" type="stb:monolist" />
-  <xs:element name="StbCalBraceStiffnessMemList" type="stb:monolist" />
+  <xs:element name="StbCalBraceStiffnessList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalBraceStiffnessMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalWallStiffnessArr">
     <xs:complexType>
       <xs:sequence>
@@ -5510,8 +5510,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalWallStiffnessList" type="stb:monolist" />
-  <xs:element name="StbCalWallStiffnessMemList" type="stb:monolist" />
+  <xs:element name="StbCalWallStiffnessList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalWallStiffnessMemList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalNodeRestrictionArr">
     <xs:complexType>
       <xs:sequence>
@@ -5520,8 +5520,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalNodeRestrictionList" type="stb:monolist" />
-  <xs:element name="StbCalNodeRestrictionNodeList" type="stb:monolist" />
+  <xs:element name="StbCalNodeRestrictionList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalNodeRestrictionNodeList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalNodePanelArr">
     <xs:complexType>
       <xs:sequence>
@@ -5530,8 +5530,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalNodePanelList" type="stb:monolist" />
-  <xs:element name="StbCalNodePanelNodeList" type="stb:monolist" />
+  <xs:element name="StbCalNodePanelList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalNodePanelNodeList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalColumnSecPropertyArr">
     <xs:complexType>
       <xs:sequence>
@@ -5543,11 +5543,11 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalColumnSecPropertyList" type="stb:monolist" />
-  <xs:element name="StbCalColumnSecProperty_RC_List" type="stb:monolist" />
-  <xs:element name="StbCalColumnSecProperty_S_List" type="stb:monolist" />
-  <xs:element name="StbCalColumnSecProperty_SRC_List" type="stb:monolist" />
-  <xs:element name="StbCalColumnSecProperty_CFT_List" type="stb:monolist" />
+  <xs:element name="StbCalColumnSecPropertyList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnSecProperty_RC_List" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnSecProperty_S_List" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnSecProperty_SRC_List" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalColumnSecProperty_CFT_List" type="stb:positiveIntegerList" />
   <xs:element name="StbCalGirderSecPropertyArr">
     <xs:complexType>
       <xs:sequence>
@@ -5558,10 +5558,10 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalGirderSecPropertyList" type="stb:monolist" />
-  <xs:element name="StbCalGirderSecProperty_RC_List" type="stb:monolist" />
-  <xs:element name="StbCalGirderSecProperty_S_List" type="stb:monolist" />
-  <xs:element name="StbCalGirderSecProperty_SRC_List" type="stb:monolist" />
+  <xs:element name="StbCalGirderSecPropertyList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderSecProperty_RC_List" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderSecProperty_S_List" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalGirderSecProperty_SRC_List" type="stb:positiveIntegerList" />
   <xs:element name="StbCalBraceSecPropertyArr">
     <xs:complexType>
       <xs:sequence>
@@ -5570,8 +5570,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalBraceSecPropertyList" type="stb:monolist" />
-  <xs:element name="StbCalBraceSecProperty_S_List" type="stb:monolist" />
+  <xs:element name="StbCalBraceSecPropertyList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalBraceSecProperty_S_List" type="stb:positiveIntegerList" />
   <xs:element name="StbCalSlabSecPropertyArr">
     <xs:complexType>
       <xs:sequence>
@@ -5582,10 +5582,10 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalSlabSecPropertyList" type="stb:monolist" />
-  <xs:element name="StbCalSlabSecProperty_RC_List" type="stb:monolist" />
-  <xs:element name="StbCalSlabSecPropertyDeckList" type="stb:monolist" />
-  <xs:element name="StbCalSlabSecPropertyPrecastList" type="stb:monolist" />
+  <xs:element name="StbCalSlabSecPropertyList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalSlabSecProperty_RC_List" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalSlabSecPropertyDeckList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalSlabSecPropertyPrecastList" type="stb:positiveIntegerList" />
   <xs:element name="StbCalWallSecPropertyArr">
     <xs:complexType>
       <xs:sequence>
@@ -5594,8 +5594,8 @@
       </xs:sequence>
     </xs:complexType>
   </xs:element>
-  <xs:element name="StbCalWallSecPropertyList" type="stb:monolist" />
-  <xs:element name="StbCalWallSecProperty_RC_List" type="stb:monolist" />
+  <xs:element name="StbCalWallSecPropertyList" type="stb:positiveIntegerList" />
+  <xs:element name="StbCalWallSecProperty_RC_List" type="stb:positiveIntegerList" />
   <xs:element name="StbAnaModels">
     <xs:complexType>
       <xs:sequence>
@@ -6377,7 +6377,7 @@
   <xs:element name="StbAnaNodeRel">
     <xs:complexType>
       <xs:simpleContent>
-        <xs:extension base="stb:monolist">
+        <xs:extension base="stb:positiveIntegerList">
           <xs:attribute name="id_ana_node" type="xs:positiveInteger" use="required" />
         </xs:extension>
       </xs:simpleContent>
@@ -6386,7 +6386,7 @@
   <xs:element name="StbAnaStoryRel">
     <xs:complexType>
       <xs:simpleContent>
-        <xs:extension base="stb:monolist">
+        <xs:extension base="stb:positiveIntegerList">
           <xs:attribute name="id_ana_story" type="xs:positiveInteger" use="required" />
         </xs:extension>
       </xs:simpleContent>
@@ -6395,7 +6395,7 @@
   <xs:element name="StbAnaMemberRel">
     <xs:complexType>
       <xs:simpleContent>
-        <xs:extension base="stb:monolist">
+        <xs:extension base="stb:positiveIntegerList">
           <xs:attribute name="id_ana_member" type="xs:positiveInteger" use="required" />
           <xs:attribute name="member_kind">
             <xs:simpleType>
@@ -6417,7 +6417,7 @@
   <xs:element name="StbAnaCalMemberRel">
     <xs:complexType>
       <xs:simpleContent>
-        <xs:extension base="stb:monolist">
+        <xs:extension base="stb:positiveIntegerList">
           <xs:attribute name="id_ana_member" type="xs:positiveInteger" use="required" />
           <xs:attribute name="member_kind">
             <xs:simpleType>
@@ -6434,7 +6434,7 @@
   <xs:element name="StbAnaPropertyRel">
     <xs:complexType>
       <xs:simpleContent>
-        <xs:extension base="stb:monolist">
+        <xs:extension base="stb:positiveIntegerList">
           <xs:attribute name="id_ana_property" type="xs:positiveInteger" use="required" />
           <xs:attribute name="section_kind">
             <xs:simpleType>

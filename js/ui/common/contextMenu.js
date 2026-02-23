@@ -31,7 +31,7 @@ export function initializeContextMenu() {
     max-width: 280px;
     z-index: 10000;
     padding: 4px 0;
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-sm);
     color: #e0e0e0;
   `;
 
@@ -177,4 +177,3 @@ function hideContextMenu() {
     menuElement.style.display = 'none';
   }
 }
-

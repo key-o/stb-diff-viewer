@@ -12,14 +12,8 @@
 import * as THREE from 'three';
 import { createLogger } from '../utils/logger.js';
 import { ELEMENT_PRIORITY } from '../app/progressiveLoader.js';
+import { eventBus, LoadingIndicatorEvents } from '../app/events/index.js';
 import {
-  getLoadingIndicator,
-  showLoading,
-  hideLoading,
-  completeLoading,
-} from '../ui/common/loadingIndicator.js';
-import {
-  materials,
   elementGroups,
   drawNodes,
   drawNodesBatched,
@@ -27,12 +21,10 @@ import {
   drawPolyElements,
   drawLineElementsBatched,
   shouldUseBatchRendering,
-  drawAxes,
-  drawStories,
-  getActiveCamera,
   displayModeManager,
 } from '../viewer/index.js';
 import { convertToDiffRenderModel, getDiffStatistics } from '../data/converters/index.js';
+import { renderAuxiliaryElements } from './renderingOrchestrator.js';
 
 const log = createLogger('modelLoader/progressiveRendering');
 
@@ -85,8 +77,7 @@ export async function orchestrateProgressiveRendering(
   // DiffRenderModelの統計情報をログ出力
   getDiffStatistics(diffRenderModel);
 
-  const indicator = getLoadingIndicator();
-  indicator.show('3Dモデルを描画中...');
+  eventBus.emit(LoadingIndicatorEvents.SHOW, { message: '3Dモデルを描画中...' });
 
   const renderingResults = {
     nodeLabels: [],
@@ -121,11 +112,11 @@ export async function orchestrateProgressiveRendering(
       (comparisonResult.onlyA?.length || 0) +
       (comparisonResult.onlyB?.length || 0);
 
-    indicator.update(
-      Math.round((processedElements / totalElements) * 100),
-      `描画中: ${elementType}`,
-      `${processedElements}/${totalElements} 要素`,
-    );
+    eventBus.emit(LoadingIndicatorEvents.UPDATE, {
+      progress: Math.round((processedElements / totalElements) * 100),
+      message: `描画中: ${elementType}`,
+      detail: `${processedElements}/${totalElements} 要素`,
+    });
 
     try {
       const elementRenderResult = await renderElementTypeAsync(
@@ -173,7 +164,7 @@ export async function orchestrateProgressiveRendering(
     });
   }
 
-  indicator.complete('描画完了');
+  eventBus.emit(LoadingIndicatorEvents.COMPLETE, { message: '描画完了' });
 
   return renderingResults;
 }
@@ -217,7 +208,7 @@ function orchestrateSynchronousRendering(comparisonResults, modelBounds, globalD
   }
 
   // 補助要素を描画
-  renderAuxiliaryElementsSync(globalData, renderingResults, modelBounds);
+  renderAuxiliaryElements(globalData, renderingResults, modelBounds);
 
   return renderingResults;
 }
@@ -273,15 +264,10 @@ function renderElementTypeSync(elementType, comparisonResult, modelBounds, _glob
     case 'Node':
       // 要素数が多い場合はバッチ処理（InstancedMesh）を使用
       if (useBatch) {
-        result.labels = drawNodesBatched(
-          comparisonResult,
-          materials,
-          group,
-          createLabels,
-          modelBounds,
-        );
+        // batched APIは互換性のため第2引数にmaterialsスロットを持つ（現在未使用）
+        result.labels = drawNodesBatched(comparisonResult, null, group, createLabels, modelBounds);
       } else {
-        result.labels = drawNodes(comparisonResult, materials, group, createLabels, modelBounds);
+        result.labels = drawNodes(comparisonResult, group, createLabels, modelBounds);
       }
       break;
 
@@ -302,7 +288,7 @@ function renderElementTypeSync(elementType, comparisonResult, modelBounds, _glob
       if (useBatch) {
         result.labels = drawLineElementsBatched(
           comparisonResult,
-          materials,
+          null,
           group,
           elementType,
           createLabels,
@@ -311,7 +297,6 @@ function renderElementTypeSync(elementType, comparisonResult, modelBounds, _glob
       } else {
         result.labels = drawLineElements(
           comparisonResult,
-          materials,
           group,
           elementType,
           createLabels,
@@ -324,13 +309,7 @@ function renderElementTypeSync(elementType, comparisonResult, modelBounds, _glob
     case 'Wall':
       // solidモードの場合はスキップ（applyInitialDisplayModesで描画される）
       if (displayModeManager.isSolidMode(elementType)) break;
-      result.labels = drawPolyElements(
-        comparisonResult,
-        materials,
-        group,
-        createLabels,
-        modelBounds,
-      );
+      result.labels = drawPolyElements(comparisonResult, group, createLabels, modelBounds);
       break;
 
     case 'Undefined':
@@ -355,43 +334,7 @@ function renderElementTypeSync(elementType, comparisonResult, modelBounds, _glob
  * @param {THREE.Box3} modelBounds - モデル境界
  */
 async function renderAuxiliaryElementsAsync(globalData, renderingResults, modelBounds) {
-  renderAuxiliaryElementsSync(globalData, renderingResults, modelBounds);
-}
-
-/**
- * 補助要素を同期的にレンダリング
- *
- * @param {Object} globalData - グローバルデータ
- * @param {Object} renderingResults - レンダリング結果
- * @param {THREE.Box3} modelBounds - モデル境界
- */
-function renderAuxiliaryElementsSync(globalData, renderingResults, modelBounds) {
-  const { stories, axesData } = globalData;
-
-  if (axesData && (axesData.xAxes.length > 0 || axesData.yAxes.length > 0)) {
-    try {
-      const axisLabels = drawAxes(
-        axesData,
-        stories,
-        elementGroups['Axis'],
-        modelBounds,
-        true,
-        getActiveCamera(),
-      );
-      renderingResults.nodeLabels.push(...axisLabels);
-    } catch (error) {
-      log.error('Error rendering axes:', error);
-    }
-  }
-
-  if (stories && stories.length > 0) {
-    try {
-      const storyLabels = drawStories(stories, elementGroups['Story'], modelBounds, true);
-      renderingResults.nodeLabels.push(...storyLabels);
-    } catch (error) {
-      log.error('Error rendering stories:', error);
-    }
-  }
+  renderAuxiliaryElements(globalData, renderingResults, modelBounds);
 }
 
 /**
@@ -429,14 +372,14 @@ function yieldToMain() {
  * 読み込み開始時のUI更新
  */
 export function onLoadingStart() {
-  showLoading('モデルを読み込み中...');
+  eventBus.emit(LoadingIndicatorEvents.SHOW, { message: 'モデルを読み込み中...' });
 }
 
 /**
  * 読み込み完了時のUI更新
  */
 export function onLoadingComplete() {
-  completeLoading('読み込み完了');
+  eventBus.emit(LoadingIndicatorEvents.COMPLETE, { message: '読み込み完了' });
 }
 
 /**
@@ -444,7 +387,5 @@ export function onLoadingComplete() {
  * @param {string} message
  */
 export function onLoadingError(message) {
-  const indicator = getLoadingIndicator();
-  indicator.error(message);
-  setTimeout(() => hideLoading(), 3000);
+  eventBus.emit(LoadingIndicatorEvents.ERROR, { message });
 }

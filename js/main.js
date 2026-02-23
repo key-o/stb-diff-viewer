@@ -42,6 +42,7 @@ import {
   setupLoadDisplayEventListeners,
 } from './app/initialization/systemInitializer.js';
 import { setupDevelopmentTools } from './app/initialization/devToolsInitializer.js';
+import { initArButton } from './ui/ar/arButton.js';
 
 // --- 初期化フラグ ---
 let rendererInitialized = false;
@@ -109,6 +110,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Phase 7: 開発ツールのセットアップ
     setupDevelopmentTools();
     log.info('✓ Phase 7: 開発ツールのセットアップが完了しました');
+
+    // Phase 8: AR機能の初期化（対応デバイスのみ）
+    initArButton().catch((e) => log.warn('AR機能の初期化をスキップ:', e));
+    log.info('✓ Phase 8: AR機能の初期化が完了しました');
 
     log.info('🎉 アプリケーションの起動が完了しました');
   } else {

@@ -15,14 +15,27 @@ import { createLogger } from '../../utils/logger.js';
 const log = createLogger('validation/importanceValidation');
 
 // 妥当な重要度レベルの定数
-export const VALID_IMPORTANCE_LEVELS = ['high', 'medium', 'low', 'notApplicable'];
+export const VALID_IMPORTANCE_LEVELS = [
+  // 現行レベル
+  'required',
+  'optional',
+  'unnecessary',
+  'notApplicable',
+  // 旧レベル（後方互換）
+  'high',
+  'medium',
+  'low',
+];
 
 // 重要度レベルの日本語名マッピング
 export const IMPORTANCE_LEVEL_NAMES = {
+  required: '対象',
+  optional: '対象',
+  unnecessary: '対象',
+  notApplicable: '対象外',
   high: '高重要度',
   medium: '中重要度',
   low: '低重要度',
-  notApplicable: '対象外',
 };
 
 /**

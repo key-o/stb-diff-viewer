@@ -19,6 +19,7 @@ import { floatingWindowManager } from './floatingWindowManager.js';
 import { eventBus, ImportanceEvents } from '../../app/events/index.js';
 import { storageHelper } from '../../utils/storageHelper.js';
 import { showSuccess, showError, showWarning, showInfo } from '../common/toast.js';
+import { downloadBlob } from '../../utils/downloadHelper.js';
 
 /**
  * 一括操作履歴エントリー
@@ -949,19 +950,7 @@ export class BulkImportanceOperations {
 
       const jsonContent = JSON.stringify(exportData, null, 2);
       const blob = new Blob([jsonContent], { type: 'application/json' });
-      const link = document.createElement('a');
-
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute(
-        'download',
-        `operation_history_${new Date().toISOString().slice(0, 10)}.json`,
-      );
-      link.style.visibility = 'hidden';
-
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadBlob(blob, `operation_history_${new Date().toISOString().slice(0, 10)}.json`);
     } catch (error) {
       console.error('Failed to export history:', error);
       showError('履歴の出力に失敗しました。');
@@ -991,19 +980,7 @@ export class BulkImportanceOperations {
 
       const jsonContent = JSON.stringify(exportData, null, 2);
       const blob = new Blob([jsonContent], { type: 'application/json' });
-      const link = document.createElement('a');
-
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute(
-        'download',
-        `bulk_operations_export_${new Date().toISOString().slice(0, 10)}.json`,
-      );
-      link.style.visibility = 'hidden';
-
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadBlob(blob, `bulk_operations_export_${new Date().toISOString().slice(0, 10)}.json`);
     } catch (error) {
       console.error('Failed to export settings:', error);
       showError('設定の出力に失敗しました。');

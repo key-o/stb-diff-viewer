@@ -65,7 +65,7 @@
 #section-tree-container {
   max-height: calc(80vh - 100px);
   overflow-y: auto;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
 }
 
 /* ========================================
@@ -125,7 +125,7 @@
 
 .tree-icon {
   margin-right: var(--spacing-xs);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
 }
 
 .tree-label {
@@ -361,7 +361,7 @@
 .section-type-header {
   display: flex;
   align-items: center;
-  padding: 8px 10px;
+  padding: var(--spacing-sm) 10px;
   cursor: pointer;
   background-color: #f8f9fa;
   border-radius: var(--border-radius);
@@ -530,7 +530,7 @@
    ======================================== */
 
 .tree-search-container {
-  padding: 8px;
+  padding: var(--spacing-sm);
   background: linear-gradient(to bottom, #f8f9fa, #ffffff);
   border-bottom: 1px solid #dee2e6;
   display: flex;
@@ -546,7 +546,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 4px 12px;
+  gap: var(--spacing-xs) 12px;
   padding-bottom: 4px;
   border-bottom: 1px solid #e9ecef;
 }
@@ -576,9 +576,8 @@
 .tree-search-target-option input[type="checkbox"] {
   margin: 0;
   cursor: pointer;
-  width: 14px;
-  height: 14px;
-  accent-color: #228be6;
+  width: var(--checkbox-size);
+  height: var(--checkbox-size);
 }
 
 .tree-search-input-wrapper {
@@ -738,7 +737,7 @@
   padding: 20px;
   text-align: center;
   color: #868e96;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
 }
 
 /* ========================================

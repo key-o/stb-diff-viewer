@@ -8,7 +8,7 @@
  */
 
 // プロジェクト固有の依存関係をインポート
-import { validateElement, isSchemaLoaded } from '../../common-stb/parser/xsdSchemaParser.js';
+import { validateElement, isSchemaLoaded } from '../../common-stb/import/parser/jsonSchemaLoader.js';
 import { formatValidationReport } from '../../common-stb/validation/stbValidator.js';
 import { formatRepairReport } from '../../common-stb/repair/stbRepairEngine.js';
 

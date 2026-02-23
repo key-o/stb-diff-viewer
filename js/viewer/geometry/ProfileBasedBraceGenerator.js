@@ -4,7 +4,7 @@
  * BaseElementGeneratorを継承した統一アーキテクチャ:
  * - MeshCreationValidator: バリデーション
  * - MeshMetadataBuilder: メタデータ構築
- * - SectionTypeNormalizer: 断面タイプ正規化
+ * - sectionTypeUtil: 断面タイプ正規化
  *
  * ブレース特有の機能:
  * - 中心配置（placementMode: 'center'）
@@ -17,10 +17,9 @@
 
 import * as THREE from 'three';
 import { createExtrudeGeometry } from './core/ThreeJSConverter.js';
-import { materials } from '../rendering/materials.js';
+import { colorManager } from '../rendering/colorManager.js';
 import { ElementGeometryUtils } from './ElementGeometryUtils.js';
 import { BaseElementGenerator } from './core/BaseElementGenerator.js';
-import { SectionTypeNormalizer } from './core/SectionTypeNormalizer.js';
 import { MeshMetadataBuilder } from './core/MeshMetadataBuilder.js';
 
 /**
@@ -94,8 +93,8 @@ export class ProfileBasedBraceGenerator extends BaseElementGenerator {
       return null;
     }
 
-    // 3. 断面タイプの推定（SectionTypeNormalizer使用）
-    const sectionType = this._normalizeSectionType(sectionData);
+    // 3. 断面タイプの推定
+    const sectionType = this._resolveGeometryProfileType(sectionData);
 
     log.debug(`Creating brace ${brace.id}: section_type=${sectionType}`);
 
@@ -141,7 +140,10 @@ export class ProfileBasedBraceGenerator extends BaseElementGenerator {
     }
 
     // 8. メッシュを作成
-    const mesh = new THREE.Mesh(geometry, materials.matchedMesh);
+    const mesh = new THREE.Mesh(
+      geometry,
+      colorManager.getMaterial('diff', { comparisonState: 'matched' }),
+    );
 
     // 9. 配置を適用
     mesh.position.copy(placement.center);
@@ -187,3 +189,5 @@ export function createBraceMeshes(
     isJsonInput,
   );
 }
+
+

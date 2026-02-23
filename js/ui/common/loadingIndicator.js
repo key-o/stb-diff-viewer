@@ -130,7 +130,7 @@ class LoadingIndicator {
       }
 
       .loading-indicator-percent {
-        font-size: var(--font-size-xl);
+        font-size: var(--font-size-lg);
         font-weight: var(--font-weight-bold);
         color: #4CAF50;
         font-family: var(--font-family-monospace);
@@ -379,7 +379,6 @@ export function getLoadingIndicator() {
 export function showLoading(message) {
   getLoadingIndicator().show(message);
 }
-
 
 /**
  * ローディングを非表示

@@ -32,7 +32,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: var(--spacing-sm) 12px;
   background: var(--bg-secondary, #f5f5f5);
   border-bottom: 1px solid var(--border-color, #ddd);
   flex-shrink: 0;
@@ -43,12 +43,37 @@
   gap: 12px;
 }
 
+.section-list-render-settings {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-list-render-settings label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.section-list-render-settings select,
+.section-list-render-settings input {
+  height: 24px;
+  font-size: var(--font-size-sm);
+  padding: 1px 4px;
+}
+
+.section-list-render-settings input {
+  width: 56px;
+}
+
 .section-list-source-selector label {
   display: flex;
   align-items: center;
   gap: 4px;
   cursor: pointer;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
 }
 
 .section-list-info {
@@ -73,22 +98,25 @@
 
 .beam-section-list-table th,
 .beam-section-list-table td {
-  border: 1px solid var(--border-color, #ccc);
-  padding: 8px;
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 8px;
+  text-align: left;
   vertical-align: top;
+  word-wrap: break-word;
 }
 
 /* ヘッダー */
 .section-list-header-floor,
 .section-list-header-symbol,
 .section-list-header-section {
-  background: var(--bg-tertiary, #e8e8e8);
-  font-weight: var(--font-weight-bold);
+  background: var(--bg-secondary);
+  font-weight: var(--font-weight-semibold);
   text-align: center;
-  padding: 10px 8px;
+  padding: 8px 8px;
   position: sticky;
   top: 0;
   z-index: 1;
+  color: var(--text-heading);
 }
 
 .section-list-header-floor {
@@ -141,7 +169,7 @@
 .section-cell-content {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--spacing-xs);
 }
 
 .section-cell-name {
@@ -150,18 +178,18 @@
   color: var(--text-primary, #333);
   background: var(--bg-secondary, #f0f0f0);
   padding: 2px 4px;
-  border-radius: 2px;
+  border-radius: var(--border-radius-sm);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .section-cell-pattern {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--text-secondary, #666);
-  padding: 1px 4px;
+  padding: 1px var(--spacing-xs);
   background: var(--bg-tertiary, #f0f0f0);
-  border-radius: 2px;
+  border-radius: var(--border-radius-sm);
   white-space: nowrap;
 }
 
@@ -180,7 +208,7 @@
 .beam-positions-container {
   display: flex;
   flex-direction: row;
-  gap: 4px;
+  gap: var(--spacing-xs);
   justify-content: center;
   align-items: flex-start;
   flex-wrap: wrap;
@@ -198,7 +226,7 @@
 }
 
 .beam-position-item .position-label {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--text-secondary, #666);
   font-weight: var(--font-weight-bold);
   white-space: nowrap;
@@ -214,11 +242,11 @@
   max-width: 80px;
   max-height: 80px;
   border: 1px solid var(--border-color, #eee);
-  border-radius: 2px;
+  border-radius: var(--border-radius-sm);
 }
 
 .beam-position-item .position-dims {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--text-secondary, #666);
   white-space: nowrap;
 }
@@ -261,7 +289,7 @@
 }
 
 .multi-position-spec .position-spec {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   display: block;
   line-height: 1.2;
 }
@@ -360,7 +388,7 @@
 
 .section-list-table-wrapper.grid-mode::-webkit-scrollbar-thumb {
   background: var(--border-color, #ccc);
-  border-radius: 6px;
+  border-radius: var(--border-radius-lg);
 }
 
 .section-list-table-wrapper.grid-mode::-webkit-scrollbar-thumb:hover {
@@ -460,7 +488,7 @@
   text-align: center;
   background: white;
   vertical-align: top;
-  padding: 4px;
+  padding: var(--spacing-xs);
 }
 
 /* セル内をflexbox縦配置でレイアウト */
@@ -468,7 +496,7 @@
   display: flex;
   flex-direction: column;
   height: auto;
-  gap: 4px;
+  gap: var(--spacing-xs);
 }
 
 /* セル内の各要素 */
@@ -495,7 +523,7 @@
   height: auto;
   min-height: 14px;
   line-height: 1.2;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   padding: 1px 3px;
 }
 
@@ -524,7 +552,7 @@
 }
 
 .section-grid-section-cell .beam-position-item .position-label {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   line-height: 1;
   white-space: nowrap;
 }
@@ -538,16 +566,16 @@
 }
 
 .section-grid-section-cell .beam-position-item .beam-section-diagram svg {
-  max-width: 70px;
-  max-height: 70px;
+  max-width: 90px;
+  max-height: 90px;
   border: 1px solid var(--border-color, #e8e8e8);
-  border-radius: 2px;
+  border-radius: var(--border-radius-sm);
   padding: 2px;
   background: white;
 }
 
 .section-grid-section-cell .beam-position-item .position-dims {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   line-height: 1;
   white-space: nowrap;
 }
@@ -565,7 +593,7 @@
 .section-grid-section-cell .section-specs-table {
   width: 100%;
   table-layout: fixed;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
 }
 
 .section-grid-section-cell .section-specs-table td {
@@ -578,11 +606,11 @@
   width: 50px;
   min-width: 50px;
   font-weight: var(--font-weight-bold);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
 }
 
 .section-grid-section-cell .section-specs-table .spec-value {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
 }
 
 /* 複数位置仕様（グリッド用） */
@@ -593,7 +621,7 @@
 }
 
 .section-grid-section-cell .multi-position-spec .position-spec {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   line-height: 1.2;
 }
 
@@ -639,8 +667,8 @@
   }
 
   .section-grid-section-cell .beam-position-item .beam-section-diagram svg {
-    max-width: 80px;
-    max-height: 80px;
+    max-width: 95px;
+    max-height: 95px;
   }
 
   .section-grid-section-cell {
@@ -686,8 +714,8 @@
   }
 
   .section-grid-section-cell .beam-position-item .beam-section-diagram svg {
-    max-width: 65px;
-    max-height: 65px;
+    max-width: 80px;
+    max-height: 80px;
   }
 }
 

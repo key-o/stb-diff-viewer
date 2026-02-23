@@ -12,6 +12,24 @@
   margin-bottom: 20px;
 }
 
+.clipping-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.clipping-row select {
+  flex: 1;
+  min-width: 0;
+}
+
+.clipping-row .clip-apply-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-top: 0;
+}
+
 .clipping-controls {
   display: flex;
   align-items: center;
@@ -80,7 +98,7 @@
 
 .range-value-display {
   text-align: center;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
   background: var(--bg-body);
@@ -208,4 +226,41 @@
 
 .clipping-group.active .clip-apply-btn:hover {
   filter: brightness(0.9);
+}
+
+/* ========================================
+   セクションボックス
+   ======================================== */
+
+.section-box-group {
+  margin-bottom: 8px;
+}
+
+.section-box-toggle-btn {
+  width: 100%;
+  background: var(--color-primary);
+  color: var(--text-white);
+  border: none;
+  padding: var(--spacing-sm) var(--btn-padding-x-lg);
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.section-box-toggle-btn:hover {
+  filter: brightness(0.9);
+}
+
+.section-box-toggle-btn.active {
+  background: var(--color-warning);
+  color: var(--text-primary);
+}
+
+.section-box-hint {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin: 6px 0 0;
+  text-align: center;
 }

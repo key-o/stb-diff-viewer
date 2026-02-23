@@ -25,11 +25,11 @@ export function initializeImportanceColorControls() {
     import('../app/importanceManager.js'),
     import('../constants/importanceLevels.js'),
     import('../config/importanceConfigLoader.js'),
-    import('../config/importanceConfig.js'),
+    import('../config/colorConfig.js'),
   ]).then(
     ([
       { getImportanceManager },
-      { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES },
+      { IMPORTANCE_LEVELS },
       { AVAILABLE_CONFIGS },
       { IMPORTANCE_COLORS: _IMPORTANCE_COLORS },
     ]) => {
@@ -50,7 +50,7 @@ export function initializeImportanceColorControls() {
       const configSelect = document.createElement('select');
       configSelect.id = 'mvd-config-selector';
       configSelect.style.cssText =
-        'width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: var(--font-size-md);';
+        'width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: var(--font-size-sm);';
 
       // オプションを追加
       const defaultOption = document.createElement('option');
@@ -86,17 +86,35 @@ export function initializeImportanceColorControls() {
       configSelectorContainer.appendChild(configSelect);
       container.appendChild(configSelectorContainer);
 
-      // ColorManagerから現在の色を取得（単一データソース）
-      Object.entries(IMPORTANCE_LEVELS).forEach(([_key, level]) => {
+      // 違反/対象外の2カテゴリで色設定を表示（高/中/低の区分なし）
+      const colorCategories = [
+        {
+          id: 'violation',
+          name: '違反',
+          level: IMPORTANCE_LEVELS.REQUIRED,
+          linkedLevels: [
+            IMPORTANCE_LEVELS.REQUIRED,
+            IMPORTANCE_LEVELS.OPTIONAL,
+            IMPORTANCE_LEVELS.UNNECESSARY,
+          ],
+        },
+        {
+          id: 'notApplicable',
+          name: '対象外',
+          level: IMPORTANCE_LEVELS.NOT_APPLICABLE,
+          linkedLevels: [IMPORTANCE_LEVELS.NOT_APPLICABLE],
+        },
+      ];
+
+      colorCategories.forEach(({ id, name, level, linkedLevels }) => {
         const color = colorManager.getImportanceColor(level);
-        const name = IMPORTANCE_LEVEL_NAMES[level];
 
         const item = document.createElement('div');
         item.className = 'legend-item';
         item.innerHTML = `
           <input
             type="color"
-            id="importance-${level}-color"
+            id="importance-${id}-color"
             value="${color}"
             class="legend-color-box"
             title="${name}の色を変更"
@@ -106,38 +124,29 @@ export function initializeImportanceColorControls() {
 
         container.appendChild(item);
 
-        // 色変更イベントリスナーを追加
-        const colorInput = item.querySelector(`#importance-${level}-color`);
+        const colorInput = item.querySelector(`#importance-${id}-color`);
 
-        colorInput.addEventListener('change', (e) => {
+        // 色変更時、リンクされた全レベルを一括更新
+        const handleColorChange = (e) => {
           const newColor = e.target.value;
-          // 重要度色設定を更新
-          updateImportanceColor(level, newColor);
-        });
+          linkedLevels.forEach((l) => updateImportanceColor(l, newColor));
+        };
 
-        // リアルタイム色変更（input イベント）
-        colorInput.addEventListener('input', (e) => {
-          const newColor = e.target.value;
-          updateImportanceColor(level, newColor);
-        });
+        colorInput.addEventListener('change', handleColorChange);
+        colorInput.addEventListener('input', handleColorChange);
       });
 
       // リセットボタンを追加
-      import('../ui/common/buttonManager.js').then(({ buttonManager: importanceBtnManager }) => {
-        const resetButton = importanceBtnManager.createButton({
-          type: 'reset',
-          text: 'デフォルト色に戻す',
-          onClick: () => resetImportanceColors(),
-          ariaLabel: '重要度色をデフォルトに戻す',
-          title: '重要度色をデフォルト設定に戻します',
-          customStyle: {
-            marginTop: '10px',
-            fontSize: '0.8em',
-            width: '100%',
-          },
-        });
-        container.appendChild(resetButton);
-      });
+      const resetButton = document.createElement('button');
+      resetButton.type = 'button';
+      resetButton.className = 'btn-reset';
+      resetButton.textContent = 'デフォルト色に戻す';
+      resetButton.setAttribute('aria-label', '重要度色をデフォルトに戻す');
+      resetButton.title = '重要度色をデフォルト設定に戻します';
+      resetButton.style.marginTop = '10px';
+      resetButton.style.width = '100%';
+      resetButton.addEventListener('click', () => resetImportanceColors());
+      container.appendChild(resetButton);
     },
   );
 }
@@ -167,7 +176,7 @@ function updateImportanceColor(importanceLevel, color) {
  * 重要度色設定をデフォルトにリセット
  */
 export function resetImportanceColors() {
-  import('../config/importanceConfig.js').then(({ IMPORTANCE_COLORS }) => {
+  import('../config/colorConfig.js').then(({ IMPORTANCE_COLORS }) => {
     // ColorManagerを使用して色をリセット（単一データソース）
     Object.entries(IMPORTANCE_COLORS).forEach(([level, color]) => {
       colorManager.setImportanceColor(level, color);

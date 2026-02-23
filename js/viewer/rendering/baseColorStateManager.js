@@ -171,6 +171,55 @@ class BaseColorStateManager extends BaseElementStateManager {
   }
 }
 
+/**
+ * 色管理マネージャーのファクトリ関数
+ *
+ * 同一パターンのサブクラス（ElementColorManager, SchemaColorManager, LoadColorManager 等）を
+ * ボイラープレートなしで生成します。
+ *
+ * @param {Object} options - ファクトリオプション
+ * @param {Object} options.colorConfig - 色設定オブジェクト（タイプ: 色コード）
+ * @param {string} options.managerName - マネージャー名（ログ出力用）
+ * @param {string} options.methodPrefix - メソッド名プレフィックス（例: 'Element' → getElementColor）
+ * @param {string|null} [options.fallbackKey=null] - getColor が undefined を返した場合のフォールバックキー
+ * @returns {{ manager: BaseColorStateManager, types: string[], defaults: Object }}
+ */
+function createColorManager({ colorConfig, managerName, methodPrefix, fallbackKey = null }) {
+  const types = Object.keys(colorConfig);
+  const defaults = { ...colorConfig };
+
+  class GeneratedColorManager extends BaseColorStateManager {
+    constructor() {
+      super(types, defaults, managerName);
+    }
+  }
+
+  // get<Prefix>Color(type)
+  const getMethodName = `get${methodPrefix}Color`;
+  if (fallbackKey) {
+    GeneratedColorManager.prototype[getMethodName] = function (type) {
+      return this.getColor(type) || this.getColor(fallbackKey);
+    };
+  } else {
+    GeneratedColorManager.prototype[getMethodName] = function (type) {
+      return this.getColor(type);
+    };
+  }
+
+  // set<Prefix>Color(type, color)
+  GeneratedColorManager.prototype[`set${methodPrefix}Color`] = function (type, color) {
+    return this.setColor(type, color);
+  };
+
+  // getAll<Prefix>Colors()
+  GeneratedColorManager.prototype[`getAll${methodPrefix}Colors`] = function () {
+    return this.getAllColors();
+  };
+
+  const manager = new GeneratedColorManager();
+  return { manager, types, defaults };
+}
+
 // BaseColorStateManagerクラスをエクスポート
-export { BaseColorStateManager };
+export { BaseColorStateManager, createColorManager };
 export default BaseColorStateManager;

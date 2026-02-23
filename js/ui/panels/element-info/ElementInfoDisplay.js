@@ -13,15 +13,16 @@
  * - STB要素の詳細属性と子要素の表示
  */
 
-// XSDスキーマパーサーをインポート
+// JSON Schemaローダーをインポート
 import {
   isSchemaLoaded,
   getAllAttributeNames,
-  loadXsdSchema,
-} from '../../../common-stb/parser/xsdSchemaParser.js';
+  initializeJsonSchemas,
+} from '../../../common-stb/import/parser/jsonSchemaLoader.js';
 
 // ストレージヘルパー
 import { storageHelper } from '../../../utils/storageHelper.js';
+import { downloadBlob } from '../../../utils/downloadHelper.js';
 
 // Logger
 import { createLogger } from '../../../utils/logger.js';
@@ -31,12 +32,17 @@ const logger = createLogger('viewer:element-info');
 // グローバル状態とimportanceManagerをインポート
 import { getState } from '../../../app/globalState.js';
 import { getImportanceManager } from '../../../app/importanceManager.js';
+import { eventBus, ImportanceEvents } from '../../../app/events/index.js';
 
 // バリデーション連携機能をインポート
-import { generateValidationInfoHtml } from '../../../common-stb/validation/validationManager.js';
+import {
+  generateValidationInfoHtml,
+  getElementValidation,
+} from '../../../common-stb/validation/validationManager.js';
+import { getAttributeImportanceLevel } from './ImportanceColors.js';
 
 // サブモジュールのインポート
-import { setElementInfoProviders, getFloatingWindowManager } from './ElementInfoProviders.js';
+import { setElementInfoProviders } from './ElementInfoProviders.js';
 import {
   setDisplayElementInfoFn,
   setCurrentEditingElement,
@@ -57,6 +63,113 @@ import {
 let storedPanelWidth = storageHelper.get('panelWidth');
 let storedPanelHeight = storageHelper.get('panelHeight');
 
+// 現在表示中の要素ノード（JSON出力用）
+let currentDisplayNodes = { nodeA: null, nodeB: null, elementType: null };
+
+/**
+ * XML要素ノードをJSONオブジェクトに再帰変換する
+ * @param {Element} node - XML要素ノード
+ * @returns {Object} JSONオブジェクト
+ */
+function xmlNodeToJson(node) {
+  if (!node) return null;
+  const obj = { tagName: node.tagName, attributes: {} };
+  for (const attr of node.attributes) {
+    obj.attributes[attr.name] = attr.value;
+  }
+  const childElements = Array.from(node.children);
+  if (childElements.length > 0) {
+    obj.children = childElements.map(xmlNodeToJson);
+  } else {
+    const text = node.textContent?.trim();
+    if (text) obj.textContent = text;
+  }
+  return obj;
+}
+
+/**
+ * nodeA/nodeBの全属性を走査し、REQUIRED属性のうちA/B間で値が異なるものを返す
+ * @param {Element|null} nodeA
+ * @param {Element|null} nodeB
+ * @param {string} elementType
+ * @returns {Array<{attribute: string, valueA: string|null, valueB: string|null}>}
+ */
+function collectImportanceViolations(nodeA, nodeB, elementType) {
+  if (!nodeA || !nodeB || !elementType) return [];
+
+  const allAttrs = new Set([
+    ...Array.from(nodeA.attributes).map((a) => a.name),
+    ...Array.from(nodeB.attributes).map((a) => a.name),
+  ]);
+
+  const violations = [];
+  for (const attrName of allAttrs) {
+    const level = getAttributeImportanceLevel(elementType, attrName);
+    if (level !== 'required') continue;
+    const valA = nodeA.getAttribute(attrName);
+    const valB = nodeB.getAttribute(attrName);
+    if (valA !== valB) {
+      violations.push({ attribute: attrName, valueA: valA, valueB: valB });
+    }
+  }
+  return violations;
+}
+
+/**
+ * 現在表示中の要素情報をJSONとしてダウンロードする
+ */
+export function exportElementInfoAsJson() {
+  const { nodeA, nodeB, elementType } = currentDisplayNodes;
+  if (!nodeA && !nodeB) {
+    logger.warn('No element selected for JSON export');
+    return;
+  }
+
+  const elementId = nodeA?.getAttribute('id') || nodeB?.getAttribute('id') || 'unknown';
+
+  // バリデーション情報（スキーマ違反）
+  const rawValidation = getElementValidation(elementId);
+  const validation = rawValidation
+    ? {
+        errors: rawValidation.errors.map(
+          ({ severity, category, message, repairable, repairSuggestion }) => ({
+            severity,
+            category,
+            message,
+            repairable,
+            ...(repairSuggestion ? { repairSuggestion } : {}),
+          }),
+        ),
+        warnings: rawValidation.warnings.map(
+          ({ severity, category, message, repairable, repairSuggestion }) => ({
+            severity,
+            category,
+            message,
+            repairable,
+            ...(repairSuggestion ? { repairSuggestion } : {}),
+          }),
+        ),
+        errorCount: rawValidation.errors.length,
+        warningCount: rawValidation.warnings.length,
+      }
+    : null;
+
+  // 重要度設定違反（REQUIRED属性のA/B差分）
+  const importanceViolations = collectImportanceViolations(nodeA, nodeB, elementType);
+
+  const json = {
+    elementType,
+    exportedAt: new Date().toISOString(),
+    modelA: xmlNodeToJson(nodeA),
+    modelB: xmlNodeToJson(nodeB),
+    validation,
+    importanceViolations: importanceViolations.length > 0 ? importanceViolations : null,
+  };
+
+  const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+  downloadBlob(blob, `element_${elementType}_${elementId}.json`);
+}
+
 // XSDスキーマの初期化フラグ
 let schemaInitialized = false;
 
@@ -73,14 +186,12 @@ async function initializeSchema() {
   }
 
   try {
-    // ST-Bridge202.xsdファイルを使用（相対パスで指定）
-    const xsdPath = './schemas/ST-Bridge202.xsd';
-    const success = await loadXsdSchema(xsdPath);
+    const success = await initializeJsonSchemas();
     if (!success) {
-      logger.warn('XSD schema initialization failed, using fallback mode');
+      logger.warn('JSON Schema initialization failed, using fallback mode');
     }
   } catch (error) {
-    logger.warn('XSD schema initialization error:', error);
+    logger.warn('JSON Schema initialization error:', error);
   } finally {
     schemaInitialized = true;
   }
@@ -208,8 +319,8 @@ function applyPanelSize(panel) {
 
   // 初回設定時のデフォルト幅
   if (!storedPanelWidth) {
-    const hasModelA = !!window.docA;
-    const hasModelB = !!window.docB;
+    const hasModelA = !!getState('models.documentA');
+    const hasModelB = !!getState('models.documentB');
     const isSingleModel = (hasModelA && !hasModelB) || (!hasModelA && hasModelB);
 
     if (isSingleModel) {
@@ -314,10 +425,6 @@ function tryFallbackDisplay(elementType, idA, idB, contentDiv) {
         }</div>
       `;
 
-      const fwm = getFloatingWindowManager();
-      if (fwm) {
-        fwm.showWindow('component-info');
-      }
       return true;
     }
   } catch (e) {
@@ -456,14 +563,17 @@ function showInfo(
     return;
   }
 
+  // 現在表示中のノードを保存（JSON出力用）
+  currentDisplayNodes = { nodeA, nodeB, elementType };
+
   const idA = nodeA ? nodeA.getAttribute('id') : null;
   const idB = nodeB ? nodeB.getAttribute('id') : null;
 
   let content = `<h3>${title}</h3>`;
 
   // モデルが一つだけかどうかを判定
-  const hasModelA = !!window.docA;
-  const hasModelB = !!window.docB;
+  const hasModelA = !!getState('models.documentA');
+  const hasModelB = !!getState('models.documentB');
   const isSingleModel = (hasModelA && !hasModelB) || (!hasModelA && hasModelB);
   const hasOnlyA = nodeA && !nodeB;
   const hasOnlyB = !nodeA && nodeB;
@@ -508,12 +618,23 @@ function showInfo(
 
   content += '</tbody></table>';
 
-  // バリデーション情報を追加
+  // バリデーション情報を追加（親要素）
   const elementId = idA || idB;
   if (elementId) {
     const validationHtml = generateValidationInfoHtml(elementId);
     if (validationHtml) {
       content += validationHtml;
+    }
+  }
+
+  // バリデーション情報を追加（断面要素：断面自身のIDで格納されているため別途取得）
+  const sectionIdA = nodeA?.getAttribute('id_section');
+  const sectionIdB = nodeB?.getAttribute('id_section');
+  const sectionIds = [...new Set([sectionIdA, sectionIdB].filter(Boolean))];
+  for (const sectionId of sectionIds) {
+    const sectionValidationHtml = generateValidationInfoHtml(sectionId);
+    if (sectionValidationHtml) {
+      content += sectionValidationHtml;
     }
   }
 
@@ -642,8 +763,8 @@ function renderJointParentRow(label, valueA, valueB, showSingleColumn, parentRow
  * @param {Object|null} jointMeshDataB - 継手メッシュデータB
  */
 function showJointMeshDataOnly(panel, title, contentDiv, jointMeshDataA, jointMeshDataB) {
-  const hasModelA = !!window.docA;
-  const hasModelB = !!window.docB;
+  const hasModelA = !!getState('models.documentA');
+  const hasModelB = !!getState('models.documentB');
   const isSingleModel = (hasModelA && !hasModelB) || (!hasModelA && hasModelB);
   const hasOnlyA = jointMeshDataA && !jointMeshDataB;
   const hasOnlyB = !jointMeshDataA && jointMeshDataB;
@@ -667,7 +788,7 @@ function showJointMeshDataOnly(panel, title, contentDiv, jointMeshDataA, jointMe
 
   content += '</tbody></table>';
   content +=
-    '<p style="color: orange; font-size: var(--font-size-md); margin-top: 8px;">※ XML内に継手定義が見つかりませんでした。メッシュデータのみを表示しています。</p>';
+    '<p style="color: orange; font-size: var(--font-size-sm); margin-top: 8px;">※ XML内に継手定義が見つかりませんでした。メッシュデータのみを表示しています。</p>';
 
   contentDiv.innerHTML = content;
 
@@ -719,16 +840,10 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
     return;
   }
 
-  // 要素情報を表示する際にパネルを自動的に表示
-  if (elementType && (idA || idB)) {
-    const fwm = getFloatingWindowManager();
-    if (fwm) {
-      fwm.showWindow('component-info');
-    }
-  }
-
   // --- 単一モデル / XML未ロード時のフォールバック ---
-  if (elementType && !window.docA && !window.docB) {
+  const docA = getState('models.documentA');
+  const docB = getState('models.documentB');
+  if (elementType && !docA && !docB) {
     if (tryFallbackDisplay(elementType, idA, idB, contentDiv)) {
       return;
     }
@@ -766,12 +881,12 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
     );
 
     // XMLから継手要素を検索
-    if (jointIdA && window.docA) {
-      nodeA = findJointXmlNode(window.docA, jointIdA);
+    if (jointIdA && docA) {
+      nodeA = findJointXmlNode(docA, jointIdA);
       logger.debug(`Joint XML search in docA for id=${jointIdA}: ${nodeA ? 'found' : 'not found'}`);
     }
-    if (jointIdB && window.docB) {
-      nodeB = findJointXmlNode(window.docB, jointIdB);
+    if (jointIdB && docB) {
+      nodeB = findJointXmlNode(docB, jointIdB);
       logger.debug(`Joint XML search in docB for id=${jointIdB}: ${nodeB ? 'found' : 'not found'}`);
     }
 
@@ -791,24 +906,24 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
           : `Stb${elementType}`;
 
     // モデルAの要素を取得試行
-    if (idA && window.docA) {
-      const resultA = findElementWithFallback(window.docA, idA, tagName, elementType, 'A');
+    if (idA && docA) {
+      const resultA = findElementWithFallback(docA, idA, tagName, elementType, 'A');
       nodeA = resultA.node;
       if (nodeA) {
         actualElementType = resultA.foundType;
       }
-    } else if (idA && !window.docA) {
+    } else if (idA && !docA) {
       logger.error(`XML document for model A not found.`);
     }
 
     // モデルBの要素を取得試行
-    if (idB && window.docB) {
-      const resultB = findElementWithFallback(window.docB, idB, tagName, elementType, 'B');
+    if (idB && docB) {
+      const resultB = findElementWithFallback(docB, idB, tagName, elementType, 'B');
       nodeB = resultB.node;
       if (nodeB && !nodeA) {
         actualElementType = resultB.foundType;
       }
-    } else if (idB && !window.docB) {
+    } else if (idB && !docB) {
       logger.error(`XML document for model B not found.`);
     }
   }
@@ -900,7 +1015,7 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
       // MVD設定名の短縮
       const shortName =
         {
-          'mvd-combined': 'S2+S4',
+          'mvd-combined': '統合',
           s2: 'S2',
           s4: 'S4',
         }[configId] || 'デフォルト';
@@ -962,6 +1077,14 @@ export { getCurrentEditingElement as getCurrentSelectedElement };
 
 // 循環依存回避のため、EditModeにdisplayElementInfo関数を登録
 setDisplayElementInfoFn(displayElementInfo);
+
+// 重要度設定変更時に要素情報パネルを再レンダリング（S2/S4インジケーターを最新化）
+eventBus.on(ImportanceEvents.SETTINGS_CHANGED, () => {
+  refreshElementInfoPanel();
+});
+
+// グローバル関数として登録（index.htmlのonclick属性から呼び出せるように）
+window.exportElementInfoAsJson = exportElementInfoAsJson;
 
 // エクスポート（互換性維持）
 export { setElementInfoProviders, toggleEditMode, exportModifications, clearModifications };

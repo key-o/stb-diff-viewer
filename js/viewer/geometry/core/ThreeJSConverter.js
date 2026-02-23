@@ -227,4 +227,3 @@ function createProfileOutlineGeometry(profileData, length, { includeEndCaps = tr
 
   return new THREE.BufferGeometry().setFromPoints(points);
 }
-

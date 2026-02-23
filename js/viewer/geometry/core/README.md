@@ -27,7 +27,7 @@
 │  - MeshCreationValidator.js         │
 │  - MeshMetadataBuilder.js           │
 │  - ProfileParameterMapper.js        │
-│  - SectionTypeNormalizer.js         │
+│  - sectionTypeUtil.js (common-stb)  │
 └─────────────────────────────────────┘
 ```
 

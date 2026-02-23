@@ -400,7 +400,6 @@ export function getElementFromBatchedIntersection(intersection) {
   return getHitElementFromBatch(intersection);
 }
 
-
 /**
  * 共有球体ジオメトリ（全節点で再利用）
  * @type {THREE.SphereGeometry|null}
@@ -665,4 +664,3 @@ export function drawNodesBatched(comparisonResult, materials, group, labelToggle
 
   return createdLabels;
 }
-

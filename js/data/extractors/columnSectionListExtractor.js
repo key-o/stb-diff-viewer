@@ -9,114 +9,15 @@
  * @module data/extractors/columnSectionListExtractor
  */
 
-import { isVersion210, isVersion202 } from '../../common-stb/parser/utils/versionDetector.js';
+import { isVersion210, isVersion202 } from '../../constants/stbVersionDetection.js';
 import {
-  extractMainBarInfo as extractMainBarInfoFromBar,
-  extractHoopInfo as extractHoopInfoFromBar,
-} from '../../common-stb/utils/barArrangementExtractor.js';
-
-const STB_NS = 'https://www.building-smart.or.jp/dl';
-
-/**
- * 要素を取得するヘルパー（名前空間対応）
- * @param {Element} parent - 親要素
- * @param {string} selector - セレクタ
- * @returns {Element|null}
- */
-function querySelector(parent, selector) {
-  if (!parent) return null;
-  try {
-    const result = parent.querySelector(selector);
-    if (result) return result;
-  } catch (_) {
-    // querySelector失敗時は名前空間フォールバック
-  }
-  if (typeof parent.getElementsByTagNameNS === 'function') {
-    const nsList = parent.getElementsByTagNameNS(STB_NS, selector);
-    if (nsList && nsList.length > 0) return nsList[0];
-  }
-  // 直接子要素検索
-  const children = parent.children || [];
-  for (let i = 0; i < children.length; i++) {
-    if (children[i].tagName === selector || children[i].localName === selector) {
-      return children[i];
-    }
-  }
-  return null;
-}
-
-/**
- * 複数要素を取得するヘルパー
- * @param {Element} parent - 親要素
- * @param {string} selector - セレクタ
- * @returns {Element[]}
- */
-function querySelectorAll(parent, selector) {
-  if (!parent) return [];
-  const results = [];
-  try {
-    const nodeList = parent.querySelectorAll(selector);
-    if (nodeList && nodeList.length > 0) {
-      nodeList.forEach((el) => results.push(el));
-      return results;
-    }
-  } catch (_) {
-    // querySelector失敗時は名前空間フォールバック
-  }
-  if (typeof parent.getElementsByTagNameNS === 'function') {
-    const nsList = parent.getElementsByTagNameNS(STB_NS, selector);
-    for (let i = 0; i < nsList.length; i++) {
-      results.push(nsList[i]);
-    }
-    if (results.length > 0) return results;
-  }
-  // 再帰的に子要素を検索
-  function findAll(el) {
-    const children = el.children || [];
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i];
-      if (child.tagName === selector || child.localName === selector) {
-        results.push(child);
-      }
-      findAll(child);
-    }
-  }
-  findAll(parent);
-  return results;
-}
-
-/**
- * StbStory一覧を抽出
- * @param {Document} xmlDoc - XMLドキュメント
- * @returns {Map<string, Object>} id → {id, name, height, level, nodeIds}
- */
-function extractStories(xmlDoc) {
-  const stories = new Map();
-  const storyElements = querySelectorAll(xmlDoc, 'StbStory');
-
-  storyElements.forEach((el) => {
-    const id = el.getAttribute('id');
-    const name = el.getAttribute('name') || `階${id}`;
-    const height = parseFloat(el.getAttribute('height')) || 0;
-    const level = parseFloat(el.getAttribute('level')) || 0;
-
-    // このStoryに属するノードIDを抽出
-    const nodeIds = new Set();
-    const nodeIdElements = querySelectorAll(el, 'StbNodeId');
-    nodeIdElements.forEach((nodeEl) => {
-      const nodeId = nodeEl.getAttribute('id');
-      if (nodeId) {
-        nodeIds.add(nodeId);
-      }
-    });
-
-    if (id) {
-      stories.set(id, { id, name, height, level, nodeIds });
-    }
-  });
-
-  return stories;
-}
+  querySelector,
+  querySelectorAll,
+  extractStories,
+  compareStoriesDescending,
+  extractBaseSymbol,
+  compareSymbols,
+} from './sectionListUtils.js';
 
 /**
  * StbColumn一覧を抽出（RC柱のみ）
@@ -489,154 +390,6 @@ function extractRcColumnSections(xmlDoc) {
 }
 
 /**
- * 階をグループ化するためのキーを生成
- * @param {Array<Object>} storyUsages - 階使用情報配列
- * @returns {string} グループキー（例: "10F〜9F"）
- */
-function createFloorRangeKey(storyUsages) {
-  if (!storyUsages || storyUsages.length === 0) return '';
-  if (storyUsages.length === 1) return storyUsages[0].name;
-
-  // レベルでソート（降順：上階から）
-  const sorted = [...storyUsages].sort((a, b) => (b.level || 0) - (a.level || 0));
-  const first = sorted[0];
-  const last = sorted[sorted.length - 1];
-
-  return `${first.name}〜${last.name}`;
-}
-
-/**
- * 符号名から基本符号を抽出（階番号プレフィックスのみ除去）
- * サフィックス（a, b, c等）は保持する
- * @param {string} name - 断面名（例: "1C1a", "2C1", "C1b"）
- * @returns {string} 符号（例: "C1a", "C1", "C1b"）
- */
-function extractBaseSymbol(name) {
-  if (!name) return 'C';
-
-  // サフィックスを含むパターン: C1a, SC2b など
-  // 正規表現を変更: 英字+数字+英字（サフィックス）
-  const match = name.match(/([A-Za-z]+\d+[a-zA-Z]*)/);
-
-  if (match) {
-    // 基本符号は大文字化、サフィックスは小文字のまま保持
-    const symbol = match[1];
-    // 英字プレフィックス + 数字 + サフィックス に分解
-    const parts = symbol.match(/^([A-Za-z]+)(\d+)([a-zA-Z]*)$/);
-    if (parts) {
-      const [, prefix, number, suffix] = parts;
-      return prefix.toUpperCase() + number + suffix.toLowerCase();
-    }
-    // フォールバック: 基本符号のみ大文字化
-    return symbol.replace(/^[A-Za-z]+\d+/i, (m) => m.toUpperCase());
-  }
-
-  // フォールバック: 先頭の数字を除去して大文字化
-  return name.replace(/^\d+/, '').toUpperCase() || 'C';
-}
-
-/**
- * 階名の順序を取得（降順ソート用）
- * PH/RF/R は最上階、数字は数値でソート、B1/B2等は地下階
- * @param {string} name - 階名（例: "1", "2F", "PH", "B1"）
- * @returns {number} ソート順序値（大きいほど上階）
- */
-function getFloorSortOrder(name) {
-  if (!name) return 0;
-
-  const upper = name.toUpperCase();
-
-  // ペントハウス・屋上は最上階（大きな正の値）
-  if (
-    upper === 'PH' ||
-    upper === 'RF' ||
-    upper === 'R' ||
-    upper.startsWith('PH') ||
-    upper.startsWith('RF')
-  ) {
-    // PHの後に数字がある場合（PH1, PH2等）
-    const phMatch = upper.match(/^(?:PH|RF)(\d*)$/);
-    if (phMatch) {
-      const phNum = parseInt(phMatch[1]) || 0;
-      return 10000 + phNum;
-    }
-    return 10000;
-  }
-
-  // 地下階（負の値）
-  const basementMatch = upper.match(/^B(\d+)/);
-  if (basementMatch) {
-    return -parseInt(basementMatch[1], 10);
-  }
-
-  // 数字を含む階名（1F, 2, 3階 等）
-  const numMatch = name.match(/(\d+)/);
-  if (numMatch) {
-    return parseInt(numMatch[1], 10);
-  }
-
-  // その他は0
-  return 0;
-}
-
-/**
- * 階を降順（上階から下階）にソートする比較関数
- * 高さレベル（level）を主要なソート基準とする
- * @param {Object} a - 階情報A（level, name プロパティを持つ）
- * @param {Object} b - 階情報B
- * @returns {number} 比較結果
- */
-function compareStoriesDescending(a, b) {
-  // 高さレベル（level）で比較（降順：高い方が先）
-  const levelA = a.level ?? null;
-  const levelB = b.level ?? null;
-
-  // 両方levelがある場合はlevelで比較
-  if (levelA !== null && levelB !== null && levelA !== levelB) {
-    return levelB - levelA; // 降順
-  }
-
-  // levelが同じか、片方がない場合は階名で比較（フォールバック）
-  const orderA = getFloorSortOrder(a.name);
-  const orderB = getFloorSortOrder(b.name);
-
-  return orderB - orderA; // 降順
-}
-
-/**
- * 符号の自然順ソート用比較関数
- * C1, C1a, C1b, C2, SC1 の順にソートする
- * @param {string} a - 符号A
- * @param {string} b - 符号B
- * @returns {number} 比較結果
- */
-function compareSymbols(a, b) {
-  // "C1a" → { prefix: "C", number: 1, suffix: "a" }
-  const parse = (s) => {
-    const m = s.match(/^([A-Z]+)(\d+)([a-z]*)$/i);
-    return m
-      ? {
-          prefix: m[1].toUpperCase(),
-          number: parseInt(m[2], 10),
-          suffix: m[3].toLowerCase(), // 小文字で比較
-        }
-      : { prefix: s, number: 0, suffix: '' };
-  };
-
-  const ap = parse(a);
-  const bp = parse(b);
-
-  // 3段階比較: プレフィックス → 数値 → サフィックス
-  if (ap.prefix !== bp.prefix) {
-    return ap.prefix.localeCompare(bp.prefix);
-  }
-  if (ap.number !== bp.number) {
-    return ap.number - bp.number;
-  }
-  return ap.suffix.localeCompare(bp.suffix);
-}
-
-/**
  * RC柱断面リスト用のデータを抽出・グループ化（階×符号の組み合わせごと）
  * STB v2.0.2と v2.1.0の両方に対応
  * @param {Document} xmlDoc - XMLドキュメント
@@ -659,39 +412,18 @@ export function extractColumnSectionList(xmlDoc) {
 
   console.log('[extractColumnSectionList] STB Version detected:', { isV210, isV202 });
 
-  // バージョンに応じて適切なパーサーを呼び出す（互換性のため同一パーサーを使用）
+  // バージョンに応じてラベルを決定
+  let parserVersion;
   if (isV210) {
-    return extractColumnSectionListV210(xmlDoc);
+    parserVersion = 'v2.1.0';
   } else if (isV202) {
-    return extractColumnSectionListV202(xmlDoc);
+    parserVersion = 'v2.0.2';
   } else {
     console.warn('[extractColumnSectionList] Unknown STB version, using fallback parser');
-    return extractColumnSectionListFallback(xmlDoc);
+    parserVersion = 'fallback';
   }
-}
 
-/**
- * STB 2.1.0用のカラム断面リスト抽出
- */
-function extractColumnSectionListV210(xmlDoc) {
-  console.log('[extractColumnSectionListV210] Extracting with STB 2.1.0 parser');
-  return buildColumnSectionList(xmlDoc, 'v2.1.0');
-}
-
-/**
- * STB 2.0.2用のカラム断面リスト抽出
- */
-function extractColumnSectionListV202(xmlDoc) {
-  console.log('[extractColumnSectionListV202] Extracting with STB 2.0.2 parser');
-  return buildColumnSectionList(xmlDoc, 'v2.0.2');
-}
-
-/**
- * バージョン不明時のフォールバックパーサー
- */
-function extractColumnSectionListFallback(xmlDoc) {
-  console.log('[extractColumnSectionListFallback] Using fallback parser');
-  return buildColumnSectionList(xmlDoc, 'fallback');
+  return buildColumnSectionList(xmlDoc, parserVersion);
 }
 
 /**
@@ -700,7 +432,7 @@ function extractColumnSectionListFallback(xmlDoc) {
  * @param {string} parserVersion - パーサーバージョン
  * @returns {Object} 断面リストデータ
  */
-function buildColumnSectionList(xmlDoc, parserVersion) {
+function buildColumnSectionList(xmlDoc, _parserVersion) {
   // 基本データを抽出
   const stories = extractStories(xmlDoc);
   const columns = extractColumns(xmlDoc);
@@ -769,22 +501,11 @@ function buildColumnSectionList(xmlDoc, parserVersion) {
 
   // ソート: 階（上から下、高さレベル基準）→ 符号（自然順）
   sectionRows.sort((a, b) => {
-    // 高さレベル（storyLevel）で比較（降順：高い方が先）
-    const levelA = a.storyLevel ?? null;
-    const levelB = b.storyLevel ?? null;
-
-    if (levelA !== null && levelB !== null && levelA !== levelB) {
-      return levelB - levelA; // 降順
-    }
-
-    // levelが同じか未定義の場合は階名で比較（フォールバック）
-    const floorOrderA = getFloorSortOrder(a.storyName);
-    const floorOrderB = getFloorSortOrder(b.storyName);
-
-    if (floorOrderA !== floorOrderB) {
-      return floorOrderB - floorOrderA; // 階：降順（上階から下階）
-    }
-
+    const storyComp = compareStoriesDescending(
+      { level: a.storyLevel, name: a.storyName },
+      { level: b.storyLevel, name: b.storyName },
+    );
+    if (storyComp !== 0) return storyComp;
     return compareSymbols(a.symbol, b.symbol); // 符号：昇順
   });
 

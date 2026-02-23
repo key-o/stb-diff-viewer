@@ -66,7 +66,7 @@ body {
 
 #overlay input[type="checkbox"] {
   display: inline-block; /* Keep checkboxes inline */
-  width: auto; /* Reset width for checkboxes */
+  width: var(--checkbox-size); /* カスタムチェックボックスサイズを維持 */
   margin-right: 5px;
   margin-bottom: 0; /* Reset bottom margin */
 }
@@ -78,7 +78,7 @@ body {
 .element-settings-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   margin-top: 8px;
   margin-bottom: 8px;
 }
@@ -109,6 +109,40 @@ body {
 .element-settings-table input[type="checkbox"] {
   margin: 0;
   cursor: pointer;
+}
+
+/* 構造種別サブカテゴリ */
+.structural-system-toggle {
+  cursor: pointer;
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+  font-size: 0.7em;
+  user-select: none;
+  vertical-align: middle;
+  color: var(--text-secondary, #666);
+  transition: color var(--transition-fast, 0.15s);
+}
+
+.structural-system-toggle:hover {
+  color: var(--primary-color, #4a90d9);
+}
+
+.structural-system-row {
+  background-color: var(--bg-secondary, #f9f9f9);
+}
+
+.structural-system-row td {
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
+  border-bottom: 1px solid var(--border-color-light, #eee) !important;
+}
+
+.structural-system-label {
+  font-size: 0.85em;
+  color: var(--text-secondary, #666);
+  padding-left: 24px !important;
+  text-align: left !important;
 }
 
 /* ライン専用表示インジケータ（Undefined要素等） */
@@ -158,6 +192,23 @@ body {
 .element-color-reset-container .btn-reset:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* 汎用リセットボタン（カラーモード設定パネル用） */
+.btn-reset {
+  font-size: var(--font-size-sm);
+  padding: 6px 12px;
+  background-color: #ffc107;
+  color: #212529;
+  border: 1px solid #ffc107;
+  border-radius: var(--border-radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-reset:hover {
+  background-color: #e0a800;
+  border-color: #d39e00;
 }
 
 #overlay hr {

@@ -9,173 +9,20 @@
  * @module data/extractors/beamSectionListExtractor
  */
 
-import { isVersion210, isVersion202 } from '../../common-stb/parser/utils/versionDetector.js';
+import { isVersion210, isVersion202 } from '../../constants/stbVersionDetection.js';
 import {
   extractBeamMainBar,
   extractStirrupInfo as extractStirrupInfoFromBar,
   extractWebBarInfo as extractWebBarInfoFromBar,
 } from '../../common-stb/utils/barArrangementExtractor.js';
-
-const STB_NS = 'https://www.building-smart.or.jp/dl';
-
-/**
- * 要素を取得するヘルパー（名前空間対応）
- * @param {Element} parent - 親要素
- * @param {string} selector - セレクタ
- * @returns {Element|null}
- */
-function querySelector(parent, selector) {
-  if (!parent) return null;
-  try {
-    const result = parent.querySelector(selector);
-    if (result) return result;
-  } catch (_) {
-    // querySelector失敗時は名前空間フォールバック
-  }
-  if (typeof parent.getElementsByTagNameNS === 'function') {
-    const nsList = parent.getElementsByTagNameNS(STB_NS, selector);
-    if (nsList && nsList.length > 0) return nsList[0];
-  }
-  // 直接子要素検索
-  const children = parent.children || [];
-  for (let i = 0; i < children.length; i++) {
-    if (children[i].tagName === selector || children[i].localName === selector) {
-      return children[i];
-    }
-  }
-  return null;
-}
-
-/**
- * 複数要素を取得するヘルパー
- * @param {Element} parent - 親要素
- * @param {string} selector - セレクタ
- * @returns {Element[]}
- */
-function querySelectorAll(parent, selector) {
-  if (!parent) return [];
-  const results = [];
-  try {
-    const nodeList = parent.querySelectorAll(selector);
-    if (nodeList && nodeList.length > 0) {
-      nodeList.forEach((el) => results.push(el));
-      return results;
-    }
-  } catch (_) {
-    // querySelector失敗時は名前空間フォールバック
-  }
-  if (typeof parent.getElementsByTagNameNS === 'function') {
-    const nsList = parent.getElementsByTagNameNS(STB_NS, selector);
-    for (let i = 0; i < nsList.length; i++) {
-      results.push(nsList[i]);
-    }
-    if (results.length > 0) return results;
-  }
-  // 再帰的に子要素を検索
-  function findAll(el) {
-    const children = el.children || [];
-    for (let i = 0; i < children.length; i++) {
-      const child = children[i];
-      if (child.tagName === selector || child.localName === selector) {
-        results.push(child);
-      }
-      findAll(child);
-    }
-  }
-  findAll(parent);
-  return results;
-}
-
-/**
- * StbStory一覧を抽出（階データ）
- * @param {Document} xmlDoc - XMLドキュメント
- * @returns {Map<string, Object>} id → {id, name, level, nodeIds}
- */
-function extractStories(xmlDoc) {
-  const stories = new Map();
-  const storyElements = querySelectorAll(xmlDoc, 'StbStory');
-
-  storyElements.forEach((el) => {
-    const id = el.getAttribute('id');
-    const name = el.getAttribute('name') || `階${id}`;
-    const levelAttr = el.getAttribute('level');
-    const parsedLevel =
-      levelAttr !== null && levelAttr !== '' ? Number.parseFloat(levelAttr) : Number.NaN;
-    const level = Number.isFinite(parsedLevel) ? parsedLevel : null;
-
-    // このStoryに属するノードIDを抽出
-    const nodeIds = new Set();
-    const nodeIdElements = querySelectorAll(el, 'StbNodeId');
-    nodeIdElements.forEach((nodeEl) => {
-      const nodeId = nodeEl.getAttribute('id');
-      if (nodeId) {
-        nodeIds.add(nodeId);
-      }
-    });
-
-    if (id) {
-      stories.set(id, { id, name, level, nodeIds });
-    }
-  });
-
-  return stories;
-}
-
-/**
- * 階名の順序値を取得（降順ソート用）
- * @param {string} name - 階名（例: "1FL", "RFL", "PH1", "B1"）
- * @returns {number} 大きいほど上階
- */
-function getFloorSortOrder(name) {
-  if (!name) return 0;
-
-  const upper = String(name).toUpperCase().trim();
-
-  if (upper === 'PH' || upper.startsWith('PH')) {
-    const phNum = Number.parseInt((upper.match(/^PH(\d*)$/) || [])[1] || '0', 10);
-    return 20000 + (Number.isFinite(phNum) ? phNum : 0);
-  }
-
-  if (upper === 'R' || upper === 'RF' || upper === 'RFL' || upper.startsWith('RF')) {
-    const rfNum = Number.parseInt((upper.match(/^RF(\d*)$/) || [])[1] || '0', 10);
-    return 10000 + (Number.isFinite(rfNum) ? rfNum : 0);
-  }
-
-  const basementMatch = upper.match(/^B(\d+)/);
-  if (basementMatch) {
-    return -Number.parseInt(basementMatch[1], 10);
-  }
-
-  const numMatch = upper.match(/(\d+)/);
-  if (numMatch) {
-    return Number.parseInt(numMatch[1], 10);
-  }
-
-  return 0;
-}
-
-/**
- * 階を上階から下階へソート
- * @param {{ level?: number|null, name?: string }} a
- * @param {{ level?: number|null, name?: string }} b
- * @returns {number}
- */
-function compareStoriesDescending(a, b) {
-  const levelA = typeof a?.level === 'number' ? a.level : null;
-  const levelB = typeof b?.level === 'number' ? b.level : null;
-
-  if (levelA !== null && levelB !== null && levelA !== levelB) {
-    return levelB - levelA;
-  }
-
-  const orderA = getFloorSortOrder(a?.name);
-  const orderB = getFloorSortOrder(b?.name);
-  if (orderA !== orderB) {
-    return orderB - orderA;
-  }
-
-  return String(a?.name || '').localeCompare(String(b?.name || ''));
-}
+import {
+  querySelector,
+  querySelectorAll,
+  extractStories,
+  compareStoriesDescending,
+  extractBaseSymbol,
+  compareSymbols,
+} from './sectionListUtils.js';
 
 /**
  * StbGirder一覧を抽出（梁要素）
@@ -484,10 +331,24 @@ function extractBeamBarArrangement(barArrangementElement, result) {
       parseFloat(simpleBarElement.getAttribute('depth_cover_bottom')) ||
       parseFloat(simpleBarElement.getAttribute('center_Y')) ||
       40;
+    const coverLeft =
+      parseFloat(barArrangementElement.getAttribute('width_cover_left')) ||
+      parseFloat(simpleBarElement.getAttribute('width_cover_left')) ||
+      parseFloat(barArrangementElement.getAttribute('depth_cover_start_X')) ||
+      parseFloat(simpleBarElement.getAttribute('depth_cover_start_X')) ||
+      coverTop;
+    const coverRight =
+      parseFloat(barArrangementElement.getAttribute('width_cover_right')) ||
+      parseFloat(simpleBarElement.getAttribute('width_cover_right')) ||
+      parseFloat(barArrangementElement.getAttribute('depth_cover_end_X')) ||
+      parseFloat(simpleBarElement.getAttribute('depth_cover_end_X')) ||
+      coverTop;
 
     result.cover = {
       top: coverTop,
       bottom: coverBottom,
+      left: coverLeft,
+      right: coverRight,
     };
   }
 }
@@ -666,7 +527,7 @@ function extractMainBarInfo(mainBarElement) {
  * @param {number} order - order値
  * @returns {Object|null} スターラップ情報
  */
-function extractStirrupInfo(simpleBarElement, order) {
+function extractStirrupInfo(simpleBarElement, _order) {
   if (!simpleBarElement) {
     return null;
   }
@@ -722,7 +583,7 @@ function extractStirrupInfo(simpleBarElement, order) {
  * @param {number} order - order値
  * @returns {Object|null} 腹筋情報
  */
-function extractWebBarInfo(simpleBarElement, order) {
+function extractWebBarInfo(simpleBarElement, _order) {
   if (!simpleBarElement) {
     return null;
   }
@@ -773,41 +634,6 @@ function determinePositionPattern(result) {
 }
 
 /**
- * 断面符号の基本部分を抽出（"G1"など）
- * @param {string} sectionName - 断面名（"3G1"など）
- * @returns {string} 基本符号
- */
-function extractBaseSymbol(sectionName) {
-  if (!sectionName) return '';
-
-  // 先頭の階プレフィックス（例: 3, 10F）だけを除去し、残りの末尾トークンを符号として採用する。
-  // 例: "3G1" -> "G1", "10B1G1" -> "B1G1", "3F-G1" -> "G1"
-  const normalized = sectionName.trim();
-  const withoutFloorPrefix = normalized.replace(/^\d+F?/i, '');
-  const tokens = withoutFloorPrefix.match(/[A-Za-z][A-Za-z0-9]*/g);
-
-  if (tokens && tokens.length > 0) {
-    return tokens[tokens.length - 1].toUpperCase();
-  }
-
-  return (withoutFloorPrefix || normalized).toUpperCase();
-}
-
-/**
- * 自然順ソート用の比較関数
- * @param {string} a - 符号A
- * @param {string} b - 符号B
- * @returns {number} 比較結果
- */
-function compareSymbols(a, b) {
-  const aNum = parseInt(a.replace(/[A-Z]/g, '')) || 0;
-  const bNum = parseInt(b.replace(/[A-Z]/g, '')) || 0;
-
-  if (aNum !== bNum) return aNum - bNum;
-  return a.localeCompare(b);
-}
-
-/**
  * STBファイルからRC梁断面リストをグリッド形式で抽出
  *
  * @param {Document} xmlDoc - STB XMLドキュメント
@@ -834,38 +660,36 @@ export function extractBeamSectionGrid(xmlDoc) {
 
   console.log('[extractBeamSectionGrid] STB Version detected:', { isV210, isV202 });
 
-  // バージョンに応じて適切なパーサーを呼び出す
+  // バージョンラベルと断面セレクタを決定
+  let parserVersion;
+  let sectionSelectors;
   if (isV210) {
-    return extractBeamSectionGridV210(xmlDoc);
+    parserVersion = 'v2.1.0';
+    sectionSelectors = ['StbSecBeam_RC'];
   } else if (isV202) {
-    return extractBeamSectionGridV202(xmlDoc);
+    parserVersion = 'v2.0.2';
+    sectionSelectors = ['StbSecBeam_RC'];
   } else {
-    // バージョン不明の場合は、従来のフォールバック（両方を試す）
     console.warn('[extractBeamSectionGrid] Unknown STB version, using fallback parser');
-    return extractBeamSectionGridFallback(xmlDoc);
+    parserVersion = 'fallback';
+    sectionSelectors = ['StbSecBeam_RC', 'StbSecGirder_RC'];
   }
-}
 
-/**
- * STB 2.1.0用のビーム断面グリッド抽出
- * StbSecBeam_RC要素を使用
- */
-function extractBeamSectionGridV210(xmlDoc) {
-  console.log('[extractBeamSectionGridV210] Extracting with STB 2.1.0 parser');
+  console.log(`[extractBeamSectionGrid] Extracting with ${parserVersion} parser`);
 
   // 1. 階データを抽出
   const storiesMap = extractStories(xmlDoc);
   const storiesList = Array.from(storiesMap.values()).sort(compareStoriesDescending);
-  console.log('[extractBeamSectionGridV210] Stories extracted:', storiesList.length);
+  console.log(`[extractBeamSectionGrid] (${parserVersion}) Stories extracted:`, storiesList.length);
 
   // 2. 梁要素を抽出
   const girders = extractGirders(xmlDoc);
-  console.log('[extractBeamSectionGridV210] Girders extracted:', girders.length);
+  console.log(`[extractBeamSectionGrid] (${parserVersion}) Girders extracted:`, girders.length);
 
-  // 3. 梁断面（StbSecBeam_RC のみ）を抽出
-  const beamSectionElements = querySelectorAll(xmlDoc, 'StbSecBeam_RC');
+  // 3. 梁断面を抽出
+  const beamSectionElements = sectionSelectors.flatMap((sel) => querySelectorAll(xmlDoc, sel));
   console.log(
-    '[extractBeamSectionGridV210] Beam section elements found:',
+    `[extractBeamSectionGrid] (${parserVersion}) Beam section elements found:`,
     beamSectionElements.length,
   );
 
@@ -875,82 +699,16 @@ function extractBeamSectionGridV210(xmlDoc) {
     if (id) {
       const detail = extractRcBeamSectionDetail(el);
       sectionsMap.set(id, detail);
-      console.log('[extractBeamSectionGridV210] Section extracted:', id, detail.name);
+      console.log(
+        `[extractBeamSectionGrid] (${parserVersion}) Section extracted:`,
+        id,
+        detail.name,
+      );
     }
   });
 
   // 4. グリッド構築
-  return buildBeamSectionGrid(xmlDoc, storiesMap, storiesList, girders, sectionsMap, 'v2.1.0');
-}
-
-/**
- * STB 2.0.2用のビーム断面グリッド抽出
- * StbSecBeam_RC要素を使用（STB 2.1.0と同じ要素名）
- */
-function extractBeamSectionGridV202(xmlDoc) {
-  console.log('[extractBeamSectionGridV202] Extracting with STB 2.0.2 parser');
-
-  // 1. 階データを抽出
-  const storiesMap = extractStories(xmlDoc);
-  const storiesList = Array.from(storiesMap.values()).sort(compareStoriesDescending);
-  console.log('[extractBeamSectionGridV202] Stories extracted:', storiesList.length);
-
-  // 2. 梁要素を抽出
-  const girders = extractGirders(xmlDoc);
-  console.log('[extractBeamSectionGridV202] Girders extracted:', girders.length);
-
-  // 3. 梁断面（StbSecBeam_RC のみ）を抽出
-  const beamSectionElements = querySelectorAll(xmlDoc, 'StbSecBeam_RC');
-  console.log(
-    '[extractBeamSectionGridV202] Beam section elements found:',
-    beamSectionElements.length,
-  );
-
-  const sectionsMap = new Map();
-  beamSectionElements.forEach((el) => {
-    const id = el.getAttribute('id');
-    if (id) {
-      const detail = extractRcBeamSectionDetail(el);
-      sectionsMap.set(id, detail);
-      console.log('[extractBeamSectionGridV202] Section extracted:', id, detail.name);
-    }
-  });
-
-  // 4. グリッド構築
-  return buildBeamSectionGrid(xmlDoc, storiesMap, storiesList, girders, sectionsMap, 'v2.0.2');
-}
-
-/**
- * バージョン不明時のフォールバックパーサー
- * 両方の要素タイプを試す
- */
-function extractBeamSectionGridFallback(xmlDoc) {
-  console.log('[extractBeamSectionGridFallback] Using fallback parser');
-
-  // 1. 階データを抽出
-  const storiesMap = extractStories(xmlDoc);
-  const storiesList = Array.from(storiesMap.values()).sort(compareStoriesDescending);
-
-  // 2. 梁要素を抽出
-  const girders = extractGirders(xmlDoc);
-
-  // 3. 梁断面（両方を試す）を抽出
-  const beamSectionElements = [
-    ...querySelectorAll(xmlDoc, 'StbSecBeam_RC'), // STB v2.1 および v2.0.2
-    ...querySelectorAll(xmlDoc, 'StbSecGirder_RC'), // 非標準ファイル対応
-  ];
-
-  const sectionsMap = new Map();
-  beamSectionElements.forEach((el) => {
-    const id = el.getAttribute('id');
-    if (id) {
-      const detail = extractRcBeamSectionDetail(el);
-      sectionsMap.set(id, detail);
-    }
-  });
-
-  // 4. グリッド構築
-  return buildBeamSectionGrid(xmlDoc, storiesMap, storiesList, girders, sectionsMap, 'fallback');
+  return buildBeamSectionGrid(xmlDoc, storiesMap, storiesList, girders, sectionsMap, parserVersion);
 }
 
 /**
@@ -977,7 +735,7 @@ function buildBeamSectionGrid(
     const storyIds = getStoryIdsForGirder(girder, storiesMap);
     const sectionDetail = sectionsMap.get(girder.idSection);
     const symbolSource = sectionDetail?.name || girder.name;
-    const symbol = extractBaseSymbol(symbolSource);
+    const symbol = extractBaseSymbol(symbolSource, { mode: 'beam' });
 
     storyIds.forEach((storyId) => {
       if (!sectionUsageMap.has(girder.idSection)) {

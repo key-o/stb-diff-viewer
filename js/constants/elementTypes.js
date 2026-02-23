@@ -33,8 +33,9 @@ export const SUPPORTED_ELEMENTS = [
 ];
 
 /**
- * 表示モード（立体/線）対応要素
+ * 表示モード（立体/線）切替対応要素
  * Node, Axis, Story は表示モード切替の対象外
+ * Footing, FoundationColumn, Joint は立体表示のみ（切替不要）
  * @type {string[]}
  */
 export const DISPLAY_MODE_ELEMENTS = [
@@ -46,12 +47,16 @@ export const DISPLAY_MODE_ELEMENTS = [
   'Slab',
   'Wall',
   'Parapet',
-  'Joint',
   'Pile',
-  'Footing',
   'StripFooting',
-  'FoundationColumn',
 ];
+
+/**
+ * 立体表示のみの要素（線表示に切替不可）
+ * 点配置要素（1ノード要素）や接合など、線表示が意味をなさない要素
+ * @type {string[]}
+ */
+export const SOLID_ONLY_ELEMENTS = ['Footing', 'FoundationColumn', 'Joint'];
 
 /**
  * ラベル表示対応要素（全要素）

@@ -9,10 +9,15 @@
  * - 幾何学的検証: 要素の妥当性チェック
  */
 
-import { parseElements, buildNodeMap, parseStories, parseAxes } from '../parser/stbXmlParser.js';
-import { validateSectionDataComprehensive } from '../../data/validators/sectionDataValidator.js';
-import { extractAllSections } from '../parser/sectionExtractor.js';
+import {
+  parseElements,
+  buildNodeMap,
+  parseStories,
+  parseAxes,
+} from '../import/parser/stbXmlParser.js';
 import { createLogger } from '../../utils/logger.js';
+import { isSchemaLoaded, getActiveVersion } from '../import/parser/jsonSchemaLoader.js';
+import { validateJsonSchema } from './jsonSchemaValidator.js';
 
 const logger = createLogger('validation:validator');
 
@@ -34,6 +39,7 @@ export const CATEGORY = {
   DATA: 'data', // データ値の問題
   GEOMETRY: 'geometry', // 幾何学的問題
   DUPLICATE: 'duplicate', // 重複問題
+  SCHEMA: 'schema', // XSDスキーマ制約違反
 };
 
 /**
@@ -47,6 +53,8 @@ export const CATEGORY = {
  * @property {string} attribute - 属性名（該当する場合）
  * @property {*} value - 現在の値
  * @property {*} expected - 期待される値
+ * @property {string} xpath - 対象要素/属性の絶対XPath
+ * @property {string} idXPath - id属性を持つ要素を起点にしたXPath
  * @property {boolean} repairable - 修復可能かどうか
  * @property {string} repairSuggestion - 修復提案
  */
@@ -71,7 +79,12 @@ export const CATEGORY = {
  * @returns {ValidationReport} バリデーション結果
  */
 export function validateStbDocument(xmlDoc, options = {}) {
-  const { validateReferences = true, validateGeometry = true, includeInfo = false } = options;
+  const {
+    validateReferences = true,
+    validateGeometry = true,
+    validateSchema = true,
+    includeInfo = false,
+  } = options;
 
   const issues = [];
   const statistics = {
@@ -97,6 +110,17 @@ export function validateStbDocument(xmlDoc, options = {}) {
     return createReport(false, issues, statistics, timestamp);
   }
 
+  // 0. JSON Schemaスキーマ検証（オプション、スキーマ読込済みの場合のみ）
+  if (validateSchema && isSchemaLoaded()) {
+    try {
+      const version = detectStbVersion(xmlDoc);
+      const schemaIssues = validateJsonSchema(xmlDoc, { version });
+      issues.push(...schemaIssues);
+    } catch (e) {
+      logger.warn(`JSON Schemaスキーマ検証中にエラーが発生: ${e.message}`);
+    }
+  }
+
   // 1. 構造検証
   validateStructure(xmlDoc, issues);
 
@@ -120,8 +144,8 @@ export function validateStbDocument(xmlDoc, options = {}) {
     validateReferenceIntegrity(xmlDoc, nodeMap, issues, statistics);
   }
 
-  // 7. 断面情報検証
-  validateSections(xmlDoc, issues, statistics);
+  // 7. IDM整合性検証（kind_structure と断面タグ種別の一致チェック）
+  validateStructureKindConsistency(xmlDoc, issues);
 
   // 8. 幾何学検証
   if (validateGeometry) {
@@ -454,114 +478,69 @@ function validateElements(xmlDoc, nodeMap, issues, statistics) {
 
       // 要素タイプ別の検証
       if (type === 'column' || type === 'post') {
-        validateVerticalElement(element, name, nodeMap, issues);
-      } else if (type === 'foundationColumn') {
-        validateFoundationColumnElement(element, name, nodeMap, issues);
+        validateTwoNodeElement(element, name, 'id_node_bottom', 'id_node_top', nodeMap, issues);
+      } else if (type === 'foundationColumn' || type === 'footing') {
+        validateSingleNodeElement(element, name, nodeMap, issues);
       } else if (type === 'girder' || type === 'beam' || type === 'brace') {
-        validateHorizontalElement(element, name, nodeMap, issues);
+        validateTwoNodeElement(element, name, 'id_node_start', 'id_node_end', nodeMap, issues);
       } else if (type === 'pile') {
         validatePileElement(element, name, nodeMap, issues);
-      } else if (type === 'footing') {
-        validateFootingElement(element, name, nodeMap, issues);
       }
     }
   }
 }
 
 /**
- * 垂直要素（柱など）の検証
+ * 2ノード要素（柱・梁など）の検証
+ *
+ * @param {Element} element - XML要素
+ * @param {string} elementType - 要素タイプ名
+ * @param {string} attr1 - 始点/下端ノード参照属性名
+ * @param {string} attr2 - 終点/上端ノード参照属性名
+ * @param {Map} nodeMap - ノードマップ
+ * @param {ValidationIssue[]} issues - 問題配列
  */
-function validateVerticalElement(element, elementType, nodeMap, issues) {
+function validateTwoNodeElement(element, elementType, attr1, attr2, nodeMap, issues) {
   const id = element.getAttribute('id');
-  const idNodeBottom = element.getAttribute('id_node_bottom');
-  const idNodeTop = element.getAttribute('id_node_top');
+  const idNode1 = element.getAttribute(attr1);
+  const idNode2 = element.getAttribute(attr2);
 
   // ノード参照チェック
-  if (!idNodeBottom) {
+  if (!idNode1) {
     issues.push({
       severity: SEVERITY.ERROR,
       category: CATEGORY.DATA,
-      message: `${elementType} ${id} にid_node_bottom属性がありません`,
+      message: `${elementType} ${id} に${attr1}属性がありません`,
       elementType,
       elementId: id,
-      attribute: 'id_node_bottom',
+      attribute: attr1,
       repairable: true,
       repairSuggestion: '要素を削除',
     });
   }
 
-  if (!idNodeTop) {
+  if (!idNode2) {
     issues.push({
       severity: SEVERITY.ERROR,
       category: CATEGORY.DATA,
-      message: `${elementType} ${id} にid_node_top属性がありません`,
+      message: `${elementType} ${id} に${attr2}属性がありません`,
       elementType,
       elementId: id,
-      attribute: 'id_node_top',
+      attribute: attr2,
       repairable: true,
       repairSuggestion: '要素を削除',
     });
   }
 
   // 同一ノードチェック
-  if (idNodeBottom && idNodeTop && idNodeBottom === idNodeTop) {
+  if (idNode1 && idNode2 && idNode1 === idNode2) {
     issues.push({
       severity: SEVERITY.ERROR,
       category: CATEGORY.GEOMETRY,
-      message: `${elementType} ${id} の上端と下端が同じノード "${idNodeBottom}" を参照しています`,
+      message: `${elementType} ${id} の両端が同じノード "${idNode1}" を参照しています`,
       elementType,
       elementId: id,
-      value: idNodeBottom,
-      repairable: true,
-      repairSuggestion: '要素を削除（長さゼロの要素）',
-    });
-  }
-}
-
-/**
- * 水平要素（梁など）の検証
- */
-function validateHorizontalElement(element, elementType, nodeMap, issues) {
-  const id = element.getAttribute('id');
-  const idNodeStart = element.getAttribute('id_node_start');
-  const idNodeEnd = element.getAttribute('id_node_end');
-
-  // ノード参照チェック
-  if (!idNodeStart) {
-    issues.push({
-      severity: SEVERITY.ERROR,
-      category: CATEGORY.DATA,
-      message: `${elementType} ${id} にid_node_start属性がありません`,
-      elementType,
-      elementId: id,
-      attribute: 'id_node_start',
-      repairable: true,
-      repairSuggestion: '要素を削除',
-    });
-  }
-
-  if (!idNodeEnd) {
-    issues.push({
-      severity: SEVERITY.ERROR,
-      category: CATEGORY.DATA,
-      message: `${elementType} ${id} にid_node_end属性がありません`,
-      elementType,
-      elementId: id,
-      attribute: 'id_node_end',
-      repairable: true,
-      repairSuggestion: '要素を削除',
-    });
-  }
-
-  // 同一ノードチェック
-  if (idNodeStart && idNodeEnd && idNodeStart === idNodeEnd) {
-    issues.push({
-      severity: SEVERITY.ERROR,
-      category: CATEGORY.GEOMETRY,
-      message: `${elementType} ${id} の始点と終点が同じノード "${idNodeStart}" を参照しています`,
-      elementType,
-      elementId: id,
-      value: idNodeStart,
+      value: idNode1,
       repairable: true,
       repairSuggestion: '要素を削除（長さゼロの要素）',
     });
@@ -620,31 +599,15 @@ function validatePileElement(element, elementType, nodeMap, issues) {
 }
 
 /**
- * 基礎要素の検証
+ * 単一ノード要素（基礎・基礎柱など）の検証
+ * id_node属性を持つ要素に使用する。
+ *
+ * @param {Element} element - XML要素
+ * @param {string} elementType - 要素タイプ名
+ * @param {Map} nodeMap - ノードマップ
+ * @param {ValidationIssue[]} issues - 問題配列
  */
-function validateFootingElement(element, elementType, nodeMap, issues) {
-  const id = element.getAttribute('id');
-  const idNode = element.getAttribute('id_node');
-
-  if (!idNode) {
-    issues.push({
-      severity: SEVERITY.ERROR,
-      category: CATEGORY.DATA,
-      message: `${elementType} ${id} にid_node属性がありません`,
-      elementType,
-      elementId: id,
-      attribute: 'id_node',
-      repairable: true,
-      repairSuggestion: '要素を削除',
-    });
-  }
-}
-
-/**
- * 基礎柱要素の検証
- * StbFoundationColumnはid_nodeを使用（id_node_bottom/id_node_topではない）
- */
-function validateFoundationColumnElement(element, elementType, nodeMap, issues) {
+function validateSingleNodeElement(element, elementType, nodeMap, issues) {
   const id = element.getAttribute('id');
   const idNode = element.getAttribute('id_node');
 
@@ -665,7 +628,7 @@ function validateFoundationColumnElement(element, elementType, nodeMap, issues) 
 /**
  * 参照整合性検証
  */
-function validateReferenceIntegrity(xmlDoc, nodeMap, issues, statistics) {
+function validateReferenceIntegrity(xmlDoc, nodeMap, issues, _statistics) {
   // ノード参照の整合性
   const checkNodeReference = (element, elementType, attributeName) => {
     const id = element.getAttribute('id');
@@ -762,12 +725,16 @@ function validateSectionReferences(xmlDoc, issues) {
     'StbSecColumn_S',
     'StbSecColumn_SRC',
     'StbSecColumn_CFT',
+    'StbSecGirder_RC',
+    'StbSecGirder_S',
+    'StbSecGirder_SRC',
     'StbSecBeam_RC',
     'StbSecBeam_S',
     'StbSecBeam_SRC',
     'StbSecBrace_S',
     'StbSecPile_RC',
     'StbSecPile_S',
+    'StbSecPileProduct',
     'StbSecFoundation_RC',
   ];
 
@@ -851,52 +818,116 @@ function validateSectionReferences(xmlDoc, issues) {
   }
 }
 
+// 要素タイプ → 参照可能な断面タグ一覧（IDM制約）
+const ELEMENT_ALLOWED_SECTION_TAGS = {
+  StbColumn: ['StbSecColumn_RC', 'StbSecColumn_S', 'StbSecColumn_SRC', 'StbSecColumn_CFT'],
+  StbPost: ['StbSecColumn_RC', 'StbSecColumn_S', 'StbSecColumn_SRC', 'StbSecColumn_CFT'],
+  StbGirder: [
+    'StbSecGirder_RC',
+    'StbSecGirder_S',
+    'StbSecGirder_SRC',
+    'StbSecBeam_RC',
+    'StbSecBeam_S',
+    'StbSecBeam_SRC',
+  ],
+  StbBeam: ['StbSecBeam_RC', 'StbSecBeam_S', 'StbSecBeam_SRC'],
+  StbBrace: ['StbSecBrace_S'],
+  StbPile: ['StbSecPile_RC', 'StbSecPile_S', 'StbSecPileProduct'],
+  StbFooting: ['StbSecFoundation_RC'],
+};
+
+// kind_structure → 断面タグのサフィックス（UNDEFINED は照合しない）
+const KIND_STRUCTURE_SUFFIX = {
+  RC: '_RC',
+  S: '_S',
+  SRC: '_SRC',
+  CFT: '_CFT',
+  UNDEFINED: null,
+};
+
+// 全断面タグ一覧（sectionIdToTagMap 構築用）
+const ALL_SECTION_TAGS = [
+  'StbSecColumn_RC',
+  'StbSecColumn_S',
+  'StbSecColumn_SRC',
+  'StbSecColumn_CFT',
+  'StbSecGirder_RC',
+  'StbSecGirder_S',
+  'StbSecGirder_SRC',
+  'StbSecBeam_RC',
+  'StbSecBeam_S',
+  'StbSecBeam_SRC',
+  'StbSecBrace_S',
+  'StbSecPile_RC',
+  'StbSecPile_S',
+  'StbSecPileProduct',
+  'StbSecFoundation_RC',
+];
+
 /**
- * 断面情報検証
+ * IDM整合性検証: kind_structure と断面タグ種別の一致チェック
+ *
+ * チェック A: 要素タイプに許可されていない断面タグを参照していないか
+ * チェック B: kind_structure 属性と断面タグのサフィックスが一致しているか
  */
-function validateSections(xmlDoc, issues, statistics) {
-  try {
-    const sections = extractAllSections(xmlDoc);
+function validateStructureKindConsistency(xmlDoc, issues) {
+  // 断面ID → 断面タグ名 のマップを構築
+  const sectionIdToTagMap = new Map();
+  for (const tagName of ALL_SECTION_TAGS) {
+    for (const sec of parseElements(xmlDoc, tagName)) {
+      const id = sec.getAttribute('id');
+      if (id) sectionIdToTagMap.set(id, tagName);
+    }
+  }
 
-    for (const [sectionType, sectionMap] of Object.entries(sections)) {
-      if (!(sectionMap instanceof Map)) continue;
+  // 各要素タイプについてチェック
+  for (const [elementType, allowedTags] of Object.entries(ELEMENT_ALLOWED_SECTION_TAGS)) {
+    for (const element of parseElements(xmlDoc, elementType)) {
+      const id = element.getAttribute('id');
+      const idSection = element.getAttribute('id_section');
+      const kindStructure = element.getAttribute('kind_structure');
 
-      for (const [sectionId, sectionData] of sectionMap) {
-        const result = validateSectionDataComprehensive(sectionData, sectionType);
+      if (!idSection) continue;
+      const sectionTagName = sectionIdToTagMap.get(idSection);
+      if (!sectionTagName) continue; // 存在チェックは validateSectionReferences が担当
 
-        for (const error of result.errors) {
+      // チェック A: 断面タグ種別チェック
+      if (!allowedTags.includes(sectionTagName)) {
+        issues.push({
+          severity: SEVERITY.ERROR,
+          category: CATEGORY.REFERENCE,
+          message: `${elementType} ${id} が${elementType}用以外の断面 "${sectionTagName}" (id: ${idSection}) を参照しています`,
+          elementType,
+          elementId: id,
+          attribute: 'id_section',
+          value: idSection,
+          repairable: false,
+        });
+        continue; // B チェックは不要
+      }
+
+      // チェック B: kind_structure 整合性チェック（StbSecPileProduct / UNDEFINED は除外）
+      if (
+        kindStructure &&
+        kindStructure !== 'UNDEFINED' &&
+        sectionTagName !== 'StbSecPileProduct'
+      ) {
+        const expectedSuffix = KIND_STRUCTURE_SUFFIX[kindStructure];
+        if (expectedSuffix && !sectionTagName.endsWith(expectedSuffix)) {
           issues.push({
             severity: SEVERITY.ERROR,
             category: CATEGORY.DATA,
-            message: `断面 ${sectionId}: ${error}`,
-            elementType: sectionType,
-            elementId: sectionId,
-            repairable: true,
-            repairSuggestion: 'デフォルト値を適用または断面を削除',
-          });
-        }
-
-        for (const warning of result.warnings) {
-          issues.push({
-            severity: SEVERITY.WARNING,
-            category: CATEGORY.DATA,
-            message: `断面 ${sectionId}: ${warning}`,
-            elementType: sectionType,
-            elementId: sectionId,
+            message: `${elementType} ${id} の kind_structure="${kindStructure}" と断面種別 "${sectionTagName}" が一致しません`,
+            elementType,
+            elementId: id,
+            attribute: 'kind_structure',
+            value: kindStructure,
+            expected: expectedSuffix,
             repairable: false,
           });
         }
       }
     }
-  } catch (e) {
-    issues.push({
-      severity: SEVERITY.WARNING,
-      category: CATEGORY.STRUCTURE,
-      message: `断面情報の抽出中にエラーが発生しました: ${e.message}`,
-      elementType: 'Sections',
-      elementId: '',
-      repairable: false,
-    });
   }
 }
 
@@ -1083,6 +1114,9 @@ export function formatValidationReport(report) {
         if (issue.elementId) {
           lines.push(`    要素: ${issue.elementType} (ID: ${issue.elementId})`);
         }
+        if (issue.idXPath || issue.xpath) {
+          lines.push(`    XPath: ${issue.idXPath || issue.xpath}`);
+        }
         if (issue.repairable && issue.repairSuggestion) {
           lines.push(`    修復提案: ${issue.repairSuggestion}`);
         }
@@ -1099,6 +1133,9 @@ export function formatValidationReport(report) {
         if (issue.elementId) {
           lines.push(`    要素: ${issue.elementType} (ID: ${issue.elementId})`);
         }
+        if (issue.idXPath || issue.xpath) {
+          lines.push(`    XPath: ${issue.idXPath || issue.xpath}`);
+        }
       }
     }
 
@@ -1109,6 +1146,9 @@ export function formatValidationReport(report) {
       lines.push('[情報]');
       for (const issue of infos) {
         lines.push(`  - ${issue.message}`);
+        if (issue.idXPath || issue.xpath) {
+          lines.push(`    XPath: ${issue.idXPath || issue.xpath}`);
+        }
       }
     }
   } else {
@@ -1189,4 +1229,23 @@ export function quickValidate(xmlDoc, options = {}) {
     validateGeometry: true,
     ...options,
   });
+}
+
+/**
+ * XMLドキュメントからSTBバージョンを検出
+ * @param {Document} xmlDoc - XMLドキュメント
+ * @returns {string} バージョン文字列（デフォルト: アクティブバージョンまたは '2.0.2'）
+ */
+function detectStbVersion(xmlDoc) {
+  const root = xmlDoc.documentElement;
+  if (!root) return getActiveVersion() || '2.0.2';
+
+  const version = root.getAttribute('version');
+  if (version) {
+    // '2.1.0' や '2.0.2' にマッピング
+    if (version.startsWith('2.1')) return '2.1.0';
+    if (version.startsWith('2.0')) return '2.0.2';
+  }
+
+  return getActiveVersion() || '2.0.2';
 }

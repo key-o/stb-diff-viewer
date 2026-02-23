@@ -36,11 +36,62 @@ function debugLog(..._args) {
 // グローバルにスキーマ情報を保持（バージョン別管理）
 const xsdSchemas = new Map(); // version -> Document
 const elementDefinitionsByVersion = new Map(); // version -> Map<elementName, definition>
+const simpleTypesByVersion = new Map(); // version -> Map<typeName, simpleTypeDef>
+let choiceGroupCounter = 0;
 let activeVersion = '2.0.2'; // デフォルトバージョン
+let schemaBootstrapPromise = null;
 
 // 後方互換性のためのエイリアス（既存コードで使用）
 let xsdSchema = null;
 let elementDefinitions = new Map();
+
+/**
+ * XSDスキーマ群を一度だけ初期化する
+ * - 2.0.2 と 2.1.0 を事前読込
+ * - 既定アクティブ版を設定
+ *
+ * @param {Object} options
+ * @param {Array<string>} [options.preloadVersions] - 事前読込するバージョン一覧
+ * @param {string} [options.defaultActiveVersion] - 既定で有効化するバージョン
+ * @returns {Promise<boolean>} 少なくとも1つ読込できた場合 true
+ */
+export async function initializeXsdSchemas(options = {}) {
+  const { preloadVersions = ['2.0.2', '2.1.0'], defaultActiveVersion = '2.0.2' } = options;
+
+  if (schemaBootstrapPromise) {
+    return schemaBootstrapPromise;
+  }
+
+  const uniqueVersions = [...new Set(preloadVersions.filter(Boolean))];
+
+  schemaBootstrapPromise = (async () => {
+    const results = await Promise.all(
+      uniqueVersions.map((version) => loadXsdSchemaForVersion(version)),
+    );
+    const hasAnyLoaded = results.some(Boolean);
+
+    if (!hasAnyLoaded) {
+      return false;
+    }
+
+    const preferredVersion =
+      uniqueVersions.includes(defaultActiveVersion) && isVersionLoaded(defaultActiveVersion)
+        ? defaultActiveVersion
+        : uniqueVersions.find((version) => isVersionLoaded(version));
+
+    if (preferredVersion) {
+      setActiveVersion(preferredVersion);
+    }
+
+    return true;
+  })().catch((error) => {
+    console.error('Error initializing XSD schemas:', error);
+    schemaBootstrapPromise = null;
+    return false;
+  });
+
+  return schemaBootstrapPromise;
+}
 
 /**
  * XSDファイルを読み込み、スキーマ情報を解析する
@@ -214,6 +265,9 @@ function parseElementDefinitionsForVersion(version, xsdDoc) {
   xsdSchema = xsdDoc;
   elementDefinitions.clear();
 
+  // simpleType定義を収集
+  collectSimpleTypes(version, xsdDoc);
+
   // 既存の解析ロジックを実行
   parseElementDefinitions();
 
@@ -290,26 +344,12 @@ function parseElementDefinitions() {
     debugLog(`Found ${attributeElements.length} direct attributes for ${elementName}`);
 
     attributeElements.forEach((attr) => {
-      const attrName = attr.getAttribute('name');
-      const attrType = attr.getAttribute('type');
-      const use = attr.getAttribute('use') || 'optional';
-      const defaultValue = attr.getAttribute('default');
-      const fixed = attr.getAttribute('fixed');
-
-      // ドキュメントやアノテーションを取得
-      const documentation = getDocumentation(attr);
-
-      if (attrName && !attributes.has(attrName)) {
-        attributes.set(attrName, {
-          name: attrName,
-          type: attrType,
-          required: use === 'required',
-          default: defaultValue,
-          fixed: fixed,
-          documentation: documentation,
-        });
-
-        debugLog(`  Added attribute: ${attrName} (${use})`);
+      const attrDef = parseAttributeDef(attr);
+      if (attrDef.name && !attributes.has(attrDef.name)) {
+        attributes.set(attrDef.name, attrDef);
+        debugLog(
+          `  Added attribute: ${attrDef.name} (${attrDef.required ? 'required' : 'optional'})`,
+        );
       }
     });
 
@@ -321,26 +361,12 @@ function parseElementDefinitions() {
       debugLog(`Found ${complexAttributes.length} complex type attributes for ${elementName}`);
 
       complexAttributes.forEach((attr) => {
-        const attrName = attr.getAttribute('name');
-        const attrType = attr.getAttribute('type');
-        const use = attr.getAttribute('use') || 'optional';
-        const defaultValue = attr.getAttribute('default');
-        const fixed = attr.getAttribute('fixed');
-
-        // ドキュメントやアノテーションを取得
-        const documentation = getDocumentation(attr);
-
-        if (attrName && !attributes.has(attrName)) {
-          attributes.set(attrName, {
-            name: attrName,
-            type: attrType,
-            required: use === 'required',
-            default: defaultValue,
-            fixed: fixed,
-            documentation: documentation,
-          });
-
-          debugLog(`  Added complex type attribute: ${attrName} (${use})`);
+        const attrDef = parseAttributeDef(attr);
+        if (attrDef.name && !attributes.has(attrDef.name)) {
+          attributes.set(attrDef.name, attrDef);
+          debugLog(
+            `  Added complex type attribute: ${attrDef.name} (${attrDef.required ? 'required' : 'optional'})`,
+          );
         }
       });
 
@@ -427,25 +453,13 @@ function parseElementDefinitions() {
     debugLog(`Found ${attributeElements.length} attributes for complex type ${typeName}`);
 
     attributeElements.forEach((attr) => {
-      const attrName = attr.getAttribute('name');
-      const attrType = attr.getAttribute('type');
-      const use = attr.getAttribute('use') || 'optional';
-      const defaultValue = attr.getAttribute('default');
-      const fixed = attr.getAttribute('fixed');
-
-      // ドキュメントやアノテーションを取得
-      const documentation = getDocumentation(attr);
-
-      attributes.set(attrName, {
-        name: attrName,
-        type: attrType,
-        required: use === 'required',
-        default: defaultValue,
-        fixed: fixed,
-        documentation: documentation,
-      });
-
-      debugLog(`  Added attribute: ${attrName} (${use})`);
+      const attrDef = parseAttributeDef(attr);
+      if (attrDef.name) {
+        attributes.set(attrDef.name, attrDef);
+        debugLog(
+          `  Added attribute: ${attrDef.name} (${attrDef.required ? 'required' : 'optional'})`,
+        );
+      }
     });
 
     // 基底型からの継承も考慮
@@ -480,6 +494,169 @@ function parseElementDefinitions() {
 
     debugLog(`Registered complex type definition: ${typeName} with ${attributes.size} attributes`);
   });
+}
+
+/**
+ * simpleType定義を収集しバージョン別に保存
+ * @param {string} version - STBバージョン
+ * @param {Document} xsdDoc - XSD Document
+ */
+function collectSimpleTypes(version, xsdDoc) {
+  if (!simpleTypesByVersion.has(version)) {
+    simpleTypesByVersion.set(version, new Map());
+  }
+  const versionTypes = simpleTypesByVersion.get(version);
+
+  const simpleTypes = xsdDoc.querySelectorAll('xs\\:simpleType[name], simpleType[name]');
+  simpleTypes.forEach((st) => {
+    const name = st.getAttribute('name');
+    if (!name) return;
+
+    // トップレベルのsimpleTypeのみ（schema直下）
+    const parent = st.parentNode;
+    const parentLN = parent?.localName || parent?.nodeName?.replace(/^.*:/, '');
+    if (parentLN !== 'schema') return;
+
+    const typeDef = {
+      name,
+      baseType: null,
+      enumerations: [],
+      patterns: [],
+      minExclusive: null,
+      maxExclusive: null,
+      minInclusive: null,
+      maxInclusive: null,
+      minLength: null,
+      maxLength: null,
+      totalDigits: null,
+      fractionDigits: null,
+      memberTypes: null,
+    };
+
+    const restriction = st.querySelector('xs\\:restriction, restriction');
+    if (restriction) {
+      typeDef.baseType = restriction.getAttribute('base');
+      parseRestrictionFacetsBrowser(restriction, typeDef);
+    }
+
+    const union = st.querySelector('xs\\:union, union');
+    if (union) {
+      typeDef.baseType = 'union';
+      typeDef.memberTypes = (union.getAttribute('memberTypes') || '').split(/\s+/).filter(Boolean);
+    }
+
+    versionTypes.set(name, typeDef);
+  });
+
+  debugLog(`collectSimpleTypes: Collected ${versionTypes.size} simpleTypes for ${version}`);
+}
+
+/**
+ * restriction内のファセット（制約）を解析（ブラウザ版）
+ * @param {Element} restriction - restriction要素
+ * @param {Object} typeDef - ファセットを格納するオブジェクト
+ */
+function parseRestrictionFacetsBrowser(restriction, typeDef) {
+  for (let i = 0; i < restriction.childNodes.length; i++) {
+    const node = restriction.childNodes[i];
+    if (node.nodeType !== 1) continue;
+
+    const localName = node.localName || node.nodeName.replace(/^.*:/, '');
+    const value = node.getAttribute('value');
+
+    switch (localName) {
+      case 'enumeration':
+        typeDef.enumerations.push(value);
+        break;
+      case 'pattern':
+        typeDef.patterns.push(value);
+        break;
+      case 'minExclusive':
+        typeDef.minExclusive = parseFloat(value);
+        break;
+      case 'maxExclusive':
+        typeDef.maxExclusive = parseFloat(value);
+        break;
+      case 'minInclusive':
+        typeDef.minInclusive = parseFloat(value);
+        break;
+      case 'maxInclusive':
+        typeDef.maxInclusive = parseFloat(value);
+        break;
+      case 'minLength':
+        typeDef.minLength = parseInt(value, 10);
+        break;
+      case 'maxLength':
+        typeDef.maxLength = parseInt(value, 10);
+        break;
+      case 'totalDigits':
+        typeDef.totalDigits = parseInt(value, 10);
+        break;
+      case 'fractionDigits':
+        typeDef.fractionDigits = parseInt(value, 10);
+        break;
+    }
+  }
+}
+
+/**
+ * インラインsimpleType制約を解析（ブラウザ版）
+ * @param {Element} stNode - simpleType要素
+ * @returns {Object} 制約オブジェクト
+ */
+function parseInlineSimpleTypeBrowser(stNode) {
+  const constraints = {
+    baseType: null,
+    enumerations: [],
+    patterns: [],
+    minExclusive: null,
+    maxExclusive: null,
+    minInclusive: null,
+    maxInclusive: null,
+    minLength: null,
+    maxLength: null,
+  };
+
+  const restriction = stNode.querySelector('xs\\:restriction, restriction');
+  if (restriction) {
+    constraints.baseType = restriction.getAttribute('base');
+    parseRestrictionFacetsBrowser(restriction, constraints);
+  }
+
+  return constraints;
+}
+
+/**
+ * 属性要素から属性定義を解析する共通ヘルパー
+ * @param {Element} attr - xs:attribute要素
+ * @returns {Object} 属性定義
+ */
+function parseAttributeDef(attr) {
+  const attrName = attr.getAttribute('name');
+  const attrType = attr.getAttribute('type');
+  const use = attr.getAttribute('use') || 'optional';
+  const defaultValue = attr.getAttribute('default');
+  const fixed = attr.getAttribute('fixed');
+  const documentation = getDocumentation(attr);
+
+  // インラインsimpleType制約のチェック
+  let constraints = null;
+  if (!attrType) {
+    const inlineST = attr.querySelector('xs\\:simpleType, simpleType');
+    if (inlineST) {
+      constraints = parseInlineSimpleTypeBrowser(inlineST);
+    }
+  }
+
+  return {
+    name: attrName,
+    type: attrType,
+    required: use === 'required',
+    default: defaultValue,
+    fixed: fixed,
+    documentation: documentation,
+    constraints: constraints,
+  };
 }
 
 /**
@@ -792,44 +969,16 @@ function parseChildElements(complexTypeElement, childrenMap, visited, depth) {
 
   debugLog(`parseChildElements at depth ${depth}`);
 
-  // xs:sequence, xs:choice, xs:all を探索
-  const sequences = complexTypeElement.querySelectorAll(
-    'xs\\:sequence, sequence, xs\\:choice, choice, xs\\:all, all',
-  );
+  // 直接の子要素からコンテナを探索
+  for (let i = 0; i < complexTypeElement.childNodes.length; i++) {
+    const child = complexTypeElement.childNodes[i];
+    if (child.nodeType !== 1) continue;
+    const localName = child.localName || child.nodeName.replace(/^.*:/, '');
 
-  sequences.forEach((sequence) => {
-    const containerType = sequence.localName || sequence.nodeName.replace(/^xs:/, '');
-    debugLog(`Processing ${containerType} container`);
-
-    // 子要素を取得
-    const elements = sequence.querySelectorAll('xs\\:element, element');
-
-    elements.forEach((elementNode) => {
-      const childDef = parseElementChild(elementNode, visited);
-      if (childDef) {
-        childrenMap.set(childDef.name, childDef);
-        debugLog(`  Added child element: ${childDef.name}`);
-      }
-    });
-
-    // xs:group参照の処理
-    const groups = sequence.querySelectorAll('xs\\:group[ref], group[ref]');
-    groups.forEach((groupNode) => {
-      const ref = groupNode.getAttribute('ref');
-      if (ref) {
-        debugLog(`  Processing group reference: ${ref}`);
-        const groupChildren = resolveGroupReference(ref, visited, depth + 1);
-        if (groupChildren) {
-          groupChildren.forEach((childDef, childName) => {
-            if (!childrenMap.has(childName)) {
-              childrenMap.set(childName, childDef);
-              debugLog(`    Added group child: ${childName}`);
-            }
-          });
-        }
-      }
-    });
-  });
+    if (localName === 'sequence' || localName === 'choice' || localName === 'all') {
+      processContainerChildren(child, childrenMap, visited, depth + 1, null);
+    }
+  }
 
   // xs:extension からの継承も考慮
   const extension = complexTypeElement.querySelector('xs\\:extension, extension');
@@ -846,6 +995,73 @@ function parseChildElements(complexTypeElement, childrenMap, visited, depth) {
           }
         });
       }
+    }
+
+    // extension内のsequence/choice/allも処理
+    for (let i = 0; i < extension.childNodes.length; i++) {
+      const child = extension.childNodes[i];
+      if (child.nodeType !== 1) continue;
+      const localName = child.localName || child.nodeName.replace(/^.*:/, '');
+
+      if (localName === 'sequence' || localName === 'choice' || localName === 'all') {
+        processContainerChildren(child, childrenMap, visited, depth + 1, null);
+      }
+    }
+  }
+}
+
+/**
+ * sequence/choice/all コンテナ内の子要素を処理（choiceグループ追跡付き）
+ * @param {Element} container - コンテナ要素
+ * @param {Map<string, Object>} childrenMap - 子要素定義を格納するマップ
+ * @param {Set<string>} visited - 循環参照防止
+ * @param {number} depth - 現在の再帰深度
+ * @param {string|null} parentChoiceGroup - 親のchoiceグループID
+ */
+function processContainerChildren(container, childrenMap, visited, depth, parentChoiceGroup) {
+  if (depth >= MAX_DEPTH) return;
+
+  const localName = container.localName || container.nodeName.replace(/^.*:/, '');
+  const isChoice = localName === 'choice';
+  const currentChoiceGroup = isChoice ? `choice_${choiceGroupCounter++}` : parentChoiceGroup;
+
+  debugLog(`Processing ${localName} container (choiceGroup: ${currentChoiceGroup})`);
+
+  for (let i = 0; i < container.childNodes.length; i++) {
+    const child = container.childNodes[i];
+    if (child.nodeType !== 1) continue;
+    const childLN = child.localName || child.nodeName.replace(/^.*:/, '');
+
+    if (childLN === 'element') {
+      const childDef = parseElementChild(child, visited);
+      if (childDef) {
+        if (currentChoiceGroup) {
+          childDef.choiceGroup = currentChoiceGroup;
+        }
+        if (!childrenMap.has(childDef.name)) {
+          childrenMap.set(childDef.name, childDef);
+          debugLog(`  Added child element: ${childDef.name} (choiceGroup: ${currentChoiceGroup})`);
+        }
+      }
+    } else if (childLN === 'group') {
+      const ref = child.getAttribute('ref');
+      if (ref) {
+        debugLog(`  Processing group reference: ${ref}`);
+        const groupChildren = resolveGroupReference(ref, visited, depth + 1);
+        if (groupChildren) {
+          groupChildren.forEach((groupChild, childName) => {
+            if (!childrenMap.has(childName)) {
+              if (currentChoiceGroup && !groupChild.choiceGroup) {
+                groupChild.choiceGroup = currentChoiceGroup;
+              }
+              childrenMap.set(childName, groupChild);
+              debugLog(`    Added group child: ${childName}`);
+            }
+          });
+        }
+      }
+    } else if (childLN === 'sequence' || childLN === 'choice' || childLN === 'all') {
+      processContainerChildren(child, childrenMap, visited, depth + 1, currentChoiceGroup);
     }
   }
 }
@@ -866,8 +1082,15 @@ function parseElementChild(elementNode, visited) {
   debugLog(`parseElementChild: name=${name}, ref=${ref}, type=${type}`);
 
   // ref属性がある場合は参照を解決
+  // minOccurs/maxOccursは参照元（ref使用側）の値を優先する
+  // XSDでは <xs:element ref="stb:Foo" minOccurs="0"/> のように参照側で出現回数を指定する
   if (ref) {
-    return resolveElementReference(ref, visited);
+    const resolved = resolveElementReference(ref, visited);
+    if (resolved) {
+      resolved.minOccurs = minOccurs;
+      resolved.maxOccurs = maxOccurs;
+    }
+    return resolved;
   }
 
   // name属性がない場合はスキップ
@@ -1072,26 +1295,12 @@ function resolveTypeReference(typeRef, visited = new Set()) {
   debugLog(`Found ${attributeElements.length} attributes in complex type ${typeName}`);
 
   attributeElements.forEach((attr) => {
-    const attrName = attr.getAttribute('name');
-    const attrType = attr.getAttribute('type');
-    const use = attr.getAttribute('use') || 'optional';
-    const defaultValue = attr.getAttribute('default');
-    const fixed = attr.getAttribute('fixed');
-
-    // ドキュメントやアノテーションを取得
-    const documentation = getDocumentation(attr);
-
-    if (attrName) {
-      attributes.set(attrName, {
-        name: attrName,
-        type: attrType,
-        required: use === 'required',
-        default: defaultValue,
-        fixed: fixed,
-        documentation: documentation,
-      });
-
-      debugLog(`  Added type reference attribute: ${attrName} (${use})`);
+    const attrDef = parseAttributeDef(attr);
+    if (attrDef.name) {
+      attributes.set(attrDef.name, attrDef);
+      debugLog(
+        `  Added type reference attribute: ${attrDef.name} (${attrDef.required ? 'required' : 'optional'})`,
+      );
     }
   });
 
@@ -1153,28 +1362,65 @@ function resolveAttributeGroupReference(ref) {
   debugLog(`Found ${attributeElements.length} attributes in attribute group ${groupName}`);
 
   attributeElements.forEach((attr) => {
-    const attrName = attr.getAttribute('name');
-    const attrType = attr.getAttribute('type');
-    const use = attr.getAttribute('use') || 'optional';
-    const defaultValue = attr.getAttribute('default');
-    const fixed = attr.getAttribute('fixed');
-
-    // ドキュメントやアノテーションを取得
-    const documentation = getDocumentation(attr);
-
-    if (attrName) {
-      attributes.set(attrName, {
-        name: attrName,
-        type: attrType,
-        required: use === 'required',
-        default: defaultValue,
-        fixed: fixed,
-        documentation: documentation,
-      });
-
-      debugLog(`  Added attribute: ${attrName} (${use})`);
+    const attrDef = parseAttributeDef(attr);
+    if (attrDef.name) {
+      attributes.set(attrDef.name, attrDef);
+      debugLog(
+        `  Added attribute: ${attrDef.name} (${attrDef.required ? 'required' : 'optional'})`,
+      );
     }
   });
 
   return attributes;
+}
+
+/**
+ * 指定バージョンのsimpleType定義を取得
+ * @param {string} version - STBバージョン
+ * @param {string} typeName - 型名
+ * @returns {Object|null} simpleType定義
+ */
+export function getSimpleTypeForVersion(version, typeName) {
+  const versionTypes = simpleTypesByVersion.get(version);
+  return versionTypes ? versionTypes.get(typeName) || null : null;
+}
+
+/**
+ * アクティブバージョンのsimpleType定義を取得
+ * @param {string} typeName - 型名
+ * @returns {Object|null} simpleType定義
+ */
+export function getSimpleType(typeName) {
+  return getSimpleTypeForVersion(activeVersion, typeName);
+}
+
+/**
+ * 指定バージョンの全simpleType定義を取得
+ * @param {string} [version] - STBバージョン（省略時はアクティブバージョン）
+ * @returns {Map<string, Object>} simpleType定義のMap
+ */
+export function getSimpleTypes(version) {
+  const v = version || activeVersion;
+  return simpleTypesByVersion.get(v) || new Map();
+}
+
+/**
+ * 指定バージョンの要素定義を取得
+ * @param {string} version - STBバージョン
+ * @param {string} elementType - 要素タイプ名
+ * @returns {Object|null} 要素定義
+ */
+export function getElementDefinitionForVersion(version, elementType) {
+  const versionDefs = elementDefinitionsByVersion.get(version);
+  return versionDefs ? versionDefs.get(elementType) || null : null;
+}
+
+/**
+ * 名前空間プレフィックスを除去するユーティリティ
+ * @param {string} name - プレフィックス付き名前
+ * @returns {string} プレフィックスなし名前
+ */
+export function stripNsPrefix(name) {
+  if (!name) return '';
+  return name.includes(':') ? name.split(':').pop() : name;
 }

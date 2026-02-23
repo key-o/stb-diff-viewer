@@ -9,6 +9,8 @@
  * - デバウンス処理
  */
 
+import { escapeHtml } from '../../utils/htmlUtils.js';
+
 /**
  * デフォルトの差分ステータスフィルタ（全て表示）
  */
@@ -621,16 +623,3 @@ export function highlightSearchMatch(text, searchPattern) {
   }
 }
 
-/**
- * HTMLエスケープ
- * @private
- */
-function escapeHtml(text) {
-  if (!text) return '';
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}

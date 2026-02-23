@@ -8,10 +8,10 @@
  * @module common/stb/parser/sectionExtractor
  */
 
-import { deriveDimensionsFromAttributes } from '../data/dimensionNormalizer.js';
-import { ensureUnifiedSectionType } from '../section/sectionTypeUtil.js';
-import { SameNotSameProcessor } from './SameNotSameProcessor.js';
-import { SECTION_CONFIG } from '../section/sectionConfig.js';
+import { deriveDimensionsFromAttributes } from '../../data/dimensionNormalizer.js';
+import { resolveGeometryProfileTypeInPlace } from '../../section/sectionTypeUtil.js';
+import { SectionShapeProcessor } from './SectionShapeProcessor.js';
+import { SECTION_CONFIG } from '../../section/sectionConfig.js';
 
 // STB 名前空間（querySelector がヒットしない場合にフォールバック）
 const STB_NS = 'https://www.building-smart.or.jp/dl';
@@ -20,6 +20,7 @@ const STB_NS = 'https://www.building-smart.or.jp/dl';
 const _sectionConfig = SECTION_CONFIG;
 const _logger = {
   log: () => {},
+  debug: () => {},
   warn: console.warn,
   error: console.error,
 };
@@ -72,18 +73,41 @@ function extractSectionsByType(xmlDoc, elementType, config) {
         if (typeof xmlDoc.getElementsByTagNameNS === 'function') {
           const nsNodes = xmlDoc.getElementsByTagNameNS(STB_NS, sel);
           for (let i = 0; i < nsNodes.length; i++) elements.push(nsNodes[i]);
+          if (nsNodes.length > 0) {
+            _logger.debug(
+              `[${elementType}] Found ${nsNodes.length} elements via getElementsByTagNameNS for selector: ${sel}`,
+            );
+          }
           continue;
         }
       }
       // 通常経路
-      nodeList && nodeList.forEach && nodeList.forEach((el) => elements.push(el));
+      if (nodeList && nodeList.forEach) {
+        if (nodeList.length > 0) {
+          _logger.debug(
+            `[${elementType}] Found ${nodeList.length} elements via querySelectorAll for selector: ${sel}`,
+          );
+        }
+        nodeList.forEach((el) => elements.push(el));
+      }
     }
 
+    if (elements.length === 0) {
+      _logger.warn(
+        `[${elementType}] No elements found for any selector. Selectors: ${config.selectors.join(', ')}`,
+      );
+    }
+
+    let filteredCount = 0;
+    let extractedCount = 0;
+
     elements.forEach((element) => {
+      const elementId = element.getAttribute('id');
+      const tagName = element.tagName || element.localName;
+
       // attributeFilter が設定されている場合、フィルタリングを適用
       if (config.attributeFilter) {
         // skipFilterForTags に含まれるタグはフィルターをスキップ
-        const tagName = element.tagName || element.localName;
         const shouldSkipFilter =
           config.skipFilterForTags && config.skipFilterForTags.includes(tagName);
 
@@ -109,6 +133,12 @@ function extractSectionsByType(xmlDoc, elementType, config) {
             }
           }
           if (!matches) {
+            filteredCount++;
+            if (elementId === '51' && elementType === 'Girder') {
+              _logger.debug(
+                `[${elementType}] Filtering out ${tagName} id="${elementId}" (kind_beam="${element.getAttribute('kind_beam')}" does not match filter)`,
+              );
+            }
             return; // フィルタに一致しない要素はスキップ
           }
         }
@@ -117,8 +147,20 @@ function extractSectionsByType(xmlDoc, elementType, config) {
       const sectionData = extractSectionData(element, config);
       if (sectionData && sectionData.id) {
         sections.set(sectionData.id, sectionData);
+        extractedCount++;
+        if (sectionData.id === 51 && elementType === 'Girder') {
+          _logger.debug(
+            `[${elementType}] Successfully extracted section id="${sectionData.id}" from ${tagName}`,
+          );
+        }
       }
     });
+
+    if (elementType === 'Girder') {
+      _logger.debug(
+        `[${elementType}] Summary: extracted=${extractedCount}, filtered=${filteredCount}, total=${sections.size}`,
+      );
+    }
   } catch (error) {
     _logger.error(`Error extracting ${elementType} sections:`, error);
   }
@@ -191,20 +233,34 @@ function extractSectionData(element, config) {
         ...(sectionData.dimensions || {}),
         ...steelDims,
       };
+
+      // SRC造の場合に備えて、RC寸法で上書きされる前の鉄骨プロファイル情報を保存
+      // S部分メッシュの生成に使用する（H鋼断面等）
+      sectionData.steelProfile = {
+        section_type: steelDims.profile_hint || null,
+        dimensions: { ...steelDims },
+      };
+
+      // クロスH断面フラグ（shape_X / shape_Y を持つSRC造柱専用断面）
+      if (steelDims.profile_hint === 'CROSS_H') {
+        sectionData.isCrossH = true;
+      }
     }
   }
 
   // RC / SRC / CFT などコンクリート図形寸法の抽出
+  // SRC造では鉄骨寸法とマージされるため、クリーンなコンクリート寸法を別途保持する
+  let concreteDimsClean = null;
   try {
-    const concreteDims = extractConcreteDimensions(element, config);
-    if (concreteDims) {
+    concreteDimsClean = extractConcreteDimensions(element, config);
+    if (concreteDimsClean) {
       sectionData.dimensions = {
         ...(sectionData.dimensions || {}),
-        ...concreteDims,
+        ...concreteDimsClean,
       };
 
       // 断面タイプの推定（RC円形の優先、次にRC矩形のデフォルト）
-      if (concreteDims.profile_hint === 'CIRCLE') {
+      if (concreteDimsClean.profile_hint === 'CIRCLE') {
         sectionData.section_type = 'CIRCLE';
       } else if (!sectionData.section_type && /_RC$/i.test(element.tagName)) {
         sectionData.section_type = 'RECTANGLE';
@@ -212,12 +268,16 @@ function extractSectionData(element, config) {
 
       // RC等でsteel形状が無い場合、寸法から形状名を補完
       if (!sectionData.shapeName) {
-        const d = concreteDims.diameter || concreteDims.outer_diameter;
+        const d = concreteDimsClean.diameter || concreteDimsClean.outer_diameter;
         if (d) {
           sectionData.shapeName = `CIRCLE_D${d}`;
         } else {
-          const w = concreteDims.width || concreteDims.outer_width || concreteDims.overall_width;
-          const h = concreteDims.height || concreteDims.overall_depth || concreteDims.depth;
+          const w =
+            concreteDimsClean.width ||
+            concreteDimsClean.outer_width ||
+            concreteDimsClean.overall_width;
+          const h =
+            concreteDimsClean.height || concreteDimsClean.overall_depth || concreteDimsClean.depth;
           if (w && h) {
             sectionData.shapeName = `RECT_${w}x${h}`;
           } else if (w) {
@@ -281,27 +341,67 @@ function extractSectionData(element, config) {
   }
 
   // 断面タイプの正規化（section_type, profile_type, sectionType の統一）
-  ensureUnifiedSectionType(sectionData);
+  resolveGeometryProfileTypeInPlace(sectionData);
 
   // SRC造の判定とフラグ設定
   const isSRC = /_SRC$/i.test(element.tagName);
   if (isSRC) {
     sectionData.isSRC = true;
+
     // RC部分の寸法を明示的に格納（SRC複合ジオメトリ生成用）
-    if (sectionData.dimensions) {
-      const dims = sectionData.dimensions;
+    // クリーンなコンクリート寸法（鉄骨寸法とマージ前）を使用して
+    // 鉄骨の width/height が混入するのを防止する
+    const rcSource = concreteDimsClean || sectionData.dimensions;
+    if (rcSource) {
+      const rcProfileType = rcSource.profile_hint === 'CIRCLE' ? 'CIRCLE' : 'RECTANGLE';
       sectionData.concreteProfile = {
         // 柱・ポスト用（width_X, width_Y）
-        width_X: dims.width_X,
-        width_Y: dims.width_Y,
-        // 梁用（幅・せい）
-        width: dims.width || dims.outer_width || dims.width_X,
-        height: dims.height || dims.overall_depth || dims.depth || dims.width_Y,
+        width_X: rcSource.width_X,
+        width_Y: rcSource.width_Y,
+        // 梁用（幅・せい）— コンクリート固有の属性を優先し、鉄骨値の混入を防ぐ
+        width: rcSource.width_X || rcSource.outer_width || rcSource.width,
+        height: rcSource.width_Y || rcSource.overall_depth || rcSource.depth || rcSource.height,
         // 円形断面用
-        diameter: dims.diameter || dims.D,
+        diameter: rcSource.diameter || rcSource.D,
         // プロファイルタイプ（矩形 or 円形）
-        profileType: dims.profile_hint === 'CIRCLE' ? 'CIRCLE' : 'RECTANGLE',
+        profileType: rcProfileType,
       };
+
+      // SRC造の外形ジオメトリはRC部分で生成するため、
+      // section_type をRC型に強制設定（鉄骨の profile_hint が優先されるのを防止）
+      sectionData.section_type = rcProfileType;
+
+      // dimensions の width/height もRC寸法で上書きし、
+      // RECTANGLE プロファイル生成時に鉄骨寸法が使われるのを防止する
+      if (sectionData.dimensions) {
+        const rcWidth = sectionData.concreteProfile.width;
+        const rcHeight = sectionData.concreteProfile.height;
+        if (rcWidth) {
+          sectionData.dimensions.width = rcWidth;
+          sectionData.dimensions.outer_width = rcWidth;
+        }
+        if (rcHeight) {
+          sectionData.dimensions.height = rcHeight;
+          sectionData.dimensions.outer_height = rcHeight;
+        }
+        // profile_hint もRC型に統一
+        sectionData.dimensions.profile_hint = rcProfileType;
+      }
+    }
+
+    // SRC造梁の鋼材図形からoffset/levelを抽出
+    // STB仕様:
+    //   offset = 鉄骨ウェブ芯までの距離（RC梁芯基準で水平方向）
+    //   level = 鉄骨天端までの距離（RC梁天端基準で下方向）
+    // これらが指定されていない場合、断面の芯が一致することを意味する
+    //   → S梁天端はRC梁天端より(RC梁せい-S梁せい)/2だけ下がる
+    try {
+      const steelFigureOffset = extractSteelFigureOffsetLevel(element, config);
+      if (steelFigureOffset) {
+        sectionData.steelFigureOffset = steelFigureOffset;
+      }
+    } catch (e) {
+      _logger.warn(`[Data] SRC造断面: offset/level抽出失敗 (id=${id})`, e);
     }
   }
 
@@ -373,11 +473,21 @@ function logExtractionResults(result) {
 // ---------------- 追加ヘルパー: S造断面寸法抽出 ----------------
 /**
  * steelFigureInfoからS造断面の寸法を抽出
- * @param {Object} steelFigureInfo - SameNotSameProcessorからの出力
+ * @param {Object} steelFigureInfo - SectionShapeProcessorからの出力
  * @returns {Object|null} 寸法オブジェクト {H, A, B, t1, t2, r, ...}
  */
 function extractSteelDimensions(steelFigureInfo) {
   if (!steelFigureInfo) return null;
+
+  // クロスH断面（shape_X / shape_Y）の場合は専用処理
+  if (steelFigureInfo.crossH) {
+    const { shapeX, shapeY } = steelFigureInfo.crossH;
+    return {
+      profile_hint: 'CROSS_H',
+      crossH_shapeX: shapeX,
+      crossH_shapeY: shapeY || shapeX,
+    };
+  }
 
   // 優先順位: same > notSame[0] > beamMultiSection[0] > variants[0]
   let sourceVariant = null;
@@ -1004,14 +1114,14 @@ function extractPileTypeFromTagName(tagName) {
 function extractSteelFigureVariants(element, config) {
   if (!config.steelFigures || config.steelFigures.length === 0) {
     // フォールバック: 直接子要素から多断面パターンを検索
-    const processor = new SameNotSameProcessor(element);
+    const processor = new SectionShapeProcessor(element);
     return processor.expandSteelFigure();
   }
 
   for (const figureSelector of config.steelFigures) {
     const figureElement = findFigureElement(element, figureSelector);
     if (!figureElement) continue;
-    const processor = new SameNotSameProcessor(figureElement);
+    const processor = new SectionShapeProcessor(figureElement);
     const expanded = processor.expandSteelFigure();
     if (expanded) {
       return expanded;
@@ -1020,7 +1130,7 @@ function extractSteelFigureVariants(element, config) {
 
   // フォールバック: Figure要素が見つからない場合、element自体を直接調査
   // (STB v2.0.2では多断面要素がFigure要素でラップされていない場合がある)
-  const processor = new SameNotSameProcessor(element);
+  const processor = new SectionShapeProcessor(element);
   return processor.expandSteelFigure();
 }
 
@@ -1069,7 +1179,7 @@ function findFirstShapeElement(root) {
  * 多断面ジオメトリ生成に必要な構造を提供する
  *
  * @param {Object} sectionData - 断面データオブジェクト（変更される）
- * @param {Object} steelFigureInfo - SameNotSameProcessor からの出力
+ * @param {Object} steelFigureInfo - SectionShapeProcessor からの出力
  */
 function normalizeSectionMode(sectionData, steelFigureInfo) {
   if (!steelFigureInfo) return;
@@ -1238,3 +1348,56 @@ function extractBaseType(element, config) {
   }
   return null;
 }
+
+/**
+ * SRC造梁の鋼材図形要素からoffset/levelを抽出
+ * STB仕様:
+ *   offset = 鉄骨ウェブ芯までの距離（RC梁芯基準で水平方向）
+ *   level = 鉄骨天端までの距離（RC梁天端基準で下方向）
+ * これらが指定されていない場合、断面の芯が一致することを意味する
+ *   → S梁天端はRC梁天端より(RC梁せい-S梁せい)/2だけ下がる
+ *
+ * @param {Element} element - 梁断面のDOM要素（StbSecBeam_SRC / StbSecGirder_SRC）
+ * @param {Object} config - 断面抽出設定
+ * @returns {Object|null} {offset: number|null, level: number|null} またはnull
+ */
+function extractSteelFigureOffsetLevel(element, config) {
+  // SRC造梁の場合のみ処理
+  const tagName = element.tagName || element.localName;
+  if (!/^StbSec(?:Beam|Girder)_SRC$/i.test(tagName)) {
+    return null;
+  }
+
+  // 鋼材図形要素を取得
+  const steelFigureSelectors = config.steelFigures || [];
+  for (const sel of steelFigureSelectors) {
+    const figEl = findFigureElement(element, sel);
+    if (!figEl) continue;
+
+    const offset = figEl.getAttribute('offset');
+    const level = figEl.getAttribute('level');
+
+    // 両方ともnullの場合はnullを返す（デフォルト動作）
+    // いずれか一つでも指定されていればオブジェクトを返す
+    if (offset === null && level === null) {
+      continue;
+    }
+
+    const result = {};
+    if (offset !== null) {
+      const offsetVal = parseFloat(offset);
+      result.offset = isFinite(offsetVal) ? offsetVal : null;
+    }
+    if (level !== null) {
+      const levelVal = parseFloat(level);
+      result.level = isFinite(levelVal) ? levelVal : null;
+    }
+
+    if (Object.keys(result).length > 0) {
+      return result;
+    }
+  }
+
+  return null;
+}
+

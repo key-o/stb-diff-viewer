@@ -92,7 +92,7 @@ export function setupDevelopmentTools() {
   log.info('デバッグコマンド利用可能: window.debugLoadData().');
 
   // 重要度デバッグツール
-  import('../../utils/importanceDebug.js')
+  import('../../diagnostics/importanceDebug.js')
     .then((module) => {
       // デバッグツールを初期化
       if (module.initializeDebugTools) {

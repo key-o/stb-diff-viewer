@@ -2103,4 +2103,3 @@ export function applyAttributeChangesTo202(stbRoot) {
     addDefaultAttributes(stbRoot, elementType, '202');
   });
 }
-

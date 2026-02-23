@@ -23,7 +23,7 @@ import {
   collectLevelLines,
 } from './DxfGeometryCollector.js';
 import { generateDxfContent, downloadDxf } from './DxfFormatWriter.js';
-import { showError, showWarning } from '../../../ui/common/toast.js';
+import { eventBus, ToastEvents } from '../../../app/events/index.js';
 
 const log = createLogger('StbToDxfExporter');
 
@@ -112,7 +112,7 @@ export async function exportStbToDxf(selectedElementTypes, filename = 'stb_expor
     // エクスポート可能か確認
     const { canExport, reason } = canExportStbToDxf();
     if (!canExport) {
-      showWarning(`エクスポートできません: ${reason}`);
+      eventBus.emit(ToastEvents.SHOW_WARNING, { message: `エクスポートできません: ${reason}` });
       return false;
     }
 
@@ -255,7 +255,7 @@ export async function exportStbToDxf(selectedElementTypes, filename = 'stb_expor
     }
 
     if (lines2D.length === 0) {
-      showWarning('エクスポートする線分がありません');
+      eventBus.emit(ToastEvents.SHOW_WARNING, { message: 'エクスポートする線分がありません' });
       return false;
     }
 
@@ -403,7 +403,9 @@ export async function exportStbToDxf(selectedElementTypes, filename = 'stb_expor
     return true;
   } catch (error) {
     log.error('STB→DXFエクスポートエラー:', error);
-    showError(`STB→DXFエクスポートに失敗しました: ${error.message}`);
+    eventBus.emit(ToastEvents.SHOW_ERROR, {
+      message: `STB→DXFエクスポートに失敗しました: ${error.message}`,
+    });
     return false;
   }
 }

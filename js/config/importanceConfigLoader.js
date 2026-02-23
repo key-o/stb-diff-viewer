@@ -1,8 +1,5 @@
 /**
  * @fileoverview 重要度設定ローダー
- *
- * 外部JSONファイルから重要度設定を読み込む機能を提供します。
- * S2/S4などのカスタム設定ファイルを動的に切り替え可能にします。
  */
 
 import { IMPORTANCE_LEVELS } from '../constants/importanceLevels.js';
@@ -13,21 +10,21 @@ import { IMPORTANCE_LEVELS } from '../constants/importanceLevels.js';
 export const AVAILABLE_CONFIGS = [
   {
     id: 'mvd-combined',
-    name: 'MVD S2+S4 (結合)',
+    name: 'MVD 統合',
     path: '../config/importance-mvd-combined.json',
-    description: 'S2=高重要度、S4のみ=中重要度',
+    description: 'S2/S4 の統合設定',
   },
   {
     id: 's2',
     name: 'MVD S2 (必須)',
     path: '../config/importance-s2.json',
-    description: 'S2対応項目を高重要度として設定',
+    description: 'S2対応項目を必須対象として設定',
   },
   {
     id: 's4',
     name: 'MVD S4 (任意)',
     path: '../config/importance-s4.json',
-    description: 'S4対応項目を中重要度として設定',
+    description: 'S4対応項目を対象として設定',
   },
 ];
 
@@ -61,12 +58,21 @@ export async function loadImportanceConfig(configPath) {
       }
     }
 
+    // S2パラメータチェック設定（JSON拡張）
+    const normalizedParameterChecks = {};
+    if (config.parameterChecks && typeof config.parameterChecks === 'object') {
+      for (const [path, options] of Object.entries(config.parameterChecks)) {
+        normalizedParameterChecks[path] = normalizeParameterCheckOptions(options);
+      }
+    }
+
     return {
       name: config.name || 'カスタム設定',
       description: config.description || '',
       defaultLevel: normalizeImportanceLevel(config.defaultLevel || 'optional'),
       patterns: normalizedPatterns,
       settings: normalizedSettings,
+      parameterChecks: normalizedParameterChecks,
     };
   } catch (error) {
     console.error('[ImportanceConfigLoader] 設定ファイルの読み込みエラー:', error);
@@ -80,6 +86,10 @@ export async function loadImportanceConfig(configPath) {
  * @returns {string} 正規化された重要度レベル
  */
 function normalizeImportanceLevel(level) {
+  if (typeof level !== 'string') {
+    return IMPORTANCE_LEVELS.OPTIONAL;
+  }
+
   const levelMap = {
     required: IMPORTANCE_LEVELS.REQUIRED,
     optional: IMPORTANCE_LEVELS.OPTIONAL,
@@ -88,6 +98,26 @@ function normalizeImportanceLevel(level) {
     not_applicable: IMPORTANCE_LEVELS.NOT_APPLICABLE,
   };
   return levelMap[level.toLowerCase()] || IMPORTANCE_LEVELS.OPTIONAL;
+}
+
+/**
+ * S2パラメータチェック設定を正規化
+ * @param {boolean|Object} options
+ * @returns {{checkRequired: boolean, checkValue: boolean}}
+ */
+function normalizeParameterCheckOptions(options) {
+  if (options === false) {
+    return { checkRequired: false, checkValue: false };
+  }
+
+  if (!options || typeof options !== 'object') {
+    return { checkRequired: true, checkValue: true };
+  }
+
+  return {
+    checkRequired: options.checkRequired !== false,
+    checkValue: options.checkValue !== false,
+  };
 }
 
 /**
@@ -111,7 +141,7 @@ export async function loadConfigById(configId) {
 }
 
 /**
- * デフォルト設定（MVD S2+S4結合）を読み込む
+ * デフォルト設定（MVD統合）を読み込む
  * @returns {Promise<Object>} 設定オブジェクト
  */
 export async function loadDefaultConfig() {

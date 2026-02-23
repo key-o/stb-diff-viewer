@@ -5,6 +5,8 @@
  * 断面ノードの検索、鉄骨断面寸法の取得、断面データの抽出などを担当します。
  */
 
+import { getState } from '../../../app/globalState.js';
+
 /**
  * 指定されたドキュメントの StbSections 内から、指定IDを持つ断面要素を検索する。
  * @param {XMLDocument | null} doc - 検索対象のXMLドキュメント。
@@ -25,10 +27,12 @@ export function findSectionNode(doc, sectionId) {
  * @returns {Object | null} 断面寸法情報、または null
  */
 export function findSteelSectionInfo(shapeName) {
-  if (!window.docA && !window.docB) return null;
+  const docA = getState('models.documentA');
+  const docB = getState('models.documentB');
+  if (!docA && !docB) return null;
 
   // どちらかのdocからStbSecSteelを取得
-  const doc = window.docA || window.docB;
+  const doc = docA || docB;
   if (!doc) return null;
   const steel = doc.querySelector('StbSecSteel');
   if (!steel) return null;
@@ -140,7 +144,7 @@ export function generateEquivalenceSection(result) {
         <div style="display: flex; align-items: center; justify-content: space-between;">
           <div>
             <strong style="color: ${statusColor}; font-size: var(--font-size-lg);">${statusText}</strong>
-            <span style="margin-left: 10px; color: #666; font-size: var(--font-size-md);">${result.summary} (${result.passRate}%)</span>
+            <span style="margin-left: 10px; color: #666; font-size: var(--font-size-sm);">${result.summary} (${result.passRate}%)</span>
           </div>
         </div>
       </td>
@@ -159,7 +163,7 @@ export function generateEquivalenceSection(result) {
           <span style="color: ${iconColor}; margin-right: 5px;">${icon}</span>
           ${check.category}
         </td>
-        <td colspan="2" style="font-size: var(--font-size-md); color: #555;">
+        <td colspan="2" style="font-size: var(--font-size-sm); color: #555;">
           ${check.name}: ${check.details}
         </td>
       </tr>
@@ -246,13 +250,13 @@ export function renderShapeWithSteelInfo(shape) {
   if (!steelInfo) return `<span>${shape}</span>`;
 
   if (steelInfo.type === 'H') {
-    return `<span>${shape} <span style="color:#888;font-size:var(--font-size-md);">[A=${steelInfo.A}, B=${steelInfo.B}, t1=${steelInfo.t1}, t2=${steelInfo.t2}, r=${steelInfo.r}]</span></span>`;
+    return `<span>${shape} <span style="color:#888;font-size:var(--font-size-sm);">[A=${steelInfo.A}, B=${steelInfo.B}, t1=${steelInfo.t1}, t2=${steelInfo.t2}, r=${steelInfo.r}]</span></span>`;
   }
   if (steelInfo.type === 'BOX') {
-    return `<span>${shape} <span style="color:#888;font-size:var(--font-size-md);">[A=${steelInfo.A}, B=${steelInfo.B}, t=${steelInfo.t}, r=${steelInfo.r}]</span></span>`;
+    return `<span>${shape} <span style="color:#888;font-size:var(--font-size-sm);">[A=${steelInfo.A}, B=${steelInfo.B}, t=${steelInfo.t}, r=${steelInfo.r}]</span></span>`;
   }
   if (steelInfo.type === 'L') {
-    return `<span>${shape} <span style="color:#888;font-size:var(--font-size-md);">[A=${steelInfo.A}, B=${steelInfo.B}, t1=${steelInfo.t1}, t2=${steelInfo.t2}, r1=${steelInfo.r1}, r2=${steelInfo.r2}]</span></span>`;
+    return `<span>${shape} <span style="color:#888;font-size:var(--font-size-sm);">[A=${steelInfo.A}, B=${steelInfo.B}, t1=${steelInfo.t1}, t2=${steelInfo.t2}, r1=${steelInfo.r1}, r2=${steelInfo.r2}]</span></span>`;
   }
   return `<span>${shape}</span>`;
 }

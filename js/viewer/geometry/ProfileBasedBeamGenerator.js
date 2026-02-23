@@ -4,7 +4,7 @@
  * BaseElementGeneratorを継承した統一アーキテクチャ:
  * - MeshCreationValidator: バリデーション
  * - MeshMetadataBuilder: メタデータ構築
- * - SectionTypeNormalizer: 断面タイプ正規化
+ * - sectionTypeUtil: 断面タイプ正規化
  *
  * 梁特有の機能:
  * - 天端基準配置（placementMode: 'top-aligned'）
@@ -17,11 +17,8 @@
 
 import * as THREE from 'three';
 import { createExtrudeGeometry } from './core/ThreeJSConverter.js';
-import {
-  createTaperedGeometry,
-  createMultiSectionGeometry,
-} from './core/TaperedGeometryBuilder.js';
-import { materials } from '../rendering/materials.js';
+import { createMultiSectionGeometry } from './core/TaperedGeometryBuilder.js';
+import { colorManager } from '../rendering/colorManager.js';
 import { ElementGeometryUtils } from './ElementGeometryUtils.js';
 import { BaseElementGenerator } from './core/BaseElementGenerator.js';
 import { MeshMetadataBuilder } from './core/MeshMetadataBuilder.js';
@@ -97,8 +94,21 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       return null;
     }
 
-    // 3. 断面タイプの推定（SectionTypeNormalizer使用）
-    const sectionType = this._normalizeSectionType(sectionData);
+    // 3. 断面タイプの推定
+    let sectionType = this._resolveGeometryProfileType(sectionData);
+
+    // SRC造の場合、S部分メッシュには鉄骨のプロファイルタイプを使用する
+    // sectionData.section_type はRC型（RECTANGLE等）に上書きされているため、
+    // steelProfile から元の鉄骨断面タイプ（H等）を復元する
+    let steelSectionData = null;
+    if (sectionData.isSRC && sectionData.steelProfile?.section_type) {
+      sectionType = sectionData.steelProfile.section_type;
+      steelSectionData = {
+        dimensions: sectionData.steelProfile.dimensions,
+        section_type: sectionData.steelProfile.section_type,
+      };
+      log.debug(`Beam ${beam.id}: SRC造 S部分プロファイル: ${sectionType} (RC型から復元)`);
+    }
 
     log.debug(
       `Creating beam ${beam.id}: section_type=${sectionType}, mode=${sectionData.mode || 'single'}`,
@@ -108,7 +118,11 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
     const offsets = ElementGeometryUtils.getHorizontalElementOffsets(beam);
 
     // 5. 断面高さの取得（天端基準用）
-    const sectionHeight = ElementGeometryUtils.getSectionHeight(sectionData, sectionType);
+    // SRC造の場合、RC部分の高さを配置基準に使う
+    const sectionHeight =
+      sectionData.isSRC && sectionData.concreteProfile?.height
+        ? sectionData.concreteProfile.height
+        : ElementGeometryUtils.getSectionHeight(sectionData, sectionType);
 
     // 6. 断面モードの判定
     const mode = sectionData.mode || 'single';
@@ -120,7 +134,13 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
 
     if (mode === 'single') {
       // ===== 単一断面処理 =====
-      const profileResult = ElementGeometryUtils.createProfile(sectionData, sectionType, beam);
+      // SRC造の場合は鉄骨用の断面データとタイプでプロファイルを生成
+      const profileSectionData = steelSectionData || sectionData;
+      const profileResult = ElementGeometryUtils.createProfile(
+        profileSectionData,
+        sectionType,
+        beam,
+      );
 
       if (!this._validateProfile(profileResult, beam, context)) {
         return null;
@@ -201,10 +221,50 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
     );
 
     // 9. メッシュを作成
-    const mesh = new THREE.Mesh(geometry, materials.matchedMesh);
+    const mesh = new THREE.Mesh(
+      geometry,
+      colorManager.getMaterial('diff', { comparisonState: 'matched' }),
+    );
+
+    // 9.5. SRC造の場合、S部分（内部鉄骨）の高さ調整
+    // 配置は 'top-aligned' + sectionHeight=rcHeight で RC梁中心に配置済み
+    // STB仕様: offset/level が指定されていない場合は断面の芯が一致する
+    //   → 配置中心（RC梁中心）にS梁中心を合わせるため adjustment = 0
+    // level が指定されている場合:
+    //   level = S天端からRC天端までの距離（下方向正）
+    //   S梁中心 = RC天端 - level - steelHeight/2
+    //           = RC中心 + rcHeight/2 - level - steelHeight/2
+    //   → adjustment = (rcHeight - steelHeight)/2 - level
+    let steelHeightAdjustment = 0;
+    if (sectionData.isSRC && placement.basis?.yAxis) {
+      if (
+        sectionData.steelFigureOffset?.level !== undefined &&
+        sectionData.steelFigureOffset?.level !== null
+      ) {
+        const level = sectionData.steelFigureOffset.level;
+        const steelDims = sectionData.steelProfile?.dimensions || sectionData.dimensions;
+        const steelHeight = ElementGeometryUtils.getSectionHeight(
+          { dimensions: steelDims },
+          sectionType,
+        );
+        const rcHeight = sectionData.concreteProfile?.height || sectionHeight;
+        steelHeightAdjustment = (rcHeight - steelHeight) / 2 - level;
+        log.debug(
+          `Beam ${beam.id}: SRC造 S部分高さ調整: level=${level}mm, steelHeight=${steelHeight}mm, rcHeight=${rcHeight}mm, adjustment=${steelHeightAdjustment.toFixed(1)}mm`,
+        );
+      } else {
+        // デフォルト: 断面の芯が一致 → 配置中心=RC中心にS中心が一致
+        // top-aligned + rcHeight により既にRC中心配置のため追加調整不要
+        log.debug(`Beam ${beam.id}: SRC造 S部分高さ調整: デフォルト（断面芯一致、追加調整不要）`);
+      }
+    }
 
     // 10. 配置を適用
     mesh.position.copy(placement.center);
+    if (steelHeightAdjustment !== 0 && placement.basis?.yAxis) {
+      const yShift = placement.basis.yAxis.clone().multiplyScalar(steelHeightAdjustment);
+      mesh.position.add(yShift);
+    }
     mesh.quaternion.copy(placement.rotation);
 
     // 11. メタデータを設定（MeshMetadataBuilder使用）
@@ -226,9 +286,9 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
         `placementMode=${placement.placementMode}`,
     );
 
-    // 13. stb-diff-viewer造の場合、RC部分のメッシュも生成して配列で返す
-    if (sectionData.isStbDiffViewer && sectionData.concreteProfile) {
-      const rcMesh = this._createStbDiffViewerConcreteGeometry(
+    // 13. SRC造の場合、RC部分のメッシュも生成して配列で返す
+    if (sectionData.isSRC && sectionData.concreteProfile) {
+      const rcMesh = this._createSRCConcreteGeometry(
         sectionData,
         beam,
         placement,
@@ -238,7 +298,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
         log,
       );
       if (rcMesh) {
-        log.debug(`Beam ${beam.id}: stb-diff-viewer造 - RC部分のメッシュを追加生成`);
+        log.debug(`Beam ${beam.id}: SRC造 - RC部分のメッシュを追加生成`);
         return [mesh, rcMesh];
       }
     }
@@ -247,7 +307,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
   }
 
   /**
-   * stb-diff-viewer造のRC（コンクリート）部分のジオメトリを生成
+   * SRC造のRC（コンクリート）部分のジオメトリを生成
    * @private
    * @param {Object} sectionData - 断面データ
    * @param {Object} beam - 梁要素データ
@@ -258,7 +318,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
    * @param {Object} log - ロガー
    * @returns {THREE.Mesh|null} RC部分のメッシュ
    */
-  static _createStbDiffViewerConcreteGeometry(
+  static _createSRCConcreteGeometry(
     sectionData,
     beam,
     placement,
@@ -278,7 +338,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       // 円形断面
       const diameter = concreteProfile.diameter;
       if (!diameter) {
-        log.warn(`Beam ${beam.id}: stb-diff-viewer円形断面の直径が不明です`);
+        log.warn(`Beam ${beam.id}: SRC円形断面の直径が不明です`);
         return null;
       }
       width = diameter;
@@ -288,16 +348,12 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       width = concreteProfile.width;
       height = concreteProfile.height;
       if (!width || !height) {
-        log.warn(
-          `Beam ${beam.id}: stb-diff-viewer矩形断面の寸法が不明です (width=${width}, height=${height})`,
-        );
+        log.warn(`Beam ${beam.id}: SRC矩形断面の寸法が不明です (width=${width}, height=${height})`);
         return null;
       }
     }
 
-    log.debug(
-      `Beam ${beam.id}: stb-diff-viewer RC部分 - ${concreteProfile.profileType} ${width}x${height}`,
-    );
+    log.debug(`Beam ${beam.id}: SRC RC部分 - ${concreteProfile.profileType} ${width}x${height}`);
 
     // RC部分用の断面データを作成（steelShapeを含めないことでH鋼断面の誤取得を防止）
     const rcDimensions = {
@@ -326,28 +382,57 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
     );
 
     if (!rcProfileResult || !rcProfileResult.shape) {
-      log.warn(`Beam ${beam.id}: stb-diff-viewer RC部分のプロファイル生成に失敗`);
+      log.warn(`Beam ${beam.id}: SRC RC部分のプロファイル生成に失敗`);
       return null;
     }
 
     // RC部分のジオメトリを生成
     const rcGeometry = createExtrudeGeometry(rcProfileResult.shape, placement.length);
     if (!rcGeometry) {
-      log.warn(`Beam ${beam.id}: stb-diff-viewer RC部分のジオメトリ生成に失敗`);
+      log.warn(`Beam ${beam.id}: SRC RC部分のジオメトリ生成に失敗`);
       return null;
     }
 
     // RC部分用のメッシュを作成（半透明マテリアル）
     const rcMesh = new THREE.Mesh(
       rcGeometry,
-      materials.matchedMeshTransparent || materials.matchedMesh,
+      colorManager.getMaterial('diff', { comparisonState: 'matched', isTransparent: true }),
     );
 
-    // Removed unused rcPlacement calculation
-
-    // 同じ位置に配置（元のS造と同じ位置）
-    rcMesh.position.copy(placement.center);
+    // RC部分の位置計算
+    // RC梁中心 = RC梁天端 - height_RC/2
+    // = placement.center + yAxis * (sectionHeight/2 - height_RC/2)
     rcMesh.quaternion.copy(placement.rotation);
+    if (placement.basis?.yAxis && sectionHeight > 0) {
+      let rcYShift = (sectionHeight - height) / 2;
+
+      // SRC造の場合、level属性に基づいてRC部分の位置を調整
+      if (
+        sectionData?.steelFigureOffset?.level !== undefined &&
+        sectionData.steelFigureOffset.level !== null
+      ) {
+        // level が指定されている場合
+        // RC梁天端 = placement.center + yAxis * (sectionHeight/2)
+        // level = S天端までの距離（RC梁天端基準で下方向）
+        // RC梁中心 = RC梁天端 - height_RC/2 = placement.center + (sectionHeight/2 - height_RC/2)
+        rcYShift = (sectionHeight - height) / 2;
+        log.debug(
+          `Beam ${beam.id}: SRC造 RC部分配置: level=${sectionData.steelFigureOffset.level}mm, rcYShift=${rcYShift.toFixed(1)}mm`,
+        );
+      } else {
+        // offset/level が指定されていない場合（デフォルト）
+        // 断面の芯が一致する
+        rcYShift = (sectionHeight - height) / 2;
+        log.debug(
+          `Beam ${beam.id}: SRC造 RC部分配置: デフォルト, rcYShift=${rcYShift.toFixed(1)}mm`,
+        );
+      }
+
+      const yShift = placement.basis.yAxis.clone().multiplyScalar(rcYShift);
+      rcMesh.position.copy(placement.center).add(yShift);
+    } else {
+      rcMesh.position.copy(placement.center);
+    }
 
     // メタデータを設定
     rcMesh.userData = MeshMetadataBuilder.buildForBeam({
@@ -361,8 +446,8 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       sectionHeight: height,
       placementMode: 'top-aligned',
     });
-    rcMesh.userData.isStbDiffViewerConcrete = true;
-    rcMesh.userData.stbDiffViewerComponentType = 'RC';
+    rcMesh.userData.isSRCConcrete = true;
+    rcMesh.userData.srcComponentType = 'RC';
 
     return rcMesh;
   }
@@ -419,7 +504,7 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       );
 
       // プロファイルを作成（ElementGeometryUtils使用）
-      const sectionType = this._normalizeSectionType(tempSectionData);
+      const sectionType = this._resolveGeometryProfileType(tempSectionData);
       const prof = ElementGeometryUtils.createProfile(tempSectionData, sectionType, beam);
 
       if (!prof || !prof.shape || !prof.shape.extractPoints) {
@@ -461,10 +546,12 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       return null;
     }
 
-    // ハンチ/ジョイント長さの取得（両方のパターンに対応）
+    // ハンチ/ジョイント長さ・種別の取得（両方のパターンに対応）
     const haunchLengths = {
       start: beam.haunch_start || beam.joint_start || 0,
       end: beam.haunch_end || beam.joint_end || 0,
+      kindStart: beam.kind_haunch_start || 'SLOPE',
+      kindEnd: beam.kind_haunch_end || 'SLOPE',
     };
 
     log.debug(
@@ -500,3 +587,6 @@ export function createBeamMeshes(
     isJsonInput,
   );
 }
+
+
+

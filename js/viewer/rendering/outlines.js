@@ -270,7 +270,6 @@ class OutlineManager {
  */
 const globalOutlineManager = new OutlineManager();
 
-
 /**
  * アウトライン表示設定の管理
  */

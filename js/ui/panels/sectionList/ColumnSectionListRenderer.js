@@ -7,14 +7,15 @@
  * @module ui/sectionList/ColumnSectionListRenderer
  */
 
+import { BaseSectionListRenderer } from './BaseSectionListRenderer.js';
 import { RcColumnVisualRenderer } from '../../../components/rcColumnVisual/index.js';
 
 /**
  * RC柱断面リストテーブルレンダラー
  */
-export class ColumnSectionListRenderer {
+export class ColumnSectionListRenderer extends BaseSectionListRenderer {
   constructor(options = {}) {
-    this.svgRenderer = new RcColumnVisualRenderer({
+    const svgRenderer = new RcColumnVisualRenderer({
       maxWidth: options.svgWidth || 120,
       maxHeight: options.svgHeight || 120,
       padding: options.svgPadding || 20,
@@ -22,12 +23,39 @@ export class ColumnSectionListRenderer {
       showDimensions: false,
     });
 
+    super(svgRenderer);
+
     this.options = {
       showCoreBar: options.showCoreBar !== false,
       showStirrupGrade: options.showStirrupGrade !== false,
       compactMode: options.compactMode || false,
     };
   }
+
+  // --- Abstract method implementations ---
+
+  /** @override */
+  getEmptyMessage() {
+    return 'RC柱断面データがありません';
+  }
+
+  /** @override */
+  getGridTableClassName() {
+    return 'column-section-grid-table';
+  }
+
+  /** @override */
+  getGridCellData(grid, storyId, symbol) {
+    return grid.get(storyId)?.get(symbol);
+  }
+
+  /** @override */
+  getSectionIdentifiers(sectionData) {
+    const id = sectionData?.id || '';
+    return { dedupeId: id, labelId: id };
+  }
+
+  // --- Column-specific methods ---
 
   /**
    * 断面リストテーブルをレンダリング
@@ -324,164 +352,6 @@ export class ColumnSectionListRenderer {
     }
 
     return text;
-  }
-
-  /**
-   * HTMLエスケープ
-   * @param {string} str - 文字列
-   * @returns {string}
-   */
-  escapeHtml(str) {
-    if (!str) return '';
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  }
-
-  /**
-   * グリッド形式で断面リストテーブルをレンダリング
-   * @param {Object} data - extractColumnSectionGridの出力
-   * @param {HTMLElement} container - 描画先コンテナ
-   */
-  renderGrid(data, container) {
-    if (!container) return;
-
-    const { stories, symbols, grid } = data;
-
-    if (!symbols || symbols.length === 0 || !stories || stories.length === 0) {
-      container.innerHTML = '<div class="section-list-empty">RC柱断面データがありません</div>';
-      return;
-    }
-
-    const table = document.createElement('table');
-    table.className = 'column-section-grid-table';
-
-    // ヘッダー行
-    const thead = this.renderGridHeader(symbols);
-    table.appendChild(thead);
-
-    // ボディ行
-    const tbody = this.renderGridBody(stories, symbols, grid);
-    table.appendChild(tbody);
-
-    // コンテナをクリアしてテーブルを追加
-    container.innerHTML = '';
-    container.appendChild(table);
-  }
-
-  /**
-   * グリッドのヘッダー行を生成
-   * @param {Array<string>} symbols - 符号一覧
-   * @returns {HTMLElement} thead要素
-   */
-  renderGridHeader(symbols) {
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-
-    // 階列ヘッダー（左端固定列）
-    const thFloor = document.createElement('th');
-    thFloor.className = 'section-grid-header-floor';
-    thFloor.textContent = '階';
-    headerRow.appendChild(thFloor);
-
-    // 各符号列のヘッダー
-    symbols.forEach((symbol) => {
-      const thSymbol = document.createElement('th');
-      thSymbol.className = 'section-grid-header-symbol';
-      thSymbol.textContent = symbol;
-      headerRow.appendChild(thSymbol);
-    });
-
-    thead.appendChild(headerRow);
-    return thead;
-  }
-
-  /**
-   * グリッドのボディ行を生成
-   * @param {Array} stories - 階一覧
-   * @param {Array<string>} symbols - 符号一覧
-   * @param {Map} grid - グリッドデータ
-   * @returns {HTMLElement} tbody要素
-   */
-  renderGridBody(stories, symbols, grid) {
-    const tbody = document.createElement('tbody');
-
-    stories.forEach((story) => {
-      const tr = document.createElement('tr');
-
-      // 階セル（左端固定列）
-      const tdFloor = document.createElement('td');
-      tdFloor.className = 'section-grid-floor-cell';
-      tdFloor.textContent = story.name;
-      tr.appendChild(tdFloor);
-
-      // 各符号のセル
-      const floorMap = grid.get(story.id);
-      symbols.forEach((symbol) => {
-        const tdSection = document.createElement('td');
-        tdSection.className = 'section-grid-section-cell';
-
-        const sectionData = floorMap?.get(symbol);
-        if (sectionData) {
-          if (Array.isArray(sectionData)) {
-            tdSection.innerHTML = this.renderSectionVariants(sectionData);
-          } else {
-            // 既存のrenderSectionCell()を再利用
-            tdSection.innerHTML = this.renderSectionCell(sectionData);
-          }
-        } else {
-          // 空セル
-          tdSection.innerHTML = '<div class="section-cell-empty">-</div>';
-          tdSection.classList.add('empty');
-        }
-
-        tr.appendChild(tdSection);
-      });
-
-      tbody.appendChild(tr);
-    });
-
-    return tbody;
-  }
-
-  /**
-   * 同一セル内に複数断面がある場合のレンダリング
-   * @param {Array<Object>} sectionDataList - 断面データ配列
-   * @returns {string} HTML文字列
-   */
-  renderSectionVariants(sectionDataList) {
-    const uniqueVariants = [];
-    const seenSectionIds = new Set();
-
-    sectionDataList.forEach((sectionData) => {
-      const sectionId = sectionData?.id || '';
-      const dedupeKey = `${sectionId}:${sectionData?.symbolNames || ''}`;
-      if (!seenSectionIds.has(dedupeKey)) {
-        seenSectionIds.add(dedupeKey);
-        uniqueVariants.push(sectionData);
-      }
-    });
-
-    if (uniqueVariants.length === 1) {
-      return this.renderSectionCell(uniqueVariants[0]);
-    }
-
-    const parts = ['<div class="section-cell-variants">'];
-    uniqueVariants.forEach((sectionData, index) => {
-      const label = sectionData?.id
-        ? `断面${index + 1} (ID: ${this.escapeHtml(sectionData.id)})`
-        : `断面${index + 1}`;
-      parts.push('<div class="section-cell-variant">');
-      parts.push(`<div class="section-cell-variant-label">${label}</div>`);
-      parts.push(this.renderSectionCell(sectionData));
-      parts.push('</div>');
-    });
-    parts.push('</div>');
-
-    return parts.join('');
   }
 }
 

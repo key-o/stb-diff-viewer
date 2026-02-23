@@ -13,7 +13,7 @@
 
 import * as THREE from 'three';
 import { createLabelSprite } from './labels.js';
-import { materials } from '../rendering/materials.js';
+import { colorManager } from '../rendering/colorManager.js';
 import { AXIS_LINE_PATTERN } from '../../config/renderingConstants.js';
 
 /**
@@ -348,7 +348,7 @@ export function drawAxes(
 export function drawStories(storiesData, group, modelBounds, labelToggle) {
   group.clear();
   const createdLabels = [];
-  const storyMaterial = materials.storyPlane;
+  const storyMaterial = colorManager.getMaterial('layout', { layoutType: 'story', isLine: false });
 
   if (modelBounds.isEmpty()) {
     console.warn('Cannot draw stories accurately without model bounds.');

@@ -322,7 +322,6 @@ export function getPerformanceMonitor() {
   return instance;
 }
 
-
 /**
  * 非同期関数のパフォーマンス計測
  * @param {string} name - 計測名

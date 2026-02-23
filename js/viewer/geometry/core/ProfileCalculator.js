@@ -7,6 +7,8 @@
  * @module ProfileCalculator
  */
 
+import { resolveProfileType } from '../../../constants/profileTypeAliases.js';
+
 /**
  * プロファイルデータ型定義
  * @typedef {Object} ProfileData
@@ -471,6 +473,52 @@ export function calculateCrossProfile(params = {}) {
 }
 
 /**
+ * クロスH形鋼プロファイルの頂点座標を計算
+ *
+ * 2本のH形鋼を直交させたSRC造柱用の十字形断面。
+ * X方向H鋼が垂直腕を、Y方向H鋼が水平腕を形成する。
+ *
+ * @param {Object} params - パラメータ
+ * @param {number} params.overallDepthX  - X方向H鋼のせい（垂直全高）[mm]
+ * @param {number} params.overallWidthX  - X方向H鋼のフランジ幅（垂直腕の幅）[mm]
+ * @param {number} params.overallDepthY  - Y方向H鋼のせい（水平全幅）[mm]
+ * @param {number} params.overallWidthY  - Y方向H鋼のフランジ幅（水平腕の高さ）[mm]
+ * @returns {ProfileData} プロファイルデータ（12頂点の十字形）
+ */
+export function calculateCrossHProfile(params = {}) {
+  // X方向H鋼: 垂直腕の寸法を決定
+  const overallDepthX = params.overallDepthX || params.H_x || params.H || params.height || 400.0;
+  const overallWidthX = params.overallWidthX || params.B_x || params.B || 200.0;
+
+  // Y方向H鋼: 水平腕の寸法を決定（省略時はX方向と同一 = 対称クロス）
+  const overallDepthY = params.overallDepthY || params.H_y || overallDepthX;
+  const overallWidthY = params.overallWidthY || params.B_y || overallWidthX;
+
+  const halfDepthX = overallDepthX / 2; // 垂直腕の半高さ
+  const halfWidthX = overallWidthX / 2; // 垂直腕の半幅（= フランジ幅/2 of X H）
+  const halfDepthY = overallDepthY / 2; // 水平腕の半全幅
+  const halfWidthY = overallWidthY / 2; // 水平腕の半高さ（= フランジ幅/2 of Y H）
+
+  // 12頂点の十字形断面（反時計回り）
+  const vertices = [
+    { x: -halfWidthX, y: halfDepthX }, // 垂直腕: 左上
+    { x: halfWidthX, y: halfDepthX }, // 垂直腕: 右上
+    { x: halfWidthX, y: halfWidthY }, // 内角: 右上
+    { x: halfDepthY, y: halfWidthY }, // 水平腕: 右上
+    { x: halfDepthY, y: -halfWidthY }, // 水平腕: 右下
+    { x: halfWidthX, y: -halfWidthY }, // 内角: 右下
+    { x: halfWidthX, y: -halfDepthX }, // 垂直腕: 右下
+    { x: -halfWidthX, y: -halfDepthX }, // 垂直腕: 左下
+    { x: -halfWidthX, y: -halfWidthY }, // 内角: 左下
+    { x: -halfDepthY, y: -halfWidthY }, // 水平腕: 左下
+    { x: -halfDepthY, y: halfWidthY }, // 水平腕: 左上
+    { x: -halfWidthX, y: halfWidthY }, // 内角: 左上
+  ];
+
+  return { vertices, holes: [] };
+}
+
+/**
  * フラットバープロファイルの頂点座標を計算
  *
  * @param {Object} params - フラットバーパラメータ
@@ -494,6 +542,28 @@ export function calculateFlatProfile(params = {}) {
 }
 
 /**
+ * 正規化タイプから計算関数へのマッピング
+ * @type {Record<string, Function>}
+ */
+const CALCULATOR_MAP = {
+  'H': calculateHShapeProfile,
+  'BOX': calculateBoxProfile,
+  'PIPE': calculatePipeProfile,
+  'RECTANGLE': calculateRectangleProfile,
+  'CIRCLE': calculateCircleProfile,
+  'C': calculateChannelProfile,
+  'L': calculateLShapeProfile,
+  'T': calculateTShapeProfile,
+  '2L-BB': calculate2LBackToBackProfile,
+  '2L-FF': calculate2LFaceToFaceProfile,
+  '2C-BB': calculate2CBackToBackProfile,
+  '2C-FF': calculate2CFaceToFaceProfile,
+  'CROSS': calculateCrossProfile,
+  'CROSS_H': calculateCrossHProfile,
+  'FB': calculateFlatProfile,
+};
+
+/**
  * プロファイルタイプとパラメータから適切な計算関数を選択
  *
  * @param {string} profileType - プロファイルタイプ
@@ -501,72 +571,13 @@ export function calculateFlatProfile(params = {}) {
  * @returns {ProfileData} プロファイルデータ
  */
 export function calculateProfile(profileType, params) {
-  const type = profileType.toUpperCase();
+  const canonical = resolveProfileType(profileType);
+  const calculator = canonical ? CALCULATOR_MAP[canonical] : null;
 
-  switch (type) {
-    case 'H':
-    case 'I':
-    case 'IBEAM':
-    case 'H-SECTION':
-      return calculateHShapeProfile(params);
-
-    case 'BOX':
-    case 'BOX-SECTION':
-    case 'SQUARE-SECTION':
-      return calculateBoxProfile(params);
-
-    case 'PIPE':
-    case 'PIPE-SECTION':
-    case 'ROUND-SECTION':
-      return calculatePipeProfile(params);
-
-    case 'RECTANGLE':
-    case 'RECT':
-    case 'RC-SECTION':
-      return calculateRectangleProfile(params);
-
-    case 'CIRCLE':
-      return calculateCircleProfile(params);
-
-    case 'C':
-    case 'CHANNEL':
-    case 'U-SHAPE':
-      return calculateChannelProfile(params);
-
-    case 'L':
-    case 'L-SHAPE':
-      return calculateLShapeProfile(params);
-
-    case 'T':
-    case 'T-SHAPE':
-      return calculateTShapeProfile(params);
-
-    case '2L-BB':
-    case '2L-BACKTOBACK':
-      return calculate2LBackToBackProfile(params);
-
-    case '2L-FF':
-    case '2L-FACETOFACE':
-      return calculate2LFaceToFaceProfile(params);
-
-    case '2C-BB':
-    case '2C-BACKTOBACK':
-      return calculate2CBackToBackProfile(params);
-
-    case '2C-FF':
-    case '2C-FACETOFACE':
-      return calculate2CFaceToFaceProfile(params);
-
-    case 'CROSS':
-    case '+':
-      return calculateCrossProfile(params);
-
-    case 'FLAT':
-    case 'FB':
-      return calculateFlatProfile(params);
-
-    default:
-      console.warn(`Unsupported profile type: ${profileType}, using rectangle`);
-      return calculateRectangleProfile(params);
+  if (!calculator) {
+    console.warn(`Unsupported profile type: ${profileType}, using rectangle`);
+    return calculateRectangleProfile(params);
   }
+
+  return calculator(params);
 }

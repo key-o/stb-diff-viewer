@@ -11,6 +11,7 @@
 
 import * as THREE from 'three';
 import { createLogger } from '../utils/logger.js';
+import { getState } from '../app/globalState.js';
 
 const logger = createLogger('ElementUpdater');
 import { elementGroups } from './core/core.js';
@@ -20,7 +21,7 @@ import { ProfileBasedBeamGenerator } from './geometry/ProfileBasedBeamGenerator.
 import { ProfileBasedBraceGenerator } from './geometry/ProfileBasedBraceGenerator.js';
 import { PileGenerator } from './geometry/PileGenerator.js';
 import { FootingGenerator } from './geometry/FootingGenerator.js';
-import { extractAllSections } from '../common-stb/parser/sectionExtractor.js';
+import { extractAllSections } from '../common-stb/import/extractor/sectionExtractor.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
 
 /**
@@ -113,7 +114,8 @@ export async function regenerateElementGeometry(elementType, elementId, modelSou
       return false;
     }
 
-    const doc = modelSource === 'modelA' ? window.docA : window.docB;
+    const doc =
+      modelSource === 'modelA' ? getState('models.documentA') : getState('models.documentB');
     if (!doc) {
       logger.error(`Document not found: ${modelSource}`);
       return false;

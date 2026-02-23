@@ -15,17 +15,10 @@ import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('modelLoader:finalizer');
 
-import {
-  setGlobalStateForUI,
-  updateStorySelector,
-  updateAxisSelectors,
-  updateLabelVisibility,
-} from '../ui/index.js';
 import { initViewModes, updateModelVisibility } from '../app/viewModes/index.js';
 import { createOrUpdateGridHelper, setView, VIEW_DIRECTIONS } from '../viewer/index.js';
 import { setColorMode, COLOR_MODES } from '../colorModes/index.js';
-import { eventBus, ModelEvents } from '../app/events/index.js';
-import { redrawAxesAtStory } from '../ui/events/index.js';
+import { eventBus, ModelEvents, AxisEvents, FinalizationEvents } from '../app/events/index.js';
 
 /**
  * Finalize visualization after rendering completion
@@ -34,7 +27,7 @@ import { redrawAxesAtStory } from '../ui/events/index.js';
  * @param {Object} cameraControls - Camera and controls objects
  * @returns {Object} Finalization result
  */
-export function finalizeVisualization(finalizationData, scheduleRender, cameraControls) {
+export function finalizeVisualization(finalizationData, scheduleRender, _cameraControls) {
   const {
     nodeLabels,
     stories,
@@ -45,161 +38,50 @@ export function finalizeVisualization(finalizationData, scheduleRender, cameraCo
     modelBDocument,
   } = finalizationData;
 
-  try {
-    // Update global UI state
-    updateGlobalUIState(nodeLabels, stories, axesData);
+  // Update global UI state via events (avoids L3->L5 layer violation)
+  eventBus.emit(FinalizationEvents.SET_GLOBAL_STATE, { nodeLabels, stories, axesData });
+  eventBus.emit(FinalizationEvents.UPDATE_SELECTORS);
 
-    // Update UI selectors
-    updateUISelectors();
+  // Set appropriate color mode BEFORE initializing view modes
+  const hasBothModels = !!modelADocument && !!modelBDocument;
+  setColorMode(hasBothModels ? COLOR_MODES.DIFF : COLOR_MODES.ELEMENT);
 
-    // Update label visibility
-    updateLabelDisplay();
+  // Initialize view modes
+  initViewModes(finalizationData, scheduleRender);
+  updateModelVisibility(scheduleRender);
 
-    // Set appropriate color mode BEFORE initializing view modes
-    // This ensures the correct color mode is used when elements are redrawn
-    const hasBothModels = !!modelADocument && !!modelBDocument;
-    const targetColorMode = hasBothModels ? COLOR_MODES.DIFF : COLOR_MODES.ELEMENT;
-    setColorMode(targetColorMode);
+  // Setup camera and grid
+  createOrUpdateGridHelper(modelBounds);
+  setView(VIEW_DIRECTIONS.ISOMETRIC, modelBounds, false);
+  eventBus.emit(ModelEvents.BOUNDS_UPDATED, { modelBounds });
 
-    // Initialize view modes
-    initializeViewModes(finalizationData, scheduleRender);
+  // 通り芯を最終的なmodelBoundsで再描画
+  eventBus.emit(AxisEvents.REDRAW_REQUESTED, {
+    axesData,
+    stories,
+    modelBounds,
+    labelToggle: true,
+    targetStoryId: 'all',
+  });
+  logger.info('Axes redrawn with final model bounds');
 
-    // Update model visibility based on current settings
-    updateModelVisibility(scheduleRender);
-
-    // Setup camera and grid
-    setupCameraAndGrid(modelBounds, cameraControls);
-
-    // 通り芯を最終的なmodelBoundsで再描画
-    // 初期描画時は構造要素が追加される前のmodelBoundsを使用しているため、
-    // 全ての構造要素が追加された後に再描画する必要がある
-    redrawAxesAtStory('all');
-    logger.info('Axes redrawn with final model bounds');
-
-    // Mark models as loaded
-    setModelsLoadedState(true);
-
-    return {
-      success: true,
-      stats: renderingStats,
-    };
-  } catch (error) {
-    logger.error('Visualization finalization failed:', error);
-    return {
-      success: false,
-      error: error.message,
-      stats: {
-        totalMeshes: 0,
-        totalLabels: 0,
-        errors: 1,
-        elementTypes: {},
-      },
-    };
-  }
-}
-
-/**
- * Update global UI state with model data
- * @param {Array} nodeLabels - Array of node labels
- * @param {Array} stories - Array of story data
- * @param {Object} axesData - Axes data object
- */
-function updateGlobalUIState(nodeLabels, stories, axesData) {
-  try {
-    setGlobalStateForUI(nodeLabels, stories, axesData);
-  } catch (error) {
-    logger.error('Failed to update global UI state:', error);
-    throw error;
-  }
-}
-
-/**
- * Update UI selectors with current data
- */
-function updateUISelectors() {
-  try {
-    updateStorySelector();
-    updateAxisSelectors();
-  } catch (error) {
-    logger.error('Failed to update UI selectors:', error);
-    throw error;
-  }
-}
-
-/**
- * Update label display visibility
- */
-function updateLabelDisplay() {
-  try {
-    updateLabelVisibility();
-  } catch (error) {
-    logger.error('Failed to update label visibility:', error);
-    throw error;
-  }
-}
-
-/**
- * Initialize view modes with model data
- * @param {Object} modelData - Complete model data
- * @param {Function} scheduleRender - Render scheduling function
- */
-function initializeViewModes(modelData, scheduleRender) {
-  try {
-    initViewModes(modelData, scheduleRender);
-  } catch (error) {
-    logger.error('Failed to initialize view modes:', error);
-    throw error;
-  }
-}
-
-/**
- * Setup camera positioning and grid helper
- * @param {THREE.Box3} modelBounds - Model bounding box
- * @param {Object} cameraControls - Camera and controls objects
- */
-function setupCameraAndGrid(modelBounds, _cameraControls) {
-  try {
-    // グリッドヘルパーを更新
-    createOrUpdateGridHelper(modelBounds);
-
-    // カメラを「左前斜め上」のISOMETRIC角度に統一
-    setView(VIEW_DIRECTIONS.ISOMETRIC, modelBounds, false);
-
-    // Adjust 2D depth clipping range based on model bounds (via event)
-    eventBus.emit(ModelEvents.BOUNDS_UPDATED, { modelBounds });
-  } catch (error) {
-    logger.error('Failed to setup camera and grid:', error);
-    throw error;
-  }
-}
-
-/**
- * Set global models loaded state
- * @param {boolean} loaded - Whether models are loaded
- */
-function setModelsLoadedState(_loaded) {
-  // This would typically update a global state manager
-  // For now, we'll use the existing pattern
+  return { stats: renderingStats };
 }
 
 /**
  * Handle finalization errors and cleanup
  * @param {Error} error - Error that occurred
- * @param {Object} cleanupData - Data needed for cleanup
  */
-export function handleFinalizationError(error, _cleanupData) {
+export function handleFinalizationError(error) {
   logger.error('Finalization error occurred:', error);
 
   try {
-    // Reset UI state
-    setGlobalStateForUI([], [], { xAxes: [], yAxes: [] });
-
-    // Clear selectors
-    updateStorySelector();
-    updateAxisSelectors();
-
-    // Set models as not loaded
-    setModelsLoadedState(false);
+    eventBus.emit(FinalizationEvents.SET_GLOBAL_STATE, {
+      nodeLabels: [],
+      stories: [],
+      axesData: { xAxes: [], yAxes: [] },
+    });
+    eventBus.emit(FinalizationEvents.UPDATE_SELECTORS);
   } catch (cleanupError) {
     logger.error('Error during cleanup:', cleanupError);
   }
@@ -212,38 +94,28 @@ export function handleFinalizationError(error, _cleanupData) {
  * @returns {Object} Summary object
  */
 export function createFinalizationSummary(modelData, renderingStats) {
-  // Safely extract data with defaults
-  const {
-    modelADocument = null,
-    modelBDocument = null,
-    nodeMapA = new Map(),
-    nodeMapB = new Map(),
-    stories = [],
-    axesData = { xAxes: [], yAxes: [] },
-    nodeLabels = [],
-  } = modelData || {};
-
-  // Safely extract rendering stats with defaults
-  const { totalMeshes = 0, totalLabels = 0, errors = 0, elementTypes = {} } = renderingStats || {};
+  const { modelADocument, modelBDocument, nodeMapA, nodeMapB, stories, axesData, nodeLabels } =
+    modelData;
+  const { totalMeshes, totalLabels, errors, elementTypes } = renderingStats;
 
   return {
     models: {
       hasModelA: !!modelADocument,
       hasModelB: !!modelBDocument,
-      nodesA: nodeMapA ? nodeMapA.size : 0,
-      nodesB: nodeMapB ? nodeMapB.size : 0,
+      nodesA: nodeMapA.size,
+      nodesB: nodeMapB.size,
     },
     structure: {
-      stories: stories ? stories.length : 0,
-      xAxes: axesData && axesData.xAxes ? axesData.xAxes.length : 0,
-      yAxes: axesData && axesData.yAxes ? axesData.yAxes.length : 0,
-      labels: nodeLabels ? nodeLabels.length : 0,
+      stories: stories.length,
+      xAxes: axesData.xAxes.length,
+      yAxes: axesData.yAxes.length,
+      labels: nodeLabels.length,
     },
     rendering: {
       totalMeshes,
       totalLabels,
       errors,
-      elementTypes: elementTypes ? Object.keys(elementTypes).length : 0,
+      elementTypes: Object.keys(elementTypes).length,
     },
     timestamp: new Date().toISOString(),
   };

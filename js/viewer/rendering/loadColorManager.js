@@ -5,53 +5,15 @@
  * 色定義は colorConfig.js から取得します。
  */
 
-import { BaseColorStateManager } from './baseColorStateManager.js';
+import { createColorManager } from './baseColorStateManager.js';
 import { DEFAULT_LOAD_COLORS as CONFIG_LOAD_COLORS } from '../../config/colorConfig.js';
 
-// 荷重タイプ（colorConfigに含まれるすべてのタイプ）
-const LOAD_TYPES = Object.keys(CONFIG_LOAD_COLORS);
-
-// デフォルト色設定（colorConfig.jsから取得）
-const DEFAULT_LOAD_COLORS = { ...CONFIG_LOAD_COLORS };
-
-/**
- * LoadColorManagerクラス
- */
-class LoadColorManager extends BaseColorStateManager {
-  constructor() {
-    super(LOAD_TYPES, DEFAULT_LOAD_COLORS, 'LoadColorManager');
-  }
-
-  /**
-   * 荷重色を取得
-   * @param {string} loadType - 荷重タイプ
-   * @returns {string} 色コード
-   */
-  getLoadColor(loadType) {
-    return this.getColor(loadType) || this.getColor('default');
-  }
-
-  /**
-   * 荷重色を設定
-   * @param {string} loadType - 荷重タイプ
-   * @param {string} color - 色コード
-   * @returns {boolean} 設定成功フラグ
-   */
-  setLoadColor(loadType, color) {
-    return this.setColor(loadType, color);
-  }
-
-  /**
-   * 全ての荷重色を取得
-   * @returns {Object} 荷重タイプをキー、色コードを値とするオブジェクト
-   */
-  getAllLoadColors() {
-    return this.getAllColors();
-  }
-}
-
-// シングルトンインスタンスを作成してエクスポート
-const loadColorManager = new LoadColorManager();
+const { manager: loadColorManager, types: LOAD_TYPES } = createColorManager({
+  colorConfig: CONFIG_LOAD_COLORS,
+  managerName: 'LoadColorManager',
+  methodPrefix: 'Load',
+  fallbackKey: 'default',
+});
 
 export { LOAD_TYPES };
 export default loadColorManager;

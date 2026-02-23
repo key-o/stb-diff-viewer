@@ -87,8 +87,7 @@ export function extractProfileFromSection(section, steelSections) {
   }
 
   // profile_hint（BOX、PIPE等）を優先、なければsection_typeを使用
-  const sectionType =
-    dims.profile_hint || section.section_type || section.sectionType || 'RECTANGLE';
+  const sectionType = dims.profile_hint || section.section_type || 'RECTANGLE';
 
   switch (sectionType.toUpperCase()) {
     case 'H':
@@ -173,10 +172,10 @@ export function extractProfileFromSection(section, steelSections) {
           filletRadius: toNumber(dims.r, 0),
         },
       };
-    case 'stb-diff-viewer':
-      // stb-diff-viewerは外形コンクリート寸法で出力（IFCBeamExporterで矩形に変換）
+    case 'SRC':
+      // SRC造は外形コンクリート寸法で出力（IFCBeamExporterで矩形に変換）
       return {
-        type: 'stb-diff-viewer',
+        type: 'SRC',
         params: {
           width: toNumber(dims.width, toNumber(dims.width_X, toNumber(dims.B, 800))),
           height: toNumber(dims.height, toNumber(dims.width_Y, toNumber(dims.A, 800))),
@@ -344,7 +343,7 @@ export function getSectionHeight(profile) {
       return params.thickness || 9;
     case 'CIRCLE':
       return params.diameter || 60;
-    case 'stb-diff-viewer':
+    case 'SRC':
     case 'RECTANGLE':
     default:
       return params.height || 600;
@@ -381,7 +380,7 @@ export function getSectionWidth(profile) {
       return params.width || 100;
     case 'CIRCLE':
       return params.diameter || 60;
-    case 'stb-diff-viewer':
+    case 'SRC':
     case 'RECTANGLE':
     default:
       return params.width || 300;
@@ -411,7 +410,7 @@ export function mapToIFCProfileType(profileType) {
     FB: IFC_PROFILE_TYPES.RECTANGLE,
     RECTANGLE: IFC_PROFILE_TYPES.RECTANGLE,
     RC: IFC_PROFILE_TYPES.RECTANGLE,
-    'stb-diff-viewer': IFC_PROFILE_TYPES.RECTANGLE,
+    SRC: IFC_PROFILE_TYPES.RECTANGLE,
     CFT: IFC_PROFILE_TYPES.HOLLOW_RECTANGLE,
     CIRCLE: IFC_PROFILE_TYPES.CIRCLE,
     // 組み合わせ断面（カスタムプロファイルとして出力）
@@ -500,7 +499,7 @@ export function mapToCalculatorParams(profile) {
         radius: (params.diameter || 60) / 2,
       };
 
-    case 'stb-diff-viewer':
+    case 'SRC':
     case 'RECTANGLE':
     case 'RC':
     default:
@@ -620,7 +619,7 @@ export function mapToIFCParams(profile) {
         Radius: (params.diameter || 60) / 2,
       };
 
-    case 'stb-diff-viewer':
+    case 'SRC':
     case 'RECTANGLE':
     case 'RC':
     default:

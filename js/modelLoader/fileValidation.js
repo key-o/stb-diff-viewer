@@ -78,15 +78,19 @@ export function getSelectedElementTypes() {
  * @param {boolean} isLoading - Whether loading is in progress
  */
 export function setLoadingState(isLoading) {
-  const compareButton = document.querySelector('#overlay button[onclick="compareModels()"]');
+  const compareButton = document.getElementById('compareButton');
 
   if (compareButton) {
     if (isLoading) {
       compareButton.textContent = '読込/比較中...';
       compareButton.disabled = true;
     } else {
-      compareButton.textContent = '読込/比較';
       compareButton.disabled = false;
+      if (typeof window.updateCompareButtonLabel === 'function') {
+        window.updateCompareButtonLabel();
+      } else {
+        compareButton.textContent = '🔍 読込 / 比較実行';
+      }
     }
   }
 

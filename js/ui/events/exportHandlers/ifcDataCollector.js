@@ -18,6 +18,52 @@ import { createLogger } from '../../../utils/logger.js';
 const log = createLogger('ifcDataCollector');
 
 // ================================================================
+// 汎用データ収集ファクトリ
+// ================================================================
+
+/**
+ * 要素データ収集の共通パターンをファクトリ化
+ *
+ * @param {Array<Object>} sources - 収集ソース定義の配列
+ * @param {string} sources[].elementKey - elementData内の要素配列キー
+ * @param {string} sources[].sectionKey - sectionMaps内の断面マップキー
+ * @param {Function} sources[].converterFn - 変換関数
+ * @param {string} [sources[].elementType] - 要素タイプ文字列（converterFnに渡す）
+ * @param {Object} [options] - オプション
+ * @param {boolean} [options.needsSteelSections=false] - steelSectionsをconverterFnに渡すか
+ * @param {Function} [options.extraDataExtractor] - structureDataから追加データを抽出する関数
+ * @returns {Promise<Array>} 変換済みデータの配列
+ */
+async function collectElementDataForExport(sources, options = {}) {
+  const result = [];
+
+  const structureData = await getOrParseStructureData();
+  if (!structureData) return result;
+
+  const { nodeMap, steelSections, elementData, sectionMaps } = structureData;
+  const extraData = options.extraDataExtractor ? options.extraDataExtractor(structureData) : {};
+
+  for (const source of sources) {
+    const elements = elementData[source.elementKey] || [];
+    const sections = sectionMaps[source.sectionKey];
+
+    for (const element of elements) {
+      // converterFnの引数を構築: (element, nodeMap, sections, [steelSections], [elementType], ...extraData)
+      const args = [element, nodeMap, sections];
+      if (options.needsSteelSections) args.push(steelSections);
+      if (source.elementType) args.push(source.elementType);
+      // 追加データを個別引数として渡す
+      if (extraData.args) args.push(...extraData.args);
+
+      const entry = source.converterFn(...args);
+      if (entry) result.push(entry);
+    }
+  }
+
+  return result;
+}
+
+// ================================================================
 // 梁データ収集・変換
 // ================================================================
 
@@ -25,31 +71,24 @@ const log = createLogger('ifcDataCollector');
  * 現在のモデルから梁データを収集
  * @returns {Promise<Array>} IFCBeamExporter用の梁データ配列
  */
-export async function collectBeamDataForExport() {
-  const beamData = [];
-
-  const structureData = await getOrParseStructureData();
-  if (!structureData) return beamData;
-
-  const { nodeMap, steelSections, elementData, sectionMaps } = structureData;
-  const girderElements = elementData.girderElements || [];
-  const beamElements = elementData.beamElements || [];
-  const girderSections = sectionMaps.girderSections || new Map();
-  const beamSections = sectionMaps.beamSections || new Map();
-
-  // 大梁を処理
-  for (const girder of girderElements) {
-    const beam = convertElementToBeamData(girder, nodeMap, girderSections, steelSections, 'Girder');
-    if (beam) beamData.push(beam);
-  }
-
-  // 小梁を処理
-  for (const beam of beamElements) {
-    const beamEntry = convertElementToBeamData(beam, nodeMap, beamSections, steelSections, 'Beam');
-    if (beamEntry) beamData.push(beamEntry);
-  }
-
-  return beamData;
+export function collectBeamDataForExport() {
+  return collectElementDataForExport(
+    [
+      {
+        elementKey: 'girderElements',
+        sectionKey: 'girderSections',
+        converterFn: convertElementToBeamData,
+        elementType: 'Girder',
+      },
+      {
+        elementKey: 'beamElements',
+        sectionKey: 'beamSections',
+        converterFn: convertElementToBeamData,
+        elementType: 'Beam',
+      },
+    ],
+    { needsSteelSections: true },
+  );
 }
 
 /**
@@ -72,7 +111,13 @@ function convertElementToBeamData(element, nodeMap, sectionMap, steelSections, e
     const profile = extractProfileFromSection(section, steelSections);
 
     // 断面高さを取得（天端基準調整用）
-    const sectionHeight = getSectionHeight(profile);
+    // SRC造の場合はコンクリート外形の高さを使用（ビューアと同じ）
+    let sectionHeight;
+    if (section?.isSRC && section.concreteProfile?.height) {
+      sectionHeight = section.concreteProfile.height;
+    } else {
+      sectionHeight = getSectionHeight(profile);
+    }
 
     // 回転角度を取得
     const rotation = element.rotate || element.angle || 0;
@@ -101,6 +146,16 @@ function convertElementToBeamData(element, nodeMap, sectionMap, steelSections, e
       }
     }
 
+    // SRC造の場合、鉄骨プロファイルも抽出（ビューアと同様に複合断面を出力）
+    let steelProfile = null;
+    if (section?.isSRC && section.steelProfile) {
+      const steelSectionData = {
+        dimensions: section.steelProfile.dimensions,
+        shapeName: section.shapeName,
+      };
+      steelProfile = extractProfileFromSection(steelSectionData, steelSections);
+    }
+
     // 基本データ
     const beamData = {
       name: element.name || element.id || `${elementType}-${element.id}`,
@@ -120,6 +175,12 @@ function convertElementToBeamData(element, nodeMap, sectionMap, steelSections, e
       placementMode: 'top-aligned',
       sectionHeight: sectionHeight,
     };
+
+    // SRC造の場合、鉄骨プロファイルを追加
+    if (steelProfile) {
+      beamData.isSRC = true;
+      beamData.steelProfile = steelProfile;
+    }
 
     // マルチセクションデータを設定
     if (isMultiSection && multiSectionData) {
@@ -144,31 +205,24 @@ function convertElementToBeamData(element, nodeMap, sectionMap, steelSections, e
  * 現在のモデルから柱データを収集
  * @returns {Promise<Array>} IFCBeamExporter用の柱データ配列
  */
-export async function collectColumnDataForExport() {
-  const columnData = [];
-
-  const structureData = await getOrParseStructureData();
-  if (!structureData) return columnData;
-
-  const { nodeMap, steelSections, elementData, sectionMaps } = structureData;
-  const columnElements = elementData.columnElements || [];
-  const postElements = elementData.postElements || [];
-  const columnSections = sectionMaps.columnSections || new Map();
-  const postSections = sectionMaps.postSections || new Map();
-
-  // 柱を処理
-  for (const column of columnElements) {
-    const col = convertColumnToExportData(column, nodeMap, columnSections, steelSections, 'Column');
-    if (col) columnData.push(col);
-  }
-
-  // 間柱を処理
-  for (const post of postElements) {
-    const col = convertColumnToExportData(post, nodeMap, postSections, steelSections, 'Post');
-    if (col) columnData.push(col);
-  }
-
-  return columnData;
+export function collectColumnDataForExport() {
+  return collectElementDataForExport(
+    [
+      {
+        elementKey: 'columnElements',
+        sectionKey: 'columnSections',
+        converterFn: convertColumnToExportData,
+        elementType: 'Column',
+      },
+      {
+        elementKey: 'postElements',
+        sectionKey: 'postSections',
+        converterFn: convertColumnToExportData,
+        elementType: 'Post',
+      },
+    ],
+    { needsSteelSections: true },
+  );
 }
 
 /**
@@ -201,13 +255,23 @@ function convertColumnToExportData(element, nodeMap, sectionMap, steelSections, 
     // デフォルトはtrue（STB仕様: 未指定時はtrue）
     const isReferenceDirection = section?.isReferenceDirection !== false;
 
+    // SRC造の場合、鉄骨プロファイルも抽出（ビューアと同様に複合断面を出力）
+    let steelProfile = null;
+    if (section?.isSRC && section.steelProfile) {
+      const steelSectionData = {
+        dimensions: section.steelProfile.dimensions,
+        shapeName: section.shapeName,
+      };
+      steelProfile = extractProfileFromSection(steelSectionData, steelSections);
+    }
+
     // オフセット情報を取得（STBの柱はXY方向のオフセットを持つ）
     const offsetBottomX = element.offset_bottom_X || 0;
     const offsetBottomY = element.offset_bottom_Y || 0;
     const offsetTopX = element.offset_top_X || 0;
     const offsetTopY = element.offset_top_Y || 0;
 
-    return {
+    const result = {
       name: element.name || element.id || `${elementType}-${element.id}`,
       bottomPoint: {
         x: bottomNode.x + offsetBottomX,
@@ -223,6 +287,14 @@ function convertColumnToExportData(element, nodeMap, sectionMap, steelSections, 
       rotation,
       isReferenceDirection,
     };
+
+    // SRC造の場合、鉄骨プロファイルを追加
+    if (steelProfile) {
+      result.isSRC = true;
+      result.steelProfile = steelProfile;
+    }
+
+    return result;
   } catch (error) {
     log.warn(`柱変換エラー (${element.id}):`, error);
     return null;
@@ -237,23 +309,17 @@ function convertColumnToExportData(element, nodeMap, sectionMap, steelSections, 
  * 現在のモデルからブレースデータを収集
  * @returns {Promise<Array>} IFCBeamExporter用のブレースデータ配列
  */
-export async function collectBraceDataForExport() {
-  const braceData = [];
-
-  const structureData = await getOrParseStructureData();
-  if (!structureData) return braceData;
-
-  const { nodeMap, steelSections, elementData, sectionMaps } = structureData;
-  const braceElements = elementData.braceElements || [];
-  const braceSections = sectionMaps.braceSections || new Map();
-
-  // ブレースを処理
-  for (const brace of braceElements) {
-    const br = convertBraceToExportData(brace, nodeMap, braceSections, steelSections);
-    if (br) braceData.push(br);
-  }
-
-  return braceData;
+export function collectBraceDataForExport() {
+  return collectElementDataForExport(
+    [
+      {
+        elementKey: 'braceElements',
+        sectionKey: 'braceSections',
+        converterFn: convertBraceToExportData,
+      },
+    ],
+    { needsSteelSections: true },
+  );
 }
 
 /**
@@ -302,22 +368,14 @@ function convertBraceToExportData(element, nodeMap, sectionMap, steelSections) {
  * 現在のモデルから床データを収集
  * @returns {Promise<Array>} IFCSTBExporter用の床データ配列
  */
-export async function collectSlabDataForExport() {
-  const slabData = [];
-
-  const structureData = await getOrParseStructureData();
-  if (!structureData) return slabData;
-
-  const { nodeMap, elementData, sectionMaps } = structureData;
-  const slabElements = elementData.slabElements || [];
-  const slabSections = sectionMaps.slabSections || new Map();
-
-  for (const slab of slabElements) {
-    const slabEntry = convertSlabToExportData(slab, nodeMap, slabSections);
-    if (slabEntry) slabData.push(slabEntry);
-  }
-
-  return slabData;
+export function collectSlabDataForExport() {
+  return collectElementDataForExport([
+    {
+      elementKey: 'slabElements',
+      sectionKey: 'slabSections',
+      converterFn: convertSlabToExportData,
+    },
+  ]);
 }
 
 /**
@@ -400,23 +458,21 @@ function convertSlabToExportData(element, nodeMap, sectionMap) {
  * 現在のモデルから壁データを収集
  * @returns {Promise<Array>} IFCSTBExporter用の壁データ配列
  */
-export async function collectWallDataForExport() {
-  const wallData = [];
-
-  const structureData = await getOrParseStructureData();
-  if (!structureData) return wallData;
-
-  const { nodeMap, elementData, sectionMaps } = structureData;
-  const wallElements = elementData.wallElements || [];
-  const wallSections = sectionMaps.wallSections || new Map();
-  const openingElements = elementData.openingElements || new Map();
-
-  for (const wall of wallElements) {
-    const wallEntry = convertWallToExportData(wall, nodeMap, wallSections, openingElements);
-    if (wallEntry) wallData.push(wallEntry);
-  }
-
-  return wallData;
+export function collectWallDataForExport() {
+  return collectElementDataForExport(
+    [
+      {
+        elementKey: 'wallElements',
+        sectionKey: 'wallSections',
+        converterFn: convertWallToExportData,
+      },
+    ],
+    {
+      extraDataExtractor: ({ elementData }) => ({
+        args: [elementData.openingElements || new Map()],
+      }),
+    },
+  );
 }
 
 /**
@@ -558,22 +614,14 @@ function convertWallToExportData(element, nodeMap, sectionMap, openingElements =
  * 現在のモデルから杭データを収集
  * @returns {Promise<Array>} IFCSTBExporter用の杭データ配列
  */
-export async function collectPileDataForExport() {
-  const pileData = [];
-
-  const structureData = await getOrParseStructureData();
-  if (!structureData) return pileData;
-
-  const { nodeMap, elementData, sectionMaps } = structureData;
-  const pileElements = elementData.pileElements || [];
-  const pileSections = sectionMaps.pileSections || new Map();
-
-  for (const pile of pileElements) {
-    const pileEntry = convertPileToExportData(pile, nodeMap, pileSections);
-    if (pileEntry) pileData.push(pileEntry);
-  }
-
-  return pileData;
+export function collectPileDataForExport() {
+  return collectElementDataForExport([
+    {
+      elementKey: 'pileElements',
+      sectionKey: 'pileSections',
+      converterFn: convertPileToExportData,
+    },
+  ]);
 }
 
 /**
@@ -694,22 +742,14 @@ function convertPileToExportData(element, nodeMap, sectionMap) {
  * 現在のモデルから基礎データを収集
  * @returns {Promise<Array>} IFCSTBExporter用の基礎データ配列
  */
-export async function collectFootingDataForExport() {
-  const footingData = [];
-
-  const structureData = await getOrParseStructureData();
-  if (!structureData) return footingData;
-
-  const { nodeMap, elementData, sectionMaps } = structureData;
-  const footingElements = elementData.footingElements || [];
-  const footingSections = sectionMaps.footingSections || new Map();
-
-  for (const footing of footingElements) {
-    const footingEntry = convertFootingToExportData(footing, nodeMap, footingSections);
-    if (footingEntry) footingData.push(footingEntry);
-  }
-
-  return footingData;
+export function collectFootingDataForExport() {
+  return collectElementDataForExport([
+    {
+      elementKey: 'footingElements',
+      sectionKey: 'footingSections',
+      converterFn: convertFootingToExportData,
+    },
+  ]);
 }
 
 /**
@@ -801,27 +841,17 @@ function convertFootingToExportData(element, nodeMap, sectionMap) {
  * 現在のモデルから基礎柱データを収集
  * @returns {Promise<Array>} IFCSTBExporter用の基礎柱データ配列
  */
-export async function collectFoundationColumnDataForExport() {
-  const foundationColumnData = [];
-
-  const structureData = await getOrParseStructureData();
-  if (!structureData) return foundationColumnData;
-
-  const { nodeMap, steelSections, elementData, sectionMaps } = structureData;
-  const foundationColumnElements = elementData.foundationColumnElements || [];
-  const foundationColumnSections = sectionMaps.foundationcolumnSections || new Map();
-
-  for (const fc of foundationColumnElements) {
-    const fcEntry = convertFoundationColumnToExportData(
-      fc,
-      nodeMap,
-      foundationColumnSections,
-      steelSections,
-    );
-    if (fcEntry) foundationColumnData.push(fcEntry);
-  }
-
-  return foundationColumnData;
+export function collectFoundationColumnDataForExport() {
+  return collectElementDataForExport(
+    [
+      {
+        elementKey: 'foundationColumnElements',
+        sectionKey: 'foundationcolumnSections',
+        converterFn: convertFoundationColumnToExportData,
+      },
+    ],
+    { needsSteelSections: true },
+  );
 }
 
 /**

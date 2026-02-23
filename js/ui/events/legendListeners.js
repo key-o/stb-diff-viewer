@@ -9,7 +9,6 @@
 // --- UI Element Reference ---
 const legendPanel = document.getElementById('legendPanel');
 
-
 /**
  * Handle legend toggle
  * @param {Event} event - Click event
@@ -81,15 +80,23 @@ export function updateLegendContent() {
  * 重要度別凡例を生成
  */
 function updateImportanceLegend(container) {
-  import('../../constants/importanceLevels.js').then(({ IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES }) => {
-    // ColorManager経由で色を取得（単一データソース）
-    import('../../viewer/rendering/colorManager.js').then(({ colorManager }) => {
-      const html = `
+  import('../../constants/importanceLevels.js').then(
+    ({ IMPORTANCE_LEVELS, IMPORTANCE_COLOR_CATEGORY_NAMES }) => {
+      // ColorManager経由で色を取得（単一データソース）
+      import('../../viewer/rendering/colorManager.js').then(({ colorManager }) => {
+        // 違反/対象外の2カテゴリで凡例を表示
+        const categories = [
+          { name: IMPORTANCE_COLOR_CATEGORY_NAMES.violation, level: IMPORTANCE_LEVELS.REQUIRED },
+          {
+            name: IMPORTANCE_COLOR_CATEGORY_NAMES.notApplicable,
+            level: IMPORTANCE_LEVELS.NOT_APPLICABLE,
+          },
+        ];
+        const html = `
         <div class="panel-header">重要度別凡例</div>
-        ${Object.entries(IMPORTANCE_LEVELS)
-          .map(([_key, level]) => {
+        ${categories
+          .map(({ name, level }) => {
             const color = colorManager.getImportanceColor(level);
-            const name = IMPORTANCE_LEVEL_NAMES[level];
             return `
             <div class="legend-item">
               <span class="legend-color" style="background-color: ${color};"></span>
@@ -112,9 +119,10 @@ function updateImportanceLegend(container) {
           <span>ズーム: ホイール</span>
         </div>
       `;
-      container.innerHTML = html;
-    });
-  });
+        container.innerHTML = html;
+      });
+    },
+  );
 }
 
 /**

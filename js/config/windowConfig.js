@@ -43,7 +43,7 @@ export const WINDOW_DEFINITIONS = {
     toggleButtonId: 'toggle-component-info-btn',
     draggable: true,
     resizable: true,
-    autoShow: false,
+    autoShow: true,
     isDynamic: false,
     cssClass: 'component-info-resizable',
   },
@@ -78,6 +78,17 @@ export const WINDOW_DEFINITIONS = {
     autoShow: false,
     isDynamic: false,
     hasOnShowCallback: true, // onShow コールバックあり
+  },
+  'validation-panel-float': {
+    title: 'STBバリデーション',
+    icon: '✅',
+    toggleButtonId: 'toggle-validation-panel-btn',
+    closeButtonId: 'close-validation-panel-btn',
+    headerId: 'validation-panel-header',
+    draggable: true,
+    resizable: true,
+    autoShow: false,
+    isDynamic: false,
   },
   'schema-error-list-float': {
     title: 'スキーマエラー一覧',

@@ -10,15 +10,10 @@
  */
 
 import * as THREE from 'three';
-import { calculateProfile } from './core/ProfileCalculator.js';
-import {
-  convertProfileToThreeShape,
-  createExtrudeGeometry,
-} from './core/ThreeJSConverter.js';
-import { materials } from '../rendering/materials.js';
-import { IFCProfileFactory } from './IFCProfileFactory.js';
-import { mapToProfileParams } from './core/ProfileParameterMapper.js';
+import { createExtrudeGeometry } from './core/ThreeJSConverter.js';
+import { colorManager } from '../rendering/colorManager.js';
 import { BaseElementGenerator } from './core/BaseElementGenerator.js';
+import { createSectionProfile } from './core/ProfileCreationUtils.js';
 
 /**
  * 基礎柱の配置情報を計算
@@ -297,14 +292,14 @@ export class ProfileBasedFoundationColumnGenerator extends BaseElementGenerator 
     log,
   ) {
     // 断面タイプの推定
-    const sectionType = this._normalizeSectionType(sectionData);
+    const sectionType = this._resolveGeometryProfileType(sectionData);
 
     log.debug(
       `Creating ${sectionPart} section for FoundationColumn ${foundationColumn.id}: section_type=${sectionType}, length=${length}`,
     );
 
-    // プロファイル生成
-    const profileResult = this._createSectionProfile(sectionData, sectionType, foundationColumn);
+    // プロファイル生成（共有ユーティリティを使用）
+    const profileResult = createSectionProfile(sectionData, sectionType, foundationColumn.id, log, { supportCircle: true });
 
     if (!profileResult || !profileResult.shape) {
       log.warn(
@@ -322,7 +317,10 @@ export class ProfileBasedFoundationColumnGenerator extends BaseElementGenerator 
     }
 
     // メッシュを作成
-    const mesh = new THREE.Mesh(geometry, materials.matchedMesh);
+    const mesh = new THREE.Mesh(
+      geometry,
+      colorManager.getMaterial('diff', { comparisonState: 'matched' }),
+    );
 
     // メタデータを設定
     mesh.userData = this._buildColumnMetadata({
@@ -337,122 +335,6 @@ export class ProfileBasedFoundationColumnGenerator extends BaseElementGenerator 
     mesh.userData.foundationColumnPart = sectionPart; // 'FD' or 'WR'
 
     return mesh;
-  }
-
-  /**
-   * 断面プロファイルを作成（IFC優先、フォールバックでProfileCalculator）
-   * @private
-   */
-  static _createSectionProfile(sectionData, sectionType, foundationColumn) {
-    const log = this._getLogger();
-
-    log.debug(
-      `Creating profile for FoundationColumn ${foundationColumn.id}: section_type=${sectionType}`,
-    );
-
-    // IFC経路を優先的に試行
-    const ifcResult = this._tryIFCProfile(sectionData, sectionType);
-    if (ifcResult) {
-      return ifcResult;
-    }
-
-    // フォールバック: ProfileCalculatorを使用
-    return this._createProfileUsingCalculator(sectionData, sectionType);
-  }
-
-  /**
-   * IFCProfileFactoryを使用したプロファイル生成を試行
-   * @private
-   */
-  static _tryIFCProfile(sectionData, sectionType) {
-    const log = this._getLogger();
-    const steelTypes = new Set(['H', 'BOX', 'PIPE', 'L', 'T', 'C', 'CIRCLE']);
-
-    try {
-      let ifcProfile = null;
-
-      if (steelTypes.has(sectionType) && sectionData.steelShape) {
-        ifcProfile = IFCProfileFactory.createProfileFromSTB(sectionData.steelShape, sectionType);
-      } else if (sectionType === 'RECTANGLE') {
-        // RC矩形断面
-        const rectDims = sectionData.dimensions || sectionData;
-        ifcProfile = {
-          ProfileType: IFCProfileFactory.mapSTBToIFCProfileType('RECTANGLE'),
-          ProfileName: `STB_RECT_${
-            rectDims.width || rectDims.outer_width || rectDims.width_X || 'W'
-          }x${rectDims.height || rectDims.outer_height || rectDims.width_Y || 'H'}`,
-          ProfileParameters: {
-            XDim: rectDims.width || rectDims.outer_width || rectDims.width_X,
-            YDim: rectDims.height || rectDims.outer_height || rectDims.width_Y,
-          },
-        };
-      } else if (sectionType === 'CIRCLE') {
-        // RC円形断面
-        const circleDims = sectionData.dimensions || sectionData;
-        const diameter = circleDims.diameter || circleDims.D;
-        if (diameter) {
-          ifcProfile = {
-            ProfileType: 'IfcCircleProfileDef',
-            ProfileName: `STB_CIRCLE_D${diameter}`,
-            ProfileParameters: {
-              Radius: diameter / 2,
-            },
-          };
-        }
-      }
-
-      if (ifcProfile) {
-        const threeJSProfile = IFCProfileFactory.createGeometryFromProfile(ifcProfile, 'center');
-        if (threeJSProfile) {
-          log.debug(`IFC profile created successfully: ${ifcProfile.ProfileType}`);
-          return {
-            shape: threeJSProfile,
-            meta: {
-              profileSource: 'ifc',
-              sectionTypeResolved: sectionType,
-              factoryType: ifcProfile.ProfileType,
-            },
-          };
-        }
-      }
-    } catch (error) {
-      log.warn(`IFC profile creation failed for ${sectionType}: ${error?.message}`);
-    }
-
-    return null;
-  }
-
-  /**
-   * ProfileCalculatorを使用したプロファイル生成（フォールバック）
-   * @private
-   */
-  static _createProfileUsingCalculator(sectionData, sectionType) {
-    const log = this._getLogger();
-    const dimensions = sectionData.dimensions || sectionData;
-
-    // 断面タイプに応じたパラメータを準備
-    const profileParams = mapToProfileParams(dimensions, sectionType);
-
-    try {
-      // ProfileCalculatorでプロファイル頂点座標を計算
-      const profileData = calculateProfile(sectionType, profileParams);
-
-      // ThreeJSConverterでTHREE.Shapeに変換
-      const threeShape = convertProfileToThreeShape(profileData);
-
-      log.debug(`Profile created using ProfileCalculator: ${sectionType}`);
-
-      return {
-        shape: threeShape,
-        meta: {
-          profileSource: 'calculator',
-          sectionTypeResolved: sectionType,
-        },
-      };
-    } catch (error) {
-      log.error(`ProfileCalculator creation failed for ${sectionType}: ${error?.message}`);
-      return null;
-    }
   }
 }
 

@@ -20,6 +20,7 @@ import {
   calculateChannelProfile,
   calculateTShapeProfile,
 } from '../../../viewer/index.js';
+import { resolveProfileType } from '../../../constants/profileTypeAliases.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('commonDataCollector');
@@ -82,7 +83,7 @@ export async function getOrParseStructureData() {
   } = await import('../../../parser/stbXmlParser.js');
 
   const { extractAllSections } =
-    await import('../../../common-stb/parser/defaultSectionExtractor.js');
+    await import('../../../common-stb/import/extractor/defaultSectionExtractor.js');
 
   // データを抽出
   const nodeMap = buildNodeMap(xmlDoc);
@@ -106,50 +107,35 @@ export async function getOrParseStructureData() {
       footingElements: extractFootingElements(xmlDoc),
       foundationColumnElements: extractFoundationColumnElements(xmlDoc),
     },
-    sectionMaps: {
-      girderSections: allSections.girderSections || new Map(),
-      beamSections: allSections.beamSections || new Map(),
-      columnSections: allSections.columnSections || new Map(),
-      postSections: allSections.postSections || new Map(),
-      braceSections: allSections.braceSections || new Map(),
-      slabSections: allSections.slabSections || new Map(),
-      wallSections: allSections.wallSections || new Map(),
-      pileSections: allSections.pileSections || new Map(),
-      footingSections: allSections.footingSections || new Map(),
-      foundationcolumnSections: allSections.foundationcolumnSections || new Map(),
-    },
+    sectionMaps: allSections,
   };
 }
 
 /**
+ * 正規化タイプから計算関数へのマッピング
+ * @type {Record<string, Function>}
+ */
+const CALCULATOR_MAP = {
+  'H': calculateHShapeProfile,
+  'BOX': calculateBoxProfile,
+  'PIPE': calculatePipeProfile,
+  'L': calculateLShapeProfile,
+  'C': calculateChannelProfile,
+  'T': calculateTShapeProfile,
+  'RECTANGLE': calculateRectangleProfile,
+};
+
+/**
  * プロファイルタイプから頂点計算関数を取得
  * @param {string} profileType - プロファイルタイプ (H, BOX, PIPE等)
- * @returns {Function|null} 頂点計算関数
+ * @returns {Function} 頂点計算関数
  */
 function getProfileCalculator(profileType) {
-  const type = (profileType || '').toUpperCase();
-  switch (type) {
-    case 'H':
-    case 'I':
-      return calculateHShapeProfile;
-    case 'BOX':
-    case 'CFT':
-      return calculateBoxProfile;
-    case 'PIPE':
-      return calculatePipeProfile;
-    case 'L':
-      return calculateLShapeProfile;
-    case 'C':
-    case 'U':
-      return calculateChannelProfile;
-    case 'T':
-      return calculateTShapeProfile;
-    case 'RECTANGLE':
-    case 'RC':
-    case 'stb-diff-viewer':
-    default:
-      return calculateRectangleProfile;
-  }
+  const canonical = resolveProfileType(profileType);
+  // CFT は BOX として計算、SRC は RECTANGLE として計算
+  if (canonical === 'CFT') return calculateBoxProfile;
+  if (canonical === 'SRC') return calculateRectangleProfile;
+  return CALCULATOR_MAP[canonical] || calculateRectangleProfile;
 }
 
 /**

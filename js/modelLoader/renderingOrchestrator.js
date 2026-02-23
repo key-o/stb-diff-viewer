@@ -17,7 +17,6 @@
 import * as THREE from 'three';
 import { createLogger } from '../utils/logger.js';
 import {
-  materials,
   elementGroups,
   drawNodes,
   drawLineElements,
@@ -158,7 +157,7 @@ function renderElementType(elementType, comparisonResult, modelBounds, _globalDa
   // Render based on element type
   switch (elementType) {
     case 'Node':
-      result.labels = drawNodes(comparisonResult, materials, group, createLabels, modelBounds);
+      result.labels = drawNodes(comparisonResult, group, createLabels, modelBounds);
       break;
 
     case 'Column':
@@ -175,7 +174,6 @@ function renderElementType(elementType, comparisonResult, modelBounds, _globalDa
       if (displayModeManager.isSolidMode(elementType)) break;
       result.labels = drawLineElements(
         comparisonResult,
-        materials,
         group,
         elementType,
         createLabels,
@@ -206,7 +204,7 @@ function renderElementType(elementType, comparisonResult, modelBounds, _globalDa
  * @param {Object} renderingResults - Rendering results to update
  * @param {THREE.Box3} modelBounds - Model bounds for rendering
  */
-function renderAuxiliaryElements(globalData, renderingResults, modelBounds) {
+export function renderAuxiliaryElements(globalData, renderingResults, modelBounds) {
   const { stories, axesData } = globalData;
 
   // Render axes
@@ -305,37 +303,23 @@ export function calculateRenderingBounds(renderedElements, nodeMapA, nodeMapB) {
  * @returns {Object} Rendering statistics
  */
 export function getRenderingStatistics(renderingResults) {
-  // Safely handle undefined renderingResults
-  if (!renderingResults) {
-    return {
-      totalMeshes: 0,
-      totalLabels: 0,
-      elementTypes: {},
-      errors: 0,
-      errorDetails: [],
-    };
-  }
-
   const stats = {
     totalMeshes: 0,
-    totalLabels: (renderingResults.nodeLabels || []).length,
+    totalLabels: renderingResults.nodeLabels.length,
     elementTypes: {},
-    errors: (renderingResults.errors || []).length,
-    errorDetails: renderingResults.errors || [],
+    errors: renderingResults.errors.length,
+    errorDetails: renderingResults.errors,
   };
 
-  // Safely iterate over rendered elements
-  if (renderingResults.renderedElements) {
-    for (const [elementType, result] of renderingResults.renderedElements.entries()) {
-      stats.elementTypes[elementType] = {
-        meshCount: result?.meshCount || 0,
-        labelCount: result?.labels?.length || 0,
-        isVisible: !!result?.groupVisible,
-        hasError: !!result?.error,
-      };
+  for (const [elementType, result] of renderingResults.renderedElements.entries()) {
+    stats.elementTypes[elementType] = {
+      meshCount: result.meshCount,
+      labelCount: result.labels.length,
+      isVisible: result.groupVisible,
+      hasError: !!result.error,
+    };
 
-      stats.totalMeshes += result?.meshCount || 0;
-    }
+    stats.totalMeshes += result.meshCount;
   }
 
   return stats;

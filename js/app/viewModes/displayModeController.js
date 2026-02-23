@@ -8,6 +8,7 @@
 
 import { setState } from '../globalState.js';
 import { VIEW_MODE_CHECKBOX_IDS } from '../../config/uiElementConfig.js';
+import { SOLID_ONLY_ELEMENTS } from '../../constants/elementTypes.js';
 import { createLogger } from '../../utils/logger.js';
 import { clearParseCache, setStateProvider, displayModeManager } from '../../viewer/index.js';
 import {
@@ -115,6 +116,13 @@ function applyInitialDisplayModes(scheduleRender) {
     (type) => alwaysRedrawTypes.has(type) || displayModeManager.isSolidMode(type),
   );
 
+  // 立体表示のみ要素も再描画対象に追加（常にsolid）
+  for (const solidOnlyType of SOLID_ONLY_ELEMENTS) {
+    if (!typesToRedraw.includes(solidOnlyType)) {
+      typesToRedraw.push(solidOnlyType);
+    }
+  }
+
   if (typesToRedraw.length === 0) {
     log.debug('[applyInitialDisplayModes] No elements need redrawing (all in line mode)');
   } else {
@@ -139,7 +147,7 @@ function applyInitialDisplayModes(scheduleRender) {
       redrawBeamsForViewMode(null);
     }
 
-    // Joint 再描画
+    // Joint 再描画（立体表示のみ要素だが専用描画関数あり）
     if (typesToRedraw.includes('Joint')) {
       log.debug('[applyInitialDisplayModes] Redrawing: Joint');
       redrawJointsForViewMode(null);

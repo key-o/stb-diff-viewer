@@ -7,7 +7,7 @@
  *
  * STB 2.0.2 と STB 2.1.0 の両方の形式に対応しています。
  *
- * @module common/stb/parser/SameNotSameProcessor
+ * @module common/stb/import/extractor/SectionShapeProcessor
  */
 
 const STB_NAMESPACE = 'https://www.building-smart.or.jp/dl';
@@ -20,8 +20,16 @@ const SAME_PATTERNS = [
   'StbSecSteelColumn_SRC_Same',
   'StbSecSteelBeam_S_Same',
   'StbSecSteelBeam_S_Straight', // 梁の一定断面（Sameと同等）
+  'StbSecSteelBeam_CFT_Same',
+  'StbSecSteelBeam_CFT_Straight', // CFT造梁のストレート
+  'StbSecSteelBeam_SRC_Same',
+  'StbSecSteelBeam_SRC_Straight', // SRC造梁のストレート（鋼材部分）
   'StbSecSteelBrace_S_Same',
   'StbSecSteelGirder_S_Same',
+  'StbSecSteelGirder_CFT_Same',
+  'StbSecSteelGirder_CFT_Straight', // CFT造大梁のストレート
+  'StbSecSteelGirder_SRC_Same',
+  'StbSecSteelGirder_SRC_Straight', // SRC造大梁のストレート
   // STB 2.1.0 patterns (within StbSecSteelFigure* > StbSecSteel*_Shape)
   'StbSecSteelColumnSame',
   'StbSecSteelBeamStraight',
@@ -36,8 +44,12 @@ const NOT_SAME_PATTERNS = [
   'StbSecSteelColumn_CFT_NotSame',
   'StbSecSteelColumn_SRC_NotSame',
   'StbSecSteelBeam_S_NotSame',
+  'StbSecSteelBeam_CFT_NotSame',
+  'StbSecSteelBeam_SRC_NotSame',
   'StbSecSteelBrace_S_NotSame',
   'StbSecSteelGirder_S_NotSame',
+  'StbSecSteelGirder_CFT_NotSame',
+  'StbSecSteelGirder_SRC_NotSame',
   // STB v2.0.2 NOTNOTSAME パターン (kind="NOTNOTSAME")
   'StbSecSteel_Column_NotSame_NotSame',
   // STB 2.1.0 patterns
@@ -49,16 +61,39 @@ const NOT_SAME_PATTERNS = [
 
 // 梁専用の多断面パターン (STB 2.0.2 and 2.1.0)
 const BEAM_MULTI_SECTION_PATTERNS = [
-  // STB 2.0.2 patterns
+  // STB 2.0.2 patterns - S造梁
   'StbSecSteelBeam_S_Haunch', // ハンチ付き梁 (2-3断面)
   'StbSecSteelBeam_S_Joint', // 接合部変化梁 (2-3断面)
   'StbSecSteelBeam_S_FiveTypes', // 詳細ハンチ梁 (3-5断面)
   'StbSecSteelBeam_S_Taper', // テーパー梁 (2断面: START/END)
+  // STB 2.0.2 patterns - CFT造梁
+  'StbSecSteelBeam_CFT_Haunch',
+  'StbSecSteelBeam_CFT_Joint',
+  'StbSecSteelBeam_CFT_FiveTypes',
+  'StbSecSteelBeam_CFT_Taper',
+  // STB 2.0.2 patterns - SRC造梁
+  'StbSecSteelBeam_SRC_Haunch',
+  'StbSecSteelBeam_SRC_Joint',
+  'StbSecSteelBeam_SRC_FiveTypes',
+  'StbSecSteelBeam_SRC_Taper',
   // STB 2.1.0 patterns
   'StbSecSteelBeamHaunch',
   'StbSecSteelBeamJoint',
   'StbSecSteelBeamFiveTypes',
   'StbSecSteelBeamTaper',
+];
+
+// SRC造柱のクロスH断面パターン（shape_X / shape_Y 属性で2本のH鋼を直交させる断面）
+// STB 2.0.2: Same/NotSame/ThreeTypes 要素の子要素として定義
+// STB 2.1.0: Figure要素の直接子要素として定義
+const CROSS_H_PATTERNS = [
+  // STB 2.0.2 patterns (子要素として shape_X/shape_Y を持つ)
+  'StbSecColumn_SRC_SameShapeCross',
+  'StbSecColumn_SRC_NotSameShapeCross',
+  'StbSecColumn_SRC_ThreeTypesShapeCross',
+  // STB 2.1.0 patterns
+  'StbSecSteelColumn_SRC_ShapeCross1',
+  'StbSecSteelColumn_SRC_ShapeCross2',
 ];
 
 // STB 2.1.0 Figure structure wrappers
@@ -80,7 +115,7 @@ const V210_SHAPE_WRAPPERS = [
 /**
  * Same/NotSame を展開するパーサ
  */
-export class SameNotSameProcessor {
+export class SectionShapeProcessor {
   /**
    * @param {Element} steelFigureElement StbSecSteelFigure* 要素
    */
@@ -291,7 +326,7 @@ export class SameNotSameProcessor {
   }
 
   /**
-   * Same/NotSame/BeamMultiSection/V210Nested/フォールバックの順に shape 名を決める
+   * Same/NotSame/BeamMultiSection/V210Nested/CrossH/フォールバックの順に shape 名を決める
    * @returns {Object|null}
    */
   expandSteelFigure() {
@@ -306,12 +341,16 @@ export class SameNotSameProcessor {
     const notSameVariants = this.processNotSamePattern();
     const beamMultiSectionVariants = this.processBeamMultiSectionPattern();
 
-    // Use v210 variants if found and no other patterns matched
+    // クロスH断面の検出（shape_X / shape_Y を持つ要素）
+    // Same/NotSame パターンが見つからない場合のみ試行
     const hasOtherPatterns =
       sameVariant || notSameVariants.length || beamMultiSectionVariants.length;
+    const crossHPattern = hasOtherPatterns ? null : this.processCrossHPattern();
 
     const fallbackVariant =
-      hasOtherPatterns || v210Variants.length ? null : this._extractFallbackShape();
+      hasOtherPatterns || v210Variants.length || crossHPattern
+        ? null
+        : this._extractFallbackShape();
 
     const variants = [];
     if (sameVariant) variants.push(sameVariant);
@@ -323,7 +362,8 @@ export class SameNotSameProcessor {
       variants.push(fallbackVariant);
     }
 
-    if (!variants.length) {
+    // クロスH断面はvariantsとは別フィールドで返す（shape が無いため）
+    if (!variants.length && !crossHPattern) {
       return null;
     }
 
@@ -333,6 +373,7 @@ export class SameNotSameProcessor {
       (beamMultiSectionVariants.length ? beamMultiSectionVariants[0].shape : null) ||
       (v210Variants.length ? v210Variants[0].shape : null) ||
       fallbackVariant?.shape ||
+      crossHPattern?.shapeX || // クロスH断面はX方向を代表形状とする
       null;
 
     return {
@@ -343,7 +384,68 @@ export class SameNotSameProcessor {
       primaryShape,
       fallbackShape: fallbackVariant?.shape || null,
       isV210Structure: v210Variants.length > 0 && !hasOtherPatterns,
+      crossH: crossHPattern || null, // クロスH断面情報（{ shapeX, shapeY, isCrossH: true }）
     };
+  }
+
+  /**
+   * クロスH断面（shape_X / shape_Y を持つ要素）を抽出
+   *
+   * STB仕様でH鋼を十字に重ねたSRC造柱専用の断面形式。
+   * @returns {Object|null} { shapeX, shapeY, tagName, attributes } or null
+   */
+  processCrossHPattern() {
+    if (!this.figureElement) return null;
+
+    // figureElement 配下を再帰的に探索して shape_X 属性を持つ要素を見つける
+    const crossElem = this._findCrossHElement(this.figureElement);
+    if (!crossElem) return null;
+
+    const shapeX = crossElem.getAttribute('shape_X');
+    const shapeY = crossElem.getAttribute('shape_Y');
+    if (!shapeX) return null;
+
+    return {
+      shapeX,
+      shapeY: shapeY || shapeX, // shape_Y が省略された場合は shape_X と同じとみなす
+      tagName: crossElem.tagName,
+      attributes: collectAttributes(crossElem),
+      isCrossH: true,
+    };
+  }
+
+  /**
+   * @private
+   * shape_X 属性を持つクロスH要素を再帰的に探す
+   * @param {Element} root
+   * @returns {Element|null}
+   */
+  _findCrossHElement(root) {
+    if (!root) return null;
+
+    // querySelectorAll で shape_X 属性を持つ要素を一括検索（高速パス）
+    if (typeof root.querySelectorAll === 'function') {
+      try {
+        const found = root.querySelectorAll('[shape_X]');
+        if (found && found.length > 0) return found[0];
+      } catch (_) {
+        // 名前空間付きの場合は失敗することがある
+      }
+    }
+
+    // タグ名による探索（CROSS_H_PATTERNS リスト）
+    for (const pattern of CROSS_H_PATTERNS) {
+      const elems = findChildren(root, pattern);
+      if (elems.length > 0) return elems[0];
+      // 孫要素にも探索（STB 2.0.2 の Same > ShapeCross 構造に対応）
+      const children = root.children || [];
+      for (let i = 0; i < children.length; i++) {
+        const childElems = findChildren(children[i], pattern);
+        if (childElems.length > 0) return childElems[0];
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -486,6 +588,7 @@ export {
   SAME_PATTERNS,
   NOT_SAME_PATTERNS,
   BEAM_MULTI_SECTION_PATTERNS,
+  CROSS_H_PATTERNS,
   V210_FIGURE_WRAPPERS,
   V210_SHAPE_WRAPPERS,
 };

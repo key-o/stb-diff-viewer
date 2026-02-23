@@ -6,11 +6,7 @@
  * @module colorModes/diffColorMode
  */
 
-/**
- * 全要素に差分色分けを適用
- */
-export function applyDiffColorModeToAll() {
-  import('./index.js').then(({ applyColorModeToAllObjects }) => {
-    applyColorModeToAllObjects('DiffColorMode');
-  });
-}
+import { createApplyColorMode } from './colorModeState.js';
+
+/** 全要素に差分色分けを適用 */
+export const applyDiffColorModeToAll = createApplyColorMode('DiffColorMode');

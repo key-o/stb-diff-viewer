@@ -53,6 +53,12 @@ export const UI_TIMING = {
   /** 統計更新遅延 */
   STATISTICS_REFRESH_DELAY_MS: 500,
 
+  // === バリデーション関連 ===
+  /** モデルロード後にSTBバリデーションパネル自動実行を開始するまでの遅延 */
+  VALIDATION_PANEL_AUTO_RUN_DELAY_MS: 300,
+  /** requestIdleCallbackで待機できる最大時間 */
+  VALIDATION_PANEL_IDLE_TIMEOUT_MS: 2000,
+
   // === 開発ツール関連 ===
   /** 開発ツール待機時間 */
   DEVTOOLS_WAIT_MS: 2000,

@@ -191,4 +191,3 @@ export function generateVersionDifferenceSummary(comparisonResult) {
     byElementType: elementTypes,
   };
 }
-

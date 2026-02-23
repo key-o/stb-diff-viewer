@@ -12,10 +12,15 @@
 
 import * as THREE from 'three';
 import { createLogger } from '../utils/logger.js';
+import { normalizeComparisonResult, getCategoryCounts } from '../data/normalizeComparisonResult.js';
+import { COMPARISON_CATEGORY } from '../constants/comparisonCategories.js';
 
 const logger = createLogger('modelLoader:comparison');
-import { parseElements, buildNodeStoryAxisLookup } from '../common-stb/parser/stbXmlParser.js';
-import { extractAllSections } from '../common-stb/parser/sectionExtractor.js';
+import {
+  parseElements,
+  buildNodeStoryAxisLookup,
+} from '../common-stb/import/parser/stbXmlParser.js';
+import { extractAllSections } from '../common-stb/import/extractor/sectionExtractor.js';
 import {
   compareElements,
   compareElementsWithImportance,
@@ -168,10 +173,9 @@ export function processElementComparison(modelData, selectedElementTypes, option
     // stbStructureReader.jsのparseStbFileで抽出されたundefinedElementsを使用
     // ここでは空の結果を返し、viewModes.jsのredrawUndefinedElementsForViewModeで処理
     if (elementType === 'Undefined') {
+      const emptyResult = normalizeComparisonResult({ matched: [], onlyA: [], onlyB: [] });
       comparisonResults.set(elementType, {
-        matched: [],
-        onlyA: [],
-        onlyB: [],
+        ...emptyResult,
         elementType,
         isSelected,
         elementsA: [],
@@ -187,7 +191,7 @@ export function processElementComparison(modelData, selectedElementTypes, option
       elementsB = parseElements(modelBDocument, xmlTagName);
 
       // Perform comparison with importance options
-      const comparisonResult = compareElementsByType(
+      const rawComparisonResult = compareElementsByType(
         elementType,
         elementsA,
         elementsB,
@@ -205,6 +209,9 @@ export function processElementComparison(modelData, selectedElementTypes, option
         },
       );
 
+      // Normalize to canonical 5-category format
+      const comparisonResult = normalizeComparisonResult(rawComparisonResult);
+
       // Store comparison result
       comparisonResults.set(elementType, {
         ...comparisonResult,
@@ -216,18 +223,17 @@ export function processElementComparison(modelData, selectedElementTypes, option
     } catch (error) {
       logger.error(`Error processing ${elementType}:`, error);
       logger.error(`Error stack:`, error.stack);
-      logger.error(`Elements A length: ${elementsA ? elementsA.length : 'undefined'}`);
-      logger.error(`Elements B length: ${elementsB ? elementsB.length : 'undefined'}`);
-      logger.error(`Node map A size: ${nodeMapA ? nodeMapA.size : 'undefined'}`);
-      logger.error(`Node map B size: ${nodeMapB ? nodeMapB.size : 'undefined'}`);
+      logger.error(`Elements A length: ${elementsA.length}`);
+      logger.error(`Elements B length: ${elementsB.length}`);
+      logger.error(`Node map A size: ${nodeMapA.size}`);
+      logger.error(`Node map B size: ${nodeMapB.size}`);
+      const errorResult = normalizeComparisonResult({ matched: [], onlyA: [], onlyB: [] });
       comparisonResults.set(elementType, {
-        matched: [],
-        onlyA: [],
-        onlyB: [],
+        ...errorResult,
         elementType,
         isSelected,
-        elementsA: elementsA || [],
-        elementsB: elementsB || [],
+        elementsA,
+        elementsB,
         error: error.message,
       });
     }
@@ -369,7 +375,7 @@ function compareElementsByType(
         const manager = getImportanceManager();
         // マネージャーの依存性（isInitialized）を隠蔽して関数のみ渡す
         const importanceLookup = manager.isInitialized
-          ? (path) => manager.getImportanceLevel(path)
+          ? (element, elementType) => manager.getElementImportance(element, elementType)
           : null;
 
         return compareElementsWithImportance(
@@ -528,6 +534,7 @@ function compareElementsByType(
         logger.warn(`Unknown element type for comparison: ${elementType}`);
         comparisonResult = {
           matched: [],
+          mismatch: [],
           onlyA: [...elementsA],
           onlyB: [...elementsB],
         };
@@ -540,6 +547,7 @@ function compareElementsByType(
   return (
     comparisonResult || {
       matched: [],
+      mismatch: [],
       onlyA: [],
       onlyB: [],
     }
@@ -586,23 +594,34 @@ export function getComparisonStatistics(comparisonResults) {
     matchedElements: 0,
     onlyAElements: 0,
     onlyBElements: 0,
+    // 5カテゴリ詳細
+    exactElements: 0,
+    withinToleranceElements: 0,
+    attributeMismatchElements: 0,
     elementTypes: {},
     selectedTypes: [],
     errors: [],
   };
 
   for (const [elementType, result] of comparisonResults.entries()) {
+    const counts = getCategoryCounts(result);
     const typeStats = {
-      matched: result.matched.length,
-      onlyA: result.onlyA.length,
-      onlyB: result.onlyB.length,
-      total: result.matched.length + result.onlyA.length + result.onlyB.length,
+      matched: counts.matched,
+      exact: counts.exact,
+      withinTolerance: counts.withinTolerance,
+      attributeMismatch: counts.attributeMismatch,
+      onlyA: counts.onlyA,
+      onlyB: counts.onlyB,
+      total: counts.total,
       isSelected: result.isSelected,
     };
 
     stats.elementTypes[elementType] = typeStats;
     stats.totalElements += typeStats.total;
     stats.matchedElements += typeStats.matched;
+    stats.exactElements += typeStats.exact;
+    stats.withinToleranceElements += typeStats.withinTolerance;
+    stats.attributeMismatchElements += typeStats.attributeMismatch;
     stats.onlyAElements += typeStats.onlyA;
     stats.onlyBElements += typeStats.onlyB;
 

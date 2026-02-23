@@ -8,6 +8,7 @@
  */
 
 import { colorManager, labelDisplayManager, createLabelSprite } from '../../viewer/index.js';
+import { setColorMode as setColorModeImpl } from '../../colorModes/index.js';
 
 /**
  * レンダリングコントローラー
@@ -16,10 +17,10 @@ import { colorManager, labelDisplayManager, createLabelSprite } from '../../view
 export const renderingController = {
   /**
    * カラーモードを設定
-   * @param {string} mode - カラーモード
+   * @param {string} mode - カラーモード ('diff', 'element', 'schema', 'importance')
    */
   setColorMode(mode) {
-    colorManager.setColorMode(mode);
+    setColorModeImpl(mode);
   },
 
   /**

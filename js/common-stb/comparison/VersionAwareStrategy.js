@@ -6,7 +6,7 @@
  */
 
 import { BaseStrategy } from './BaseStrategy.js';
-import { BasicComparisonStrategy } from './ComparisonStrategy.js';
+import { BasicComparisonStrategy } from './BaseStrategy.js';
 import {
   compareElementsWithVersionAwareness as semanticCompare,
   isVersionSpecificAttribute,
@@ -178,4 +178,3 @@ export function areAttributesEquivalent(attrA, attrB) {
 
 // DIFF_TYPE定数の再エクスポート
 export { DIFF_TYPE };
-

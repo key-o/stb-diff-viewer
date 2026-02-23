@@ -145,4 +145,3 @@ function updateUISelection(container, keyType) {
     radio.checked = radio.value === keyType;
   });
 }
-

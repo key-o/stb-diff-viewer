@@ -20,7 +20,7 @@ import {
   getLoadCaseColor,
   getLoadTypeDescription,
   getMemberLoads,
-} from '../../common-stb/parser/stbCalDataParser.js';
+} from '../../common-stb/import/extractor/StbCalDataExtractor.js';
 
 /**
  * 表示モード

@@ -15,6 +15,7 @@ import {
 import { ColumnSectionListRenderer } from './ColumnSectionListRenderer.js';
 import { exportToPdf } from './ColumnSectionListExporter.js';
 import { createLogger } from '../../../utils/logger.js';
+import { getState } from '../../../app/globalState.js';
 
 const log = createLogger('ui/ColumnSectionListPanel');
 
@@ -167,7 +168,7 @@ export class ColumnSectionListPanel {
     }
 
     // XMLドキュメントを取得
-    const xmlDoc = source === 'A' ? window.docA : window.docB;
+    const xmlDoc = source === 'A' ? getState('models.documentA') : getState('models.documentB');
 
     if (!xmlDoc) {
       container.innerHTML = `<div class="section-list-empty">モデル${source}が読み込まれていません</div>`;

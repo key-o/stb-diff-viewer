@@ -5,6 +5,8 @@
  */
 
 import { StepWriter, generateIfcGuid } from './StepWriter.js';
+import { resolveProfileType } from '../../constants/profileTypeAliases.js';
+import { downloadBlob } from '../../utils/downloadHelper.js';
 
 /**
  * IFCエクスポーターの基底クラス
@@ -307,7 +309,7 @@ export class IFCExporterBase {
    * @param {number} [params.filletRadius=0] - フィレット半径 (mm)
    * @returns {number} プロファイルエンティティID
    */
-  createIShapeProfile(params) {
+  createIShapeProfile(params, { simple = false } = {}) {
     this._ensureInitialized();
     const w = this.writer;
     const {
@@ -321,7 +323,7 @@ export class IFCExporterBase {
     return w.createEntity('IFCISHAPEPROFILEDEF', [
       '.AREA.', // ProfileType
       'H-Shape', // ProfileName
-      `#${this._refs.profilePlacement}`, // Position
+      simple ? null : `#${this._refs.profilePlacement}`, // Position
       overallWidth, // OverallWidth (mm)
       overallDepth, // OverallDepth (mm)
       webThickness, // WebThickness (mm)
@@ -339,7 +341,7 @@ export class IFCExporterBase {
    * @param {number} params.height - 高さ (mm)
    * @returns {number} プロファイルエンティティID
    */
-  createRectangleProfile(params) {
+  createRectangleProfile(params, { simple = false } = {}) {
     this._ensureInitialized();
     const w = this.writer;
     const { width = 400, height = 600 } = params;
@@ -347,7 +349,7 @@ export class IFCExporterBase {
     return w.createEntity('IFCRECTANGLEPROFILEDEF', [
       '.AREA.', // ProfileType
       'Rectangle', // ProfileName
-      `#${this._refs.profilePlacement}`, // Position
+      simple ? null : `#${this._refs.profilePlacement}`, // Position
       width, // XDim (mm)
       height, // YDim (mm)
     ]);
@@ -361,20 +363,26 @@ export class IFCExporterBase {
    * @param {number} params.wallThickness - 板厚 (mm)
    * @returns {number} プロファイルエンティティID
    */
-  createHollowRectangleProfile(params) {
+  createHollowRectangleProfile(params, { simple = false } = {}) {
     this._ensureInitialized();
     const w = this.writer;
-    const { width = 200, height = 200, wallThickness = 9 } = params;
+    const {
+      width = 200,
+      height = 200,
+      wallThickness = 9,
+      innerFilletRadius = null,
+      outerFilletRadius = null,
+    } = params;
 
     return w.createEntity('IFCRECTANGLEHOLLOWPROFILEDEF', [
       '.AREA.', // ProfileType
       'Box', // ProfileName
-      `#${this._refs.profilePlacement}`, // Position
+      simple ? null : `#${this._refs.profilePlacement}`, // Position
       width, // XDim (mm)
       height, // YDim (mm)
       wallThickness, // WallThickness (mm)
-      null, // InnerFilletRadius
-      null, // OuterFilletRadius
+      innerFilletRadius, // InnerFilletRadius
+      outerFilletRadius, // OuterFilletRadius
     ]);
   }
 
@@ -385,7 +393,7 @@ export class IFCExporterBase {
    * @param {number} params.wallThickness - 板厚 (mm)
    * @returns {number} プロファイルエンティティID
    */
-  createCircularHollowProfile(params) {
+  createCircularHollowProfile(params, { simple = false } = {}) {
     this._ensureInitialized();
     const w = this.writer;
     const { diameter = 200, wallThickness = 6 } = params;
@@ -393,7 +401,7 @@ export class IFCExporterBase {
     return w.createEntity('IFCCIRCLEHOLLOWPROFILEDEF', [
       '.AREA.', // ProfileType
       'Pipe', // ProfileName
-      `#${this._refs.profilePlacement}`, // Position
+      simple ? null : `#${this._refs.profilePlacement}`, // Position
       diameter / 2, // Radius (mm)
       wallThickness, // WallThickness (mm)
     ]);
@@ -405,7 +413,7 @@ export class IFCExporterBase {
    * @param {number} params.diameter - 直径 (mm)
    * @returns {number} プロファイルエンティティID
    */
-  createCircleProfile(params) {
+  createCircleProfile(params, { simple = false } = {}) {
     this._ensureInitialized();
     const w = this.writer;
     const { diameter = 60 } = params;
@@ -413,26 +421,7 @@ export class IFCExporterBase {
     return w.createEntity('IFCCIRCLEPROFILEDEF', [
       '.AREA.', // ProfileType
       'Circle', // ProfileName
-      `#${this._refs.profilePlacement}`, // Position
-      diameter / 2, // Radius (mm)
-    ]);
-  }
-
-  /**
-   * シンプルな中実円プロファイル（Position = null）
-   * @param {Object} params - プロファイルパラメータ
-   * @param {number} params.diameter - 直径 (mm)
-   * @returns {number} プロファイルエンティティID
-   */
-  createCircleProfileSimple(params) {
-    this._ensureInitialized();
-    const w = this.writer;
-    const { diameter = 60 } = params;
-
-    return w.createEntity('IFCCIRCLEPROFILEDEF', [
-      '.AREA.', // ProfileType
-      'Circle', // ProfileName
-      null, // Position: null でデフォルト
+      simple ? null : `#${this._refs.profilePlacement}`, // Position
       diameter / 2, // Radius (mm)
     ]);
   }
@@ -446,7 +435,7 @@ export class IFCExporterBase {
    * @param {number} [params.filletRadius=0] - フィレット半径 (mm)
    * @returns {number} プロファイルエンティティID
    */
-  createLShapeProfile(params) {
+  createLShapeProfile(params, { simple = false } = {}) {
     this._ensureInitialized();
     const w = this.writer;
     const { depth = 75, width = 75, thickness = 6, filletRadius = 0 } = params;
@@ -454,7 +443,7 @@ export class IFCExporterBase {
     return w.createEntity('IFCLSHAPEPROFILEDEF', [
       '.AREA.', // ProfileType
       'L-Shape', // ProfileName
-      `#${this._refs.profilePlacement}`, // Position
+      simple ? null : `#${this._refs.profilePlacement}`, // Position
       depth, // Depth (mm)
       width, // Width (mm)
       thickness, // Thickness (mm)
@@ -474,7 +463,7 @@ export class IFCExporterBase {
    * @param {number} [params.filletRadius=0] - フィレット半径 (mm)
    * @returns {number} プロファイルエンティティID
    */
-  createUShapeProfile(params) {
+  createUShapeProfile(params, { simple = false } = {}) {
     this._ensureInitialized();
     const w = this.writer;
     const {
@@ -488,7 +477,7 @@ export class IFCExporterBase {
     return w.createEntity('IFCUSHAPEPROFILEDEF', [
       '.AREA.', // ProfileType
       'U-Shape', // ProfileName
-      `#${this._refs.profilePlacement}`, // Position
+      simple ? null : `#${this._refs.profilePlacement}`, // Position
       depth, // Depth (mm)
       flangeWidth, // FlangeWidth (mm)
       webThickness, // WebThickness (mm)
@@ -496,155 +485,6 @@ export class IFCExporterBase {
       filletRadius > 0 ? filletRadius : null, // FilletRadius (mm)
       null, // EdgeRadius
       null, // FlangeSlope
-    ]);
-  }
-
-  /**
-   * シンプルなU形鋼プロファイル（Position = null）
-   * @param {Object} params - プロファイルパラメータ
-   * @returns {number} プロファイルエンティティID
-   */
-  createUShapeProfileSimple(params) {
-    this._ensureInitialized();
-    const w = this.writer;
-    const {
-      depth = 200,
-      flangeWidth = 80,
-      webThickness = 7.5,
-      flangeThickness = 11,
-      filletRadius = 0,
-    } = params;
-
-    return w.createEntity('IFCUSHAPEPROFILEDEF', [
-      '.AREA.', // ProfileType
-      'U-Shape', // ProfileName
-      null, // Position: null でデフォルト
-      depth, // Depth (mm)
-      flangeWidth, // FlangeWidth (mm)
-      webThickness, // WebThickness (mm)
-      flangeThickness, // FlangeThickness (mm)
-      filletRadius > 0 ? filletRadius : null, // FilletRadius (mm)
-      null, // EdgeRadius
-      null, // FlangeSlope
-    ]);
-  }
-
-  /**
-   * シンプルなL形鋼プロファイル（Position = null）
-   * @param {Object} params - プロファイルパラメータ
-   * @returns {number} プロファイルエンティティID
-   */
-  createLShapeProfileSimple(params) {
-    this._ensureInitialized();
-    const w = this.writer;
-    const { depth = 75, width = 75, thickness = 6, filletRadius = 0 } = params;
-
-    return w.createEntity('IFCLSHAPEPROFILEDEF', [
-      '.AREA.', // ProfileType
-      'L-Shape', // ProfileName
-      null, // Position: null でデフォルト
-      depth, // Depth (mm)
-      width, // Width (mm)
-      thickness, // Thickness (mm)
-      filletRadius > 0 ? filletRadius : null, // FilletRadius (mm)
-      null, // EdgeRadius
-      null, // LegSlope (傾斜角度)
-    ]);
-  }
-
-  /**
-   * シンプルなI形鋼プロファイル（Position = null）
-   * @param {Object} params - プロファイルパラメータ
-   * @returns {number} プロファイルエンティティID
-   */
-  createIShapeProfileSimple(params) {
-    this._ensureInitialized();
-    const w = this.writer;
-    const {
-      overallDepth = 400,
-      overallWidth = 200,
-      webThickness = 8,
-      flangeThickness = 13,
-      filletRadius = 0,
-    } = params;
-
-    return w.createEntity('IFCISHAPEPROFILEDEF', [
-      '.AREA.', // ProfileType
-      'H-Shape', // ProfileName
-      null, // Position: null でデフォルト
-      overallWidth, // OverallWidth (mm)
-      overallDepth, // OverallDepth (mm)
-      webThickness, // WebThickness (mm)
-      flangeThickness, // FlangeThickness (mm)
-      filletRadius > 0 ? filletRadius : null, // FilletRadius (mm)
-      null, // FlangeEdgeRadius (optional)
-      null, // FlangeSlope (optional)
-    ]);
-  }
-
-  /**
-   * シンプルな矩形断面（Position = null）
-   * @param {Object} params - プロファイルパラメータ
-   * @returns {number} プロファイルエンティティID
-   */
-  createRectangleProfileSimple(params) {
-    this._ensureInitialized();
-    const w = this.writer;
-    const { width = 300, height = 600 } = params;
-
-    return w.createEntity('IFCRECTANGLEPROFILEDEF', [
-      '.AREA.', // ProfileType
-      'Rectangle', // ProfileName
-      null, // Position: null でデフォルト
-      width, // XDim (mm)
-      height, // YDim (mm)
-    ]);
-  }
-
-  /**
-   * シンプルな角型鋼管プロファイル（Position = null）
-   * @param {Object} params - プロファイルパラメータ
-   * @returns {number} プロファイルエンティティID
-   */
-  createHollowRectangleProfileSimple(params) {
-    this._ensureInitialized();
-    const w = this.writer;
-    const {
-      width = 200,
-      height = 200,
-      wallThickness = 9,
-      innerFilletRadius = null,
-      outerFilletRadius = null,
-    } = params;
-
-    return w.createEntity('IFCRECTANGLEHOLLOWPROFILEDEF', [
-      '.AREA.', // ProfileType
-      'Box', // ProfileName
-      null, // Position: null でデフォルト
-      width, // XDim (mm)
-      height, // YDim (mm)
-      wallThickness, // WallThickness (mm)
-      innerFilletRadius, // InnerFilletRadius (optional)
-      outerFilletRadius, // OuterFilletRadius (optional)
-    ]);
-  }
-
-  /**
-   * シンプルな円形中空プロファイル（Position = null）
-   * @param {Object} params - プロファイルパラメータ
-   * @returns {number} プロファイルエンティティID
-   */
-  createCircularHollowProfileSimple(params) {
-    this._ensureInitialized();
-    const w = this.writer;
-    const { diameter = 200, wallThickness = 6 } = params;
-
-    return w.createEntity('IFCCIRCLEHOLLOWPROFILEDEF', [
-      '.AREA.', // ProfileType
-      'Pipe', // ProfileName
-      null, // Position: null でデフォルト
-      diameter / 2, // Radius (mm)
-      wallThickness, // WallThickness (mm)
     ]);
   }
 
@@ -658,7 +498,7 @@ export class IFCExporterBase {
    * @param {number} [params.filletRadius=0] - フィレット半径 (mm)
    * @returns {number} プロファイルエンティティID
    */
-  createTShapeProfile(params) {
+  createTShapeProfile(params, { simple = false } = {}) {
     this._ensureInitialized();
     const w = this.writer;
     const {
@@ -672,38 +512,7 @@ export class IFCExporterBase {
     return w.createEntity('IFCTSHAPEPROFILEDEF', [
       '.AREA.', // ProfileType
       'T-Shape', // ProfileName
-      `#${this._refs.profilePlacement}`, // Position
-      depth, // Depth (ウェブ高さ) (mm)
-      flangeWidth, // FlangeWidth (mm)
-      webThickness, // WebThickness (mm)
-      flangeThickness, // FlangeThickness (mm)
-      filletRadius > 0 ? filletRadius : null, // FilletRadius (mm)
-      null, // FlangeEdgeRadius
-      null, // WebEdgeRadius
-      null, // WebSlope
-    ]);
-  }
-
-  /**
-   * シンプルなT形鋼プロファイル（Position = null）
-   * @param {Object} params - プロファイルパラメータ
-   * @returns {number} プロファイルエンティティID
-   */
-  createTShapeProfileSimple(params) {
-    this._ensureInitialized();
-    const w = this.writer;
-    const {
-      depth = 200,
-      flangeWidth = 150,
-      webThickness = 8,
-      flangeThickness = 12,
-      filletRadius = 0,
-    } = params;
-
-    return w.createEntity('IFCTSHAPEPROFILEDEF', [
-      '.AREA.', // ProfileType
-      'T-Shape', // ProfileName
-      null, // Position: null でデフォルト
+      simple ? null : `#${this._refs.profilePlacement}`, // Position
       depth, // Depth (ウェブ高さ) (mm)
       flangeWidth, // FlangeWidth (mm)
       webThickness, // WebThickness (mm)
@@ -723,52 +532,40 @@ export class IFCExporterBase {
    * @returns {number|null} プロファイルエンティティID（未対応の場合はnull）
    */
   _createProfileId(profile, useSimple = false) {
-    const profileType = (profile.type || '').toUpperCase();
+    const canonical = resolveProfileType(profile.type);
     const p = profile.params || {};
+    const opts = { simple: useSimple };
 
-    switch (profileType) {
+    switch (canonical) {
       case 'H':
-      case 'I':
-        return useSimple ? this.createIShapeProfileSimple(p) : this.createIShapeProfile(p);
+        return this.createIShapeProfile(p, opts);
 
       case 'BOX':
-        return useSimple
-          ? this.createHollowRectangleProfileSimple(p)
-          : this.createHollowRectangleProfile(p);
+        return this.createHollowRectangleProfile(p, opts);
 
       case 'PIPE':
-        return useSimple
-          ? this.createCircularHollowProfileSimple(p)
-          : this.createCircularHollowProfile(p);
+        return this.createCircularHollowProfile(p, opts);
 
       case 'L':
-        return useSimple ? this.createLShapeProfileSimple(p) : this.createLShapeProfile(p);
+        return this.createLShapeProfile(p, opts);
 
       case 'C':
-      case 'U':
-        return useSimple ? this.createUShapeProfileSimple(p) : this.createUShapeProfile(p);
+        return this.createUShapeProfile(p, opts);
 
       case 'FB': {
-        // フラットバーは矩形プロファイルとして扱う
         const fbParams = {
           width: p.width || p.A || 100,
           height: p.thickness || p.t || 9,
         };
-        return useSimple
-          ? this.createRectangleProfileSimple(fbParams)
-          : this.createRectangleProfile(fbParams);
+        return this.createRectangleProfile(fbParams, opts);
       }
 
       case 'CIRCLE': {
-        // 丸鋼（中実円）
         const circleParams = { diameter: p.diameter || p.D || 60 };
-        return useSimple
-          ? this.createCircleProfileSimple(circleParams)
-          : this.createCircleProfile(circleParams);
+        return this.createCircleProfile(circleParams, opts);
       }
 
       case 'T': {
-        // T形鋼
         const tParams = {
           depth: p.depth || p.overallDepth || p.H || p.A || 200,
           flangeWidth: p.flangeWidth || p.B || 150,
@@ -776,39 +573,30 @@ export class IFCExporterBase {
           flangeThickness: p.flangeThickness || p.t2 || p.tf || 12,
           filletRadius: p.filletRadius || p.r || 0,
         };
-        return useSimple
-          ? this.createTShapeProfileSimple(tParams)
-          : this.createTShapeProfile(tParams);
+        return this.createTShapeProfile(tParams, opts);
       }
 
-      case 'SRC':
-      case 'STB-DIFF-VIEWER': {
-        // SRC（鉄骨鉄筋コンクリート）は外形コンクリート寸法で矩形として出力
+      case 'SRC': {
         const srcParams = {
           width: p.width || p.width_X || p.B || 800,
           height: p.height || p.width_Y || p.A || 800,
         };
-        return useSimple
-          ? this.createRectangleProfileSimple(srcParams)
-          : this.createRectangleProfile(srcParams);
+        return this.createRectangleProfile(srcParams, opts);
       }
 
       case 'CFT': {
-        // CFT（充填鋼管）は角形鋼管として出力
+        // CFT（充填鋼管）はコンクリートで充填されているため、
+        // IFC上では中実断面（矩形）として表現する
+        // 鋼管の板厚情報はプロパティセットで補完可能
         const cftParams = {
           width: p.width || p.outer_width || p.B || 200,
           height: p.height || p.outer_height || p.A || 200,
-          wallThickness: p.wallThickness || p.t || 9,
         };
-        return useSimple
-          ? this.createHollowRectangleProfileSimple(cftParams)
-          : this.createHollowRectangleProfile(cftParams);
+        return this.createRectangleProfile(cftParams, opts);
       }
 
-      case 'RECT':
-      case 'RC':
       case 'RECTANGLE':
-        return useSimple ? this.createRectangleProfileSimple(p) : this.createRectangleProfile(p);
+        return this.createRectangleProfile(p, opts);
 
       default:
         return null;
@@ -953,15 +741,219 @@ export class IFCExporterBase {
   download(options = {}) {
     const fileName = options.fileName || 'export.ifc';
     const blob = this.generateBlob(options);
-    const url = URL.createObjectURL(blob);
+    downloadBlob(blob, fileName);
+  }
 
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  /**
+   * 壁を追加（共通実装）
+   * IFCSTBExporter と IFCWallExporter の共通ロジック
+   * @param {Object} wallData - 壁データ
+   * @param {string} wallData.name - 壁名
+   * @param {Object} wallData.startPoint - 始点 {x, y, z} (mm)
+   * @param {Object} wallData.endPoint - 終点 {x, y, z} (mm)
+   * @param {number} wallData.height - 高さ (mm)
+   * @param {number} wallData.thickness - 厚さ (mm)
+   * @param {string} [wallData.predefinedType='STANDARD'] - 壁タイプ
+   * @param {Array<Object>} [wallData.openings] - 開口情報配列
+   * @returns {number|null} 壁エンティティID
+   */
+  addWall(wallData) {
+    this._ensureInitialized();
+    const w = this.writer;
+    const {
+      name = 'Wall',
+      startPoint,
+      endPoint,
+      height = 3000,
+      thickness = 200,
+      predefinedType = 'STANDARD',
+      openings = [],
+    } = wallData;
+
+    if (!startPoint || !endPoint) {
+      console.warn(`[IFC Export] 壁 "${name}" をスキップ: 始点・終点が不足`);
+      return null;
+    }
+
+    const dx = endPoint.x - startPoint.x;
+    const dy = endPoint.y - startPoint.y;
+    const wallLength = Math.sqrt(dx * dx + dy * dy);
+
+    if (wallLength < 1 || height <= 0 || thickness <= 0) {
+      console.warn(`[IFC Export] 壁 "${name}" をスキップ: 寸法が不正`);
+      return null;
+    }
+
+    // 壁の方向ベクトル（正規化）
+    const dirX = dx / wallLength;
+    const dirY = dy / wallLength;
+
+    // 矩形プロファイル（長さ x 厚さ）
+    const profileId = w.createEntity('IFCRECTANGLEPROFILEDEF', [
+      '.AREA.',
+      'WallProfile',
+      null,
+      wallLength,
+      thickness,
+    ]);
+
+    // 押出方向: Z軸（上向き）
+    const extrudeDirId = w.createEntity('IFCDIRECTION', [[0.0, 0.0, 1.0]]);
+
+    // 押出形状
+    const solidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
+      `#${profileId}`,
+      null,
+      `#${extrudeDirId}`,
+      height,
+    ]);
+
+    // 壁の中心点を計算（始点と終点の中間）
+    const centerX = (startPoint.x + endPoint.x) / 2;
+    const centerY = (startPoint.y + endPoint.y) / 2;
+
+    const wallOrigin = w.createEntity('IFCCARTESIANPOINT', [[centerX, centerY, startPoint.z]]);
+    const wallRefDir = w.createEntity('IFCDIRECTION', [[dirX, dirY, 0.0]]);
+
+    const wallPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
+      `#${wallOrigin}`,
+      null,
+      `#${wallRefDir}`,
+    ]);
+
+    const wallLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [null, `#${wallPlacement3D}`]);
+
+    const shapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
+      `#${this._refs.bodyContext}`,
+      'Body',
+      'SweptSolid',
+      [`#${solidId}`],
+    ]);
+
+    const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
+      null,
+      null,
+      [`#${shapeRep}`],
+    ]);
+
+    const wallId = w.createEntity('IFCWALL', [
+      generateIfcGuid(),
+      null,
+      name,
+      null,
+      null,
+      `#${wallLocalPlacement}`,
+      `#${productShape}`,
+      null,
+      `.${predefinedType}.`,
+    ]);
+
+    this._addToStorey(wallId, startPoint.z);
+
+    // 開口を追加
+    if (openings && openings.length > 0) {
+      this._addOpeningsToWall(wallId, openings, {
+        wallLength,
+        thickness,
+        wallLocalPlacement,
+      });
+    }
+
+    return wallId;
+  }
+
+  /**
+   * 壁に開口を追加（共通実装）
+   * @param {number} wallId - 壁エンティティID
+   * @param {Array<Object>} openings - 開口情報配列
+   * @param {Object} wallContext - 壁のコンテキスト情報
+   */
+  _addOpeningsToWall(wallId, openings, wallContext) {
+    const w = this.writer;
+    const { wallLength, thickness, wallLocalPlacement } = wallContext;
+
+    for (const opening of openings) {
+      const openingWidth = opening.width;
+      const openingHeight = opening.height;
+
+      if (!openingWidth || openingWidth <= 0 || !openingHeight || openingHeight <= 0) {
+        console.warn(`[IFC Export] 開口 "${opening.id}" をスキップ: サイズが不正です`);
+        continue;
+      }
+
+      const openingName = opening.name || `Opening_${opening.id}`;
+
+      // 開口の矩形プロファイル
+      const openingProfileId = w.createEntity('IFCRECTANGLEPROFILEDEF', [
+        '.AREA.',
+        'OpeningProfile',
+        null,
+        openingWidth,
+        thickness + 100,
+      ]);
+
+      const extrudeDirId = w.createEntity('IFCDIRECTION', [[0.0, 0.0, 1.0]]);
+
+      const openingSolidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
+        `#${openingProfileId}`,
+        null,
+        `#${extrudeDirId}`,
+        openingHeight,
+      ]);
+
+      // 開口の位置計算（壁ローカル座標系での位置）
+      const openingCenterX = opening.positionX + openingWidth / 2 - wallLength / 2;
+      const openingCenterZ = opening.positionY;
+
+      const openingOrigin = w.createEntity('IFCCARTESIANPOINT', [
+        [openingCenterX, 0, openingCenterZ],
+      ]);
+
+      const openingPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
+        `#${openingOrigin}`,
+        null,
+        null,
+      ]);
+
+      const openingLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
+        `#${wallLocalPlacement}`,
+        `#${openingPlacement3D}`,
+      ]);
+
+      const openingShapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
+        `#${this._refs.bodyContext}`,
+        'Body',
+        'SweptSolid',
+        [`#${openingSolidId}`],
+      ]);
+
+      const openingProductShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
+        null,
+        null,
+        [`#${openingShapeRep}`],
+      ]);
+
+      const openingId = w.createEntity('IFCOPENINGELEMENT', [
+        generateIfcGuid(),
+        null,
+        openingName,
+        null,
+        null,
+        `#${openingLocalPlacement}`,
+        `#${openingProductShape}`,
+        null,
+        '.OPENING.',
+      ]);
+
+      w.createEntity('IFCRELVOIDSELEMENT', [
+        generateIfcGuid(),
+        null,
+        null,
+        null,
+        `#${wallId}`,
+        `#${openingId}`,
+      ]);
+    }
   }
 }
 

@@ -7,8 +7,7 @@
  */
 
 import { IMPORTANCE_LEVELS } from '../../../constants/importanceLevels.js';
-import { DEFAULT_IMPORTANCE_SETTINGS } from '../../../config/importanceConfig.js';
-import { getImportanceManager } from './ElementInfoProviders.js';
+import { getImportanceManager } from '../../../app/importanceManager.js';
 
 // 構造部材のマッピング (StbMembers配下)
 const MEMBER_MAPPING = {
@@ -66,34 +65,7 @@ function buildAttributePath(elementType, attributeName) {
 }
 
 /**
- * DEFAULT_IMPORTANCE_SETTINGS から直接重要度を検索する（フォールバック用）
- * 大文字小文字の差異にも対応（例: id_section vs id_Section）
- * @param {string} attributePath - 属性パス
- * @returns {string|undefined} 重要度レベル（見つからない場合はundefined）
- */
-function lookupDefaultImportance(attributePath) {
-  // 完全一致
-  const exact = DEFAULT_IMPORTANCE_SETTINGS[attributePath];
-  if (exact) return exact;
-
-  // 旧設定互換: StbModel 省略パス
-  const legacyPath = attributePath.replace('//ST_BRIDGE/StbModel/', '//ST_BRIDGE/');
-  const legacyExact = DEFAULT_IMPORTANCE_SETTINGS[legacyPath];
-  if (legacyExact) return legacyExact;
-
-  // 大文字小文字を無視した検索（属性名のケース差異に対応）
-  const lowerPath = attributePath.toLowerCase();
-  for (const [key, value] of Object.entries(DEFAULT_IMPORTANCE_SETTINGS)) {
-    if (key.toLowerCase() === lowerPath) {
-      return value;
-    }
-  }
-  return undefined;
-}
-
-/**
- * 属性の重要度レベルを取得する
- * DIマネージャー → DEFAULT_IMPORTANCE_SETTINGS直接参照 の順にフォールバック
+ * 属性の実効重要度（統合）を取得する
  * @param {string} elementType - 要素タイプ (例: 'Column', 'Node', 'SecColumn_RC')
  * @param {string} attributeName - 属性名 (例: 'id', 'name')
  * @returns {string} 重要度レベル ('required', 'optional', 'unnecessary', 'notApplicable')
@@ -103,15 +75,11 @@ export function getAttributeImportanceLevel(elementType, attributeName) {
     const attributePath = buildAttributePath(elementType, attributeName);
     if (!attributePath) return IMPORTANCE_LEVELS.OPTIONAL;
 
-    // 1. DIマネージャー経由で取得を試みる
     const manager = getImportanceManager();
     if (manager?.isInitialized) {
       return manager.getImportanceLevel(attributePath);
     }
-
-    // 2. フォールバック: DEFAULT_IMPORTANCE_SETTINGS から直接検索
-    const directLevel = lookupDefaultImportance(attributePath);
-    return directLevel || IMPORTANCE_LEVELS.OPTIONAL;
+    return IMPORTANCE_LEVELS.OPTIONAL;
   } catch (error) {
     console.warn(
       `[Importance] Failed to get importance for ${elementType}.${attributeName}:`,
@@ -122,11 +90,62 @@ export function getAttributeImportanceLevel(elementType, attributeName) {
 }
 
 /**
- * 重要度レベルに対応する丸インジケータHTMLを取得する
+ * 属性の S2/S4 重要度を取得する
+ * @param {string} elementType - 要素タイプ
+ * @param {string} attributeName - 属性名
+ * @returns {{s2Level: string, s4Level: string}}
+ */
+function getAttributeMvdImportanceLevels(elementType, attributeName) {
+  const attributePath = buildAttributePath(elementType, attributeName);
+  if (!attributePath) {
+    return {
+      s2Level: IMPORTANCE_LEVELS.NOT_APPLICABLE,
+      s4Level: IMPORTANCE_LEVELS.NOT_APPLICABLE,
+    };
+  }
+
+  const manager = getImportanceManager();
+  if (manager?.isInitialized && typeof manager.getMvdImportanceLevel === 'function') {
+    return {
+      s2Level: manager.getMvdImportanceLevel(attributePath, 's2'),
+      s4Level: manager.getMvdImportanceLevel(attributePath, 's4'),
+    };
+  }
+
+  // マネージャー未初期化時はnullを返す（呼び出し側で空として扱う）
+  // SETTINGS_CHANGEDイベント受信後に再レンダリングされる
+  return null;
+}
+
+/**
+ * 対象/対象外の2値判定に正規化
+ * @param {string} level
+ * @returns {boolean}
+ */
+function isTargetLevel(level) {
+  return level !== IMPORTANCE_LEVELS.NOT_APPLICABLE;
+}
+
+/**
+ * 単一インジケータを描画する
+ * @param {boolean} isActive - 対象かどうか
+ * @param {string} color - 表示色
+ * @param {string} activeTitle - 対象時タイトル
+ * @param {string} inactiveTitle - 対象外時タイトル
+ * @returns {string}
+ */
+function renderIndicatorCircle(isActive, color, activeTitle, inactiveTitle) {
+  const glyph = isActive ? '&#9679;' : '&#9675;';
+  const title = isActive ? activeTitle : inactiveTitle;
+  const opacity = isActive ? '1' : '0.65';
+  return `<span style="display:inline-block;width:1em;text-align:center;color:${color};font-size:var(--font-size-sm);line-height:1;opacity:${opacity};" title="${title}">${glyph}</span>`;
+}
+
+/**
+ * S2/S4 の丸インジケータHTMLを取得する
  * XSD赤丸と同様に、属性名セルに表示する。
- *   REQUIRED → 🔵（青丸）
- *   OPTIONAL → 🟢（緑丸）
- *   その他   → 表示なし
+ *   S2対象 → 🔵（青丸）, S2対象外 → ◯
+ *   S4対象 → 🟢（緑丸）, S4対象外 → ◯
  * @param {string} elementType - 要素タイプ
  * @param {string} attributeName - 属性名
  * @returns {string} インジケータのHTML文字列
@@ -134,13 +153,36 @@ export function getAttributeImportanceLevel(elementType, attributeName) {
 export function getImportanceCircleHtml(elementType, attributeName) {
   if (!elementType || !attributeName) return '';
 
-  const level = getAttributeImportanceLevel(elementType, attributeName);
-  switch (level) {
-    case IMPORTANCE_LEVELS.REQUIRED:
-      return '<span style="color:#1976D2;font-size:var(--font-size-md);" title="重要度: 必須 (S2)">&#9679;</span> ';
-    case IMPORTANCE_LEVELS.OPTIONAL:
-      return '<span style="color:#388E3C;font-size:var(--font-size-md);" title="重要度: 任意 (S4)">&#9679;</span> ';
-    default:
-      return '';
+  const levels = getAttributeMvdImportanceLevels(elementType, attributeName);
+  if (!levels) return ''; // マネージャー未初期化時は空（SETTINGS_CHANGEDで再レンダリング）
+
+  const { s2Level, s4Level } = levels;
+  return (
+    renderIndicatorCircle(isTargetLevel(s2Level), '#1976D2', 'S2: 対象', 'S2: 対象外') +
+    renderIndicatorCircle(isTargetLevel(s4Level), '#388E3C', 'S4: 対象', 'S4: 対象外')
+  );
+}
+
+/**
+ * フルパス指定でS2/S4の丸インジケータHTMLを取得する。
+ * XML要素の階層構造から構築した正確なXPathを使用するため、
+ * ネストされた断面子要素でも正しい重要度設定を参照できる。
+ * @param {string} fullAttributePath - 完全なXPath形式の属性パス
+ * @returns {string} インジケータのHTML文字列
+ */
+export function getImportanceCircleHtmlByPath(fullAttributePath) {
+  if (!fullAttributePath) return '';
+
+  const manager = getImportanceManager();
+  if (!manager?.isInitialized || typeof manager.getMvdImportanceLevel !== 'function') {
+    return '';
   }
+
+  const s2Level = manager.getMvdImportanceLevel(fullAttributePath, 's2');
+  const s4Level = manager.getMvdImportanceLevel(fullAttributePath, 's4');
+
+  return (
+    renderIndicatorCircle(isTargetLevel(s2Level), '#1976D2', 'S2: 対象', 'S2: 対象外') +
+    renderIndicatorCircle(isTargetLevel(s4Level), '#388E3C', 'S4: 対象', 'S4: 対象外')
+  );
 }

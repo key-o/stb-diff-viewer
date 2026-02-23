@@ -16,7 +16,7 @@ import {
   getLoadedFilenameInternal,
 } from './DxfProviders.js';
 import { canExportStbToDxf, exportStbToDxf } from './StbToDxfExporter.js';
-import { showSuccess, showError, showWarning } from '../../../ui/common/toast.js';
+import { eventBus, ToastEvents } from '../../../app/events/index.js';
 
 const log = createLogger('DxfBatchExporter');
 
@@ -31,7 +31,7 @@ const log = createLogger('DxfBatchExporter');
 export async function exportAllStoriesToDxf(selectedElementTypes, options = {}) {
   const stories = getCurrentStoriesInternal();
   if (!stories || stories.length === 0) {
-    showWarning('階データがありません');
+    eventBus.emit(ToastEvents.SHOW_WARNING, { message: '階データがありません' });
     return false;
   }
 
@@ -52,7 +52,7 @@ export async function exportAllStoriesToDxf(selectedElementTypes, options = {}) 
   // エクスポート可能か確認
   const { canExport, reason } = canExportStbToDxf();
   if (!canExport) {
-    showWarning(`エクスポートできません: ${reason}`);
+    eventBus.emit(ToastEvents.SHOW_WARNING, { message: `エクスポートできません: ${reason}` });
     return false;
   }
 
@@ -127,12 +127,16 @@ export async function exportAllStoriesToDxf(selectedElementTypes, options = {}) 
     }
 
     log.info(`全階DXFエクスポート完了: ${exportedCount}/${stories.length}階`);
-    showSuccess(`${exportedCount}階のDXFファイルをエクスポートしました`);
+    eventBus.emit(ToastEvents.SHOW_SUCCESS, {
+      message: `${exportedCount}階のDXFファイルをエクスポートしました`,
+    });
     return true;
   } catch (error) {
     log.error('全階DXFエクスポートエラー:', error);
     clearAllClippingPlanesInternal();
-    showError(`エクスポート中にエラーが発生しました: ${error.message}`);
+    eventBus.emit(ToastEvents.SHOW_ERROR, {
+      message: `エクスポート中にエラーが発生しました: ${error.message}`,
+    });
     return false;
   }
 }
@@ -152,13 +156,15 @@ export async function exportAlongAllAxesToDxf(
 ) {
   const axesData = getCurrentAxesDataInternal();
   if (!axesData) {
-    showWarning('通り芯データがありません');
+    eventBus.emit(ToastEvents.SHOW_WARNING, { message: '通り芯データがありません' });
     return false;
   }
 
   const axes = axisDirection === 'X' ? axesData.xAxes : axesData.yAxes;
   if (!axes || axes.length === 0) {
-    showWarning(`${axisDirection}方向の通り芯データがありません`);
+    eventBus.emit(ToastEvents.SHOW_WARNING, {
+      message: `${axisDirection}方向の通り芯データがありません`,
+    });
     return false;
   }
 
@@ -179,7 +185,7 @@ export async function exportAlongAllAxesToDxf(
   // エクスポート可能か確認
   const { canExport, reason } = canExportStbToDxf();
   if (!canExport) {
-    showWarning(`エクスポートできません: ${reason}`);
+    eventBus.emit(ToastEvents.SHOW_WARNING, { message: `エクスポートできません: ${reason}` });
     return false;
   }
 
@@ -259,12 +265,16 @@ export async function exportAlongAllAxesToDxf(
     }
 
     log.info(`通り芯DXFエクスポート完了: ${exportedCount}/${axes.length}軸`);
-    showSuccess(`${exportedCount}通り芯のDXFファイルをエクスポートしました`);
+    eventBus.emit(ToastEvents.SHOW_SUCCESS, {
+      message: `${exportedCount}通り芯のDXFファイルをエクスポートしました`,
+    });
     return true;
   } catch (error) {
     log.error('通り芯DXFエクスポートエラー:', error);
     clearAllClippingPlanesInternal();
-    showError(`エクスポート中にエラーが発生しました: ${error.message}`);
+    eventBus.emit(ToastEvents.SHOW_ERROR, {
+      message: `エクスポート中にエラーが発生しました: ${error.message}`,
+    });
     return false;
   }
 }

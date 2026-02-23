@@ -5,7 +5,8 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { showError } from '../../ui/common/toast.js';
+import { eventBus, ToastEvents } from '../../app/events/index.js';
+import { downloadBlob } from '../../utils/downloadHelper.js';
 
 const log = createLogger('DXFExporter');
 
@@ -728,7 +729,9 @@ export function exportDxf(entities, layers, selectedLayers = [], filename = 'exp
     return true;
   } catch (error) {
     log.error('DXFエクスポートエラー:', error);
-    showError(`DXFエクスポートに失敗しました: ${error.message}`);
+    eventBus.emit(ToastEvents.SHOW_ERROR, {
+      message: `DXFエクスポートに失敗しました: ${error.message}`,
+    });
     return false;
   }
 }
@@ -740,16 +743,7 @@ export function exportDxf(entities, layers, selectedLayers = [], filename = 'exp
  */
 function downloadDxf(content, filename) {
   const blob = new Blob([content], { type: 'application/dxf' });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${filename}.dxf`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, `${filename}.dxf`);
 }
 
 /**

@@ -17,8 +17,45 @@ import { createLogger } from '../../utils/logger.js';
 import { getMaterialForElementWithMode } from './materials.js';
 import { IMPORTANCE_LEVELS } from '../../constants/importanceLevels.js';
 import { getState } from '../../app/globalState.js';
+import {
+  getSectionValidation,
+  getElementValidation,
+} from '../../common-stb/validation/validationManager.js';
 
 const log = createLogger('viewer:elements');
+
+/**
+ * 要素から id_section 属性を取得する
+ * @param {Element|Object|null} element
+ * @returns {string|null}
+ */
+function getSectionIdFromElement(element) {
+  if (!element) return null;
+  if (typeof element.getAttribute === 'function') {
+    return element.getAttribute('id_section');
+  }
+  return element.id_section ?? null;
+}
+
+/**
+ * バリデーションエラーがある場合、重要度を REQUIRED に上書きする
+ * sectionValidationMap および elementValidationMap（JSONスキーマエラー格納先）の両方をチェックする
+ * @param {string} importance - 現在の重要度
+ * @param {Element|Object|null} element
+ * @returns {string} 解決済み重要度
+ */
+function resolveImportanceWithSectionValidation(importance, element) {
+  if (importance === IMPORTANCE_LEVELS.REQUIRED) return importance;
+  const sectionId = getSectionIdFromElement(element);
+  if (!sectionId) return importance;
+  // sectionValidationMap のチェック（セマンティックバリデーションエラー）
+  const sectionValidation = getSectionValidation(sectionId);
+  if (sectionValidation?.errors?.length > 0) return IMPORTANCE_LEVELS.REQUIRED;
+  // elementValidationMap のチェック（JSONスキーマバリデーションエラーはここに格納される）
+  const sectionElementValidation = getElementValidation(sectionId);
+  if (sectionElementValidation?.errors?.length > 0) return IMPORTANCE_LEVELS.REQUIRED;
+  return importance;
+}
 
 // ============================================
 // 共有ジオメトリ（パフォーマンス最適化）
@@ -37,7 +74,6 @@ function getSharedNodeSphereGeometry() {
   }
   return sharedNodeSphereGeometry;
 }
-
 
 /**
  * グループ内の子要素のジオメトリを適切に破棄してからクリア
@@ -201,15 +237,17 @@ function drawOnlyLineElements(
       geometry,
       getMaterialForElementWithMode(elementType, materialCategory, true, false, id),
     );
+    const effectiveImportance = resolveImportanceWithSectionValidation(importance, element);
     line.userData = {
       elementType: elementType,
       elementId: id,
       modelSource: modelSource,
-      importance: importance,
+      importance: effectiveImportance,
       isLine: true,
+      sectionId: getSectionIdFromElement(element) || undefined,
     };
 
-    applyImportanceVisuals(line, importance);
+    applyImportanceVisuals(line, effectiveImportance);
 
     group.add(line);
     modelBounds.expandByPoint(startVec);
@@ -260,8 +298,8 @@ function applyImportanceVisuals(object, importance) {
   // 重要度に応じた透明度設定
   const opacityLevels = {
     [IMPORTANCE_LEVELS.REQUIRED]: 1.0,
-    [IMPORTANCE_LEVELS.OPTIONAL]: 0.8,
-    [IMPORTANCE_LEVELS.UNNECESSARY]: 0.4,
+    [IMPORTANCE_LEVELS.OPTIONAL]: 1.0,
+    [IMPORTANCE_LEVELS.UNNECESSARY]: 1.0,
     [IMPORTANCE_LEVELS.NOT_APPLICABLE]: 0.1,
   };
 
@@ -286,23 +324,186 @@ function applyImportanceVisuals(object, importance) {
 }
 
 /**
+ * matched線要素1件を処理する共通ヘルパー
+ * @param {Object} item - matched比較結果アイテム
+ * @param {number} index - ループインデックス（デバッグログ用）
+ * @param {string} elementType - 要素タイプ名
+ * @param {THREE.Group} group - 描画対象グループ
+ * @param {THREE.Box3} modelBounds - バウンディングボックス
+ * @param {boolean} labelToggle - ラベル表示の有無
+ * @param {Array<THREE.Sprite>} createdLabels - ラベル収集配列
+ * @returns {{ processed: boolean, skipped: boolean }} 処理結果
+ */
+function processMatchedLineItem(
+  item,
+  index,
+  elementType,
+  group,
+  modelBounds,
+  labelToggle,
+  createdLabels,
+) {
+  if (!item) {
+    log.warn(`Skipping undefined item in matched for ${elementType}`);
+    return { processed: false, skipped: false };
+  }
+  const { dataA, dataB, importance, matchType, category, positionState, attributeState } = item;
+
+  // dataAまたはdataBがundefinedの場合はスキップ
+  if (!dataA || !dataB) {
+    log.warn(`Skipping item with undefined dataA or dataB in matched for ${elementType}`);
+    return { processed: false, skipped: false };
+  }
+
+  if (index < 3) {
+    // 最初の3つの要素について詳細ログを出力
+    log.debug(`Processing matched item ${index}:`, {
+      dataA,
+      dataB,
+      importance,
+      matchType,
+    });
+    log.trace('dataA.startCoords:', dataA.startCoords);
+    log.trace('dataA.endCoords:', dataA.endCoords);
+  }
+
+  const startCoords = dataA.startCoords;
+  const endCoords = dataA.endCoords;
+  const idA = dataA.id;
+  const idB = dataB.id;
+
+  if (!isValidLineCoords(startCoords, endCoords)) {
+    log.warn(`Skipping matched line due to invalid coords: A=${idA}, B=${idB}`);
+    return { processed: true, skipped: true };
+  }
+
+  const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
+  const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
+
+  if (index < 3) {
+    log.debug(
+      `${elementType} matched element ${index}: Start=(${startCoords.x.toFixed(
+        0,
+      )}, ${startCoords.y.toFixed(0)}, ${startCoords.z.toFixed(
+        0,
+      )})mm, End=(${endCoords.x.toFixed(0)}, ${endCoords.y.toFixed(
+        0,
+      )}, ${endCoords.z.toFixed(0)})mm`,
+    );
+  }
+
+  const geometry = new THREE.BufferGeometry().setFromPoints([startVec, endVec]);
+  const material = getMaterialForElementWithMode(
+    elementType,
+    'matched',
+    true,
+    false,
+    idA,
+    matchType,
+  );
+  if (index < 3) {
+    log.trace(`Material for matched item ${index}:`, material);
+  }
+
+  const line = new THREE.Line(geometry, material);
+
+  // 重要度データを取得（重要度管理システムから、比較結果の値を上書き）
+  let resolvedImportance = importance;
+  const importanceManager = getState('importanceManager');
+  const sourceElementA = dataA.rawElement || dataA.element || null;
+  const sourceElementB = dataB.rawElement || dataB.element || null;
+  if (importanceManager) {
+    const stbElementType = `Stb${elementType}`;
+    resolvedImportance =
+      (sourceElementA
+        ? importanceManager.getElementImportance?.(sourceElementA, stbElementType)
+        : null) ||
+      (sourceElementB
+        ? importanceManager.getElementImportance?.(sourceElementB, stbElementType)
+        : null) ||
+      importance;
+  }
+  // 参照断面にバリデーションエラーがある場合は違反として扱う
+  resolvedImportance = resolveImportanceWithSectionValidation(
+    resolvedImportance,
+    sourceElementA || sourceElementB,
+  );
+
+  line.userData = {
+    elementType: elementType,
+    elementId: idA,
+    elementIdA: idA,
+    elementIdB: idB,
+    modelSource: 'matched',
+    originalId: idA,
+    id: idA,
+    importance: resolvedImportance,
+    toleranceState: matchType,
+    category: category || matchType || 'exact',
+    positionState: positionState || 'exact',
+    attributeState: attributeState || 'matched',
+    isLine: true,
+    sectionId: getSectionIdFromElement(sourceElementA || sourceElementB) || undefined,
+  };
+
+  if (index < 3) {
+    log.trace(`Created line object ${index}:`, line);
+    log.trace(`Line importance:`, resolvedImportance);
+    log.trace(`Line geometry points:`, geometry.attributes.position.array);
+  }
+
+  applyImportanceVisuals(line, resolvedImportance);
+
+  group.add(line);
+
+  if (index < 3) {
+    log.debug(`Added line ${index} to group. Group children count:`, group.children.length);
+  }
+
+  modelBounds.expandByPoint(startVec);
+  modelBounds.expandByPoint(endVec);
+
+  if (labelToggle && (idA || idB)) {
+    const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
+
+    const contentType = getState('ui.labelContentType') || 'id';
+    let labelText;
+
+    if (contentType === 'id') {
+      labelText = `${idA || '?'} / ${idB || '?'}`;
+    } else {
+      const nameA = dataA.element && dataA.element.name ? dataA.element.name : idA;
+      const nameB = dataB.element && dataB.element.name ? dataB.element.name : idB;
+      labelText = `${nameA || '?'} / ${nameB || '?'}`;
+    }
+
+    const sprite = createLabelSpriteInternal(labelText, midPoint, group, elementType);
+    if (sprite) {
+      sprite.userData.elementIdA = idA;
+      sprite.userData.elementIdB = idB;
+      sprite.userData.modelSource = 'matched';
+
+      if (dataA.element) {
+        attachElementDataToLabelInternal(sprite, dataA.element);
+      }
+
+      createdLabels.push(sprite);
+    }
+  }
+
+  return { processed: true, skipped: false };
+}
+
+/**
  * 線要素（柱、梁など）の比較結果を描画する
  * @param {object} comparisonResult - compareElementsの比較結果
- * @param {object} materials - マテリアルオブジェクト
  * @param {THREE.Group} group - 描画対象の要素グループ
  * @param {string} elementType - 描画する要素タイプ名 (例: 'Column')
  * @param {boolean} labelToggle - ラベル表示の有無
  * @param {THREE.Box3} modelBounds - 更新するモデル全体のバウンディングボックス
  * @returns {Array<THREE.Sprite>} 作成されたラベルスプライトの配列
  */
-export function drawLineElements(
-  comparisonResult,
-  materials,
-  group,
-  elementType,
-  labelToggle,
-  modelBounds,
-) {
+export function drawLineElements(comparisonResult, group, elementType, labelToggle, modelBounds) {
   disposeAndClearGroup(group);
   const createdLabels = [];
   const labelOffsetAmount = 150;
@@ -318,139 +519,21 @@ export function drawLineElements(
   let addedToGroupCount = 0;
 
   comparisonResult.matched.forEach((item, index) => {
-    if (!item) {
-      log.warn(`Skipping undefined item in matched for ${elementType}`);
-      return;
-    }
-    const { dataA, dataB, importance, matchType } = item;
-
-    // dataAまたはdataBがundefinedの場合はスキップ
-    if (!dataA || !dataB) {
-      log.warn(`Skipping item with undefined dataA or dataB in matched for ${elementType}`);
-      return;
-    }
-
-    if (index < 3) {
-      // 最初の3つの要素について詳細ログを出力
-      log.debug(`Processing matched item ${index}:`, {
-        dataA,
-        dataB,
-        importance,
-        matchType,
-      });
-      log.trace('dataA.startCoords:', dataA.startCoords);
-      log.trace('dataA.endCoords:', dataA.endCoords);
-    }
-
-    processedCount++;
-
-    const startCoords = dataA.startCoords;
-    const endCoords = dataA.endCoords;
-    const idA = dataA.id;
-    const idB = dataB.id;
-
-    if (!isValidLineCoords(startCoords, endCoords)) {
-      skippedCount++;
-      log.warn(`Skipping matched line due to invalid coords: A=${idA}, B=${idB}`);
-      return;
-    }
-
-    const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
-    const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
-
-    if (index < 3) {
-      log.debug(
-        `${elementType} matched element ${index}: Start=(${startCoords.x.toFixed(
-          0,
-        )}, ${startCoords.y.toFixed(0)}, ${startCoords.z.toFixed(
-          0,
-        )})mm, End=(${endCoords.x.toFixed(0)}, ${endCoords.y.toFixed(
-          0,
-        )}, ${endCoords.z.toFixed(0)})mm`,
-      );
-    }
-
-    const geometry = new THREE.BufferGeometry().setFromPoints([startVec, endVec]);
-    const material = getMaterialForElementWithMode(
+    const result = processMatchedLineItem(
+      item,
+      index,
       elementType,
-      'matched',
-      true,
-      false,
-      idA,
-      matchType,
+      group,
+      modelBounds,
+      labelToggle,
+      createdLabels,
     );
-    if (index < 3) {
-      log.trace(`Material for matched item ${index}:`, material);
-    }
-
-    const line = new THREE.Line(geometry, material);
-
-    // 重要度データを取得（重要度管理システムから、比較結果の値を上書き）
-    let resolvedImportance = importance;
-    const importanceManager = getState('importanceManager');
-    if (importanceManager && dataA.element) {
-      resolvedImportance =
-        importanceManager.getElementImportance?.(dataA.element) ||
-        (dataB.element ? importanceManager.getElementImportance?.(dataB.element) : null) ||
-        importance;
-    }
-
-    line.userData = {
-      elementType: elementType,
-      elementId: idA,
-      elementIdA: idA,
-      elementIdB: idB,
-      modelSource: 'matched',
-      originalId: idA,
-      id: idA,
-      importance: resolvedImportance,
-      toleranceState: matchType,
-      isLine: true,
-    };
-
-    if (index < 3) {
-      log.trace(`Created line object ${index}:`, line);
-      log.trace(`Line importance:`, resolvedImportance);
-      log.trace(`Line geometry points:`, geometry.attributes.position.array);
-    }
-
-    applyImportanceVisuals(line, resolvedImportance);
-
-    group.add(line);
-    addedToGroupCount++;
-
-    if (index < 3) {
-      log.debug(`Added line ${index} to group. Group children count:`, group.children.length);
-    }
-
-    modelBounds.expandByPoint(startVec);
-    modelBounds.expandByPoint(endVec);
-
-    if (labelToggle && (idA || idB)) {
-      const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
-
-      const contentType = getState('ui.labelContentType') || 'id';
-      let labelText;
-
-      if (contentType === 'id') {
-        labelText = `${idA || '?'} / ${idB || '?'}`;
+    if (result.processed) {
+      processedCount++;
+      if (result.skipped) {
+        skippedCount++;
       } else {
-        const nameA = dataA.element && dataA.element.name ? dataA.element.name : idA;
-        const nameB = dataB.element && dataB.element.name ? dataB.element.name : idB;
-        labelText = `${nameA || '?'} / ${nameB || '?'}`;
-      }
-
-      const sprite = createLabelSpriteInternal(labelText, midPoint, group, elementType);
-      if (sprite) {
-        sprite.userData.elementIdA = idA;
-        sprite.userData.elementIdB = idB;
-        sprite.userData.modelSource = 'matched';
-
-        if (dataA.element) {
-          attachElementDataToLabelInternal(sprite, dataA.element);
-        }
-
-        createdLabels.push(sprite);
+        addedToGroupCount++;
       }
     }
   });
@@ -497,15 +580,194 @@ export function drawLineElements(
 }
 
 /**
+ * ポリゴン要素1件をメッシュとして処理する共通ヘルパー
+ * @param {Object} item - ポリゴンデータアイテム
+ * @param {string} elementType - 要素タイプ名
+ * @param {THREE.Material} material - デフォルトマテリアル
+ * @param {string} modelSource - モデルソース ('matched' | 'A' | 'B')
+ * @param {THREE.Group} group - 描画対象グループ
+ * @param {THREE.Box3} modelBounds - バウンディングボックス
+ * @param {boolean} labelToggle - ラベル表示の有無
+ * @param {Array<THREE.Sprite>} createdLabels - ラベル収集配列
+ */
+function processPolyItem(
+  item,
+  elementType,
+  material,
+  modelSource,
+  group,
+  modelBounds,
+  labelToggle,
+  createdLabels,
+) {
+  const {
+    vertexCoordsList,
+    id,
+    importance,
+    idB,
+    matchType,
+    category,
+    positionState,
+    attributeState,
+  } = item;
+  const points = [];
+  let validPoints = true;
+  for (const p of vertexCoordsList) {
+    if (p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)) {
+      points.push(new THREE.Vector3(p.x, p.y, p.z));
+    } else {
+      log.warn('Skipping polygon due to invalid vertex coord:', p);
+      validPoints = false;
+      break;
+    }
+  }
+  if (!validPoints || points.length < 3) return;
+  points.forEach((p) => modelBounds.expandByPoint(p));
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const indices = [];
+  for (let i = 1; i < points.length - 1; i++) {
+    indices.push(0, i, i + 1);
+  }
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+
+  // 重要度データを取得
+  let actualImportance = importance; // パラメータから取得
+  const importanceManager = getState('importanceManager');
+  const sourceElement = item.rawElement || item.element || null;
+  if (importanceManager) {
+    const stbElementType = `Stb${elementType}`;
+    const calculatedImportance = sourceElement
+      ? importanceManager.getElementImportance?.(sourceElement, stbElementType)
+      : null;
+    if (calculatedImportance) {
+      actualImportance = calculatedImportance;
+    }
+  }
+  // 参照断面にバリデーションエラーがある場合は違反として扱う
+  actualImportance = resolveImportanceWithSectionValidation(actualImportance, sourceElement);
+
+  let meshMaterial = material;
+  if (modelSource === 'matched' && matchType) {
+    meshMaterial = getMaterialForElementWithMode(
+      elementType,
+      'matched',
+      false,
+      true,
+      id,
+      matchType,
+    );
+  }
+
+  const mesh = new THREE.Mesh(geometry, meshMaterial);
+  mesh.userData = {
+    elementType: elementType,
+    elementId: id,
+    modelSource: modelSource,
+    originalId: id, // applyImportanceColorMode で使用
+    id: id,
+    importance: actualImportance, // 重要度データを設定
+    toleranceState: matchType,
+    category: category || matchType || undefined,
+    positionState: positionState || undefined,
+    attributeState: attributeState || undefined,
+    isPoly: true,
+    sectionId: getSectionIdFromElement(sourceElement) || undefined,
+  };
+
+  // matched要素の場合、A/B両方のIDを設定
+  if (modelSource === 'matched' && idB) {
+    mesh.userData.elementIdA = id;
+    mesh.userData.elementIdB = idB;
+  }
+
+  // 重要度による視覚調整を適用
+  applyImportanceVisuals(mesh, actualImportance);
+
+  group.add(mesh);
+
+  // ラベル作成ロジック
+  if (labelToggle && id) {
+    // ポリゴンの中心点を計算
+    const centerPoint = new THREE.Vector3();
+    points.forEach((p) => centerPoint.add(p));
+    centerPoint.divideScalar(points.length);
+
+    let labelText = '';
+    if (modelSource === 'A') {
+      labelText = `A: ${id}`;
+    } else if (modelSource === 'B') {
+      labelText = `B: ${id}`;
+    } else if (modelSource === 'matched') {
+      // matched の場合、A/B両方のIDを表示
+      labelText = idB ? `${id} / ${idB}` : `${id}`;
+    }
+
+    if (labelText) {
+      const sprite = createLabelSpriteInternal(
+        labelText,
+        centerPoint,
+        group, // ラベルも同じグループに追加
+        elementType,
+      );
+      if (sprite) {
+        sprite.userData.elementId = id; // スプライトにIDを設定
+        sprite.userData.modelSource = modelSource; // スプライトにもソースを設定
+        // matched の場合、A/B両方のIDを設定
+        if (modelSource === 'matched' && idB) {
+          sprite.userData.elementIdA = id;
+          sprite.userData.elementIdB = idB;
+        }
+        createdLabels.push(sprite);
+      }
+    }
+  }
+}
+
+/**
+ * ポリゴンデータリストを一括処理する
+ * @param {Array} dataList - ポリゴンデータ配列
+ * @param {string} elementType - 要素タイプ名
+ * @param {THREE.Material} material - デフォルトマテリアル
+ * @param {string} modelSource - モデルソース ('matched' | 'A' | 'B')
+ * @param {THREE.Group} group - 描画対象グループ
+ * @param {THREE.Box3} modelBounds - バウンディングボックス
+ * @param {boolean} labelToggle - ラベル表示の有無
+ * @param {Array<THREE.Sprite>} createdLabels - ラベル収集配列
+ */
+function processPolyItems(
+  dataList,
+  elementType,
+  material,
+  modelSource,
+  group,
+  modelBounds,
+  labelToggle,
+  createdLabels,
+) {
+  dataList.forEach((item) => {
+    processPolyItem(
+      item,
+      elementType,
+      material,
+      modelSource,
+      group,
+      modelBounds,
+      labelToggle,
+      createdLabels,
+    );
+  });
+}
+
+/**
  * ポリゴン要素（スラブ、壁など）の比較結果を描画する
  * @param {object} comparisonResult - compareElementsの比較結果
- * @param {object} materials - マテリアルオブジェクト
  * @param {THREE.Group} group - 描画対象の要素グループ
  * @param {boolean} labelToggle - ラベル表示の有無
  * @param {THREE.Box3} modelBounds - 更新するモデル全体のバウンディングボックス
  * @returns {Array<THREE.Sprite>} 作成されたラベルスプライトの配列
  */
-export function drawPolyElements(comparisonResult, materials, group, labelToggle, modelBounds) {
+export function drawPolyElements(comparisonResult, group, labelToggle, modelBounds) {
   disposeAndClearGroup(group);
   const createdLabels = [];
 
@@ -514,124 +776,18 @@ export function drawPolyElements(comparisonResult, materials, group, labelToggle
     log.error('elementType is missing in group userData or name for drawPolyElements:', group);
   }
 
-  // labelToggle を createMeshes に渡す
-  const createMeshes = (dataList, material, modelSource, labelToggle) => {
-    dataList.forEach((item) => {
-      const { vertexCoordsList, id, importance, idB, matchType } = item;
-      const points = [];
-      let validPoints = true;
-      for (const p of vertexCoordsList) {
-        if (p && Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)) {
-          points.push(new THREE.Vector3(p.x, p.y, p.z));
-        } else {
-          log.warn('Skipping polygon due to invalid vertex coord:', p);
-          validPoints = false;
-          break;
-        }
-      }
-      if (!validPoints || points.length < 3) return;
-      points.forEach((p) => modelBounds.expandByPoint(p));
-      const geometry = new THREE.BufferGeometry().setFromPoints(points);
-      const indices = [];
-      for (let i = 1; i < points.length - 1; i++) {
-        indices.push(0, i, i + 1);
-      }
-      geometry.setIndex(indices);
-      geometry.computeVertexNormals();
-
-      // 重要度データを取得
-      let actualImportance = importance; // パラメータから取得
-      if (!actualImportance) {
-        const importanceManager = getState('importanceManager');
-        if (importanceManager && id) {
-          // 要素IDから重要度を取得
-          actualImportance = importanceManager.getElementImportanceById?.(id);
-        }
-      }
-
-      let meshMaterial = material;
-      if (modelSource === 'matched' && matchType) {
-        meshMaterial = getMaterialForElementWithMode(
-          elementType,
-          'matched',
-          false,
-          true,
-          id,
-          matchType,
-        );
-      }
-
-      const mesh = new THREE.Mesh(geometry, meshMaterial);
-      mesh.userData = {
-        elementType: elementType,
-        elementId: id,
-        modelSource: modelSource,
-        originalId: id, // applyImportanceColorMode で使用
-        id: id,
-        importance: actualImportance, // 重要度データを設定
-        toleranceState: matchType,
-        isPoly: true,
-      };
-
-      // matched要素の場合、A/B両方のIDを設定
-      if (modelSource === 'matched' && idB) {
-        mesh.userData.elementIdA = id;
-        mesh.userData.elementIdB = idB;
-      }
-
-      // 重要度による視覚調整を適用
-      applyImportanceVisuals(mesh, actualImportance);
-
-      group.add(mesh);
-
-      // ラベル作成ロジックを追加
-      if (labelToggle && id) {
-        // ポリゴンの中心点を計算
-        const centerPoint = new THREE.Vector3();
-        points.forEach((p) => centerPoint.add(p));
-        centerPoint.divideScalar(points.length);
-
-        let labelText = '';
-        if (modelSource === 'A') {
-          labelText = `A: ${id}`;
-        } else if (modelSource === 'B') {
-          labelText = `B: ${id}`;
-        } else if (modelSource === 'matched') {
-          // matched の場合、A/B両方のIDを表示
-          labelText = idB ? `${id} / ${idB}` : `${id}`;
-        }
-
-        if (labelText) {
-          const sprite = createLabelSpriteInternal(
-            labelText,
-            centerPoint,
-            group, // ラベルも同じグループに追加
-            elementType,
-          );
-          if (sprite) {
-            sprite.userData.elementId = id; // スプライトにIDを設定
-            sprite.userData.modelSource = modelSource; // スプライトにもソースを設定
-            // matched の場合、A/B両方のIDを設定
-            if (modelSource === 'matched' && idB) {
-              sprite.userData.elementIdA = id;
-              sprite.userData.elementIdB = idB;
-            }
-            createdLabels.push(sprite);
-          }
-        }
-      }
-    });
-  };
-
-  // createMeshes 呼び出し時に labelToggle を渡す
-  createMeshes(
+  processPolyItems(
     comparisonResult.matched.map((item) => ({
       vertexCoordsList: item.dataA.vertexCoordsList,
       id: item.dataA.id,
       idB: item.dataB.id, // B側のIDを追加
       importance: item.importance,
       matchType: item.matchType,
+      category: item.category,
+      positionState: item.positionState,
+      attributeState: item.attributeState,
     })),
+    elementType,
     getMaterialForElementWithMode(
       elementType,
       'matched',
@@ -640,19 +796,30 @@ export function drawPolyElements(comparisonResult, materials, group, labelToggle
       comparisonResult.matched[0]?.dataA?.id,
     ),
     'matched',
+    group,
+    modelBounds,
     labelToggle,
+    createdLabels,
   );
-  createMeshes(
+  processPolyItems(
     comparisonResult.onlyA,
+    elementType,
     getMaterialForElementWithMode(elementType, 'onlyA', false, true, comparisonResult.onlyA[0]?.id),
     'A',
+    group,
+    modelBounds,
     labelToggle,
+    createdLabels,
   );
-  createMeshes(
+  processPolyItems(
     comparisonResult.onlyB,
+    elementType,
     getMaterialForElementWithMode(elementType, 'onlyB', false, true, comparisonResult.onlyB[0]?.id),
     'B',
+    group,
+    modelBounds,
     labelToggle,
+    createdLabels,
   );
 
   return createdLabels;
@@ -661,13 +828,12 @@ export function drawPolyElements(comparisonResult, materials, group, labelToggle
 /**
  * 節点要素の比較結果を描画する
  * @param {object} comparisonResult - compareElementsの比較結果
- * @param {object} materials - マテリアルオブジェクト
  * @param {THREE.Group} group - 描画対象の要素グループ（節点メッシュ用）
  * @param {boolean} labelToggle - ラベル表示の有無
  * @param {THREE.Box3} modelBounds - 更新するモデル全体のバウンディングボックス
  * @returns {Array<THREE.Sprite>} 作成されたラベルスプライトの配列
  */
-export function drawNodes(comparisonResult, materials, group, labelToggle, modelBounds) {
+export function drawNodes(comparisonResult, group, labelToggle, modelBounds) {
   disposeAndClearGroup(group);
   const createdLabels = [];
 
@@ -676,7 +842,7 @@ export function drawNodes(comparisonResult, materials, group, labelToggle, model
       log.warn('Skipping undefined item in matched for Node');
       return;
     }
-    const { dataA, dataB, importance, matchType } = item;
+    const { dataA, dataB, importance, matchType, category, positionState, attributeState } = item;
     const coords = dataA.coords;
     const idA = dataA.id;
     const idB = dataB.id;
@@ -699,6 +865,9 @@ export function drawNodes(comparisonResult, materials, group, labelToggle, model
         elementIdB: idB,
         modelSource: 'matched',
         toleranceState: matchType,
+        category: category || matchType || 'exact',
+        positionState: positionState || 'exact',
+        attributeState: attributeState || 'matched',
       };
 
       // 重要度による視覚調整を適用

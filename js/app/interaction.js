@@ -15,12 +15,9 @@ import * as THREE from 'three';
 import { createLogger, WarnCategory } from '../utils/logger.js';
 
 const logger = createLogger('interaction');
-import { scene, camera, materials, controls, elementGroups } from '../viewer/index.js';
-import { displayElementInfo } from '../ui/panels/element-info/index.js';
-import { selectElementInTree } from '../ui/panels/elementTreeView.js';
-import { showContextMenu, initializeContextMenu } from '../ui/common/contextMenu.js';
+import { scene, camera, colorManager, controls, elementGroups } from '../viewer/index.js';
 import { getState } from './globalState.js';
-import { eventBus, SelectionEvents } from './events/index.js';
+import { eventBus, SelectionEvents, InteractionEvents } from './events/index.js';
 import { CAMERA_CONTROLS } from '../config/renderingConstants.js';
 
 // レイキャスト用オブジェクト
@@ -176,7 +173,12 @@ export function resetSelection() {
     }
     selectedObjects = [];
     originalMaterials.clear();
-    displayElementInfo(null, null, null, null);
+    eventBus.emit(InteractionEvents.DISPLAY_ELEMENT_INFO, {
+      idA: null,
+      idB: null,
+      elementType: null,
+      modelSource: null,
+    });
 
     // 選択クリアイベントを発行
     eventBus.emit(SelectionEvents.SELECTION_CLEARED, {
@@ -205,9 +207,16 @@ function highlightObject(obj) {
   // ハイライトマテリアルを適用
   let highlightMat = null;
   if (obj instanceof THREE.Line) {
-    highlightMat = materials.highlightLine;
+    highlightMat = colorManager.getMaterial('highlight', { isLine: true });
   } else if (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) {
-    highlightMat = materials.highlightMesh;
+    highlightMat = colorManager.getMaterial('highlight', { isLine: false });
+    if (obj.userData?.isSRCConcrete === true && highlightMat?.isMaterial) {
+      // SRCのRC外殻は選択時も半透明を維持し、内部鉄骨を視認しやすくする
+      highlightMat = highlightMat.clone();
+      highlightMat.transparent = true;
+      highlightMat.opacity = 0.22;
+      highlightMat.depthWrite = false;
+    }
   }
 
   if (highlightMat && obj.material) {
@@ -430,23 +439,16 @@ function displayMultiSelectionSummary() {
   `;
 
   contentDiv.innerHTML = summaryHtml;
-
-  // フローティングウィンドウを表示
-  if (window.floatingWindowManager) {
-    window.floatingWindowManager.showWindow('component-info');
-  }
 }
 
 /**
- * クリックイベント処理関数（複数選択対応）
+ * レイキャストを実行して交差オブジェクトを取得
  * @param {Event} event - マウスイベント
- * @param {Function} scheduleRender - 再描画要求関数
+ * @returns {THREE.Intersection[]|null} 交差結果の配列、キャンバスが見つからない場合はnull
  */
-function processElementSelection(event, scheduleRender) {
-  event.preventDefault();
-
+function performRaycast(event) {
   const canvas = document.getElementById('three-canvas');
-  if (!canvas) return;
+  if (!canvas) return null;
   const rect = canvas.getBoundingClientRect();
 
   // マウス座標を正規化デバイス座標 (-1 to +1) に変換
@@ -455,17 +457,16 @@ function processElementSelection(event, scheduleRender) {
 
   raycaster.setFromCamera(mouse, camera);
 
-  // Ctrlキーが押されているか確認（複数選択モード）
-  const isMultiSelectMode = event.ctrlKey || event.metaKey;
+  return raycaster.intersectObjects(scene.children, true);
+}
 
-  // Ctrlなしの場合は既存の選択を解除
-  if (!isMultiSelectMode) {
-    resetSelection();
-  }
-
-  const intersects = raycaster.intersectObjects(scene.children, true);
-
-  // 選択ロジック: 線要素 > 面要素 > Axis/Story の順で優先
+/**
+ * 交差結果から優先度に基づいて最適なオブジェクトを選択
+ * 優先順位: 線要素 > 面要素 > Axis/Story
+ * @param {THREE.Intersection[]} intersects - レイキャストの交差結果
+ * @returns {THREE.Object3D|null} 選択すべきオブジェクト
+ */
+function findBestIntersection(intersects) {
   let lineObject = null;
   let meshOrSpriteObject = null;
   let axisOrStoryObject = null;
@@ -494,7 +495,168 @@ function processElementSelection(event, scheduleRender) {
     }
   }
 
-  const objectToSelect = lineObject || meshOrSpriteObject || axisOrStoryObject;
+  return lineObject || meshOrSpriteObject || axisOrStoryObject;
+}
+
+/**
+ * Ctrl/Meta+クリックによる複数選択を処理（トグル動作）
+ * @param {THREE.Object3D} objectToSelect - 選択対象のオブジェクト
+ */
+function handleMultiSelect(objectToSelect) {
+  const alreadySelected = selectedObjects.includes(objectToSelect);
+
+  if (alreadySelected) {
+    // 既に選択済み → 選択解除
+    deselectSingleObject(objectToSelect);
+  } else {
+    // 選択上限チェック
+    if (selectedObjects.length >= MAX_SELECTION_COUNT) {
+      logger.warn(`${WarnCategory.UI} 選択: 上限到達 (${MAX_SELECTION_COUNT}要素)`);
+    } else {
+      // 新規追加選択
+      highlightObject(objectToSelect);
+    }
+  }
+}
+
+/**
+ * 通常クリックによる単一選択を処理
+ * resetSelectionは呼び出し前に実行済みであることを前提とする
+ * @param {THREE.Object3D} objectToSelect - 選択対象のオブジェクト
+ */
+function handleSingleSelect(objectToSelect) {
+  highlightObject(objectToSelect);
+}
+
+/**
+ * 選択要素の中心に回転中心を更新
+ */
+function updateOrbitCenterForSelection() {
+  const center = getSelectedCenter();
+  if (center) {
+    try {
+      if (controls && typeof controls.setOrbitPoint === 'function') {
+        controls.stop?.();
+        controls.setOrbitPoint(center.x, center.y, center.z);
+      } else {
+        controls.target.copy(center);
+      }
+      createOrUpdateOrbitCenterHelper(center);
+    } catch (e) {
+      logger.warn(`${WarnCategory.UI} 選択: 回転中心の更新失敗`, e);
+    }
+  }
+}
+
+/**
+ * 選択状態に応じて要素情報を表示
+ * 選択数が0の場合はクリア、1の場合は詳細表示、2以上の場合はサマリー表示
+ */
+function showElementInfo() {
+  if (selectedObjects.length === 0) {
+    // 選択解除された場合
+    eventBus.emit(InteractionEvents.DISPLAY_ELEMENT_INFO, {
+      idA: null,
+      idB: null,
+      elementType: null,
+      modelSource: null,
+    });
+  } else if (selectedObjects.length === 1) {
+    // 単一選択: 従来通りの詳細表示
+    const singleObj = selectedObjects[0];
+    const singleUserData = singleObj.userData;
+    const singleElementType = singleUserData.elementType || singleUserData.stbNodeType;
+    const displayType =
+      singleElementType === 'Column (fallback line)' ? 'Column' : singleElementType;
+
+    // 継手要素の場合はuserData.idをそのまま使用（"joint_165_start"形式）
+    let idA, idB;
+    if (displayType === 'Joint') {
+      idA = singleUserData.modelSource !== 'B' ? singleUserData.id : null;
+      idB = singleUserData.modelSource === 'B' ? singleUserData.id : null;
+    } else {
+      ({ idA, idB } = getElementIds(singleUserData));
+    }
+
+    eventBus.emit(InteractionEvents.DISPLAY_ELEMENT_INFO, {
+      idA,
+      idB,
+      elementType: displayType,
+      modelSource: singleUserData.modelSource,
+    });
+
+    // 要素選択イベントを発行
+    eventBus.emit(SelectionEvents.ELEMENT_SELECTED, {
+      elementType: displayType,
+      elementId: idA || idB,
+      elementIdA: idA,
+      elementIdB: idB,
+      modelSource: singleUserData.modelSource,
+      timestamp: Date.now(),
+    });
+
+    // ツリー表示を同期
+    const elementId = idA || idB;
+    if (elementId) {
+      eventBus.emit(InteractionEvents.SELECT_ELEMENT_IN_TREE, {
+        elementType: displayType,
+        elementId,
+        modelSource: singleUserData.modelSource,
+      });
+    }
+  } else {
+    // 複数選択: サマリー表示
+    displayMultiSelectionSummary();
+
+    // 複数選択イベントを発行
+    const selectedIds = selectedObjects.map((obj) => {
+      const ud = obj.userData;
+      return {
+        elementType: ud.elementType || ud.stbNodeType,
+        elementId: ud.elementId || ud.elementIdA || ud.elementIdB,
+        modelSource: ud.modelSource,
+      };
+    });
+    eventBus.emit(SelectionEvents.MULTI_SELECT, {
+      selectedElements: selectedIds,
+      count: selectedObjects.length,
+      timestamp: Date.now(),
+    });
+  }
+}
+
+/**
+ * 情報パネルをクリア
+ */
+function clearElementInfoPanel() {
+  eventBus.emit(InteractionEvents.DISPLAY_ELEMENT_INFO, {
+    idA: null,
+    idB: null,
+    elementType: null,
+    modelSource: null,
+  });
+}
+
+/**
+ * クリックイベント処理関数（複数選択対応）
+ * @param {Event} event - マウスイベント
+ * @param {Function} scheduleRender - 再描画要求関数
+ */
+function processElementSelection(event, scheduleRender) {
+  event.preventDefault();
+
+  const intersects = performRaycast(event);
+  if (!intersects) return;
+
+  // Ctrlキーが押されているか確認（複数選択モード）
+  const isMultiSelectMode = event.ctrlKey || event.metaKey;
+
+  // Ctrlなしの場合は既存の選択を解除
+  if (!isMultiSelectMode) {
+    resetSelection();
+  }
+
+  const objectToSelect = findBestIntersection(intersects);
 
   if (objectToSelect && objectToSelect.userData) {
     const userData = objectToSelect.userData;
@@ -502,111 +664,25 @@ function processElementSelection(event, scheduleRender) {
 
     // Axis と Story 以外の場合のみハイライト処理を実行
     if (elementType && elementType !== 'Axis' && elementType !== 'Story') {
-      // Ctrl+クリックの場合: 追加選択またはトグル
       if (isMultiSelectMode) {
-        const alreadySelected = selectedObjects.includes(objectToSelect);
-
-        if (alreadySelected) {
-          // 既に選択済み → 選択解除
-          deselectSingleObject(objectToSelect);
-        } else {
-          // 選択上限チェック
-          if (selectedObjects.length >= MAX_SELECTION_COUNT) {
-            logger.warn(`${WarnCategory.UI} 選択: 上限到達 (${MAX_SELECTION_COUNT}要素)`);
-          } else {
-            // 新規追加選択
-            highlightObject(objectToSelect);
-          }
-        }
+        handleMultiSelect(objectToSelect);
       } else {
-        // 通常クリック: 単一選択（既にresetSelectionで解除済み）
-        highlightObject(objectToSelect);
+        handleSingleSelect(objectToSelect);
       }
 
-      // 回転中心を更新（選択要素の中心）
-      const center = getSelectedCenter();
-      if (center) {
-        try {
-          if (controls && typeof controls.setOrbitPoint === 'function') {
-            controls.stop?.();
-            controls.setOrbitPoint(center.x, center.y, center.z);
-          } else {
-            controls.target.copy(center);
-          }
-          createOrUpdateOrbitCenterHelper(center);
-        } catch (e) {
-          logger.warn(`${WarnCategory.UI} 選択: 回転中心の更新失敗`, e);
-        }
-      }
-
-      // 情報表示処理
-      if (selectedObjects.length === 0) {
-        // 選択解除された場合
-        displayElementInfo(null, null, null, null);
-      } else if (selectedObjects.length === 1) {
-        // 単一選択: 従来通りの詳細表示
-        const singleObj = selectedObjects[0];
-        const singleUserData = singleObj.userData;
-        const singleElementType = singleUserData.elementType || singleUserData.stbNodeType;
-        const displayType =
-          singleElementType === 'Column (fallback line)' ? 'Column' : singleElementType;
-
-        // 継手要素の場合はuserData.idをそのまま使用（"joint_165_start"形式）
-        let idA, idB;
-        if (displayType === 'Joint') {
-          idA = singleUserData.modelSource !== 'B' ? singleUserData.id : null;
-          idB = singleUserData.modelSource === 'B' ? singleUserData.id : null;
-        } else {
-          ({ idA, idB } = getElementIds(singleUserData));
-        }
-
-        displayElementInfo(idA, idB, displayType, singleUserData.modelSource);
-
-        // 要素選択イベントを発行
-        eventBus.emit(SelectionEvents.ELEMENT_SELECTED, {
-          elementType: displayType,
-          elementId: idA || idB,
-          elementIdA: idA,
-          elementIdB: idB,
-          modelSource: singleUserData.modelSource,
-          timestamp: Date.now(),
-        });
-
-        // ツリー表示を同期
-        const elementId = idA || idB;
-        if (elementId) {
-          selectElementInTree(displayType, elementId, singleUserData.modelSource);
-        }
-      } else {
-        // 複数選択: サマリー表示
-        displayMultiSelectionSummary();
-
-        // 複数選択イベントを発行
-        const selectedIds = selectedObjects.map((obj) => {
-          const ud = obj.userData;
-          return {
-            elementType: ud.elementType || ud.stbNodeType,
-            elementId: ud.elementId || ud.elementIdA || ud.elementIdB,
-            modelSource: ud.modelSource,
-          };
-        });
-        eventBus.emit(SelectionEvents.MULTI_SELECT, {
-          selectedElements: selectedIds,
-          count: selectedObjects.length,
-          timestamp: Date.now(),
-        });
-      }
+      updateOrbitCenterForSelection();
+      showElementInfo();
     } else if (elementType === 'Axis' || elementType === 'Story') {
       // Axis/Story がクリックされた場合: ハイライトせず、情報パネルをクリア
       if (!isMultiSelectMode) {
-        displayElementInfo(null, null, null, null);
+        clearElementInfoPanel();
       }
     }
   } else if (!isMultiSelectMode) {
     // 何もない場所をクリック（Ctrlなし）→ 選択解除は既に実行済み
     // 情報パネルのクリアのみ
     if (selectedObjects.length === 0) {
-      displayElementInfo(null, null, null, null);
+      clearElementInfoPanel();
     }
   }
 
@@ -627,7 +703,7 @@ export function setupInteractionListeners(scheduleRender, options = {}) {
   contextMenuActionCallback = options.onContextMenuAction || null;
 
   // コンテキストメニューを初期化
-  initializeContextMenu();
+  eventBus.emit(InteractionEvents.INIT_CONTEXT_MENU);
 
   const canvasElement = document.getElementById('three-canvas');
   if (canvasElement) {
@@ -763,6 +839,12 @@ function show3DContextMenu(x, y, targetObject, scheduleRender) {
     },
     { separator: true },
     {
+      label: 'セクションボックスをかける',
+      icon: '📦',
+      action: () => handleActivateSectionBoxForSelection(),
+    },
+    { separator: true },
+    {
       label: '選択をリセット',
       icon: '🔄',
       action: () => {
@@ -784,7 +866,7 @@ function show3DContextMenu(x, y, targetObject, scheduleRender) {
     },
   ];
 
-  showContextMenu(x, y, menuItems);
+  eventBus.emit(InteractionEvents.SHOW_CONTEXT_MENU, { x, y, menuItems });
 }
 
 /**
@@ -818,7 +900,7 @@ function showEmpty3DContextMenu(x, y, scheduleRender) {
     },
   ];
 
-  showContextMenu(x, y, menuItems);
+  eventBus.emit(InteractionEvents.SHOW_CONTEXT_MENU, { x, y, menuItems });
 }
 
 /**
@@ -906,6 +988,29 @@ function handle3DCopyProperties(targetObject) {
     .catch((err) => {
       logger.error('クリップボードへのコピーに失敗しました:', err);
     });
+}
+
+/**
+ * 選択要素にセクションボックスを適用する
+ */
+function handleActivateSectionBoxForSelection() {
+  if (selectedObjects.length === 0) return;
+
+  const box = new THREE.Box3();
+  for (const obj of selectedObjects) {
+    const mainObj = findSelectableAncestor(obj) || obj;
+    const objBox = new THREE.Box3().setFromObject(mainObj);
+    if (!objBox.isEmpty()) {
+      box.union(objBox);
+    }
+  }
+
+  if (box.isEmpty()) {
+    logger.warn(`${WarnCategory.UI} セクションボックス: バウンディングボックスが空です`);
+    return;
+  }
+
+  eventBus.emit(InteractionEvents.ACTIVATE_SECTION_BOX_FOR_SELECTION, { box3: box });
 }
 
 /**

@@ -8,6 +8,7 @@
  */
 
 import { getReportCSS, STATUS_COLORS } from './reportStyles.js';
+import { escapeHtml } from '../../utils/htmlUtils.js';
 
 /**
  * レポートデータからHTML文字列を生成する
@@ -290,8 +291,7 @@ function buildAttributeListDetail(attributes, detailId) {
 
   const attrRows = filteredEntries
     .map(
-      ([key, value]) =>
-        `<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(String(value))}</td></tr>`,
+      ([key, value]) => `<tr><td>${escapeHtml(key)}</td><td>${escapeHtml(String(value))}</td></tr>`,
     )
     .join('');
 
@@ -421,17 +421,3 @@ function buildFooter(meta) {
   </div>`;
 }
 
-/**
- * HTMLエスケープ
- * @param {string} str - エスケープ対象
- * @returns {string} エスケープ済み文字列
- */
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}

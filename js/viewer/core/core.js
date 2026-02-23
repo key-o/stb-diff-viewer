@@ -200,6 +200,8 @@ export async function initRenderer() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     renderer.localClippingEnabled = true;
+    // WebXR対応: xr.enabledをtrueにしても通常モードには影響なし
+    renderer.xr.enabled = true;
 
     // CameraControls の読み込みが進行中であれば待機する
     if (CameraControlsPromise) {
@@ -272,6 +274,34 @@ export function isFrustumCullingEnabled() {
   return frustumCullingEnabled;
 }
 
+// --- AR/XRセッション状態 ---
+let _xrSessionActive = false;
+let _xrFrameHandler = null;
+
+/**
+ * XRセッションのアクティブ状態を設定
+ * @param {boolean} active - true でXRセッション中
+ */
+export function setXRSessionActive(active) {
+  _xrSessionActive = !!active;
+}
+
+/**
+ * XRセッションがアクティブかどうかを取得
+ * @returns {boolean}
+ */
+export function isXRSessionActive() {
+  return _xrSessionActive;
+}
+
+/**
+ * XRフレームごとのコールバックを設定
+ * @param {((frame: XRFrame) => void)|null} handler
+ */
+export function setXRFrameHandler(handler) {
+  _xrFrameHandler = typeof handler === 'function' ? handler : null;
+}
+
 // --- アニメーションループ ---
 /**
  * アニメーションループを開始
@@ -284,23 +314,19 @@ export function animate(initialControls, scene, camera) {
   let cullingFrameCounter = 0;
   const CULLING_INTERVAL = 3; // 3フレームごとにカリング実行
 
-  // delta を渡して CameraControls を更新
-  const _animate = () => {
-    requestAnimationFrame(_animate);
+  // 共通のフレーム処理（requestAnimationFrame / setAnimationLoop 両対応）
+  const _frameUpdate = (_timestamp, _xrFrame) => {
     if (!renderer) return;
-    if (!skipControlsUpdate) {
-      // 時間差分（秒）
+    // XRセッション中はコントロール更新をスキップ（ヘッドトラッキングが制御）
+    if (!skipControlsUpdate && !_xrSessionActive) {
       const dt = _clock.getDelta();
-      // 常に最新のcontrolsを使用（common-viewerによる置き換えに対応）
       const currentControls = controls || initialControls;
       if (currentControls && typeof currentControls.update === 'function') {
         currentControls.update(dt);
       }
     }
-    // カメラが指定されていない場合はactiveCameraを使用
     const renderCamera = camera || activeCamera;
 
-    // フラスタムカリング（有効な場合のみ、一定間隔で実行）
     if (frustumCullingEnabled) {
       cullingFrameCounter++;
       if (cullingFrameCounter >= CULLING_INTERVAL) {
@@ -310,13 +336,23 @@ export function animate(initialControls, scene, camera) {
       }
     }
 
+    if (_xrSessionActive && _xrFrame && _xrFrameHandler) {
+      try {
+        _xrFrameHandler(_xrFrame);
+      } catch (e) {
+        log.warn('XRフレームハンドラ実行中にエラーが発生しました:', e);
+      }
+    }
+
     renderer.render(scene, renderCamera);
   };
+
   // アニメーション開始（多重開始防止のため、1回目の呼び出しでループセット）
   if (!_animating) {
     _animating = true;
     _clock = new THREE.Clock();
-    _animate();
+    // setAnimationLoop を使用（WebXRセッション時に自動でXRフレームループに切替わる）
+    renderer.setAnimationLoop(_frameUpdate);
   }
 }
 

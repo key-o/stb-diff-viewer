@@ -160,7 +160,7 @@ function createToastElement(id, message, type, closable) {
       background: none;
       border: none;
       color: inherit;
-      font-size: var(--font-size-xl);
+      font-size: var(--font-size-lg);
       cursor: pointer;
       padding: 0 0 0 8px;
       opacity: 0.7;
@@ -297,7 +297,6 @@ export function showWarning(message, options = {}) {
 export function showInfo(message, options = {}) {
   return showToast({ message, type: 'info', ...options });
 }
-
 
 // イベントバスのインポート
 import { eventBus, ToastEvents } from '../../app/events/index.js';

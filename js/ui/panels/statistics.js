@@ -13,7 +13,7 @@
  */
 
 import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../../constants/importanceLevels.js';
-import { IMPORTANCE_COLORS } from '../../config/importanceConfig.js';
+import { IMPORTANCE_COLORS } from '../../config/colorConfig.js';
 import { getState, setState } from '../../app/globalState.js';
 import { comparisonController } from '../../app/controllers/comparisonController.js';
 import { floatingWindowManager } from './floatingWindowManager.js';
@@ -26,6 +26,7 @@ import {
 } from '../../app/events/index.js';
 import { showError, showWarning } from '../common/toast.js';
 import { createLogger } from '../../utils/logger.js';
+import { downloadBlob } from '../../utils/downloadHelper.js';
 
 const log = createLogger('statistics');
 
@@ -619,19 +620,7 @@ export class ImportanceStatistics {
 
       const jsonContent = JSON.stringify(exportData, null, 2);
       const blob = new Blob([jsonContent], { type: 'application/json' });
-      const link = document.createElement('a');
-
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute(
-        'download',
-        `importance_statistics_${new Date().toISOString().slice(0, 10)}.json`,
-      );
-      link.style.visibility = 'hidden';
-
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadBlob(blob, `importance_statistics_${new Date().toISOString().slice(0, 10)}.json`);
 
       log.info('Statistics exported successfully');
     } catch (error) {

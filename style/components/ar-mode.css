@@ -1,0 +1,22 @@
+/* AR Mode button and session styles */
+
+.ar-mode-btn {
+  background-color: var(--btn-bg, #e8e8e8);
+  border: 1px solid var(--border-color, #ccc);
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.ar-mode-btn:hover {
+  background-color: var(--btn-hover-bg, #d0d0d0);
+}
+
+.ar-mode-btn.ar-active {
+  background-color: #4caf50;
+  color: #fff;
+  border-color: #388e3c;
+}
+
+.ar-mode-btn.ar-active:hover {
+  background-color: #43a047;
+}

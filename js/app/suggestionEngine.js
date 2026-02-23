@@ -9,8 +9,9 @@
  */
 
 import { createLogger } from '../utils/logger.js';
-import { getAttributeInfo, isSchemaLoaded } from '../common-stb/parser/xsdSchemaParser.js';
+import { getAttributeInfo, isSchemaLoaded } from '../common-stb/import/parser/jsonSchemaLoader.js';
 import { storageHelper } from '../utils/storageHelper.js';
+import { getState } from './globalState.js';
 
 const log = createLogger('app/suggestionEngine');
 
@@ -212,7 +213,9 @@ export class SuggestionEngine {
 
     try {
       // 現在読み込まれているモデルから同種の属性値を収集
-      const docs = [window.docA, window.docB].filter((doc) => doc);
+      const docs = [getState('models.documentA'), getState('models.documentB')].filter(
+        (doc) => doc,
+      );
 
       for (const doc of docs) {
         const tagName = elementType === 'Node' ? 'StbNode' : `Stb${elementType}`;
@@ -298,7 +301,9 @@ export class SuggestionEngine {
 
     try {
       // 既存の断面定義から候補を取得
-      const docs = [window.docA, window.docB].filter((doc) => doc);
+      const docs = [getState('models.documentA'), getState('models.documentB')].filter(
+        (doc) => doc,
+      );
 
       for (const doc of docs) {
         const sectionElements = doc.querySelectorAll('StbSections > *');
@@ -373,7 +378,7 @@ export class SuggestionEngine {
     const seen = new Set();
 
     try {
-      const docs = [window.docA, window.docB].filter(Boolean);
+      const docs = [getState('models.documentA'), getState('models.documentB')].filter(Boolean);
       docs.forEach((doc) => {
         const nodes = doc.querySelectorAll('StbNode');
         nodes.forEach((node) => {

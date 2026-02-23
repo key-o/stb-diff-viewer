@@ -6,7 +6,7 @@
 
 import { BaseColorStateManager } from './baseColorStateManager.js';
 import { IMPORTANCE_LEVELS } from '../../constants/importanceLevels.js';
-import { IMPORTANCE_COLORS } from '../../config/importanceConfig.js';
+import { IMPORTANCE_COLORS } from '../../config/colorConfig.js';
 
 // 重要度レベルタイプ
 const IMPORTANCE_LEVEL_TYPES = Object.values(IMPORTANCE_LEVELS);
@@ -18,7 +18,7 @@ class ImportanceColorManager extends BaseColorStateManager {
   constructor() {
     super(IMPORTANCE_LEVEL_TYPES, IMPORTANCE_COLORS, 'ImportanceColorManager');
 
-    // 重要度別視覚スタイル
+    // 重要度別視覚スタイル（違反/対象外の2値）
     this.visualStyles = {
       [IMPORTANCE_LEVELS.REQUIRED]: {
         opacity: 1.0,
@@ -26,14 +26,14 @@ class ImportanceColorManager extends BaseColorStateManager {
         saturation: 1.0,
       },
       [IMPORTANCE_LEVELS.OPTIONAL]: {
-        opacity: 0.8,
-        outlineWidth: 1.0,
-        saturation: 0.7,
+        opacity: 1.0,
+        outlineWidth: 2.0,
+        saturation: 1.0,
       },
       [IMPORTANCE_LEVELS.UNNECESSARY]: {
-        opacity: 0.4,
-        outlineWidth: 0.5,
-        saturation: 0.3,
+        opacity: 1.0,
+        outlineWidth: 2.0,
+        saturation: 1.0,
       },
       [IMPORTANCE_LEVELS.NOT_APPLICABLE]: {
         opacity: 0.1,

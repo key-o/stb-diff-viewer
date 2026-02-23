@@ -126,4 +126,3 @@ export function createViewCubeDOM() {
 export function getCubeElement(container) {
   return container?.querySelector('.view-cube') ?? null;
 }
-

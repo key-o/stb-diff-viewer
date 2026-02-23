@@ -9,6 +9,9 @@
 
 import { getState } from '../../app/globalState.js';
 import { ELEMENT_LABELS } from '../../config/elementLabels.js';
+import { NUMERIC_TOLERANCE } from '../../config/geometryConfig.js';
+import { getCategoryCounts } from '../../data/normalizeComparisonResult.js';
+import { COMPARISON_CATEGORY } from '../../constants/comparisonCategories.js';
 
 /**
  * @typedef {Object} ElementTypeStats
@@ -48,28 +51,6 @@ import { ELEMENT_LABELS } from '../../config/elementLabels.js';
  */
 
 /**
- * レポート用構造属性リスト（attributeComparator.jsのSTRUCTURAL_ATTRIBUTESと同期）
- * @type {string[]}
- */
-const REPORT_STRUCTURAL_ATTRIBUTES = [
-  'id_sec',
-  'kind',
-  'rotate',
-  'offset_X',
-  'offset_Y',
-  'offset_Z',
-  'level_top',
-  'level_bottom',
-  'condition_bottom',
-  'condition_top',
-  'joint_bottom',
-  'joint_top',
-  'haunch_H',
-  'haunch_start',
-  'haunch_end',
-];
-
-/**
  * 構造属性の日本語ラベル
  * @type {Object.<string, string>}
  */
@@ -90,9 +71,6 @@ const ATTRIBUTE_LABELS = {
   haunch_start: 'ハンチ始端',
   haunch_end: 'ハンチ終端',
 };
-
-/** 数値比較の精度閾値 */
-const NUMERIC_TOLERANCE = 0.001;
 
 /**
  * 要素からプロパティ値を取得する（XML DOM/JSオブジェクト両対応）
@@ -147,12 +125,13 @@ function extractAllAttributes(element) {
  * @returns {AttributeDiff[]} 属性差分一覧
  */
 function compareAttributeDetails(elementA, elementB) {
+  const attrsA = extractAllAttributes(elementA);
+  const attrsB = extractAllAttributes(elementB);
+  const allAttributes = Array.from(new Set([...Object.keys(attrsA), ...Object.keys(attrsB)])).sort();
   const diffs = [];
-  for (const attr of REPORT_STRUCTURAL_ATTRIBUTES) {
-    const valueA = getElementProperty(elementA, attr);
-    const valueB = getElementProperty(elementB, attr);
-
-    if (valueA === undefined && valueB === undefined) continue;
+  for (const attr of allAttributes) {
+    const valueA = attrsA[attr];
+    const valueB = attrsB[attr];
 
     let isDifferent = false;
     if (valueA === undefined || valueB === undefined) {
@@ -234,6 +213,10 @@ function calculateStatistics(comparisonResults) {
     totalOnlyA: 0,
     totalOnlyB: 0,
     totalMismatch: 0,
+    // 5カテゴリ詳細
+    totalExact: 0,
+    totalWithinTolerance: 0,
+    totalAttributeMismatch: 0,
   };
 
   const elementTypeStats = {};
@@ -241,17 +224,21 @@ function calculateStatistics(comparisonResults) {
   for (const [elementType, result] of Object.entries(comparisonResults)) {
     if (!result || typeof result !== 'object') continue;
 
-    const matched = result.matched?.length || 0;
-    const onlyA = result.onlyA?.length || 0;
-    const onlyB = result.onlyB?.length || 0;
-    const mismatch = result.mismatch?.length || 0;
-    const total = matched + onlyA + onlyB;
+    const counts = getCategoryCounts(result);
+    const matched = counts.matched;
+    const onlyA = counts.onlyA;
+    const onlyB = counts.onlyB;
+    const mismatch = counts.attributeMismatch;
+    const total = counts.total;
 
     if (total === 0) continue;
 
     elementTypeStats[elementType] = {
       displayName: ELEMENT_LABELS[elementType] || elementType,
       matched,
+      exact: counts.exact,
+      withinTolerance: counts.withinTolerance,
+      attributeMismatch: counts.attributeMismatch,
       onlyA,
       onlyB,
       mismatch,
@@ -260,6 +247,9 @@ function calculateStatistics(comparisonResults) {
 
     summary.totalElements += total;
     summary.totalMatched += matched;
+    summary.totalExact += counts.exact;
+    summary.totalWithinTolerance += counts.withinTolerance;
+    summary.totalAttributeMismatch += counts.attributeMismatch;
     summary.totalOnlyA += onlyA;
     summary.totalOnlyB += onlyB;
     summary.totalMismatch += mismatch;
@@ -281,7 +271,7 @@ function collectDiffElements(comparisonResults, category) {
     if (!result?.[category]) continue;
 
     for (const elem of result[category]) {
-      const rawElement = elem.element || elem;
+      const rawElement = elem.rawElement || elem.element || elem;
       elements.push({
         elementType,
         displayType: ELEMENT_LABELS[elementType] || elementType,
@@ -304,28 +294,36 @@ function collectDiffElements(comparisonResults, category) {
 function collectMismatchElements(comparisonResults) {
   const elements = [];
 
+  const appendPairIfDifferent = (pair, elementType) => {
+    const dataA = pair?.dataA || {};
+    const dataB = pair?.dataB || {};
+    const elementA = dataA.rawElement || dataA.element || dataA;
+    const elementB = dataB.rawElement || dataB.element || dataB;
+
+    const attributeDiffs = compareAttributeDetails(elementA, elementB);
+    const diffCount = attributeDiffs.filter((d) => d.isDifferent).length;
+    if (diffCount === 0) return;
+
+    elements.push({
+      elementType,
+      displayType: ELEMENT_LABELS[elementType] || elementType,
+      idA: dataA.id || getElementProperty(elementA, 'id') || '-',
+      idB: dataB.id || getElementProperty(elementB, 'id') || '-',
+      nameA: dataA.name || getElementProperty(elementA, 'name') || '',
+      nameB: dataB.name || getElementProperty(elementB, 'name') || '',
+      attributeDiffs,
+      diffCount,
+    });
+  };
+
   for (const [elementType, result] of Object.entries(comparisonResults)) {
-    if (!result?.mismatch) continue;
+    if (!result || typeof result !== 'object') continue;
 
-    for (const pair of result.mismatch) {
-      const dataA = pair.dataA || {};
-      const dataB = pair.dataB || {};
-      const elementA = dataA.element || dataA;
-      const elementB = dataB.element || dataB;
-
-      const attributeDiffs = compareAttributeDetails(elementA, elementB);
-      const diffCount = attributeDiffs.filter((d) => d.isDifferent).length;
-
-      elements.push({
-        elementType,
-        displayType: ELEMENT_LABELS[elementType] || elementType,
-        idA: dataA.id || getElementProperty(elementA, 'id') || '-',
-        idB: dataB.id || getElementProperty(elementB, 'id') || '-',
-        nameA: dataA.name || getElementProperty(elementA, 'name') || '',
-        nameB: dataB.name || getElementProperty(elementB, 'name') || '',
-        attributeDiffs,
-        diffCount,
-      });
+    const mismatchItems = result[COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH];
+    if (Array.isArray(mismatchItems)) {
+      for (const pair of mismatchItems) {
+        appendPairIfDifferent(pair, elementType);
+      }
     }
   }
 

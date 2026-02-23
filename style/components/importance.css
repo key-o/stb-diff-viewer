@@ -55,7 +55,7 @@
 .importance-panel .close-button {
   background: none;
   border: none;
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   cursor: pointer;
   color: #666;
   padding: 0;
@@ -75,7 +75,7 @@
 }
 
 .importance-panel .control-group {
-  margin-bottom: 8px;
+  margin-bottom: var(--spacing-sm);
 }
 
 .importance-panel .control-group:last-child {
@@ -116,7 +116,7 @@
 .importance-panel .panel-tabs {
   background: #f8f9fa;
   border-bottom: 1px solid #eee;
-  padding: 8px 16px;
+  padding: var(--spacing-sm) 16px;
   overflow-x: auto;
 }
 
@@ -160,29 +160,29 @@
 
 .importance-panel .statistics-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--spacing-sm);
 }
 
 .importance-panel .stat-item {
   text-align: center;
-  padding: 8px 4px;
+  padding: var(--spacing-sm) var(--spacing-xs);
   border-radius: var(--border-radius);
   background: white;
   border: 1px solid #eee;
 }
 
-.importance-panel .stat-item.high {
-  border-left: 4px solid #ff4444;
+.importance-panel .stat-item.total-parameters {
+  border-left: 4px solid #6b7280;
 }
-.importance-panel .stat-item.medium {
-  border-left: 4px solid #ffaa00;
+.importance-panel .stat-item.xsd-required {
+  border-left: 4px solid #ef4444;
 }
-.importance-panel .stat-item.low {
-  border-left: 4px solid #888888;
+.importance-panel .stat-item.s2-target {
+  border-left: 4px solid #2563eb;
 }
-.importance-panel .stat-item.na {
-  border-left: 4px solid #cccccc;
+.importance-panel .stat-item.s4-target {
+  border-left: 4px solid #10b981;
 }
 
 .importance-panel .stat-label {
@@ -202,7 +202,7 @@
 }
 
 .importance-panel .elements-header {
-  padding: 8px 16px;
+  padding: var(--spacing-sm) 16px;
   background: #f8f9fa;
   border-bottom: 1px solid #eee;
   font-size: var(--font-size-sm);
@@ -217,7 +217,7 @@
 .importance-panel .element-item {
   display: flex;
   align-items: center;
-  padding: 8px 16px;
+  padding: var(--spacing-sm) 16px;
   border-bottom: 1px solid #f0f0f0;
   font-size: var(--font-size-sm);
 }
@@ -239,7 +239,7 @@
 .importance-panel .element-importance {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .importance-panel .importance-select {
@@ -318,7 +318,7 @@
 }
 
 .card-icon {
-  font-size: var(--font-size-3xl);
+  font-size: var(--font-size-xl);
   margin-right: 12px;
 }
 
@@ -327,7 +327,7 @@
 }
 
 .card-value {
-  font-size: var(--font-size-2xl);
+  font-size: var(--font-size-xl);
   font-weight: var(--font-weight-bold);
   color: #333;
 }
@@ -432,7 +432,7 @@
 
 .filter-stat {
   text-align: center;
-  padding: 8px;
+  padding: var(--spacing-sm);
   background: #f8f9fa;
   border-radius: var(--border-radius);
 }
@@ -513,7 +513,7 @@
 .bulk-operations-panel .close-button {
   background: none;
   border: none;
-  font-size: var(--font-size-xl);
+  font-size: var(--font-size-lg);
   cursor: pointer;
   color: #666;
   padding: 0;
@@ -540,7 +540,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: var(--spacing-sm) 12px;
   background: #f8f9fa;
   border-bottom: 1px solid #eee;
   cursor: pointer;
@@ -567,8 +567,8 @@
 .operation-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
 }
 
 .operation-row:last-child {
@@ -606,7 +606,7 @@
 
 .preview-results {
   margin-top: 12px;
-  padding: 8px;
+  padding: var(--spacing-sm);
   background: #f8f9fa;
   border-radius: var(--border-radius);
   font-size: var(--font-size-sm);
@@ -634,7 +634,7 @@
   background: rgba(255, 255, 255, 0.95);
   border: 1px solid #ddd;
   border-radius: var(--border-radius-lg);
-  padding: 8px 12px;
+  padding: var(--spacing-sm) 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   font-size: var(--font-size-sm);
   z-index: var(--z-floating);
@@ -749,7 +749,7 @@
 }
 
 #importance-panel .config-selector-group label {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   color: var(--text-primary, #374151);
   white-space: nowrap;
 }
@@ -786,9 +786,9 @@
   width: 100%;
   font-size: var(--font-size-sm);
   color: #4b5563;
-  padding: 6px 8px;
+  padding: 6px var(--spacing-sm);
   border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  border-radius: var(--border-radius);
   background: #f9fafb;
 }
 
@@ -818,7 +818,7 @@
 }
 
 .importance-category-search {
-  padding: 8px;
+  padding: var(--spacing-sm);
   border-bottom: 1px solid #eee;
 }
 
@@ -826,7 +826,7 @@
   width: 100%;
   padding: 6px;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: var(--border-radius);
 }
 
 .importance-category-list {
@@ -842,7 +842,7 @@
   cursor: pointer;
   border-bottom: 1px solid #eee;
   transition: background-color 0.2s;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -927,7 +927,7 @@
   border-bottom: 1px solid #eee;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--spacing-sm);
   align-items: center;
 }
 
@@ -960,6 +960,7 @@
 
 .importance-table {
   width: 100%;
+  min-width: 620px;
   border-collapse: collapse;
   font-size: var(--font-size-sm);
 }
@@ -970,7 +971,7 @@
 
 .importance-table th,
 .importance-table td {
-  border: 1px solid #e0e0e0;
+  border-bottom: 1px solid var(--border-color);
   padding: 6px 8px;
   text-align: left;
   vertical-align: top;
@@ -978,12 +979,33 @@
 }
 
 .importance-table th {
-  background-color: #f8f8f8;
+  background-color: var(--bg-secondary);
   position: sticky;
   top: 0;
   z-index: 10;
   font-weight: var(--font-weight-semibold);
-  color: #495057;
+  color: var(--text-heading);
+}
+
+.importance-table th.sortable-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.importance-table th.sortable-header.active {
+  background-color: #eef2f7;
+}
+
+.importance-table .sortable-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.importance-table .sort-indicator {
+  font-size: var(--font-size-xs);
+  color: #6b7280;
+  line-height: 1;
 }
 
 .importance-table tr:hover {
@@ -993,13 +1015,13 @@
 .importance-tree-root {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 8px;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
 }
 
 .importance-tree-node {
   border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  border-radius: var(--border-radius-lg);
   background: #fff;
 }
 
@@ -1010,13 +1032,13 @@
 .importance-tree-summary {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 10px;
   cursor: default;
   list-style: none;
   user-select: none;
   background: #f8f9fb;
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
 }
 
 .importance-tree-summary .importance-toggle-btn {
@@ -1060,7 +1082,7 @@
 .importance-table-compact {
   font-size: var(--font-size-sm);
   border: 1px solid #eef1f5;
-  border-radius: 4px;
+  border-radius: var(--border-radius);
   overflow: hidden;
 }
 
@@ -1092,22 +1114,22 @@
   color: #888;
   margin-left: 5px;
   border: 1px solid #eee;
-  padding: 1px 4px;
-  border-radius: 3px;
+  padding: 1px var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
 }
 
 .importance-select-wrapper {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .importance-select-wrapper select {
   width: auto;
   min-width: 118px;
-  padding: 4px 8px;
-  border-radius: 4px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius);
   border: 1px solid #ddd;
   background-color: white;
 }
@@ -1116,6 +1138,46 @@
 .importance-table td.mvd-col {
   width: 180px;
   min-width: 160px;
+}
+
+.importance-table th.param-name-col,
+.importance-table td.param-name-col {
+  width: auto;
+  min-width: 220px;
+}
+
+.importance-table td.param-name-col {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.importance-table th.xsd-required-col,
+.importance-table td.xsd-required-col {
+  width: 92px;
+  min-width: 92px;
+  text-align: center;
+}
+
+.xsd-required-badge {
+  display: inline-block;
+  min-width: 42px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.xsd-required-badge.required {
+  color: #b42318;
+  background: #fef3f2;
+  border: 1px solid #fecdca;
+}
+
+.xsd-required-badge.optional {
+  color: #6b7280;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
 }
 
 .importance-table th.effective-col,
@@ -1127,7 +1189,7 @@
 .importance-effective {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .importance-effective .effective-label {
@@ -1190,7 +1252,7 @@
 #importance-panel .dropdown-item {
   width: 100%;
   display: block;
-  padding: 8px 10px;
+  padding: var(--spacing-sm) 10px;
   text-align: left;
   border: none;
   background: transparent;
@@ -1208,7 +1270,7 @@
 
 #importance-panel .importance-bulk-controls {
   border-top: 1px solid #eee;
-  padding: 8px 10px;
+  padding: var(--spacing-sm) 10px;
   background: #fff;
 }
 
@@ -1216,7 +1278,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--spacing-sm);
   margin: 0;
 }
 
@@ -1246,7 +1308,7 @@
 }
 
 #importance-panel .statistics-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 #importance-panel .no-elements {
@@ -1276,7 +1338,7 @@
   }
 
   #importance-panel .statistics-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     row-gap: 6px;
   }
 }

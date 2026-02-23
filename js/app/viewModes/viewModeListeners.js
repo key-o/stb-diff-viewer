@@ -24,6 +24,10 @@ import {
 import { updateLabelVisibility } from '../../ui/viewer3d/unifiedLabelManager.js';
 import { updateStbExportStatus } from '../dxfLoader.js';
 import { getState, setState } from '../globalState.js';
+import {
+  isVisibleByStructuralFilter,
+  setStructuralSystemVisible,
+} from './structuralSystemFilter.js';
 
 // ロガー
 const log = createLogger('viewModeListeners');
@@ -197,7 +201,10 @@ export function updateModelVisibility(scheduleRender) {
           );
           const isElementTypeVisible = elementCheckbox ? elementCheckbox.checked : false;
 
-          child.visible = shouldBeVisible && isElementTypeVisible;
+          // 構造種別フィルタも考慮する
+          const isSystemVisible = isVisibleByStructuralFilter(elementType, child.userData);
+
+          child.visible = shouldBeVisible && isElementTypeVisible && isSystemVisible;
         } else if (elementType === 'Axis' || elementType === 'Story') {
           // 軸と階はモデルA/Bに依存しないが、要素タイプのチェックボックスには従う
           const elementCheckbox = document.querySelector(
@@ -351,13 +358,8 @@ export function setupViewModeListeners(scheduleRender) {
   const elementToggleIds = [
     { id: 'toggleBraceView', type: 'Brace', name: 'ブレース', solidViewId: 'toggleBrace3DView' },
     { id: 'togglePileView', type: 'Pile', name: '杭', solidViewId: 'togglePile3DView' },
-    { id: 'toggleFootingView', type: 'Footing', name: '基礎', solidViewId: 'toggleFooting3DView' },
-    {
-      id: 'toggleFoundationColumnView',
-      type: 'FoundationColumn',
-      name: '基礎柱',
-      solidViewId: 'toggleFoundationColumn3DView',
-    },
+    { id: 'toggleFootingView', type: 'Footing', name: '基礎' },
+    { id: 'toggleFoundationColumnView', type: 'FoundationColumn', name: '基礎柱' },
     { id: 'toggleSlabView', type: 'Slab', name: 'スラブ', solidViewId: 'toggleSlab3DView' },
     { id: 'toggleWallView', type: 'Wall', name: '壁', solidViewId: 'toggleWall3DView' },
     {
@@ -392,25 +394,22 @@ export function setupViewModeListeners(scheduleRender) {
     }
   });
 
-  // モデル表示切り替えチェックボックスのリスナー
-  const toggleModelACheckbox = document.getElementById('toggleModelA');
-  if (toggleModelACheckbox) {
-    toggleModelACheckbox.addEventListener('change', function () {
-      modelVisibilityManager.setModelVisibility('A', this.checked);
-      log.info('Model A visibility changed:', this.checked);
-      updateModelVisibility(scheduleRender);
-    });
-  }
-
-  const toggleModelBCheckbox = document.getElementById('toggleModelB');
-  if (toggleModelBCheckbox) {
-    toggleModelBCheckbox.addEventListener('change', function () {
-      modelVisibilityManager.setModelVisibility('B', this.checked);
-      log.info('Model B visibility changed:', this.checked);
-      updateModelVisibility(scheduleRender);
-    });
-  }
-
+  // モデル表示切り替えは ui/events/modelVisibilityListeners.js で一元管理
   // ラベル表示切り替えは events.js で一元管理されるため、ここでは設定しない
   // 立体表示モードでのラベル更新は、該当する再描画関数内で処理される
+
+  // ==========================================================================
+  // 構造種別フィルタのリスナー
+  // ==========================================================================
+  const structuralSystemCheckboxes = document.querySelectorAll(
+    'input[name="structuralSystemFilter"]',
+  );
+  structuralSystemCheckboxes.forEach((checkbox) => {
+    checkbox.addEventListener('change', function () {
+      const [elementType, system] = this.value.split(':');
+      setStructuralSystemVisible(elementType, system, this.checked);
+      log.info(`構造種別フィルタ: ${elementType}/${system} = ${this.checked}`);
+      updateModelVisibility(scheduleRender);
+    });
+  });
 }

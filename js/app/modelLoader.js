@@ -25,14 +25,17 @@ import {
 import { UI_TIMING } from '../config/uiTimingConfig.js';
 
 const log = createLogger('ModelLoader');
-import { clearUIState } from '../ui/index.js';
 import { resetSelection } from './interaction.js';
-import { clearTree, clearTreeSelection } from '../ui/panels/elementTreeView.js';
-import { clearSectionTree } from '../ui/panels/sectionTreeView.js';
 import { setState, getState, resetApplicationState } from './globalState.js';
 import { eventBus } from './events/eventBus.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
-import { EventTypes, ModelEvents, ComparisonEvents } from './events/eventTypes.js';
+import {
+  EventTypes,
+  ModelEvents,
+  ComparisonEvents,
+  AppEvents,
+  ToastEvents,
+} from './events/eventTypes.js';
 import comparisonKeyManager from './comparisonKeyManager.js';
 import { clearParseCache } from '../viewer/index.js';
 import { COMPARISON_KEY_TYPE } from '../config/comparisonKeyConfig.js';
@@ -68,8 +71,8 @@ import {
   finalizeVisualization,
   handleFinalizationError,
 } from '../modelLoader/visualizationFinalizer.js';
-import { showError } from '../ui/common/toast.js';
 import { syncDisplayModeFromUI } from './viewModes/index.js';
+import { runPostLoadValidations } from '../ui/panels/validationPanelIntegration.js';
 
 // モデル状態管理
 let stories = [];
@@ -95,6 +98,19 @@ comparisonKeyManager.onChange(async (newKeyType, oldKeyType) => {
     log.error('キータイプ変更後の再比較に失敗:', error);
   }
 });
+
+// 許容差設定変更時に自動再比較を実行
+window.toleranceSettingsChanged = async (newConfig) => {
+  if (!modelsLoaded) return;
+  log.info('許容差設定が変更されました、再比較を実行します', newConfig);
+  try {
+    if (typeof window.handleCompareModelsClick === 'function') {
+      await window.handleCompareModelsClick();
+    }
+  } catch (error) {
+    log.error('許容差設定変更後の再比較に失敗:', error);
+  }
+};
 
 /**
  * モデルデータへの参照を取得
@@ -150,7 +166,9 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
 
   if (!paramValidation.isValid) {
     log.error('パラメータ検証に失敗:', paramValidation.errors);
-    showError('パラメータ検証に失敗しました: ' + paramValidation.errors.join(', '));
+    eventBus.emit(ToastEvents.SHOW_ERROR, {
+      message: 'パラメータ検証に失敗しました: ' + paramValidation.errors.join(', '),
+    });
     return false;
   }
 
@@ -163,6 +181,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
 
   // Clear 3D scene content
   modelBounds = clearSceneContent(elementGroups, nodeLabels);
+  setState('models.modelBounds', modelBounds);
 
   // Clear local module state
   stories.length = 0;
@@ -175,7 +194,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
   sectionMaps = null;
   modelsLoaded = false;
 
-  // Clear model processing state (window.docA, window.docB)
+  // Clear model processing state (globalState documents)
   clearModelProcessingState();
 
   // Reset global application state
@@ -184,15 +203,14 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
   setState('elementGroups', elementGroups);
 
   // Clear UI state (labels, stories, axes)
-  clearUIState();
+  eventBus.emit(AppEvents.CLEAR_UI_STATE);
 
   // Clear selection state in 3D viewer
   resetSelection();
 
   // Clear tree views
-  clearTree();
-  clearTreeSelection();
-  clearSectionTree();
+  eventBus.emit(AppEvents.CLEAR_TREE);
+  eventBus.emit(AppEvents.CLEAR_SECTION_TREE);
 
   // Clear STB parse cache to ensure fresh parsing
   clearParseCache();
@@ -209,42 +227,26 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
   }
 
   try {
-    // Phase 2: Model Document Processing
-
+    // Phase 2: Model Document Processing (throws on failure)
     const processingResult = await processModelDocuments(fileA, fileB);
-
-    if (!processingResult.success) {
-      throw new Error(processingResult.error);
-    }
 
     // Update local state with processed data
     ({ modelADocument, modelBDocument, nodeMapA, nodeMapB, stories, axesData, sectionMaps } =
       processingResult);
 
-    // Extract version info from processing result
-    const versionInfo = processingResult.versionInfo || {
-      versionA: 'unknown',
-      versionB: 'unknown',
-      isCrossVersion: false,
-    };
+    const { versionInfo, calDataA, calDataB } = processingResult;
 
-    // Extract calculation data (StbCalData) for load visualization
-    const calDataA = processingResult.calDataA || null;
-    const calDataB = processingResult.calDataB || null;
-
-    // Save model documents to global state for IFC conversion
+    // Save all model data to global state
     setState('models.documentA', modelADocument);
     setState('models.documentB', modelBDocument);
     setState('models.nodeMapA', nodeMapA);
     setState('models.nodeMapB', nodeMapB);
     setState('models.stories', stories);
     setState('models.axesData', axesData);
-    setState('sectionsData', sectionMaps); // 断面データを保存
-    setState('models.versionInfo', versionInfo); // バージョン情報を保存
-    setState('models.calDataA', calDataA); // 計算データ（モデルA）を保存
-    setState('models.calDataB', calDataB); // 計算データ（モデルB）を保存
-
-    // バージョン情報をglobalStateに保存（Phase 2: XSD連動対応）
+    setState('sectionsData', sectionMaps);
+    setState('models.versionInfo', versionInfo);
+    setState('models.calDataA', calDataA);
+    setState('models.calDataB', calDataB);
     setState('models.stbVersionA', versionInfo.versionA);
     setState('models.stbVersionB', versionInfo.versionB);
 
@@ -257,11 +259,24 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
 
     // XSDスキーマをアクティブバージョンに切り替え
     try {
-      const { setActiveVersion } = await import('../common-stb/parser/xsdSchemaParser.js');
-      setActiveVersion(activeXsdVersion);
-      log.info(`アクティブXSDバージョンを ${activeXsdVersion} に設定しました`);
+      const [
+        { setActiveVersion: setJsonSchemaVersion },
+        { setActiveVersion: setXsdSchemaVersion },
+        { getImportanceManager },
+      ] = await Promise.all([
+        import('../common-stb/import/parser/jsonSchemaLoader.js'),
+        import('../common-stb/import/parser/xsdSchemaParser.js'),
+        import('./importanceManager.js'),
+      ]);
+      setJsonSchemaVersion(activeXsdVersion);
+      setXsdSchemaVersion(activeXsdVersion);
+
+      const importanceManager = getImportanceManager();
+      await importanceManager.initialize(null, { reset: true });
+
+      log.info(`アクティブスキーマバージョンを ${activeXsdVersion} に設定しました`);
     } catch (error) {
-      log.warn('XSDバージョン切り替えに失敗しました:', error);
+      log.warn('スキーマバージョン切り替えに失敗しました:', error);
     }
 
     // Emit model loaded events for version comparison panel
@@ -457,6 +472,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
 
     // Recalculate bounds after rendering
     modelBounds = calculateRenderingBounds(renderingResult.renderedElements, nodeMapA, nodeMapB);
+    setState('models.modelBounds', modelBounds);
 
     // Phase 5: Visualization Finalization
     const finalizationData = {
@@ -471,14 +487,10 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
       nodeMapB,
     };
 
-    const finalizationResult = finalizeVisualization(finalizationData, scheduleRender, {
+    finalizeVisualization(finalizationData, scheduleRender, {
       camera,
       controls,
     });
-
-    if (!finalizationResult.success) {
-      throw new Error('Visualization finalization failed: ' + finalizationResult.error);
-    }
 
     // Clear clipping planes
     clearClippingPlanes();
@@ -486,6 +498,12 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     // Mark models as loaded
     modelsLoaded = true;
     onLoadingComplete();
+
+    // 要素情報用違反は即時実行し、STBバリデーションパネルは遅延実行
+    runPostLoadValidations({
+      documentA: modelADocument,
+      documentB: modelBDocument,
+    });
 
     // Apply appropriate color mode based on loaded models
     setTimeout(() => {
@@ -514,14 +532,17 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
   } catch (error) {
     log.error('モデル比較に失敗:', error);
     onLoadingError(error.message || '不明なエラー');
-    showError(`エラーが発生しました: ${error.message || '不明なエラー'}`);
+    eventBus.emit(ToastEvents.SHOW_ERROR, {
+      message: `エラーが発生しました: ${error.message || '不明なエラー'}`,
+    });
 
     // Error cleanup
-    handleFinalizationError(error, {});
+    handleFinalizationError(error);
 
     // Reset state safely
     try {
       modelBounds = clearSceneContent(elementGroups, nodeLabels || []);
+      setState('models.modelBounds', modelBounds);
       stories.length = 0;
       nodeMapA.clear();
       nodeMapB.clear();
@@ -604,6 +625,10 @@ function updateObjectMaterialAsync(object, _colorMode) {
       const isLine = object.userData.isLine || false;
       const isPoly = object.userData.isPoly || false;
       const elementId = object.userData.elementId || null;
+      const materialOptions = {
+        isTransparent: object.userData.isSRCConcrete === true,
+        srcComponentType: object.userData.srcComponentType || null,
+      };
 
       const newMaterial = getMaterialForElementWithMode(
         elementType,
@@ -611,6 +636,8 @@ function updateObjectMaterialAsync(object, _colorMode) {
         isLine,
         isPoly,
         elementId,
+        null,
+        materialOptions,
       );
 
       if (newMaterial && object.material !== newMaterial) {

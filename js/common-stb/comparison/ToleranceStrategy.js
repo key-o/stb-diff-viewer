@@ -6,9 +6,9 @@
  */
 
 import { BaseStrategy } from './BaseStrategy.js';
-import { BasicComparisonStrategy } from './ComparisonStrategy.js';
+import { BasicComparisonStrategy } from './BaseStrategy.js';
 import { getToleranceConfig } from '../../config/toleranceConfig.js';
-import { compareElementDataWithTolerance } from '../../app/toleranceComparison.js';
+import { compareElementDataWithTolerance } from './toleranceComparison.js';
 import { COMPARISON_KEY_TYPE } from '../../config/comparisonKeyConfig.js';
 
 /**
@@ -61,8 +61,6 @@ export class ToleranceStrategy extends BaseStrategy {
         mismatch: [],
         onlyA: basicResult.onlyA,
         onlyB: basicResult.onlyB,
-        // 従来互換のmatched
-        matched: basicResult.matched,
       };
     }
 
@@ -178,9 +176,6 @@ export class ToleranceStrategy extends BaseStrategy {
     for (const candidatesB of mapB.values()) {
       result.onlyB.push(...candidatesB);
     }
-
-    // 従来互換のmatchedプロパティ
-    result.matched = [...result.exact, ...result.withinTolerance];
 
     return result;
   }

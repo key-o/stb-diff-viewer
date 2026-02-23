@@ -23,6 +23,15 @@ function placeBarSymbol(svg, dia, cx, cy, scale = 1) {
   placeBarSymbolBase(svg, dia, cx, cy, scale, BEAM_BAR_PREFIX);
 }
 
+function parseBarDiameterMm(dia, fallback = 25) {
+  const match = String(dia || '')
+    .toUpperCase()
+    .match(/[DT](\d+)/);
+  if (!match) return fallback;
+  const value = Number.parseFloat(match[1]);
+  return Number.isFinite(value) ? value : fallback;
+}
+
 /**
  * RC梁断面描画クラス
  */
@@ -44,8 +53,8 @@ export class RcBeamVisualRenderer {
    *   {width, depth, cover: {top, bottom}, topBar, bottomBar, stirrup, webBar}
    * @returns {string} SVG文字列
    */
-  renderToString(beamData) {
-    const svg = this.renderToElement(beamData);
+  renderToString(beamData, renderOptions = {}) {
+    const svg = this.renderToElement(beamData, renderOptions);
     return svg ? svg.outerHTML : '';
   }
 
@@ -54,7 +63,7 @@ export class RcBeamVisualRenderer {
    * @param {Object} beamData - 梁断面データ
    * @returns {SVGElement}
    */
-  renderToElement(beamData) {
+  renderToElement(beamData, renderOptions = {}) {
     if (!beamData) {
       console.warn('[RcBeamVisualRenderer] beamData is null or undefined');
       return null;
@@ -72,7 +81,10 @@ export class RcBeamVisualRenderer {
     const { maxWidth, maxHeight, padding } = this.settings;
 
     // スケーリング計算
-    const scale = Math.min((maxWidth - padding * 2) / width, (maxHeight - padding * 2) / depth);
+    const scale =
+      Number.isFinite(renderOptions.fixedScale) && renderOptions.fixedScale > 0
+        ? renderOptions.fixedScale
+        : Math.min((maxWidth - padding * 2) / width, (maxHeight - padding * 2) / depth);
 
     const svgWidth = width * scale + padding * 2;
     const svgHeight = depth * scale + padding * 2;
@@ -147,9 +159,11 @@ export class RcBeamVisualRenderer {
 
     const coverTop = (cover.top || 40) * scale;
     const coverBottom = (cover.bottom || 40) * scale;
+    const coverLeft = (cover.left || cover.top || 40) * scale;
+    const coverRight = (cover.right || cover.top || 40) * scale;
 
-    const stirrupLeft = rectX + coverTop - 2;
-    const stirrupRight = rectX + rectW - coverTop + 2;
+    const stirrupLeft = rectX + coverLeft - 1;
+    const stirrupRight = rectX + rectW - coverRight + 1;
     const stirrupTop = rectY + coverTop - 2;
     const stirrupBottom = rectY + rectH - coverBottom + 2;
 
@@ -174,27 +188,21 @@ export class RcBeamVisualRenderer {
     if (!topBar || topBar.count <= 0) return;
 
     const coverTop = (cover.top || 40) * scale;
-    const barRadius = this.settings.barRadius;
+    const coverLeft = (cover.left || cover.top || 40) * scale;
+    const coverRight = (cover.right || cover.top || 40) * scale;
     const dia = topBar.dia || 'D25';
-
-    // 上端筋の配置位置（Y座標）
-    const y = rectY + coverTop + barRadius;
-
-    // 複数本の場合は水平方向に等間隔配置
-    const usableWidth = rectW - coverTop * 2 - barRadius * 2;
-    let xPositions = [];
-
-    if (topBar.count === 1) {
-      xPositions = [rectX + rectW / 2];
-    } else {
-      const spacing = usableWidth / (topBar.count - 1);
-      for (let i = 0; i < topBar.count; i++) {
-        xPositions.push(rectX + coverTop + barRadius + spacing * i);
-      }
-    }
-
+    const { xPositions, barHalf, symbolScale } = this.computeBarLayout(
+      topBar.count,
+      dia,
+      rectX,
+      rectW,
+      coverLeft,
+      coverRight,
+      scale,
+    );
+    const y = rectY + coverTop + barHalf;
     xPositions.forEach((x) => {
-      placeBarSymbol(svg, dia, x, y, this.settings.barScale);
+      placeBarSymbol(svg, dia, x, y, symbolScale);
     });
   }
 
@@ -206,27 +214,21 @@ export class RcBeamVisualRenderer {
     if (!bottomBar || bottomBar.count <= 0) return;
 
     const coverBottom = (cover.bottom || 40) * scale;
-    const barRadius = this.settings.barRadius;
+    const coverLeft = (cover.left || cover.top || 40) * scale;
+    const coverRight = (cover.right || cover.top || 40) * scale;
     const dia = bottomBar.dia || 'D25';
-
-    // 下端筋の配置位置（Y座標）
-    const y = rectY + rectH - coverBottom - barRadius;
-
-    // 複数本の場合は水平方向に等間隔配置
-    const usableWidth = rectW - coverBottom * 2 - barRadius * 2;
-    let xPositions = [];
-
-    if (bottomBar.count === 1) {
-      xPositions = [rectX + rectW / 2];
-    } else {
-      const spacing = usableWidth / (bottomBar.count - 1);
-      for (let i = 0; i < bottomBar.count; i++) {
-        xPositions.push(rectX + coverBottom + barRadius + spacing * i);
-      }
-    }
-
+    const { xPositions, barHalf, symbolScale } = this.computeBarLayout(
+      bottomBar.count,
+      dia,
+      rectX,
+      rectW,
+      coverLeft,
+      coverRight,
+      scale,
+    );
+    const y = rectY + rectH - coverBottom - barHalf;
     xPositions.forEach((x) => {
-      placeBarSymbol(svg, dia, x, y, this.settings.barScale);
+      placeBarSymbol(svg, dia, x, y, symbolScale);
     });
   }
 
@@ -242,26 +244,26 @@ export class RcBeamVisualRenderer {
     const coverBottom = (cover.bottom || 40) * scale;
     const coverLeft = (cover.left || coverTop) * scale;
     const coverRight = (cover.right || coverTop) * scale;
-    const barRadius = this.settings.barRadius;
+    const barHalf = this.computeBarHalfSize(webBar.dia || 'D13', scale);
     const dia = webBar.dia || 'D13';
 
     // 左右両側に配置
-    const xLeft = rectX + coverLeft + barRadius;
-    const xRight = rectX + rectW - coverRight - barRadius;
+    const xLeft = rectX + coverLeft + barHalf;
+    const xRight = rectX + rectW - coverRight - barHalf;
 
     // 上端筋と下端筋の間の領域を均等に分割
-    const usableHeight = rectH - coverTop - coverBottom - barRadius * 2;
+    const usableHeight = rectH - coverTop - coverBottom - barHalf * 2;
     const spacing = usableHeight / (webBar.count + 1);
 
     // 複数本の腹筋を垂直方向に配置
     for (let i = 1; i <= webBar.count; i++) {
-      const y = rectY + coverTop + barRadius + spacing * i;
+      const y = rectY + coverTop + barHalf + spacing * i;
 
       // 左側腹筋
-      placeBarSymbol(svg, dia, xLeft, y, this.settings.barScale * 0.9);
+      placeBarSymbol(svg, dia, xLeft, y, this.computeBarSymbolScale(dia, scale) * 0.9);
 
       // 右側腹筋
-      placeBarSymbol(svg, dia, xRight, y, this.settings.barScale * 0.9);
+      placeBarSymbol(svg, dia, xRight, y, this.computeBarSymbolScale(dia, scale) * 0.9);
     }
   }
 
@@ -296,5 +298,61 @@ export class RcBeamVisualRenderer {
     });
     depthText.textContent = `${depth}`;
     svg.appendChild(depthText);
+  }
+
+  /**
+   * 鉄筋配置（X方向）を計算
+   * @private
+   */
+  computeBarLayout(count, dia, rectX, rectW, coverStart, coverEnd, sectionScale) {
+    const safeCount = Math.max(1, Number.parseInt(count, 10) || 1);
+    const barHalf = this.computeBarHalfSize(
+      dia,
+      sectionScale,
+      safeCount,
+      rectW,
+      coverStart,
+      coverEnd,
+    );
+    const symbolScale = this.computeBarSymbolScale(dia, sectionScale, barHalf);
+    const startX = rectX + coverStart + barHalf;
+    const endX = rectX + rectW - coverEnd - barHalf;
+
+    if (safeCount === 1 || endX <= startX) {
+      return { xPositions: [rectX + rectW / 2], barHalf, symbolScale };
+    }
+
+    const spacing = (endX - startX) / (safeCount - 1);
+    const xPositions = [];
+    for (let i = 0; i < safeCount; i++) {
+      xPositions.push(startX + spacing * i);
+    }
+
+    return { xPositions, barHalf, symbolScale };
+  }
+
+  /**
+   * 表示上の鉄筋半径(px)を計算
+   * @private
+   */
+  computeBarHalfSize(dia, sectionScale, count = 1, rectW = 0, coverStart = 0, coverEnd = 0) {
+    const diaMm = parseBarDiameterMm(dia);
+    const nominalHalf = (diaMm * sectionScale) / 2;
+    const maxByLayout = Math.max(
+      0.9,
+      (rectW - coverStart - coverEnd - (count - 1) * 1.2) / (count * 2),
+    );
+    return Math.max(0.9, Math.min(4.2, nominalHalf, maxByLayout));
+  }
+
+  /**
+   * 鉄筋シンボルのスケールを算出
+   * @private
+   */
+  computeBarSymbolScale(dia, sectionScale, barHalf = null) {
+    const desiredHalf = barHalf ?? this.computeBarHalfSize(dia, sectionScale);
+    // D25シンボル半径6を基準
+    const baseHalf = 6;
+    return (desiredHalf / baseHalf) * this.settings.barScale;
   }
 }

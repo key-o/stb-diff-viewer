@@ -13,9 +13,11 @@ import {
   fitCameraToDxfBounds,
   setLayerVisibility,
   toggleDxfEditMode,
-} from '../viewer/dxfViewer.js';
-import { setState } from './globalState.js';
-import { scene, camera, controls } from '../viewer/index.js';
+  scene,
+  camera,
+  controls,
+} from '../viewer/index.js';
+import { setState, getState } from './globalState.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
 import { exportDxf, getExportStats } from '../export/dxf/dxfExporter.js';
 import {
@@ -28,13 +30,25 @@ import {
   getAvailableStories,
   getAvailableAxes,
 } from '../export/dxf/stb-to-dxf/index.js';
-import { getCurrentStories, getCurrentAxesData, addStateChangeListener } from '../ui/state.js';
 import { DEFAULT_ELEMENT_COLORS } from '../config/colorConfig.js';
 import { ELEMENT_LABELS } from '../config/elementLabels.js';
-import { showError, showWarning } from '../ui/common/toast.js';
-import { eventBus, ExportEvents } from './events/index.js';
+import { eventBus, ExportEvents, ModelEvents, ToastEvents } from './events/index.js';
 
 const log = createLogger('DXFLoader');
+
+// ローカルヘルパー (旧 ui/state.js / ui/common/toast.js の代替)
+function getCurrentStories() {
+  return getState('models.stories') || [];
+}
+function getCurrentAxesData() {
+  return getState('models.axesData') || { xAxes: [], yAxes: [] };
+}
+function showError(message) {
+  eventBus.emit(ToastEvents.SHOW_ERROR, { message });
+}
+function showWarning(message) {
+  eventBus.emit(ToastEvents.SHOW_WARNING, { message });
+}
 
 // DXF状態管理
 let currentDxfData = null;
@@ -664,7 +678,7 @@ function initPlacementOptionsUI() {
   updatePlacementPositionOptions();
 
   // STBモデル読み込み時に配置位置選択肢を自動更新
-  addStateChangeListener(() => {
+  eventBus.on(ModelEvents.LOADED, () => {
     updatePlacementPositionOptions();
   });
 

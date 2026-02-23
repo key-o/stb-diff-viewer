@@ -18,13 +18,12 @@ import { getState } from '../../app/globalState.js';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
 import { eventBus, DiffStatusEvents, ComparisonEvents } from '../../app/events/index.js';
 import { sceneController } from '../../app/controllers/sceneController.js';
-import { scheduleRender } from '../../utils/renderScheduler.js';
 import { createLogger } from '../../utils/logger.js';
+import { BaseFilter } from './BaseFilter.js';
 
 // 設定ファイルから定義をインポート
 import {
   DIFF_STATUS,
-  DIFF_STATUS_NAMES,
   DIFF_STATUS_VALUES,
   getPresetsForFilter,
   DIFF_FILTER_UI_CONFIG,
@@ -39,13 +38,16 @@ const log = createLogger('diffStatusFilter');
  * 差分ステータスフィルタリングクラス
  * 差分ステータス別の表示切り替えを管理
  */
-export class DiffStatusFilter {
+export class DiffStatusFilter extends BaseFilter {
   constructor() {
+    super({
+      log,
+      eventBus,
+      events: DiffStatusEvents,
+      filterName: 'DiffStatus',
+    });
     this.activeFilters = new Set(DIFF_STATUS_VALUES); // デフォルト: 6カテゴリ全て表示
     this.presets = this.createDefaultPresets();
-    this.isEnabled = true;
-    this.filterHistory = [];
-    this.maxHistorySize = 10;
 
     this.setupEventListeners();
   }
@@ -117,22 +119,6 @@ export class DiffStatusFilter {
   }
 
   /**
-   * 複数の差分ステータスを一括設定
-   * @param {Set<string>} statuses - 表示する差分ステータスのSet
-   */
-  setActiveFilters(statuses) {
-    const previousFilters = new Set(this.activeFilters);
-    this.activeFilters = new Set(statuses);
-
-    this.saveToHistory();
-    this.applyFilter();
-    this.notifyFilterChange('bulk', {
-      previousFilters,
-      currentFilters: this.activeFilters,
-    });
-  }
-
-  /**
    * 全ての差分ステータスを表示
    */
   showAllStatuses() {
@@ -169,52 +155,32 @@ export class DiffStatusFilter {
   }
 
   /**
-   * フィルタを適用
+   * 要素からフィルタ値（差分ステータス）を取得
+   * @param {THREE.Object3D} element
+   * @returns {string}
    */
-  applyFilter() {
-    if (!this.isEnabled) {
-      log.info('Diff status filter is disabled');
-      return;
-    }
+  _getFilterValueFromElement(element) {
+    return this.getDiffStatusFromElement(element);
+  }
 
-    try {
-      if (
-        !sceneController.getElementGroups() ||
-        Object.keys(sceneController.getElementGroups()).length === 0
-      ) {
-        log.info('No element groups available for filtering');
-        return;
-      }
+  /**
+   * 要素が表示されるべきかを判定
+   * @param {string} diffStatus - 要素の差分ステータス
+   * @returns {boolean} 表示すべきかどうか
+   */
+  shouldElementBeVisible(diffStatus) {
+    // 差分ステータス情報がない場合はMATCHEDとして扱う
+    const effectiveStatus = diffStatus || DIFF_STATUS.MATCHED;
+    return this.activeFilters.has(effectiveStatus);
+  }
 
-      let totalElements = 0;
-      let visibleElements = 0;
-
-      // sceneController.getElementGroups() may be an object, so use its values
-      Object.values(sceneController.getElementGroups()).forEach((group) => {
-        if (!group || !group.children) return;
-        group.children.forEach((element) => {
-          totalElements++;
-          // 差分ステータス情報を取得
-          const diffStatus = this.getDiffStatusFromElement(element);
-          const shouldBeVisible = this.shouldElementBeVisible(diffStatus);
-          // 可視性を設定
-          element.visible = shouldBeVisible;
-          if (shouldBeVisible) {
-            visibleElements++;
-          }
-        });
-      });
-
-      // 描画更新を要求
-      this.requestRender();
-
-      log.info(`Diff status filter applied: ${visibleElements}/${totalElements} elements visible`);
-
-      // フィルタ適用完了を通知（統計情報を含める）
-      this.notifyFilterApplied(this.getStats());
-    } catch (error) {
-      log.error('Failed to apply diff status filter:', error);
-    }
+  /**
+   * フィルタ適用完了後のコールバック（統計情報付き）
+   * @param {number} _totalElements
+   * @param {number} _visibleElements
+   */
+  _onFilterApplied(_totalElements, _visibleElements) {
+    this.notifyFilterApplied(this.getStats());
   }
 
   /**
@@ -385,147 +351,6 @@ export class DiffStatusFilter {
   }
 
   /**
-   * 要素が表示されるべきかを判定
-   * @param {string} diffStatus - 要素の差分ステータス
-   * @returns {boolean} 表示すべきかどうか
-   */
-  shouldElementBeVisible(diffStatus) {
-    // 差分ステータス情報がない場合はMATCHEDとして扱う
-    const effectiveStatus = diffStatus || DIFF_STATUS.MATCHED;
-    return this.activeFilters.has(effectiveStatus);
-  }
-
-  /**
-   * 描画更新を要求
-   */
-  requestRender() {
-    const viewer = getState('viewer');
-    if (viewer && typeof viewer.requestRender === 'function') {
-      viewer.requestRender();
-    }
-
-    // scheduleRender を使用
-    scheduleRender();
-
-    // カスタム描画更新イベントを発行
-    window.dispatchEvent(
-      new CustomEvent('requestRender', {
-        detail: {
-          reason: 'diffStatusFilter',
-          timestamp: new Date().toISOString(),
-        },
-      }),
-    );
-  }
-
-  /**
-   * フィルタ履歴に保存
-   */
-  saveToHistory() {
-    const currentState = {
-      filters: new Set(this.activeFilters),
-      timestamp: new Date().toISOString(),
-    };
-
-    this.filterHistory.unshift(currentState);
-
-    // 履歴サイズ制限
-    if (this.filterHistory.length > this.maxHistorySize) {
-      this.filterHistory = this.filterHistory.slice(0, this.maxHistorySize);
-    }
-  }
-
-  /**
-   * 前の状態に戻す
-   */
-  undo() {
-    if (this.filterHistory.length > 1) {
-      // 現在の状態を除いて次の状態を取得
-      this.filterHistory.shift();
-      const previousState = this.filterHistory[0];
-
-      this.activeFilters = new Set(previousState.filters);
-      this.applyFilter();
-      this.notifyFilterChange('undo', { previousState });
-
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * フィルタの有効/無効を切り替え
-   * @param {boolean} enabled - 有効化するかどうか
-   */
-  setEnabled(enabled) {
-    const wasEnabled = this.isEnabled;
-    this.isEnabled = enabled;
-
-    if (enabled && !wasEnabled) {
-      // 有効化時: フィルタを適用
-      this.applyFilter();
-    } else if (!enabled && wasEnabled) {
-      // 無効化時: すべての要素を表示
-      this.showAllElements();
-    }
-
-    this.notifyFilterChange('enabledToggle', { enabled, wasEnabled });
-  }
-
-  /**
-   * すべての要素を表示（フィルタ無効化時）
-   */
-  showAllElements() {
-    try {
-      if (
-        !sceneController.getElementGroups() ||
-        Object.keys(sceneController.getElementGroups()).length === 0
-      )
-        return;
-
-      Object.values(sceneController.getElementGroups()).forEach((group) => {
-        if (!group || !group.children) return;
-        group.children.forEach((element) => {
-          element.visible = true;
-        });
-      });
-
-      this.requestRender();
-    } catch (error) {
-      log.error('Failed to show all elements:', error);
-    }
-  }
-
-  /**
-   * フィルタ変更を通知
-   * @param {string} action - 実行されたアクション
-   * @param {Object} details - 詳細情報
-   */
-  notifyFilterChange(action, details = {}) {
-    // EventBus経由でイベントを発行
-    eventBus.emit(DiffStatusEvents.FILTER_CHANGED, {
-      action,
-      activeFilters: Array.from(this.activeFilters),
-      isEnabled: this.isEnabled,
-      timestamp: new Date().toISOString(),
-      ...details,
-    });
-  }
-
-  /**
-   * フィルタ適用完了を通知
-   * @param {Object} stats - 統計情報
-   */
-  notifyFilterApplied(stats) {
-    // EventBus経由でイベントを発行
-    eventBus.emit(DiffStatusEvents.FILTER_APPLIED, {
-      ...stats,
-      isEnabled: this.isEnabled,
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  /**
    * フィルタ変更を処理
    * @param {Object} details - 変更詳細
    */
@@ -541,23 +366,7 @@ export class DiffStatusFilter {
   }
 
   /**
-   * 現在のフィルタ状態を取得
-   * @returns {Object} フィルタ状態情報
-   */
-  getFilterState() {
-    return {
-      activeFilters: Array.from(this.activeFilters),
-      isEnabled: this.isEnabled,
-      presets: Object.keys(this.presets),
-      history: this.filterHistory.map((h) => ({
-        filters: Array.from(h.filters),
-        timestamp: h.timestamp,
-      })),
-    };
-  }
-
-  /**
-   * 統計情報を取得
+   * 統計情報を取得（ステータス別の内訳付き）
    * @returns {Object} フィルタ統計
    */
   getStats() {
@@ -582,7 +391,6 @@ export class DiffStatusFilter {
       byStatus[status] = { total: 0, visible: 0 };
     });
 
-    // sceneController.getElementGroups() may be an object, so use its values
     Object.values(sceneController.getElementGroups()).forEach((group) => {
       if (!group || !group.children) return;
       group.children.forEach((element) => {

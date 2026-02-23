@@ -7,9 +7,10 @@
  */
 
 import { updateLabelVisibility } from '../viewer3d/unifiedLabelManager.js';
-import { applyStoryClip, applyAxisClip } from '../viewer3d/clipping.js';
+import { getStoryClipBounds, getAxisClipBounds } from '../viewer3d/clipping.js';
+import { activateSectionBoxForBounds, deactivateSectionBox } from '../viewer3d/sectionBox.js';
 import { eventBus, AxisEvents, RenderEvents } from '../../app/events/index.js';
-import { getModelData } from '../../app/modelLoader.js';
+import { getState } from '../../app/globalState.js';
 
 /**
  * Setup selector change listeners
@@ -38,10 +39,17 @@ export function setupSelectorChangeListeners() {
  */
 function handleStorySelectionChange(event) {
   const selectedStoryId = event.target.value;
+  const storyRange = parseInt(document.getElementById('storyClipRange')?.value || '1000', 10);
 
-  // Apply story clipping if not "all"
   if (selectedStoryId !== 'all') {
-    applyStoryClip(selectedStoryId);
+    const bounds = getStoryClipBounds(selectedStoryId, storyRange);
+    if (bounds) {
+      activateSectionBoxForBounds(bounds);
+      updateClipControlsVisibility('story');
+    }
+  } else {
+    deactivateSectionBox();
+    updateClipControlsVisibility(null);
   }
 
   // Redraw axes at the selected story level
@@ -61,8 +69,9 @@ function handleStorySelectionChange(event) {
  */
 export function redrawAxesAtStory(targetStoryId) {
   try {
-    const modelData = getModelData();
-    const { stories, axesData, modelBounds } = modelData;
+    const stories = getState('models.stories') || [];
+    const axesData = getState('models.axesData') || { xAxes: [], yAxes: [] };
+    const modelBounds = getState('models.modelBounds') || null;
 
     if (!axesData || (!axesData.xAxes?.length && !axesData.yAxes?.length)) {
       return;
@@ -91,10 +100,17 @@ export function redrawAxesAtStory(targetStoryId) {
  */
 function handleXAxisSelectionChange(event) {
   const selectedAxisId = event.target.value;
+  const axisRange = parseInt(document.getElementById('xAxisClipRange')?.value || '2000', 10);
 
-  // Apply axis clipping if not "all"
   if (selectedAxisId !== 'all') {
-    applyAxisClip('X', selectedAxisId);
+    const bounds = getAxisClipBounds('X', selectedAxisId, axisRange);
+    if (bounds) {
+      activateSectionBoxForBounds(bounds);
+      updateClipControlsVisibility('xAxis');
+    }
+  } else {
+    deactivateSectionBox();
+    updateClipControlsVisibility(null);
   }
 
   // Update label visibility
@@ -110,10 +126,17 @@ function handleXAxisSelectionChange(event) {
  */
 function handleYAxisSelectionChange(event) {
   const selectedAxisId = event.target.value;
+  const axisRange = parseInt(document.getElementById('yAxisClipRange')?.value || '2000', 10);
 
-  // Apply axis clipping if not "all"
   if (selectedAxisId !== 'all') {
-    applyAxisClip('Y', selectedAxisId);
+    const bounds = getAxisClipBounds('Y', selectedAxisId, axisRange);
+    if (bounds) {
+      activateSectionBoxForBounds(bounds);
+      updateClipControlsVisibility('yAxis');
+    }
+  } else {
+    deactivateSectionBox();
+    updateClipControlsVisibility(null);
   }
 
   // Update label visibility
@@ -159,4 +182,36 @@ export function getSelectorStatus() {
     xAxisSelector: !!document.getElementById('xAxisSelector'),
     yAxisSelector: !!document.getElementById('yAxisSelector'),
   };
+}
+
+/**
+ * どのクリッピング範囲UIを表示するか更新
+ * @param {'story'|'xAxis'|'yAxis'|null} type
+ */
+function updateClipControlsVisibility(type) {
+  const controlIds = ['storyClipControls', 'xAxisClipControls', 'yAxisClipControls'];
+  controlIds.forEach((id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.classList.add('hidden');
+    }
+  });
+
+  const groups = document.querySelectorAll('.clipping-group');
+  groups.forEach((group) => {
+    group.classList.remove('active', 'clipping-active');
+  });
+
+  if (!type) {
+    return;
+  }
+
+  const controlElement = document.getElementById(`${type}ClipControls`);
+  if (controlElement) {
+    controlElement.classList.remove('hidden');
+    const groupElement = controlElement.closest('.clipping-group');
+    if (groupElement) {
+      groupElement.classList.add('active', 'clipping-active');
+    }
+  }
 }

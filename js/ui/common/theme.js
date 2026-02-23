@@ -113,4 +113,3 @@ function toggleLightDark() {
   const current = getEffectiveTheme();
   setThemeSetting(current === 'light' ? 'dark' : 'light');
 }
-

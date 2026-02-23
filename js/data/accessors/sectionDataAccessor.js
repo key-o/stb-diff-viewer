@@ -165,7 +165,6 @@ export function getThickness(sectionData, defaultValue = undefined) {
 
 /**
  * 断面データから断面タイプを取得
- * 複数のプロパティ名フォールバックに対応
  *
  * @param {Object} sectionData - 断面データ
  * @param {string} defaultValue - デフォルト値
@@ -174,12 +173,8 @@ export function getThickness(sectionData, defaultValue = undefined) {
 export function getSectionType(sectionData, defaultValue = undefined) {
   if (!sectionData) return defaultValue;
 
-  // 優先順位: section_type > profile_type > sectionType > profile_hint
-  const type =
-    sectionData.section_type ||
-    sectionData.profile_type ||
-    sectionData.sectionType ||
-    sectionData.profile_hint; // フォールバック用ヒント（直接プロパティ）
+  // 優先順位: section_type > profile_hint
+  const type = sectionData.section_type || sectionData.profile_hint; // フォールバック用ヒント（直接プロパティ）
 
   // 直接プロパティで見つからない場合、dimensions 内を確認
   if (!type && sectionData.dimensions) {

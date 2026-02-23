@@ -5,7 +5,7 @@
 
 import { getImportanceManager } from '../app/importanceManager.js';
 import { STB_ELEMENT_TABS } from '../app/importanceManager.js';
-import { createLogger } from './logger.js';
+import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('ImportanceDebug');
 

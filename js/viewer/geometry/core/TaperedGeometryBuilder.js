@@ -33,6 +33,9 @@ import * as THREE from 'three';
 /**
  * 2断面テーパージオメトリを生成
  *
+ * 中空断面（BOX/PIPE）の穴も含めてソリッドメッシュを生成します。
+ * 端面はTHREE.ShapeUtils.triangulateShapeで正確に三角分割します（凹型・穴あり対応）。
+ *
  * @param {ProfileData} startProfile - 始点断面データ
  * @param {ProfileData} endProfile - 終点断面データ
  * @param {number} length - 要素長さ（mm）
@@ -55,28 +58,23 @@ export function createTaperedGeometry(startProfile, endProfile, length, options 
   const indices = [];
   const uvs = [];
 
-  // 断面を長さ方向に補間して配置
+  // === 外側輪郭の側面 ===
   for (let i = 0; i <= segments; i++) {
-    const t = i / segments; // 補間パラメータ（0.0 ～ 1.0）
-    const z = -length / 2 + t * length; // Z座標（中心を原点とする）
+    const t = i / segments;
+    const z = -length / 2 + t * length;
 
-    // 断面の頂点を補間
     for (let j = 0; j < vertexCount; j++) {
       const startVertex = startProfile.vertices[j];
       const endVertex = endProfile.vertices[j];
 
-      // 線形補間
       const x = startVertex.x + t * (endVertex.x - startVertex.x);
       const y = startVertex.y + t * (endVertex.y - startVertex.y);
 
       positions.push(x, y, z);
-
-      // UV座標（仮実装：簡易的な展開）
       uvs.push(j / vertexCount, t);
     }
   }
 
-  // 側面の三角形を生成
   for (let i = 0; i < segments; i++) {
     for (let j = 0; j < vertexCount; j++) {
       const current = i * vertexCount + j;
@@ -84,27 +82,60 @@ export function createTaperedGeometry(startProfile, endProfile, length, options 
       const currentNext = (i + 1) * vertexCount + j;
       const nextNext = (i + 1) * vertexCount + ((j + 1) % vertexCount);
 
-      // 2つの三角形で四角形を構成
       indices.push(current, next, currentNext);
       indices.push(next, nextNext, currentNext);
     }
   }
 
-  // 始点断面のキャップ（底面）
-  const startCap = triangulateProfile(startProfile.vertices, 0, false);
-  indices.push(...startCap);
+  // === 穴の内側側面（BOX/PIPE等の中空断面） ===
+  const startHoles = startProfile.holes || [];
+  const endHoles = endProfile.holes || [];
 
-  // 終点断面のキャップ（天面）
-  const endCap = triangulateProfile(endProfile.vertices, segments * vertexCount, true);
-  indices.push(...endCap);
+  for (let hIdx = 0; hIdx < startHoles.length; hIdx++) {
+    const startHole = startHoles[hIdx];
+    const endHole = endHoles[hIdx] || startHole;
+    const holeVertexCount = startHole.length;
+    const holeBaseOffset = positions.length / 3;
 
-  // BufferGeometryを作成
+    for (let i = 0; i <= segments; i++) {
+      const t = i / segments;
+      const z = -length / 2 + t * length;
+
+      for (let j = 0; j < holeVertexCount; j++) {
+        const sv = startHole[j];
+        const ev = endHole[j];
+
+        const x = sv.x + t * (ev.x - sv.x);
+        const y = sv.y + t * (ev.y - sv.y);
+
+        positions.push(x, y, z);
+        uvs.push(j / holeVertexCount, t);
+      }
+    }
+
+    // 内側側面の三角形（巻き順を逆にして内向き法線）
+    for (let i = 0; i < segments; i++) {
+      for (let j = 0; j < holeVertexCount; j++) {
+        const c = holeBaseOffset + i * holeVertexCount + j;
+        const n = holeBaseOffset + i * holeVertexCount + ((j + 1) % holeVertexCount);
+        const cn = holeBaseOffset + (i + 1) * holeVertexCount + j;
+        const nn = holeBaseOffset + (i + 1) * holeVertexCount + ((j + 1) % holeVertexCount);
+
+        indices.push(c, cn, n);
+        indices.push(n, cn, nn);
+      }
+    }
+  }
+
+  // === 端面キャップ（ShapeUtils使用：凹型・穴あり対応） ===
+  buildEndCapWithHoles(startProfile, -length / 2, positions, indices, uvs, false);
+  buildEndCapWithHoles(endProfile, length / 2, positions, indices, uvs, true);
+
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setIndex(indices);
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
 
-  // 法線を自動計算
   geometry.computeVertexNormals();
 
   return geometry;
@@ -112,6 +143,9 @@ export function createTaperedGeometry(startProfile, endProfile, length, options 
 
 /**
  * 3断面以上のテーパージオメトリを生成（ハンチ対応）
+ *
+ * 中空断面（BOX/PIPE）の穴も含めてソリッドメッシュを生成します。
+ * 端面はTHREE.ShapeUtils.triangulateShapeで正確に三角分割します（凹型・穴あり対応）。
  *
  * @param {Array<SectionData>} sections - 断面配列
  * @param {number} length - 要素長さ（mm）
@@ -121,17 +155,28 @@ export function createTaperedGeometry(startProfile, endProfile, length, options 
  * @returns {THREE.BufferGeometry} テーパージオメトリ
  */
 export function createMultiSectionGeometry(sections, length, haunchLengths = {}) {
-  const { start: haunchStart = 0, end: haunchEnd = 0 } = haunchLengths;
+  const {
+    start: haunchStart = 0,
+    end: haunchEnd = 0,
+    kindStart = 'SLOPE',
+    kindEnd = 'SLOPE',
+  } = haunchLengths;
 
-  // セグメントの境界位置を計算
-  const boundaries = calculateSegmentBoundaries(sections, length, haunchStart, haunchEnd);
+  const boundaries = calculateSegmentBoundaries(
+    sections,
+    length,
+    haunchStart,
+    haunchEnd,
+    kindStart,
+    kindEnd,
+  );
 
   const positions = [];
   const indices = [];
   const uvs = [];
-  let vertexOffset = 0;
+  let outerVertexOffset = 0;
 
-  // セグメントごとにジオメトリを生成
+  // セグメントごとに外側輪郭・内側穴の側面を生成
   for (let segIdx = 0; segIdx < boundaries.length - 1; segIdx++) {
     const segStart = boundaries[segIdx];
     const segEnd = boundaries[segIdx + 1];
@@ -141,13 +186,10 @@ export function createMultiSectionGeometry(sections, length, haunchLengths = {})
 
     const startProfile = segStart.profile;
     const endProfile = segEnd.profile;
-
-    // このセグメントの頂点数
     const vertexCount = startProfile.vertices.length;
-
-    // セグメント内を分割（簡易実装: 1分割）
     const segSegments = 1;
 
+    // === 外側輪郭の側面 ===
     for (let i = 0; i <= segSegments; i++) {
       const t = i / segSegments;
       const z = -length / 2 + segStart.position + t * segLength;
@@ -167,35 +209,72 @@ export function createMultiSectionGeometry(sections, length, haunchLengths = {})
       }
     }
 
-    // このセグメントの側面三角形
     for (let i = 0; i < segSegments; i++) {
       for (let j = 0; j < vertexCount; j++) {
-        const current = vertexOffset + i * vertexCount + j;
-        const next = vertexOffset + i * vertexCount + ((j + 1) % vertexCount);
-        const currentNext = vertexOffset + (i + 1) * vertexCount + j;
-        const nextNext = vertexOffset + (i + 1) * vertexCount + ((j + 1) % vertexCount);
+        const current = outerVertexOffset + i * vertexCount + j;
+        const next = outerVertexOffset + i * vertexCount + ((j + 1) % vertexCount);
+        const currentNext = outerVertexOffset + (i + 1) * vertexCount + j;
+        const nextNext = outerVertexOffset + (i + 1) * vertexCount + ((j + 1) % vertexCount);
 
         indices.push(current, next, currentNext);
         indices.push(next, nextNext, currentNext);
       }
     }
 
-    vertexOffset += (segSegments + 1) * vertexCount;
+    outerVertexOffset += (segSegments + 1) * vertexCount;
+
+    // === 穴の内側側面（BOX/PIPE等の中空断面） ===
+    const startHoles = startProfile.holes || [];
+    const endHoles = endProfile.holes || [];
+
+    for (let hIdx = 0; hIdx < startHoles.length; hIdx++) {
+      const startHole = startHoles[hIdx];
+      const endHole = endHoles[hIdx] || startHole;
+      const holeVertexCount = startHole.length;
+      const holeBaseOffset = positions.length / 3;
+
+      for (let i = 0; i <= segSegments; i++) {
+        const t = i / segSegments;
+        const z = -length / 2 + segStart.position + t * segLength;
+
+        for (let j = 0; j < holeVertexCount; j++) {
+          const sv = startHole[j];
+          const ev = endHole[j];
+
+          const x = sv.x + t * (ev.x - sv.x);
+          const y = sv.y + t * (ev.y - sv.y);
+
+          positions.push(x, y, z);
+
+          const u = j / holeVertexCount;
+          const v = (segStart.position + t * segLength) / length;
+          uvs.push(u, v);
+        }
+      }
+
+      // 内側側面の三角形（巻き順を逆にして内向き法線）
+      for (let i = 0; i < segSegments; i++) {
+        for (let j = 0; j < holeVertexCount; j++) {
+          const c = holeBaseOffset + i * holeVertexCount + j;
+          const n = holeBaseOffset + i * holeVertexCount + ((j + 1) % holeVertexCount);
+          const cn = holeBaseOffset + (i + 1) * holeVertexCount + j;
+          const nn = holeBaseOffset + (i + 1) * holeVertexCount + ((j + 1) % holeVertexCount);
+
+          indices.push(c, cn, n);
+          indices.push(n, cn, nn);
+        }
+      }
+    }
   }
 
-  // 始点・終点のキャップ
+  // === 端面キャップ（ShapeUtils使用：凹型・穴あり対応） ===
   const firstProfile = boundaries[0].profile;
   const lastProfile = boundaries[boundaries.length - 1].profile;
+  const startZ = -length / 2 + boundaries[0].position;
+  const endZ = -length / 2 + boundaries[boundaries.length - 1].position;
 
-  const startCap = triangulateProfile(firstProfile.vertices, 0, false);
-  indices.push(...startCap);
-
-  const endCap = triangulateProfile(
-    lastProfile.vertices,
-    positions.length / 3 - lastProfile.vertices.length,
-    true,
-  );
-  indices.push(...endCap);
+  buildEndCapWithHoles(firstProfile, startZ, positions, indices, uvs, false);
+  buildEndCapWithHoles(lastProfile, endZ, positions, indices, uvs, true);
 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
@@ -207,18 +286,80 @@ export function createMultiSectionGeometry(sections, length, haunchLengths = {})
 }
 
 /**
+ * 端面キャップをソリッドメッシュとして生成
+ *
+ * THREE.ShapeUtils.triangulateShapeを使用して凹型輪郭・穴あり断面に正確に対応します。
+ * - H形鋼などの凹型輪郭 → Fan Triangulationでは誤りになるが、ShapeUtilsは正確に処理
+ * - BOX/PIPE等の穴あり断面 → 穴の頂点も含めて環状端面を生成
+ *
+ * @param {ProfileData} profile - プロファイルデータ（vertices + holes）
+ * @param {number} z - キャップのZ座標
+ * @param {number[]} positions - 頂点座標配列（追記される）
+ * @param {number[]} indices - インデックス配列（追記される）
+ * @param {number[]} uvs - UV座標配列（追記される）
+ * @param {boolean} reverse - 法線を反転するか（天面=true、底面=false）
+ */
+function buildEndCapWithHoles(profile, z, positions, indices, uvs, reverse) {
+  const baseIndex = positions.length / 3;
+  const contour = profile.vertices;
+  const holes = profile.holes || [];
+  // three.js r182 以降の triangulateShape は Vector2 の equals() を前提とする
+  const contour2D = contour.map((v) => new THREE.Vector2(v.x, v.y));
+  const holes2D = holes.map((hole) => hole.map((v) => new THREE.Vector2(v.x, v.y)));
+
+  // 外形頂点を追加
+  for (const v of contour) {
+    positions.push(v.x, v.y, z);
+    uvs.push(0, 0);
+  }
+
+  // 穴の頂点を追加（ShapeUtils返却インデックスと対応させるため、外形の直後に連結）
+  for (const hole of holes) {
+    for (const v of hole) {
+      positions.push(v.x, v.y, z);
+      uvs.push(0, 0);
+    }
+  }
+
+  // ShapeUtilsで三角分割（凹型多角形・穴あり断面に対応）
+  // 返却インデックス: 0..contour.length-1 → 外形, 以降 → 穴（連結順）
+  const triangles = THREE.ShapeUtils.triangulateShape(contour2D, holes2D);
+
+  for (const [a, b, c] of triangles) {
+    if (reverse) {
+      indices.push(baseIndex + a, baseIndex + c, baseIndex + b);
+    } else {
+      indices.push(baseIndex + a, baseIndex + b, baseIndex + c);
+    }
+  }
+}
+
+/**
  * セグメント境界位置を計算
  *
  * Joint/Haunch梁の場合、各断面は「領域」を表すため、
  * 均一区間と急激な断面変化を正しく表現するように境界を生成します。
  *
+ * ハンチ種別による遷移の違い:
+ * - SLOPE: ハンチ区間内でスムーズにテーパー遷移（接続面が同断面）
+ * - DROP: ハンチ境界で急激に断面変化（接続面が別断面）
+ *
  * @param {Array<SectionData>} sections - 断面配列
  * @param {number} length - 全体長さ（mm）
  * @param {number} haunchStart - 始端ハンチ/ジョイント長さ（mm）
  * @param {number} haunchEnd - 終端ハンチ/ジョイント長さ（mm）
+ * @param {string} kindStart - 始端ハンチ種別（'SLOPE' or 'DROP'）
+ * @param {string} kindEnd - 終端ハンチ種別（'SLOPE' or 'DROP'）
  * @returns {Array<SegmentBoundary>} 境界位置配列
  */
-function calculateSegmentBoundaries(sections, length, haunchStart, haunchEnd) {
+function calculateSegmentBoundaries(
+  sections,
+  length,
+  haunchStart,
+  haunchEnd,
+  kindStart = 'SLOPE',
+  kindEnd = 'SLOPE',
+) {
   const boundaries = [];
 
   // 断面位置の分析
@@ -234,54 +375,75 @@ function calculateSegmentBoundaries(sections, length, haunchStart, haunchEnd) {
   // 急激な断面変化を表現するための最小オフセット（mm）
   const EPSILON = 0.1;
 
-  // === 3断面パターン (START/CENTER/END) - Joint梁 ===
+  // === 3断面パターン (START/CENTER/END) - 両側ハンチ/ジョイント ===
   if (hasStart && hasCenter && hasEnd && haunchStart > 0 && haunchEnd > 0) {
-    // START領域: 0 ～ haunchStart (均一)
-    // CENTER領域: haunchStart ～ (length - haunchEnd) (均一)
-    // END領域: (length - haunchEnd) ～ length (均一)
+    // 始端ハンチ区間
     boundaries.push({ position: 0, profile: posMap['START'] });
-    boundaries.push({ position: haunchStart - EPSILON, profile: posMap['START'] });
-    boundaries.push({ position: haunchStart, profile: posMap['CENTER'] });
-    boundaries.push({ position: length - haunchEnd, profile: posMap['CENTER'] });
-    boundaries.push({ position: length - haunchEnd + EPSILON, profile: posMap['END'] });
-    boundaries.push({ position: length, profile: posMap['END'] });
-  }
-  // === 3断面パターン (START/CENTER/END) - ジョイント長さが片方のみ ===
-  else if (hasStart && hasCenter && hasEnd && (haunchStart > 0 || haunchEnd > 0)) {
-    boundaries.push({ position: 0, profile: posMap['START'] });
-    if (haunchStart > 0) {
+    if (kindStart === 'DROP') {
+      // DROP: 始端区間は均一 → 境界で急変
       boundaries.push({ position: haunchStart - EPSILON, profile: posMap['START'] });
       boundaries.push({ position: haunchStart, profile: posMap['CENTER'] });
+    } else {
+      // SLOPE: 始端からCENTERへスムーズにテーパー
+      boundaries.push({ position: haunchStart, profile: posMap['CENTER'] });
     }
-    // CENTERの中間点
-    const centerMid = (haunchStart || 0) + (length - (haunchEnd || 0) - (haunchStart || 0)) / 2;
-    if (haunchStart === 0 && haunchEnd > 0) {
-      boundaries.push({ position: centerMid, profile: posMap['CENTER'] });
-    }
-    if (haunchEnd > 0) {
-      boundaries.push({ position: length - haunchEnd, profile: posMap['CENTER'] });
+
+    // CENTER区間（均一）
+    boundaries.push({ position: length - haunchEnd, profile: posMap['CENTER'] });
+
+    // 終端ハンチ区間
+    if (kindEnd === 'DROP') {
+      // DROP: 境界で急変 → 終端区間は均一
       boundaries.push({ position: length - haunchEnd + EPSILON, profile: posMap['END'] });
     }
     boundaries.push({ position: length, profile: posMap['END'] });
   }
-  // === 2断面パターン (START/CENTER) - 始端ジョイント ===
+  // === 3断面パターン (START/CENTER/END) - 片側のみハンチ/ジョイント ===
+  else if (hasStart && hasCenter && hasEnd && (haunchStart > 0 || haunchEnd > 0)) {
+    boundaries.push({ position: 0, profile: posMap['START'] });
+    if (haunchStart > 0) {
+      if (kindStart === 'DROP') {
+        boundaries.push({ position: haunchStart - EPSILON, profile: posMap['START'] });
+        boundaries.push({ position: haunchStart, profile: posMap['CENTER'] });
+      } else {
+        // SLOPE: スムーズテーパー
+        boundaries.push({ position: haunchStart, profile: posMap['CENTER'] });
+      }
+    }
+    // CENTERの中間点（始端ハンチなしの場合）
+    if (haunchStart === 0 && haunchEnd > 0) {
+      const centerMid = (length - haunchEnd) / 2;
+      boundaries.push({ position: centerMid, profile: posMap['CENTER'] });
+    }
+    if (haunchEnd > 0) {
+      boundaries.push({ position: length - haunchEnd, profile: posMap['CENTER'] });
+      if (kindEnd === 'DROP') {
+        boundaries.push({ position: length - haunchEnd + EPSILON, profile: posMap['END'] });
+      }
+    }
+    boundaries.push({ position: length, profile: posMap['END'] });
+  }
+  // === 2断面パターン (START/CENTER) - 始端ジョイント/ハンチ ===
   else if (hasStart && hasCenter && !hasEnd) {
-    // START領域: 0 ～ haunchStart
-    // CENTER領域: haunchStart ～ length (均一)
     const transitionPos = haunchStart > 0 ? haunchStart : length * 0.2;
     boundaries.push({ position: 0, profile: posMap['START'] });
-    boundaries.push({ position: transitionPos - EPSILON, profile: posMap['START'] });
-    boundaries.push({ position: transitionPos, profile: posMap['CENTER'] });
+    if (kindStart === 'DROP') {
+      boundaries.push({ position: transitionPos - EPSILON, profile: posMap['START'] });
+      boundaries.push({ position: transitionPos, profile: posMap['CENTER'] });
+    } else {
+      // SLOPE: スムーズテーパー
+      boundaries.push({ position: transitionPos, profile: posMap['CENTER'] });
+    }
     boundaries.push({ position: length, profile: posMap['CENTER'] });
   }
-  // === 2断面パターン (CENTER/END) - 終端ジョイント ===
+  // === 2断面パターン (CENTER/END) - 終端ジョイント/ハンチ ===
   else if (!hasStart && hasCenter && hasEnd) {
-    // CENTER領域: 0 ～ (length - haunchEnd) (均一)
-    // END領域: (length - haunchEnd) ～ length
     const transitionPos = haunchEnd > 0 ? length - haunchEnd : length * 0.8;
     boundaries.push({ position: 0, profile: posMap['CENTER'] });
     boundaries.push({ position: transitionPos, profile: posMap['CENTER'] });
-    boundaries.push({ position: transitionPos + EPSILON, profile: posMap['END'] });
+    if (kindEnd === 'DROP') {
+      boundaries.push({ position: transitionPos + EPSILON, profile: posMap['END'] });
+    }
     boundaries.push({ position: length, profile: posMap['END'] });
   }
   // === 2断面パターン (START/END) - 両端テーパー ===
@@ -319,35 +481,6 @@ function calculateSegmentBoundaries(sections, length, haunchStart, haunchEnd) {
   boundaries.sort((a, b) => a.position - b.position);
 
   return boundaries;
-}
-
-/**
- * プロファイルの三角形分割（Ear Clipping法の簡易実装）
- *
- * @param {Array<{x: number, y: number}>} vertices - 頂点配列
- * @param {number} baseIndex - ベースインデックス
- * @param {boolean} reverse - 法線方向を反転（天面用）
- * @returns {Array<number>} インデックス配列
- */
-function triangulateProfile(vertices, baseIndex, reverse) {
-  const indices = [];
-  const n = vertices.length;
-
-  if (n < 3) {
-    console.warn('triangulateProfile: Not enough vertices for triangulation');
-    return indices;
-  }
-
-  // 簡易実装: Fan Triangulation（凸多角形を仮定）
-  for (let i = 1; i < n - 1; i++) {
-    if (reverse) {
-      indices.push(baseIndex, baseIndex + i + 1, baseIndex + i);
-    } else {
-      indices.push(baseIndex, baseIndex + i, baseIndex + i + 1);
-    }
-  }
-
-  return indices;
 }
 
 /**

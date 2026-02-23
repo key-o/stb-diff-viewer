@@ -9,9 +9,12 @@ import {
   isSchemaLoaded,
   getAllAttributeNames,
   getAttributeInfo,
-} from '../../../common-stb/parser/xsdSchemaParser.js';
-import { getValidationStyles } from '../../../common-stb/validation/validationManager.js';
-import { getImportanceCircleHtml } from './ImportanceColors.js';
+} from '../../../common-stb/import/parser/jsonSchemaLoader.js';
+import {
+  getValidationStyles,
+  getElementValidation,
+} from '../../../common-stb/validation/validationManager.js';
+import { getImportanceCircleHtml, getImportanceCircleHtmlByPath } from './ImportanceColors.js';
 import {
   findSectionNode,
   extractSectionData,
@@ -21,6 +24,138 @@ import {
 import { evaluateSectionEquivalence } from './ElementInfoProviders.js';
 import { isEditMode, getCurrentEditingElement } from './EditMode.js';
 import { getState } from '../../../app/globalState.js';
+
+/**
+ * XML要素からXPath形式のパスを構築する。
+ * 要素の親チェーンを辿ることで、ネストされた断面子要素でも
+ * 重要度設定と一致する正確なパスを生成する。
+ * @param {Element} xmlElement - XML要素ノード
+ * @returns {string|null} XPath形式のパス（構築できない場合はnull）
+ */
+function buildXPathFromXmlElement(xmlElement) {
+  if (!xmlElement || !xmlElement.tagName) return null;
+  const parts = [];
+  let current = xmlElement;
+  while (current && current.tagName) {
+    parts.unshift(current.tagName);
+    current = current.parentElement;
+  }
+  return '//' + parts.join('/');
+}
+
+/**
+ * 属性名の比較用に正規化
+ * @param {string} attributeName
+ * @returns {string}
+ */
+function normalizeAttributeName(attributeName) {
+  return typeof attributeName === 'string' ? attributeName.toLowerCase() : '';
+}
+
+/**
+ * 要素名を比較用に正規化（名前空間除去 + 小文字化）
+ * @param {string} elementName
+ * @returns {string}
+ */
+function normalizeElementName(elementName) {
+  if (typeof elementName !== 'string') return '';
+  const noPrefix = elementName.includes(':') ? elementName.split(':').pop() : elementName;
+  return noPrefix ? noPrefix.toLowerCase() : '';
+}
+
+/**
+ * title属性向けの最小HTMLエスケープ
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeHtmlAttribute(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/**
+ * 要素IDに紐づく属性別バリデーション結果を取得
+ * @param {string} elementId
+ * @param {{targetElementName?: string}} [options]
+ * @returns {Map<string, {status: string, messages: string[]}>}
+ */
+function buildAttributeValidationStatusMap(elementId, options = {}) {
+  const result = new Map();
+  const { targetElementName = '' } = options;
+  const normalizedTargetElement = normalizeElementName(targetElementName);
+
+  if (!elementId) return result;
+
+  const validation = getElementValidation(elementId);
+  if (!validation) return result;
+
+  const mergeIssue = (issue, severity) => {
+    if (normalizedTargetElement) {
+      const issueElementName = normalizeElementName(issue?.elementType);
+      if (issueElementName && issueElementName !== normalizedTargetElement) {
+        return;
+      }
+    }
+
+    const attrKey = normalizeAttributeName(issue?.attribute);
+    if (!attrKey) return;
+
+    const existing = result.get(attrKey);
+    const currentStatus = existing?.status;
+    const nextStatus = currentStatus === 'error' || severity === 'error' ? 'error' : 'warning';
+    const messages = existing?.messages ?? [];
+
+    if (issue?.message && !messages.includes(issue.message)) {
+      messages.push(issue.message);
+    }
+
+    result.set(attrKey, { status: nextStatus, messages });
+  };
+
+  for (const error of validation.errors || []) {
+    mergeIssue(error, 'error');
+  }
+  for (const warning of validation.warnings || []) {
+    mergeIssue(warning, 'warning');
+  }
+
+  return result;
+}
+
+/**
+ * 属性名に対応するセルの装飾情報を取得
+ * @param {string} attrName
+ * @param {Map<string, {status: string, messages: string[]}>} validationMap
+ * @returns {{className: string, titleAttr: string}}
+ */
+function getValidationCellMeta(attrName, validationMap) {
+  const attrKey = normalizeAttributeName(attrName);
+  const validation = attrKey ? validationMap.get(attrKey) : null;
+
+  if (!validation) {
+    return { className: '', titleAttr: '' };
+  }
+
+  const className = validation.status === 'error' ? 'validation-error' : 'validation-warning';
+  const title = validation.messages?.length
+    ? ` title="${escapeHtmlAttribute(validation.messages.join('\n'))}"`
+    : '';
+
+  return { className, titleAttr: title };
+}
+
+/**
+ * td用class属性文字列を生成
+ * @param {...string} classNames
+ * @returns {string}
+ */
+function buildCellClassAttr(...classNames) {
+  const filtered = classNames.filter(Boolean);
+  return filtered.length > 0 ? ` class="${filtered.join(' ')}"` : '';
+}
 
 /**
  * 単一ノードの折りたたみ可能な座標ブロックを生成する
@@ -238,8 +373,10 @@ function renderSteelSectionBlock(
   attrIndentStyle,
   parentRowId,
 ) {
-  const resultA = shapeA ? findSteelSectionElement(window.docA || window.docB, shapeA) : null;
-  const resultB = shapeB ? findSteelSectionElement(window.docB || window.docA, shapeB) : null;
+  const docA = getState('models.documentA');
+  const docB = getState('models.documentB');
+  const resultA = shapeA ? findSteelSectionElement(docA || docB, shapeA) : null;
+  const resultB = shapeB ? findSteelSectionElement(docB || docA, shapeB) : null;
   if (!resultA && !resultB) return '';
 
   const shape = shapeA || shapeB;
@@ -339,8 +476,10 @@ function renderOpeningPropertiesBlock(
   attrIndentStyle,
   parentRowId,
 ) {
-  const openElA = openIdA ? findOpeningXmlElement(window.docA, openIdA) : null;
-  const openElB = openIdB ? findOpeningXmlElement(window.docB, openIdB) : null;
+  const docA = getState('models.documentA');
+  const docB = getState('models.documentB');
+  const openElA = openIdA ? findOpeningXmlElement(docA, openIdA) : null;
+  const openElB = openIdB ? findOpeningXmlElement(docB, openIdB) : null;
   if (!openElA && !openElB) return '';
 
   const openId = openIdA || openIdB;
@@ -368,14 +507,14 @@ function renderOpeningPropertiesBlock(
   const idSectionA = attrsA.get('id_section');
   const idSectionB = attrsB.get('id_section');
   if (idSectionA && !attrsA.has('length_X')) {
-    const dims = findOpeningSectionDimensions(window.docA, idSectionA);
+    const dims = findOpeningSectionDimensions(docA, idSectionA);
     if (dims) {
       if (dims.length_X) attrsA.set('length_X', dims.length_X);
       if (dims.length_Y) attrsA.set('length_Y', dims.length_Y);
     }
   }
   if (idSectionB && !attrsB.has('length_X')) {
-    const dims = findOpeningSectionDimensions(window.docB, idSectionB);
+    const dims = findOpeningSectionDimensions(docB, idSectionB);
     if (dims) {
       if (dims.length_X) attrsB.set('length_X', dims.length_X);
       if (dims.length_Y) attrsB.set('length_Y', dims.length_Y);
@@ -450,18 +589,18 @@ export function renderOpeningInfo(nodeA, nodeB, showSingleColumn) {
   if (hasOpenIdListA || hasOpenIdListB) return '';
 
   // v2.1.0: StbOpenArrangement[@id_member="wallId"][@kind_member="WALL"] を検索
+  const docA = getState('models.documentA');
+  const docB = getState('models.documentB');
   const openingsA = wallIdA
     ? Array.from(
-        window.docA?.querySelectorAll(
-          `StbOpenArrangement[id_member="${wallIdA}"][kind_member="WALL"]`,
-        ) || [],
+        docA?.querySelectorAll(`StbOpenArrangement[id_member="${wallIdA}"][kind_member="WALL"]`) ||
+          [],
       )
     : [];
   const openingsB = wallIdB
     ? Array.from(
-        window.docB?.querySelectorAll(
-          `StbOpenArrangement[id_member="${wallIdB}"][kind_member="WALL"]`,
-        ) || [],
+        docB?.querySelectorAll(`StbOpenArrangement[id_member="${wallIdB}"][kind_member="WALL"]`) ||
+          [],
       )
     : [];
 
@@ -491,8 +630,8 @@ export function renderOpeningInfo(nodeA, nodeB, showSingleColumn) {
     // StbSecOpen_RCの寸法補完行を追加
     const idSectionA = elA?.getAttribute('id_section');
     const idSectionB = elB?.getAttribute('id_section');
-    const dimsA = findOpeningSectionDimensions(window.docA, idSectionA);
-    const dimsB = findOpeningSectionDimensions(window.docB, idSectionB);
+    const dimsA = findOpeningSectionDimensions(docA, idSectionA);
+    const dimsB = findOpeningSectionDimensions(docB, idSectionB);
     if (dimsA || dimsB) {
       const secRowId = `row_sec_open_${openId}_${Math.random().toString(36).slice(2, 7)}`;
       const indentStyle = 'padding-left: 1.5em;';
@@ -618,37 +757,57 @@ export function generateTableStyles(showSingleColumn) {
         table-layout: fixed;
     }
     .unified-comparison-table th, .unified-comparison-table td {
-        border: 1px solid #e0e0e0; padding: 3px 5px; text-align: left; vertical-align: top;
+        border-bottom: 1px solid var(--border-color); padding: 6px 8px; text-align: left; vertical-align: top;
         word-wrap: break-word;
     }
-    .unified-comparison-table th { background-color: #f8f8f8; font-weight: bold; }
+    .unified-comparison-table th { background-color: var(--bg-secondary); font-weight: var(--font-weight-semibold); color: var(--text-heading); }
 
     /* 要素名の行 */
     .unified-comparison-table tr.element-row > td:first-child {
-         background-color: #f0f8ff; /* 要素行の背景色 */
+         background-color: var(--bg-hover); /* 要素行の背景色を少し薄く */
          white-space: nowrap;
          overflow: hidden;
          text-overflow: ellipsis;
-         font-weight: bold; /* 要素名を太字に */
+         font-weight: var(--font-weight-semibold);
+         color: var(--color-primary);
+         border-bottom: 2px solid var(--border-color-light); /* 区切りを少し強調 */
     }
     /* 属性名/ラベルの行 */
+    .unified-comparison-table tr:not(.element-row):hover {
+         background-color: var(--bg-hover, rgba(0, 0, 0, 0.05));
+    }
     .unified-comparison-table tr:not(.element-row) > td:first-child {
-         color: #666; /* 属性名/ラベルの色 */
+         color: var(--text-secondary); /* 属性名/ラベルの色 */
          white-space: nowrap;
+         padding-left: 12px; /* インデントを模倣 */
     }
     /* 差分ハイライト */
     .unified-comparison-table td.differs {
         background-color: #fff3cd;
-        font-weight: bold;
+        font-weight: var(--font-weight-bold);
+        color: var(--color-warning); /* 文字色も警告色に */
+    }
+    .unified-comparison-table td.validation-error {
+        background-color: #ffebee;
+        color: #b71c1c;
+    }
+    .unified-comparison-table td.validation-warning {
+        background-color: #fff8e1;
+        color: #8d5200;
+    }
+    .unified-comparison-table td.differs.validation-error {
+        background-color: #ffcdd2;
+    }
+    .unified-comparison-table td.differs.validation-warning {
+        background-color: #ffe0b2;
     }
     /* 断面情報ヘッダー行 */
     .unified-comparison-table tr.section-header-row > td {
-        background-color: #e9ecef;
-        font-weight: bold;
+        background-color: var(--bg-secondary);
+        font-weight: var(--font-weight-semibold);
         text-align: center;
-        padding: 5px;
-        border-top: 2px solid #ccc; /* 上に区切り線 */
-        margin-top: 5px; /* 少し間隔を空ける */
+        padding: 8px;
+        border-top: 2px solid var(--border-color); /* 上に区切り線 */
     }
 
     /* テキスト要素のスタイル */
@@ -710,8 +869,10 @@ export function renderSectionInfo(nodeA, nodeB, showSingleColumn, modelSource, e
 
   let content = '';
 
-  const sectionNodeA = sectionIdA ? findSectionNode(window.docA, sectionIdA) : null;
-  const sectionNodeB = sectionIdB ? findSectionNode(window.docB, sectionIdB) : null;
+  const docA = getState('models.documentA');
+  const docB = getState('models.documentB');
+  const sectionNodeA = sectionIdA ? findSectionNode(docA, sectionIdA) : null;
+  const sectionNodeB = sectionIdB ? findSectionNode(docB, sectionIdB) : null;
 
   // 断面等価性評価の実行（比較モードの場合のみ）
   let equivalenceResult = null;
@@ -815,6 +976,7 @@ function matchChildrenByPos(childrenA, childrenB) {
  * @param {boolean} showSingleColumn - 単一モデル表示かどうか。
  * @param {string | null} modelSource - 要素のモデルソース ('A', 'B', 'matched', またはnull)
  * @param {string | null} elementType - 要素タイプ (色付け用)
+ * @param {{idA: string, idB: string}} [validationContext] - 子要素に継承する検証アンカーID
  * @returns {string} テーブル行(<tr>...</tr>)のHTML文字列。子孫要素の行も含む。
  */
 export function renderComparisonRecursive(
@@ -825,6 +987,7 @@ export function renderComparisonRecursive(
   showSingleColumn = false,
   modelSource = null,
   elementType = null,
+  validationContext = { idA: '', idB: '' },
 ) {
   if (!nodeA && !nodeB) return ''; // 両方なければ何も表示しない
 
@@ -838,6 +1001,14 @@ export function renderComparisonRecursive(
   const displayTagName = tagNameA ?? tagNameB;
   const idA = nodeA?.getAttribute?.('id') ?? '';
   const idB = nodeB?.getAttribute?.('id') ?? '';
+  const effectiveValidationIdA = idA || validationContext.idA || '';
+  const effectiveValidationIdB = idB || validationContext.idB || '';
+  const attrValidationMapA = buildAttributeValidationStatusMap(effectiveValidationIdA, {
+    targetElementName: displayTagName,
+  });
+  const attrValidationMapB = buildAttributeValidationStatusMap(effectiveValidationIdB, {
+    targetElementName: displayTagName,
+  });
   const rowId = `row_${displayTagName}_${idA}_${idB}_${level}_${Math.random()
     .toString(36)
     .slice(2, 7)}`;
@@ -914,37 +1085,42 @@ export function renderComparisonRecursive(
       const documentation = attrInfo?.documentation;
 
       // 重要度インジケータ（属性名セルに丸で表示）
-      const importanceCircle = getImportanceCircleHtml(currentElementType, attrName);
+      // XML要素の階層構造から正確なパスを構築して重要度を参照する
+      const xmlNode = nodeA || nodeB;
+      const elementXPath = buildXPathFromXmlElement(xmlNode);
+      const importanceCircle = elementXPath
+        ? getImportanceCircleHtmlByPath(elementXPath + '/@' + attrName)
+        : getImportanceCircleHtml(currentElementType, attrName);
 
-      // 属性ラベルの構築（XSD赤丸 + 重要度丸 + 属性名 + デフォルト値）
-      let attrLabel = '';
-      if (attrInfo && isRequired)
-        attrLabel +=
-          '<span style="color:red;font-size:var(--font-size-md);" title="XSD必須パラメータ">&#9679;</span> ';
-      attrLabel += importanceCircle;
-      attrLabel += attrName;
+      // 属性ラベルの構築（XSD丸 + S2丸 + S4丸 + 属性名 + デフォルト値）
+      const xsdIndicator = `<span style="display:inline-block;width:1em;text-align:center;color:#D32F2F;font-size:var(--font-size-sm);line-height:1;opacity:${isRequired ? '1' : '0.65'};" title="${isRequired ? 'XSD: 必須' : 'XSD: 任意'}">${isRequired ? '&#9679;' : '&#9675;'}</span>`;
+      let attrLabel = `${xsdIndicator}${importanceCircle} ${attrName}`;
       if (attrInfo && hasDefault)
         attrLabel += ` <span style="color:blue;font-size:var(--font-size-sm);" title="デフォルト値: ${hasDefault}">(${hasDefault})</span>`;
 
       const titleAttr = documentation ? ` title="${documentation}"` : '';
+      const validationMetaA = getValidationCellMeta(attrName, attrValidationMapA);
+      const validationMetaB = getValidationCellMeta(attrName, attrValidationMapB);
 
       if (showSingleColumn) {
         // 単一モデル表示の場合
         const singleValue = valueA ?? valueB;
         let displayValue = singleValue ?? '<span class="no-value">-</span>';
+        const singleValidationMeta =
+          valueA !== undefined || (nodeA && !nodeB) ? validationMetaA : validationMetaB;
 
         // 編集モードの場合、編集ボタンを追加
         if (editMode && currentEditingElement) {
           const { elementType: currentEditType } = currentEditingElement;
           const currentId = valueA ? idA : idB;
-          displayValue += ` <button class="edit-btn" style="font-size: var(--font-size-2xs); padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentEditType}', '${currentId}', '${attrName}', '${
+          displayValue += ` <button class="edit-btn" style="font-size: var(--font-size-xs); padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentEditType}', '${currentId}', '${attrName}', '${
             singleValue || ''
           }')" title="編集">✏️</button>`;
         }
 
         rowsHtml += `<tr data-parent="${rowId}"${attrRowDisplay}>`;
         rowsHtml += `<td style="${attrIndentStyle}"${titleAttr}><span class="attr-name">${attrLabel}</span></td>`;
-        rowsHtml += `<td>${displayValue}</td>`;
+        rowsHtml += `<td${buildCellClassAttr(singleValidationMeta.className)}${singleValidationMeta.titleAttr}>${displayValue}</td>`;
         rowsHtml += '</tr>';
       } else {
         // 比較表示の場合
@@ -955,12 +1131,12 @@ export function renderComparisonRecursive(
         if (editMode && currentEditingElement) {
           const { elementType: currentEditType } = currentEditingElement;
           if (valueA !== undefined && idA) {
-            displayValueA += ` <button class="edit-btn" style="font-size: var(--font-size-2xs); padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentEditType}', '${idA}', '${attrName}', '${
+            displayValueA += ` <button class="edit-btn" style="font-size: var(--font-size-xs); padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentEditType}', '${idA}', '${attrName}', '${
               valueA || ''
             }')" title="編集">✏️</button>`;
           }
           if (valueB !== undefined && idB) {
-            displayValueB += ` <button class="edit-btn" style="font-size: var(--font-size-2xs); padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentEditType}', '${idB}', '${attrName}', '${
+            displayValueB += ` <button class="edit-btn" style="font-size: var(--font-size-xs); padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentEditType}', '${idB}', '${attrName}', '${
               valueB || ''
             }')" title="編集">✏️</button>`;
           }
@@ -969,12 +1145,13 @@ export function renderComparisonRecursive(
         // 比較結果: 値が異なる場合のみ黄色ハイライト
         const differs =
           nodeA && nodeB && valueA !== valueB && valueA !== undefined && valueB !== undefined;
-        const highlightClass = differs ? ' class="differs"' : '';
+        const classAttrA = buildCellClassAttr(differs ? 'differs' : '', validationMetaA.className);
+        const classAttrB = buildCellClassAttr(differs ? 'differs' : '', validationMetaB.className);
 
         rowsHtml += `<tr data-parent="${rowId}"${attrRowDisplay}>`;
         rowsHtml += `<td style="${attrIndentStyle}"${titleAttr}><span class="attr-name">${attrLabel}</span></td>`;
-        rowsHtml += `<td${highlightClass}>${displayValueA}</td>`;
-        rowsHtml += `<td${highlightClass}>${displayValueB}</td>`;
+        rowsHtml += `<td${classAttrA}${validationMetaA.titleAttr}>${displayValueA}</td>`;
+        rowsHtml += `<td${classAttrB}${validationMetaB.titleAttr}>${displayValueB}</td>`;
         rowsHtml += '</tr>';
       }
 
@@ -1095,6 +1272,10 @@ export function renderComparisonRecursive(
   // --- 子要素の行を再帰的に生成して追加 ---
   const childrenA = nodeA?.children ? Array.from(nodeA.children) : [];
   const childrenB = nodeB?.children ? Array.from(nodeB.children) : [];
+  const childValidationContext = {
+    idA: effectiveValidationIdA,
+    idB: effectiveValidationIdB,
+  };
 
   // pos属性によるマッチングが必要かどうかを判定
   if (shouldUsePosMatching(childrenA, childrenB)) {
@@ -1112,6 +1293,7 @@ export function renderComparisonRecursive(
           showSingleColumn,
           modelSource,
           null, // 子要素では自動判定させる
+          childValidationContext,
         );
         rowsHtml += renderComparisonRecursive(
           null,
@@ -1121,6 +1303,7 @@ export function renderComparisonRecursive(
           showSingleColumn,
           modelSource,
           null, // 子要素では自動判定させる
+          childValidationContext,
         );
       } else {
         rowsHtml += renderComparisonRecursive(
@@ -1131,6 +1314,7 @@ export function renderComparisonRecursive(
           showSingleColumn,
           modelSource,
           null, // 子要素では自動判定させる
+          childValidationContext,
         );
       }
     }
@@ -1150,6 +1334,7 @@ export function renderComparisonRecursive(
           showSingleColumn,
           modelSource,
           null, // 子要素では自動判定させる
+          childValidationContext,
         );
         rowsHtml += renderComparisonRecursive(
           null,
@@ -1159,6 +1344,7 @@ export function renderComparisonRecursive(
           showSingleColumn,
           modelSource,
           null, // 子要素では自動判定させる
+          childValidationContext,
         );
       } else {
         rowsHtml += renderComparisonRecursive(
@@ -1169,6 +1355,7 @@ export function renderComparisonRecursive(
           showSingleColumn,
           modelSource,
           null, // 子要素では自動判定させる
+          childValidationContext,
         );
       }
     }

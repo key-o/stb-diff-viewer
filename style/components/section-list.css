@@ -29,7 +29,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
+  padding: var(--spacing-sm) 12px;
   background: var(--bg-secondary, #f5f5f5);
   border-bottom: 1px solid var(--border-color, #ddd);
   flex-shrink: 0;
@@ -45,7 +45,7 @@
   align-items: center;
   gap: 4px;
   cursor: pointer;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
 }
 
 .section-list-info {
@@ -70,22 +70,25 @@
 
 .column-section-list-table th,
 .column-section-list-table td {
-  border: 1px solid var(--border-color, #ccc);
-  padding: 8px;
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 8px;
+  text-align: left;
   vertical-align: top;
+  word-wrap: break-word;
 }
 
 /* ヘッダー */
 .section-list-header-floor,
 .section-list-header-symbol,
 .section-list-header-section {
-  background: var(--bg-tertiary, #e8e8e8);
-  font-weight: var(--font-weight-bold);
+  background: var(--bg-secondary);
+  font-weight: var(--font-weight-semibold);
   text-align: center;
-  padding: 10px 8px;
+  padding: 8px 8px;
   position: sticky;
   top: 0;
   z-index: 1;
+  color: var(--text-heading);
 }
 
 .section-list-header-floor {
@@ -141,8 +144,8 @@
   margin-bottom: 4px;
   color: var(--text-primary, #333);
   background: var(--bg-secondary, #f0f0f0);
-  padding: 2px 4px;
-  border-radius: 2px;
+  padding: 2px var(--spacing-xs);
+  border-radius: var(--border-radius-sm);
 }
 
 .section-cell-diagram {
@@ -274,7 +277,7 @@
 
 .section-list-table-wrapper.grid-mode::-webkit-scrollbar-thumb {
   background: var(--border-color, #ccc);
-  border-radius: 6px;
+  border-radius: var(--border-radius-lg);
 }
 
 .section-list-table-wrapper.grid-mode::-webkit-scrollbar-thumb:hover {
@@ -306,7 +309,7 @@
 .column-section-grid-table th,
 .column-section-grid-table td {
   border: 1px solid var(--border-color, #ccc);
-  padding: 8px;
+  padding: var(--spacing-sm);
   vertical-align: top;
   box-sizing: border-box;
 }

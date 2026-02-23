@@ -47,20 +47,19 @@ export async function initializeRequiredModules(elementGroups) {
     },
   );
 
-  // XSDスキーマを初期化
-  import('../../common-stb/parser/xsdSchemaParser.js')
-    .then(({ loadXsdSchema }) => {
-      const xsdPath = './schemas/ST-Bridge202.xsd';
-      loadXsdSchema(xsdPath).then((success) => {
+  // JSON Schemaを初期化
+  import('../../common-stb/import/parser/jsonSchemaLoader.js')
+    .then(({ initializeJsonSchemas }) => {
+      initializeJsonSchemas().then((success) => {
         if (success) {
-          log.info('起動時にXSDスキーマが初期化されました');
+          log.info('起動時にJSON Schemaが初期化されました');
         } else {
-          log.warn('起動時のXSDスキーマ初期化に失敗しました');
+          log.warn('起動時のJSON Schema初期化に失敗しました');
         }
       });
     })
     .catch((error) => {
-      log.warn('XSDスキーマモジュールの読み込みに失敗しました:', error);
+      log.warn('JSON Schemaモジュールの読み込みに失敗しました:', error);
     });
 
   // clippingManagerへの状態プロバイダー注入（逆依存解消）

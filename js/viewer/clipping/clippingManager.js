@@ -9,7 +9,6 @@
 
 import * as THREE from 'three';
 import { renderer, elementGroups as viewerElementGroups } from '../core/core.js';
-import { materials } from '../rendering/materials.js';
 import { createLogger } from '../../utils/logger.js';
 import { eventBus, ToastEvents } from '../../app/events/index.js';
 
@@ -186,36 +185,15 @@ export function applyClipPlanes(planes) {
  */
 export function updateMaterialClippingPlanes() {
   const planes = renderer.clippingPlanes;
-  Object.values(materials).forEach((material) => {
-    if (material) {
-      material.clippingPlanes = planes;
-      material.needsUpdate = true;
-    }
-  });
-  // 各要素グループ内のオブジェクトのマテリアルにも適用
+  // 各要素グループ配下の全オブジェクトのマテリアルにクリッピング平面を適用
   Object.values(viewerElementGroups).forEach((group) => {
-    group.children.forEach((child) => {
-      if (child.material) {
-        if (!Array.isArray(child.material)) {
-          if (
-            child.material instanceof THREE.MeshStandardMaterial ||
-            child.material instanceof THREE.LineBasicMaterial ||
-            child.material instanceof THREE.MeshBasicMaterial
-          ) {
-            child.material.clippingPlanes = planes;
-            child.needsUpdate = true;
-          }
-        } else {
-          child.material.forEach((mat) => {
-            if (
-              mat instanceof THREE.MeshStandardMaterial ||
-              mat instanceof THREE.LineBasicMaterial ||
-              mat instanceof THREE.MeshBasicMaterial
-            ) {
-              mat.clippingPlanes = planes;
-              mat.needsUpdate = true;
-            }
-          });
+    group.traverse((child) => {
+      if (!child.material) return;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      for (const mat of mats) {
+        if (mat instanceof THREE.Material) {
+          mat.clippingPlanes = planes;
+          mat.needsUpdate = true;
         }
       }
     });

@@ -28,7 +28,10 @@
 
 import { MeshCreationValidator } from './MeshCreationValidator.js';
 import { MeshMetadataBuilder } from './MeshMetadataBuilder.js';
-import { SectionTypeNormalizer } from './SectionTypeNormalizer.js';
+import {
+  resolveGeometryProfileType,
+  calculateRotationWithReference,
+} from '../../../common-stb/section/sectionTypeUtil.js';
 import { createLogger } from '../../../utils/logger.js';
 
 /**
@@ -96,7 +99,7 @@ export class BaseElementGenerator {
         const result = this._createSingleMesh(element, context);
 
         if (result) {
-          // 配列の場合（stb-diff-viewer造などで複数メッシュを生成した場合）は展開
+          // 配列の場合（SRC造などで複数メッシュを生成した場合）は展開
           if (Array.isArray(result)) {
             for (const mesh of result) {
               if (mesh) {
@@ -219,8 +222,8 @@ export class BaseElementGenerator {
    * @param {Object} [options={}] - 正規化オプション
    * @returns {string} 正規化された断面タイプ
    */
-  static _normalizeSectionType(sectionData, options = {}) {
-    return SectionTypeNormalizer.normalize(sectionData, options);
+  static _resolveGeometryProfileType(sectionData, options = {}) {
+    return resolveGeometryProfileType(sectionData, options);
   }
 
   /**
@@ -231,7 +234,7 @@ export class BaseElementGenerator {
    * @returns {number} 最終回転角度（度）
    */
   static _calculateRotation(sectionData, baseRotation = 0) {
-    return SectionTypeNormalizer.calculateRotationWithReference(sectionData, baseRotation);
+    return calculateRotationWithReference(sectionData, baseRotation);
   }
 
   /**
@@ -286,3 +289,5 @@ export class BaseElementGenerator {
 }
 
 export default BaseElementGenerator;
+
+

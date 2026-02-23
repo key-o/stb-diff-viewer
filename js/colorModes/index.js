@@ -33,14 +33,20 @@ export {
 // Schema color mode
 export {
   initializeSchemaColorControls,
+  setFloatingWindowManager,
   resetSchemaColors,
+  setDemoSchemaErrors,
+  getSchemaColors,
+} from './schemaColorMode.js';
+
+// Schema error store (separated to avoid circular dependency with validationManager)
+export {
+  buildSchemaKey,
   setSchemaError,
   getSchemaError,
   clearSchemaErrors,
   getSchemaErrorStats,
-  setDemoSchemaErrors,
-  getSchemaColors,
-} from './schemaColorMode.js';
+} from '../common-stb/validation/schemaErrorStore.js';
 
 // Importance color mode
 export {

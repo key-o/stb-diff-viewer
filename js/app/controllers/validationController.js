@@ -7,7 +7,10 @@
  * @module app/controllers/validationController
  */
 
-import { validateAttributeValue, isSchemaLoaded } from '../../common-stb/parser/xsdSchemaParser.js';
+import {
+  validateAttributeValue,
+  isSchemaLoaded,
+} from '../../common-stb/import/parser/jsonSchemaLoader.js';
 import {
   SEVERITY,
   CATEGORY,

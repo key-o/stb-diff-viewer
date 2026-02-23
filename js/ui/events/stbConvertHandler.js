@@ -10,6 +10,7 @@
 import { convert, detectVersion } from '../../common-stb/converter/index.js';
 import { showSuccess, showError, showInfo } from '../common/toast.js';
 import { getState, addStateListener } from '../../app/globalState.js';
+import { downloadBlob } from '../../utils/downloadHelper.js';
 
 /**
  * ファイルをダウンロードするヘルパー関数
@@ -19,14 +20,7 @@ import { getState, addStateListener } from '../../app/globalState.js';
  */
 function downloadFile(content, filename, mimeType = 'application/xml') {
   const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, filename);
 }
 
 /**

@@ -27,6 +27,8 @@
     <link rel="stylesheet" href="./style/components/view-cube.css" />
     <link rel="stylesheet" href="./style/components/section-list.css" />
     <link rel="stylesheet" href="./style/components/beam-section-list.css" />
+    <link rel="stylesheet" href="./style/components/parameter-editor.css" />
+    <link rel="stylesheet" href="./style/components/ar-mode.css" />
     <!-- Import map for bare module specifiers used in ES modules (browser) -->
     <script type="importmap">
       {
@@ -37,7 +39,8 @@
           "xml2js": "https://esm.sh/xml2js@0.6.2",
           "dxf-parser": "https://esm.sh/dxf-parser@1.1.2",
           "html2canvas": "https://esm.sh/html2canvas@1.4.1",
-          "jspdf": "https://esm.sh/jspdf@2.5.1"
+          "jspdf": "https://esm.sh/jspdf@2.5.1",
+          "ajv": "https://esm.sh/ajv@8.17.1"
         }
       }
     </script>
@@ -62,6 +65,15 @@
             id="viewModeOrthographicBtn"
           >
             📄 図面表示
+          </button>
+          <button
+            type="button"
+            class="view-mode-btn ar-mode-btn"
+            id="arModeButton"
+            style="display: none"
+            title="AR表示（対応デバイスのみ）"
+          >
+            AR表示
           </button>
         </div>
         <!-- ビュー方向ボタン（2Dモード時のみ表示） -->
@@ -123,7 +135,7 @@
           <hr class="section-divider" />
 
           <button type="button" id="compareButton" class="btn-primary compare-button">
-            🔍 STB読込
+            🔍 読込 / 比較実行
           </button>
 
           <!-- 差分結果サマリー表示エリア -->
@@ -170,7 +182,7 @@
         aria-controls="component-info"
         aria-expanded="false"
       >
-        📋 要素情報パネル
+        📋 要素情報
       </button>
       <button type="button" id="toggle-tree-view-btn">🌳 ツリービュー</button>
       <button
@@ -181,8 +193,16 @@
       >
         🏷️ 重要度設定
       </button>
+      <button
+        type="button"
+        id="toggle-validation-panel-btn"
+        aria-controls="validation-panel-float"
+        aria-expanded="false"
+      >
+        ✅ STBバリデーション
+      </button>
 
-      <!-- その他設定セクション -->
+      <!-- 出力・変換セクション -->
       <div class="accordion-section">
         <div
           class="accordion-header"
@@ -192,7 +212,7 @@
           aria-controls="other-settings"
           aria-expanded="false"
         >
-          <span>⚙️ その他設定</span>
+          <span>📤 出力・変換</span>
           <span class="accordion-arrow">▼</span>
         </div>
         <div class="accordion-content collapsed" id="other-settings" aria-hidden="true">
@@ -268,6 +288,26 @@
     <script>
       // ファイル選択のカスタムボタン挙動を設定
       (function () {
+        function updateCompareButtonLabel() {
+          var compareButton = document.getElementById('compareButton');
+          var inputA = document.getElementById('fileA');
+          var inputB = document.getElementById('fileB');
+          if (!compareButton || !inputA || !inputB) return;
+
+          var hasA = inputA.files && inputA.files.length > 0;
+          var hasB = inputB.files && inputB.files.length > 0;
+
+          if (hasA && hasB) {
+            compareButton.textContent = '🔍 比較実行';
+            return;
+          }
+          if (hasA || hasB) {
+            compareButton.textContent = '🔍 モデル読込';
+            return;
+          }
+          compareButton.textContent = '🔍 読込 / 比較実行';
+        }
+
         function wire(targetId) {
           var btn = document.querySelector('.custom-file-btn[data-target="' + targetId + '"]');
           var input = document.getElementById(targetId);
@@ -297,6 +337,7 @@
               btn.classList.remove('has-file');
               if (wrapper) wrapper.classList.remove('has-file');
             }
+            updateCompareButtonLabel();
           });
         }
 
@@ -304,6 +345,8 @@
           wire('fileA');
           wire('fileB');
           wire('dxfFile');
+          updateCompareButtonLabel();
+          window.updateCompareButtonLabel = updateCompareButtonLabel;
         }
 
         if (document.readyState === 'loading') {
@@ -371,6 +414,15 @@
             編集
           </button>
           <span id="editing-summary" class="editing-summary-text">修正: 0件</span>
+          <button
+            id="json-export-button"
+            class="btn btn-sm"
+            onclick="window.exportElementInfoAsJson()"
+            title="表示中の要素情報をJSONファイルとしてダウンロード"
+            type="button"
+          >
+            JSON出力
+          </button>
         </div>
         <div id="element-info-content">要素を選択してください。</div>
       </div>
@@ -500,622 +552,8 @@
                 <th>色</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td>節点 (StbNode)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="Node"
-                    id="toggleNodeView"
-                    title="節点を表示"
-                    checked
-                  />
-                </td>
-                <td>-</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Node"
-                    id="toggleLabel-Node"
-                    title="節点ラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Node"
-                    title="節点の色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>通り芯 (StbAxis)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="Axis"
-                    id="toggleAxisView"
-                    title="通り芯を表示"
-                    checked
-                  />
-                </td>
-                <td>-</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Axis"
-                    id="toggleLabel-Axis"
-                    title="通り芯ラベルを表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Axis"
-                    title="通り芯の色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>階 (StbStory)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="Story"
-                    id="toggleStoryView"
-                    title="階を表示"
-                    checked
-                  />
-                </td>
-                <td>-</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Story"
-                    id="toggleLabel-Story"
-                    title="階ラベルを表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Story"
-                    title="階の色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>柱 (StbColumn)</td>
-                <td>
-                  <input type="checkbox" name="elements" value="Column" title="柱を表示" checked />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="toggleColumnView"
-                    name="columnViewMode"
-                    title="柱を立体表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Column"
-                    id="toggleLabel-Column"
-                    title="柱ラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Column"
-                    title="柱の色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>大梁 (StbGirder)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="Girder"
-                    title="大梁を表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="toggleGirderView"
-                    name="girderViewMode"
-                    title="大梁を立体表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Girder"
-                    id="toggleLabel-Girder"
-                    title="大梁ラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Girder"
-                    title="大梁の色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>小梁 (StbBeam)</td>
-                <td>
-                  <input type="checkbox" name="elements" value="Beam" title="小梁を表示" checked />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="toggleBeam3DView"
-                    name="beam3DViewMode"
-                    title="小梁を立体表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Beam"
-                    id="toggleLabel-Beam"
-                    title="小梁ラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Beam"
-                    title="小梁の色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>ブレース (StbBrace)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="Brace"
-                    id="toggleBraceView"
-                    title="ブレースを表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="toggleBrace3DView"
-                    name="brace3DViewMode"
-                    title="ブレースを立体表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Brace"
-                    id="toggleLabel-Brace"
-                    title="ブレースラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Brace"
-                    title="ブレースの色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>間柱 (StbPost)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="Post"
-                    id="togglePostView"
-                    title="間柱を表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="togglePost3DView"
-                    name="post3DViewMode"
-                    title="間柱を立体表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Post"
-                    id="toggleLabel-Post"
-                    title="間柱ラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Post"
-                    title="間柱の色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>スラブ (StbSlab)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="Slab"
-                    id="toggleSlabView"
-                    title="スラブを表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="toggleSlab3DView"
-                    name="slab3DViewMode"
-                    title="スラブを立体表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Slab"
-                    id="toggleLabel-Slab"
-                    title="スラブラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Slab"
-                    title="スラブの色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>壁 (StbWall)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="Wall"
-                    id="toggleWallView"
-                    title="壁を表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="toggleWall3DView"
-                    name="wall3DViewMode"
-                    title="壁を立体表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Wall"
-                    id="toggleLabel-Wall"
-                    title="壁ラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Wall"
-                    title="壁の色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>パラペット (StbParapet)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="Parapet"
-                    id="toggleParapetView"
-                    title="パラペットを表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="toggleParapet3DView"
-                    name="parapet3DViewMode"
-                    title="パラペットを立体表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Parapet"
-                    id="toggleLabel-Parapet"
-                    title="パラペットラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Parapet"
-                    title="パラペットの色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>接合 (StbJoint)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="Joint"
-                    id="toggleJointView"
-                    title="接合を表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="toggleJoint3DView"
-                    name="joint3DViewMode"
-                    title="接合を立体表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Joint"
-                    id="toggleLabel-Joint"
-                    title="接合ラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Joint"
-                    title="接合の色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>杭 (StbPile)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="Pile"
-                    id="togglePileView"
-                    title="杭を表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="togglePile3DView"
-                    name="pile3DViewMode"
-                    title="杭を立体表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Pile"
-                    id="toggleLabel-Pile"
-                    title="杭ラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Pile"
-                    title="杭の色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>基礎 (StbFooting)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="Footing"
-                    id="toggleFootingView"
-                    title="基礎を表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="toggleFooting3DView"
-                    name="footing3DViewMode"
-                    title="基礎を立体表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Footing"
-                    id="toggleLabel-Footing"
-                    title="基礎ラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Footing"
-                    title="基礎の色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>布基礎 (StbStripFooting)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="StripFooting"
-                    id="toggleStripFootingView"
-                    title="布基礎を表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="toggleStripFooting3DView"
-                    name="stripFooting3DViewMode"
-                    title="布基礎を立体表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="StripFooting"
-                    id="toggleLabel-StripFooting"
-                    title="布基礎ラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="StripFooting"
-                    title="布基礎の色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>基礎柱 (StbFoundationColumn)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="FoundationColumn"
-                    id="toggleFoundationColumnView"
-                    title="基礎柱を表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    id="toggleFoundationColumn3DView"
-                    name="foundationColumn3DViewMode"
-                    title="基礎柱を立体表示"
-                    checked
-                  />
-                </td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="FoundationColumn"
-                    id="toggleLabel-FoundationColumn"
-                    title="基礎柱ラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="FoundationColumn"
-                    title="基礎柱の色を変更"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>未定義断面 (StbSecUndefined)</td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="elements"
-                    value="Undefined"
-                    id="toggleUndefinedView"
-                    title="未定義断面の要素を表示"
-                    checked
-                  />
-                </td>
-                <td><span class="line-only-indicator" title="常にライン表示">━</span></td>
-                <td>
-                  <input
-                    type="checkbox"
-                    name="labelToggle"
-                    value="Undefined"
-                    id="toggleLabel-Undefined"
-                    title="未定義断面ラベルを表示"
-                  />
-                </td>
-                <td>
-                  <input
-                    type="color"
-                    class="element-color-input"
-                    data-element-type="Undefined"
-                    title="未定義断面の色を変更"
-                  />
-                </td>
-              </tr>
+            <tbody id="element-settings-body">
+              <!-- 動的に生成 (elementSettingsTable.js) -->
             </tbody>
           </table>
 
@@ -1174,7 +612,7 @@
       </div>
       <div class="float-window-content">
         <div id="color-mode-controls">
-          <label><strong>表示モード</strong></label>
+          <label><strong>色分けモード</strong></label>
           <div class="diff-mode-description">差分確認には「差分表示」を推奨します</div>
           <select id="colorModeSelector" class="form-control" title="色付けモードを選択">
             <option value="diff">🔍 差分表示（推奨）</option>
@@ -1327,7 +765,7 @@
 
           <div id="importance-color-settings" class="importance-color-settings">
             <label class="color-setting-label">重要度色設定:</label>
-            <div class="color-setting-help">※ 各重要度レベルの表示色を変更できます</div>
+            <div class="color-setting-help">※ 違反要素の表示色を変更できます</div>
             <div class="color-legend-container" id="importance-color-controls"></div>
           </div>
         </div>
@@ -1350,12 +788,22 @@
         </div>
       </div>
       <div class="float-window-content">
+        <div class="section-box-group">
+          <button id="toggleSectionBoxButton" class="section-box-toggle-btn" type="button">
+            セクションボックス
+          </button>
+          <p class="section-box-hint hidden" id="sectionBoxHint">
+            矢印ハンドルをドラッグして表示範囲を調整
+          </p>
+        </div>
+
+        <hr class="section-divider" />
+
         <div class="clipping-group">
           <label for="storySelector"><strong>階の表示制限</strong></label>
-          <select id="storySelector"></select>
-          <button id="applyStoryClipButton" class="clip-apply-btn" type="button">
-            この階でクリップ
-          </button>
+          <div class="clipping-row">
+            <select id="storySelector"></select>
+          </div>
           <div id="storyClipControls" class="clip-range-controls hidden">
             <div class="range-control-group">
               <label for="storyClipRange">クリッピング範囲:</label>
@@ -1381,10 +829,9 @@
 
         <div class="clipping-group">
           <label for="xAxisSelector"><strong>X軸選択</strong></label>
-          <select id="xAxisSelector"></select>
-          <button id="applyXAxisClipButton" class="clip-apply-btn" type="button">
-            X軸でクリップ
-          </button>
+          <div class="clipping-row">
+            <select id="xAxisSelector"></select>
+          </div>
           <div id="xAxisClipControls" class="clip-range-controls hidden">
             <div class="range-control-group">
               <label for="xAxisClipRange">クリッピング範囲:</label>
@@ -1410,10 +857,9 @@
 
         <div class="clipping-group">
           <label for="yAxisSelector"><strong>Y軸選択</strong></label>
-          <select id="yAxisSelector"></select>
-          <button id="applyYAxisClipButton" class="clip-apply-btn" type="button">
-            Y軸でクリップ
-          </button>
+          <div class="clipping-row">
+            <select id="yAxisSelector"></select>
+          </div>
           <div id="yAxisClipControls" class="clip-range-controls hidden">
             <div class="range-control-group">
               <label for="yAxisClipRange">クリッピング範囲:</label>
@@ -1438,9 +884,6 @@
         <hr class="section-divider" />
 
         <div class="clipping-controls">
-          <button id="clearClipButton" class="clear-clip-btn" type="button">
-            クリッピング解除
-          </button>
           <button id="previewClipButton" class="preview-clip-btn hidden" type="button">
             プレビュー表示
           </button>
@@ -1544,6 +987,26 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- STBバリデーション フローティングウィンドウ -->
+    <div id="validation-panel-float" class="floating-window hidden">
+      <div class="float-window-header" id="validation-panel-header">
+        <span class="float-window-title">✅ STBバリデーション</span>
+        <div class="float-window-controls">
+          <button
+            type="button"
+            class="float-window-btn"
+            id="close-validation-panel-btn"
+            aria-label="閉じる"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+      <div class="float-window-content">
+        <div id="validation-panel-container"></div>
       </div>
     </div>
 

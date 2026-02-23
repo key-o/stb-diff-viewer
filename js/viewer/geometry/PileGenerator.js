@@ -4,7 +4,7 @@
  * BaseElementGeneratorを継承した統一アーキテクチャ:
  * - MeshCreationValidator: バリデーション
  * - MeshMetadataBuilder: メタデータ構築
- * - SectionTypeNormalizer: 断面タイプ正規化
+ * - sectionTypeUtil: 断面タイプ正規化
  *
  * 杭特有の機能:
  * - 1-node / 2-node 両フォーマット対応
@@ -23,7 +23,7 @@ import {
   createTaperedGeometry,
   createMultiSectionGeometry,
 } from './core/TaperedGeometryBuilder.js';
-import { materials } from '../rendering/materials.js';
+import { colorManager } from '../rendering/colorManager.js';
 import { ElementGeometryUtils } from './ElementGeometryUtils.js';
 import { isExtendedPile } from '../../common-stb/data/dimensionNormalizer.js';
 import { BaseElementGenerator } from './core/BaseElementGenerator.js';
@@ -95,8 +95,8 @@ export class PileGenerator extends BaseElementGenerator {
       return null;
     }
 
-    // 3. 断面タイプの推定（SectionTypeNormalizer使用）
-    const sectionType = this._normalizeSectionType(sectionData);
+    // 3. 断面タイプの推定
+    const sectionType = this._resolveGeometryProfileType(sectionData);
     const dims = sectionData.dimensions || {};
 
     log.debug(
@@ -156,7 +156,10 @@ export class PileGenerator extends BaseElementGenerator {
     }
 
     // 7. メッシュ作成
-    const mesh = new THREE.Mesh(geometry, materials.matchedMesh);
+    const mesh = new THREE.Mesh(
+      geometry,
+      colorManager.getMaterial('diff', { comparisonState: 'matched' }),
+    );
 
     // 8. 配置を適用
     mesh.position.copy(placement.center);
@@ -415,3 +418,6 @@ if (typeof window !== 'undefined') {
 }
 
 export default PileGenerator;
+
+
+

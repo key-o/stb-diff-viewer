@@ -6,8 +6,8 @@
  */
 
 import { getImportanceManager, STB_ELEMENT_TABS } from '../../app/importanceManager.js';
-import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../../constants/importanceLevels.js';
-import { IMPORTANCE_COLORS } from '../../config/importanceConfig.js';
+import { IMPORTANCE_LEVELS } from '../../constants/importanceLevels.js';
+import { IMPORTANCE_COLORS } from '../../config/colorConfig.js';
 import { getState, setState } from '../../app/globalState.js';
 import { comparisonController } from '../../app/controllers/comparisonController.js';
 import { floatingWindowManager } from './floatingWindowManager.js';
@@ -19,6 +19,7 @@ import {
 } from '../../app/events/index.js';
 import { showSuccess, showError, showWarning } from '../common/toast.js';
 import { createLogger } from '../../utils/logger.js';
+import { downloadBlob } from '../../utils/downloadHelper.js';
 
 const log = createLogger('importancePanel');
 
@@ -102,6 +103,8 @@ class ImportancePanel {
     this.filterText = '';
     this.filterImportance = 'all';
     this.categoryFilterText = '';
+    this.parameterSortKey = 'paramName';
+    this.parameterSortDirection = 'asc';
     this.isVisible = false;
     this.elementContainer = null;
     this.statisticsContainer = null;
@@ -324,10 +327,10 @@ class ImportancePanel {
               </div>
 
               <div class="importance-column-guide" aria-label="列説明">
+                <span><strong>XSD必須</strong>: XSDで必須と定義される項目</span>
                 <span><strong>項目名</strong>: 要素名/属性名</span>
-                <span><strong>S2</strong>: 必須MVDでの重要度</span>
-                <span><strong>S4</strong>: S2を含むMVDでの重要度</span>
-                <span><strong>S2+S4</strong>: 評価・色付けで使用する最終重要度</span>
+                <span><strong>S2</strong>: チェック対象/対象外</span>
+                <span><strong>S4</strong>: チェック対象/対象外</span>
               </div>
 
               <div class="search-box">
@@ -335,10 +338,8 @@ class ImportancePanel {
               </div>
               
               <select id="importance-filter-level">
-                <option value="all">全レベル</option>
-                <option value="${IMPORTANCE_LEVELS.REQUIRED}">高重要度</option>
-                <option value="${IMPORTANCE_LEVELS.OPTIONAL}">中重要度</option>
-                <option value="${IMPORTANCE_LEVELS.UNNECESSARY}">低重要度</option>
+                <option value="all">全て</option>
+                <option value="${IMPORTANCE_LEVELS.REQUIRED}">対象</option>
                 <option value="${IMPORTANCE_LEVELS.NOT_APPLICABLE}">対象外</option>
               </select>
 
@@ -361,10 +362,8 @@ class ImportancePanel {
                <div class="control-group importance-bulk-group">
                   <label>一括変更:</label>
                   <select id="importance-bulk-level" class="importance-bulk-level">
-                    <option value="">レベルを選択...</option>
-                    <option value="${IMPORTANCE_LEVELS.REQUIRED}">高重要度</option>
-                    <option value="${IMPORTANCE_LEVELS.OPTIONAL}">中重要度</option>
-                    <option value="${IMPORTANCE_LEVELS.UNNECESSARY}">低重要度</option>
+                    <option value="">設定を選択...</option>
+                    <option value="${IMPORTANCE_LEVELS.REQUIRED}">対象</option>
                     <option value="${IMPORTANCE_LEVELS.NOT_APPLICABLE}">対象外</option>
                   </select>
                   <button id="importance-bulk-apply" class="btn-small">適用</button>
@@ -532,7 +531,7 @@ class ImportancePanel {
 
       // 重要度フィルター
       if (this.filterImportance !== 'all') {
-        const importance = this.manager.getImportanceLevel(path);
+        const importance = this.normalizeBinaryLevel(this.manager.getImportanceLevel(path));
         if (importance !== this.filterImportance) {
           return false;
         }
@@ -777,6 +776,132 @@ class ImportancePanel {
   }
 
   /**
+   * パスがXSD必須かどうかを取得
+   * @param {string} path
+   * @returns {boolean}
+   */
+  isXsdRequired(path) {
+    const requirement = this.manager.getSchemaRequirement(path);
+    return requirement?.required === true;
+  }
+
+  /**
+   * パラメータパス一覧を現在のソート設定で並べ替える
+   * @param {string[]} paths
+   * @returns {string[]}
+   */
+  sortParameterPaths(paths) {
+    if (!this.parameterSortKey) {
+      return [...paths];
+    }
+
+    const compareByName = (left, right) =>
+      left.localeCompare(right, 'ja', { numeric: true, sensitivity: 'base' });
+    const order = new Map(paths.map((path, index) => [path, index]));
+
+    const sorted = [...paths].sort((a, b) => {
+      let compareResult = 0;
+
+      if (this.parameterSortKey === 'xsdRequired') {
+        const aRank = this.isXsdRequired(a) ? 1 : 0;
+        const bRank = this.isXsdRequired(b) ? 1 : 0;
+        compareResult = aRank - bRank;
+        if (compareResult === 0) {
+          compareResult = compareByName(this.extractParameterName(a), this.extractParameterName(b));
+        }
+      } else if (this.parameterSortKey === 'paramName') {
+        compareResult = compareByName(this.extractParameterName(a), this.extractParameterName(b));
+      }
+
+      if (this.parameterSortDirection === 'desc') {
+        compareResult *= -1;
+      }
+
+      if (compareResult !== 0) {
+        return compareResult;
+      }
+
+      return (order.get(a) || 0) - (order.get(b) || 0);
+    });
+
+    return sorted;
+  }
+
+  /**
+   * ソートキーを切り替える
+   * @param {'xsdRequired'|'paramName'} sortKey
+   */
+  updateSort(sortKey) {
+    if (!sortKey) return;
+
+    if (this.parameterSortKey === sortKey) {
+      this.parameterSortDirection = this.parameterSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      this.parameterSortKey = sortKey;
+      this.parameterSortDirection = sortKey === 'xsdRequired' ? 'desc' : 'asc';
+    }
+
+    this.refreshParameterTable();
+  }
+
+  /**
+   * ソートヘッダーのHTMLを生成
+   * @param {string} label
+   * @param {'xsdRequired'|'paramName'} sortKey
+   * @param {string} [extraClass]
+   * @returns {string}
+   */
+  renderSortableHeader(label, sortKey, extraClass = '') {
+    const isActive = this.parameterSortKey === sortKey;
+    const direction = isActive ? this.parameterSortDirection : null;
+    const indicator = direction === 'asc' ? '↑' : direction === 'desc' ? '↓' : '↕';
+    const classes = ['sortable-header', extraClass, isActive ? 'active' : '']
+      .filter(Boolean)
+      .join(' ');
+
+    return `
+      <th class="${classes}" data-sort-key="${sortKey}">
+        <span class="sortable-label">${label}<span class="sort-indicator">${indicator}</span></span>
+      </th>
+    `;
+  }
+
+  /**
+   * 4値の重要度を2値（対象/対象外）へ正規化
+   * @param {string} level
+   * @returns {string}
+   */
+  normalizeBinaryLevel(level) {
+    return level === IMPORTANCE_LEVELS.NOT_APPLICABLE
+      ? IMPORTANCE_LEVELS.NOT_APPLICABLE
+      : IMPORTANCE_LEVELS.REQUIRED;
+  }
+
+  /**
+   * 2値表示ラベルを取得
+   * @param {string} level
+   * @returns {string}
+   */
+  getBinaryLabel(level) {
+    return this.normalizeBinaryLevel(level) === IMPORTANCE_LEVELS.NOT_APPLICABLE
+      ? '対象外'
+      : '対象';
+  }
+
+  /**
+   * XSD必須表示セルを生成
+   * @param {string} path
+   * @returns {string}
+   */
+  renderXsdRequiredCell(path) {
+    const isRequired = this.isXsdRequired(path);
+    const label = isRequired ? '必須' : '-';
+    const badgeClass = isRequired ? 'xsd-required-badge required' : 'xsd-required-badge optional';
+    const title = isRequired ? 'XSD必須項目' : 'XSD任意項目';
+    return `<span class="${badgeClass}" title="${title}">${label}</span>`;
+  }
+
+  /**
    * パス行HTMLを描画する
    * @param {string[]} paths - パス配列
    * @returns {string} rows HTML
@@ -784,29 +909,29 @@ class ImportancePanel {
   renderParameterRows(paths) {
     return paths
       .map((path) => {
-        const s2Importance = this.manager.getMvdImportanceLevel(path, 's2');
-        const s4Importance = this.manager.getMvdImportanceLevel(path, 's4');
-        const effectiveImportance = this.manager.getImportanceLevel(path);
-        const effectiveName = IMPORTANCE_LEVEL_NAMES[effectiveImportance];
+        const s2ImportanceRaw = this.manager.getMvdImportanceLevel(path, 's2');
+        const s4ImportanceRaw = this.manager.getMvdImportanceLevel(path, 's4');
+        const s2Importance = this.normalizeBinaryLevel(s2ImportanceRaw);
+        const s4Importance = this.normalizeBinaryLevel(s4ImportanceRaw);
         const paramName = this.extractParameterName(path);
-        const isAttribute = path.includes('@');
-        const rowTypeClass = isAttribute ? 'attribute-row' : 'element-row';
+        const rowTypeClass = 'attribute-row';
+        const selectableLevels = [IMPORTANCE_LEVELS.REQUIRED, IMPORTANCE_LEVELS.NOT_APPLICABLE];
 
         return `
           <tr class="importance-path-row ${rowTypeClass}" data-path="${path}">
-            <td title="${path}">
+            <td class="xsd-required-col">${this.renderXsdRequiredCell(path)}</td>
+            <td class="param-name-col" title="${path}">
               <span class="param-name">${paramName}</span>
-              ${isAttribute ? '<span class="param-type">属性</span>' : '<span class="param-type">要素</span>'}
             </td>
             <td class="mvd-col">
               <div class="importance-select-wrapper">
-                <span class="status-dot status-dot-s2" style="background-color: ${IMPORTANCE_COLORS[s2Importance]};" title="${IMPORTANCE_LEVEL_NAMES[s2Importance]}"></span>
+                <span class="status-dot status-dot-s2" style="background-color: ${IMPORTANCE_COLORS[s2Importance]};" title="${this.getBinaryLabel(s2Importance)}"></span>
                 <select class="importance-select importance-select-s2" data-path="${path}" data-mvd="s2">
-                  ${Object.entries(IMPORTANCE_LEVELS)
+                  ${selectableLevels
                     .map(
-                      ([, value]) => `
+                      (value) => `
                         <option value="${value}" ${value === s2Importance ? 'selected' : ''}>
-                          ${IMPORTANCE_LEVEL_NAMES[value]}
+                          ${this.getBinaryLabel(value)}
                         </option>
                       `,
                     )
@@ -816,24 +941,18 @@ class ImportancePanel {
             </td>
             <td class="mvd-col">
               <div class="importance-select-wrapper">
-                <span class="status-dot status-dot-s4" style="background-color: ${IMPORTANCE_COLORS[s4Importance]};" title="${IMPORTANCE_LEVEL_NAMES[s4Importance]}"></span>
+                <span class="status-dot status-dot-s4" style="background-color: ${IMPORTANCE_COLORS[s4Importance]};" title="${this.getBinaryLabel(s4Importance)}"></span>
                 <select class="importance-select importance-select-s4" data-path="${path}" data-mvd="s4">
-                  ${Object.entries(IMPORTANCE_LEVELS)
+                  ${selectableLevels
                     .map(
-                      ([, value]) => `
+                      (value) => `
                         <option value="${value}" ${value === s4Importance ? 'selected' : ''}>
-                          ${IMPORTANCE_LEVEL_NAMES[value]}
+                          ${this.getBinaryLabel(value)}
                         </option>
                       `,
                     )
                     .join('')}
                 </select>
-              </div>
-            </td>
-            <td class="effective-col">
-              <div class="importance-effective">
-                <span class="status-dot status-dot-effective" style="background-color: ${IMPORTANCE_COLORS[effectiveImportance]};" title="${effectiveName}"></span>
-                <span class="effective-label">${effectiveName}</span>
               </div>
             </td>
           </tr>
@@ -853,18 +972,17 @@ class ImportancePanel {
       return '';
     }
 
-    const evaluationLabel = 'S2+S4';
-
-    const rowsHTML = this.renderParameterRows(paths);
+    const sortedPaths = this.sortParameterPaths(paths);
+    const rowsHTML = this.renderParameterRows(sortedPaths);
     if (compact) {
       return `
-        <table class="importance-table importance-table-compact unified-comparison-table">
+        <table class="importance-table importance-table-compact">
           <thead>
             <tr>
-              <th>項目名</th>
+              ${this.renderSortableHeader('XSD必須', 'xsdRequired', 'xsd-required-col')}
+              ${this.renderSortableHeader('項目名', 'paramName', 'param-name-col')}
               <th class="mvd-col">S2</th>
               <th class="mvd-col">S4</th>
-              <th class="effective-col">${evaluationLabel}</th>
             </tr>
           </thead>
           <tbody>${rowsHTML}</tbody>
@@ -873,13 +991,13 @@ class ImportancePanel {
     }
 
     return `
-      <table class="importance-table unified-comparison-table">
+      <table class="importance-table">
         <thead>
           <tr>
-            <th>項目名</th>
+            ${this.renderSortableHeader('XSD必須', 'xsdRequired', 'xsd-required-col')}
+            ${this.renderSortableHeader('項目名', 'paramName', 'param-name-col')}
             <th class="mvd-col">S2</th>
             <th class="mvd-col">S4</th>
-            <th class="effective-col">${evaluationLabel}</th>
           </tr>
         </thead>
         <tbody>${rowsHTML}</tbody>
@@ -966,6 +1084,13 @@ class ImportancePanel {
         toggleBtn.textContent = isVisible ? '+' : '-';
       });
     });
+
+    this.elementContainer.querySelectorAll('.sortable-header').forEach((header) => {
+      header.addEventListener('click', () => {
+        const sortKey = header.dataset.sortKey;
+        this.updateSort(sortKey);
+      });
+    });
   }
 
   /**
@@ -978,17 +1103,14 @@ class ImportancePanel {
       return;
     }
 
-    const s2Importance = this.manager.getMvdImportanceLevel(path, 's2');
-    const s4Importance = this.manager.getMvdImportanceLevel(path, 's4');
-    const effectiveImportance = this.manager.getImportanceLevel(path);
+    const s2Importance = this.normalizeBinaryLevel(this.manager.getMvdImportanceLevel(path, 's2'));
+    const s4Importance = this.normalizeBinaryLevel(this.manager.getMvdImportanceLevel(path, 's4'));
 
     rows.forEach((row) => {
       const s2Select = row.querySelector('.importance-select-s2');
       const s4Select = row.querySelector('.importance-select-s4');
       const s2Dot = row.querySelector('.status-dot-s2');
       const s4Dot = row.querySelector('.status-dot-s4');
-      const effectiveDot = row.querySelector('.status-dot-effective');
-      const effectiveLabel = row.querySelector('.effective-label');
 
       if (s2Select && s2Select.value !== s2Importance) {
         s2Select.value = s2Importance;
@@ -998,18 +1120,11 @@ class ImportancePanel {
       }
       if (s2Dot) {
         s2Dot.style.backgroundColor = IMPORTANCE_COLORS[s2Importance];
-        s2Dot.title = IMPORTANCE_LEVEL_NAMES[s2Importance];
+        s2Dot.title = this.getBinaryLabel(s2Importance);
       }
       if (s4Dot) {
         s4Dot.style.backgroundColor = IMPORTANCE_COLORS[s4Importance];
-        s4Dot.title = IMPORTANCE_LEVEL_NAMES[s4Importance];
-      }
-      if (effectiveDot) {
-        effectiveDot.style.backgroundColor = IMPORTANCE_COLORS[effectiveImportance];
-        effectiveDot.title = IMPORTANCE_LEVEL_NAMES[effectiveImportance];
-      }
-      if (effectiveLabel) {
-        effectiveLabel.textContent = IMPORTANCE_LEVEL_NAMES[effectiveImportance];
+        s4Dot.title = this.getBinaryLabel(s4Importance);
       }
     });
   }
@@ -1063,25 +1178,21 @@ class ImportancePanel {
 
     const statsHTML = `
       <div class="statistics-grid">
-        <div class="stat-item">
-          <div class="stat-label">総要素数</div>
-          <div class="stat-value">${stats.total}</div>
+        <div class="stat-item total-parameters">
+          <div class="stat-label">STB総パラメータ数</div>
+          <div class="stat-value">${stats.totalParameterCount || 0}</div>
         </div>
-        <div class="stat-item high">
-          <div class="stat-label">高重要度</div>
-          <div class="stat-value">${stats.byLevel[IMPORTANCE_LEVELS.REQUIRED] || 0}</div>
+        <div class="stat-item xsd-required">
+          <div class="stat-label">XSD必須数</div>
+          <div class="stat-value">${stats.xsdRequiredCount || 0}</div>
         </div>
-        <div class="stat-item medium">
-          <div class="stat-label">中重要度</div>
-          <div class="stat-value">${stats.byLevel[IMPORTANCE_LEVELS.OPTIONAL] || 0}</div>
+        <div class="stat-item s2-target">
+          <div class="stat-label">S2対象数</div>
+          <div class="stat-value">${stats.s2TargetCount || 0}</div>
         </div>
-        <div class="stat-item low">
-          <div class="stat-label">低重要度</div>
-          <div class="stat-value">${stats.byLevel[IMPORTANCE_LEVELS.UNNECESSARY] || 0}</div>
-        </div>
-        <div class="stat-item na">
-          <div class="stat-label">対象外</div>
-          <div class="stat-value">${stats.byLevel[IMPORTANCE_LEVELS.NOT_APPLICABLE] || 0}</div>
+        <div class="stat-item s4-target">
+          <div class="stat-label">S4対象数</div>
+          <div class="stat-value">${stats.s4TargetCount || 0}</div>
         </div>
       </div>
     `;
@@ -1095,7 +1206,7 @@ class ImportancePanel {
   applyBulkImportance() {
     const bulkLevel = document.getElementById('importance-bulk-level').value;
     if (!bulkLevel) {
-      showWarning('重要度レベルを選択してください。');
+      showWarning('設定を選択してください。');
       return;
     }
 
@@ -1110,7 +1221,7 @@ class ImportancePanel {
       return;
     }
 
-    const confirmMessage = `現在のタブの${attributePaths.length}個の属性を「${IMPORTANCE_LEVEL_NAMES[bulkLevel]}」に設定しますか？\n（S2/S4 の両方に適用）`;
+    const confirmMessage = `現在のタブの${attributePaths.length}個の属性を「${this.getBinaryLabel(bulkLevel)}」に設定しますか？\n（S2/S4 の両方に適用）`;
     if (!confirm(confirmMessage)) {
       return;
     }
@@ -1139,19 +1250,7 @@ class ImportancePanel {
     try {
       const csvContent = this.manager.exportToCSV();
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute(
-        'download',
-        `importance_settings_${new Date().toISOString().slice(0, 10)}.csv`,
-      );
-      link.style.visibility = 'hidden';
-
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadBlob(blob, `importance_settings_${new Date().toISOString().slice(0, 10)}.csv`);
 
       showSuccess('重要度設定をCSVファイルに出力しました。');
     } catch (error) {

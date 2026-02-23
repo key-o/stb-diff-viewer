@@ -12,7 +12,7 @@
  */
 
 import * as THREE from 'three';
-import { materials } from '../rendering/materials.js';
+import { colorManager } from '../rendering/colorManager.js';
 import { BaseElementGenerator } from './core/BaseElementGenerator.js';
 
 /**
@@ -304,7 +304,10 @@ export class WallGenerator extends BaseElementGenerator {
     }
 
     // 8. メッシュ作成
-    const mesh = new THREE.Mesh(geometry, materials.matchedMesh);
+    const mesh = new THREE.Mesh(
+      geometry,
+      colorManager.getMaterial('diff', { comparisonState: 'matched' }),
+    );
 
     // 9. 配置と回転
     mesh.position.copy(center);

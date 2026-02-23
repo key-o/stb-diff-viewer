@@ -245,4 +245,3 @@ export function getFrustumCuller(camera) {
   }
   return instance;
 }
-

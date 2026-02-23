@@ -80,4 +80,3 @@ export function evaluateSectionEquivalence(sectionA, sectionB, elementType) {
 export function updateLabelsForElement(elementType, elementId, elementData) {
   return providers?.updateLabelsForElement?.(elementType, elementId, elementData) || false;
 }
-

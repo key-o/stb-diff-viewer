@@ -18,7 +18,7 @@ import {
   mapToIFCProfileType,
   createIFCProfileFromSTB,
 } from '../../data/accessors/profileExtractor.js';
-import { normalizeSectionType } from '../../common-stb/section/sectionTypeUtil.js';
+import { normalizeProfileTypeToken } from '../../common-stb/section/sectionTypeUtil.js';
 import {
   calculate2LBackToBackProfile,
   calculate2LFaceToFaceProfile,
@@ -43,7 +43,7 @@ export class IFCProfileFactory {
    */
   static createProfileFromSTB(stbSteelShape, stbShapeType) {
     // 正規化: 呼び出し元から 'PIPE' / 'RECTANGLE' / 'CIRCLE' など大文字で渡されても対応
-    const typeNorm = normalizeSectionType(stbShapeType) || stbShapeType;
+    const typeNorm = normalizeProfileTypeToken(stbShapeType) || stbShapeType;
 
     // 組み合わせ断面のtype属性をチェック（BACKTOBACK, FACETOFACE, SINGLE）
     const combinationType = stbSteelShape?.shapeTypeAttr?.toUpperCase();
@@ -71,7 +71,7 @@ export class IFCProfileFactory {
    * @returns {string} IFC profile type
    */
   static mapSTBToIFCProfileType(stbShapeType) {
-    const typeNorm = normalizeSectionType(stbShapeType) || stbShapeType;
+    const typeNorm = normalizeProfileTypeToken(stbShapeType) || stbShapeType;
     return mapToIFCProfileType(typeNorm);
   }
 
@@ -82,7 +82,7 @@ export class IFCProfileFactory {
    * @returns {Object} IFC-compliant parameters
    */
   static mapSTBParametersToIFC(stbShape, stbShapeType) {
-    const typeNorm = normalizeSectionType(stbShapeType) || stbShapeType;
+    const typeNorm = normalizeProfileTypeToken(stbShapeType) || stbShapeType;
     const ifcProfile = createIFCProfileFromSTB(stbShape, typeNorm);
     return ifcProfile.ProfileParameters;
   }
@@ -117,6 +117,9 @@ export class IFCProfileFactory {
 
       case IFC_PROFILE_TYPES.U_SHAPE:
         return this.createUShapeGeometry(ifcProfile.ProfileParameters, originType);
+
+      case IFC_PROFILE_TYPES.T_SHAPE:
+        return this.createTShapeGeometry(ifcProfile.ProfileParameters, originType);
 
       case IFC_PROFILE_TYPES.RECTANGLE:
         return this.createRectangleGeometry(ifcProfile.ProfileParameters, originType);
@@ -403,6 +406,40 @@ export class IFCProfileFactory {
     shape.lineTo(xLeft, yTop - FlangeThickness); // down along left outer edge (no flange on open side)
     shape.lineTo(xLeft, yBot + FlangeThickness); // continue down
     shape.lineTo(xLeft, yBot); // close at bottom-left
+    shape.closePath();
+
+    return shape;
+  }
+
+  /**
+   * Create T-Shape profile geometry
+   * @param {Object} params - IFC T-Shape parameters
+   * @param {string} originType - Origin type
+   * @returns {THREE.Shape|null} Generated shape
+   */
+  static createTShapeGeometry(params, originType) {
+    const { Depth, FlangeWidth, WebThickness, FlangeThickness } = params;
+
+    if (!this.validatePositiveNumbers([Depth, FlangeWidth, WebThickness, FlangeThickness])) {
+      return null;
+    }
+
+    const shape = new THREE.Shape();
+    const halfDepth = Depth / 2;
+    const halfFlangeWidth = FlangeWidth / 2;
+    const halfWebThickness = WebThickness / 2;
+    const yOffset = this.calculateOriginOffset(originType, Depth);
+
+    // T-shape: flange at bottom, web extends upward
+    // Starting from bottom-left of flange, going clockwise
+    shape.moveTo(-halfFlangeWidth, -halfDepth + yOffset);
+    shape.lineTo(halfFlangeWidth, -halfDepth + yOffset);
+    shape.lineTo(halfFlangeWidth, -halfDepth + FlangeThickness + yOffset);
+    shape.lineTo(halfWebThickness, -halfDepth + FlangeThickness + yOffset);
+    shape.lineTo(halfWebThickness, halfDepth + yOffset);
+    shape.lineTo(-halfWebThickness, halfDepth + yOffset);
+    shape.lineTo(-halfWebThickness, -halfDepth + FlangeThickness + yOffset);
+    shape.lineTo(-halfFlangeWidth, -halfDepth + FlangeThickness + yOffset);
     shape.closePath();
 
     return shape;
@@ -751,3 +788,4 @@ export class STBToIFCConverter {
     return 'Rect'; // Default fallback
   }
 }
+

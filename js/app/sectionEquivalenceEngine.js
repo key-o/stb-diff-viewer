@@ -13,7 +13,7 @@
  * @module sectionEquivalenceEngine
  */
 
-import { normalizeSectionType } from '../common-stb/section/sectionTypeUtil.js';
+import { normalizeProfileTypeToken } from '../common-stb/section/sectionTypeUtil.js';
 
 /**
  * 断面等価性評価の設定
@@ -59,7 +59,7 @@ const EQUIVALENCE_CONFIG = {
     RECTANGLE: ['RECTANGLE'],
     CIRCLE: ['CIRCLE'],
     CFT: ['CFT'],
-    'stb-diff-viewer': ['stb-diff-viewer'],
+    SRC: ['SRC'],
   },
 };
 
@@ -76,11 +76,8 @@ export function normalizeSectionData(sectionData, elementType) {
   }
 
   return {
-    type: normalizeSectionType(
-      sectionData.type ||
-        sectionData.section_type ||
-        sectionData.profile_type ||
-        sectionData.sectionType, // キャメルケース形式もサポート
+    type: normalizeProfileTypeToken(
+      sectionData.type || sectionData.section_type,
     ),
     material: (sectionData.material || sectionData.strength_name || '')
       ?.toString()
@@ -399,8 +396,8 @@ function extractDimensions(sectionData, _elementType) {
   const dims = sectionData.dimensions || sectionData;
 
   // 断面タイプに応じた寸法抽出
-  const type = normalizeSectionType(
-    sectionData.type || sectionData.section_type || sectionData.profile_type,
+  const type = normalizeProfileTypeToken(
+    sectionData.type || sectionData.section_type,
   );
   const result = {};
 
@@ -520,3 +517,4 @@ function estimateStrength(material) {
 
   return strengthMap[mat] || null;
 }
+

@@ -5,6 +5,8 @@
  * 一致/不一致を判定します。XML DOM要素とJSオブジェクト両方に対応。
  */
 
+import { NUMERIC_TOLERANCE } from '../../config/geometryConfig.js';
+
 /**
  * 要素からプロパティ値を取得する（XML DOM/JSオブジェクト両対応）
  * @param {Element|Object} element - 要素
@@ -44,10 +46,9 @@ const STRUCTURAL_ATTRIBUTES = [
   'haunch_H',
   'haunch_start',
   'haunch_end',
+  'kind_haunch_start',
+  'kind_haunch_end',
 ];
-
-/** 数値比較の精度閾値 */
-const NUMERIC_TOLERANCE = 0.001;
 
 /**
  * 2つの要素の構造属性を比較する

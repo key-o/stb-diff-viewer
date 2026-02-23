@@ -175,7 +175,7 @@ function generateSummaryHTML(stats) {
 
     elementTypeEntries.forEach(([elementType, typeStats]) => {
       const typeName = getElementTypeDisplayName(elementType);
-      html += `<div class="diff-stat-item" style="font-size: var(--font-size-md);">`;
+      html += `<div class="diff-stat-item" style="font-size: var(--font-size-sm);">`;
       html += `  <span>${typeName}</span>`;
       html += `  <span class="diff-stat-value">`;
 
@@ -196,7 +196,7 @@ function generateSummaryHTML(stats) {
   if (stats.totalOnlyA > 0 || stats.totalOnlyB > 0) {
     html += `
       <div style="margin-top: 12px; padding-top: 10px; border-top: 1px solid #dee2e6;">
-        <button type="button" id="open-diff-list-from-summary" class="btn btn-sm btn-secondary" style="width: 100%; padding: 8px; font-size: var(--font-size-md);">
+        <button type="button" id="open-diff-list-from-summary" class="btn btn-sm btn-secondary" style="width: 100%; padding: 8px; font-size: var(--font-size-sm);">
           📋 差分一覧を表示
         </button>
       </div>
@@ -229,4 +229,3 @@ export function setupDiffSummaryEventListeners() {
 
   console.log('Diff summary event listeners set up');
 }
-

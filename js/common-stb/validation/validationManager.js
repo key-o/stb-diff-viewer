@@ -12,10 +12,12 @@
 
 /* global XMLSerializer, Blob, URL, document */
 
-import { loadStbXmlAutoEncoding } from '../stbXmlLoader.js';
+import { loadStbXmlAutoEncoding } from '../import/loader/stbXmlLoader.js';
 import { validateStbDocument, formatValidationReport, SEVERITY, CATEGORY } from './stbValidator.js';
 import { formatRepairReport, autoRepairDocument } from '../repair/stbRepairEngine.js';
-import { setSchemaError, clearSchemaErrors } from '../../colorModes/index.js';
+import { setSchemaError, clearSchemaErrors } from './schemaErrorStore.js';
+import { escapeHtml } from '../../utils/htmlUtils.js';
+import { downloadBlob } from '../../utils/downloadHelper.js';
 
 /**
  * ワークフローステップ
@@ -41,6 +43,104 @@ export const SUGGESTION_TYPE = {
   MANUAL_FIX: 'manual_fix', // 手動修正が必要
   INFO_ONLY: 'info_only', // 情報のみ（修正不要）
 };
+
+/**
+ * Extract anchor id from XPath-like string.
+ * @param {string} xpath
+ * @returns {string}
+ */
+function extractIdFromXPath(xpath) {
+  if (!xpath || typeof xpath !== 'string') {
+    return '';
+  }
+
+  const quotedMatch = xpath.match(/\[@id\s*=\s*(['"])(.*?)\1\]/);
+  if (quotedMatch?.[2]) {
+    return quotedMatch[2];
+  }
+
+  const bareMatch = xpath.match(/\[@id\s*=\s*([^\]\s/]+)\]/);
+  if (bareMatch?.[1]) {
+    return bareMatch[1].replace(/^['"]|['"]$/g, '');
+  }
+
+  return '';
+}
+
+/**
+ * Build a stable signature string for deduplicating issues.
+ * @param {Object} issue
+ * @returns {string}
+ */
+function buildIssueSignature(issue) {
+  if (!issue || typeof issue !== 'object') {
+    return '';
+  }
+
+  return [
+    issue.severity || '',
+    issue.category || '',
+    issue.message || '',
+    issue.elementType || '',
+    issue.elementId || '',
+    issue.sectionType || '',
+    issue.sectionId || '',
+    issue.attribute || '',
+    issue.idXPath || issue.xpath || '',
+    issue.repairable ? '1' : '0',
+    issue.repairSuggestion || '',
+  ].join('|');
+}
+
+/**
+ * Build a stable signature string for deduplicating suggestions.
+ * @param {Object} suggestion
+ * @returns {string}
+ */
+function buildSuggestionSignature(suggestion) {
+  if (!suggestion || typeof suggestion !== 'object') {
+    return '';
+  }
+
+  return [
+    suggestion.type || '',
+    suggestion.severity || '',
+    suggestion.category || '',
+    suggestion.message || '',
+    suggestion.actionText || '',
+    suggestion.detailText || '',
+  ].join('|');
+}
+
+/**
+ * Add issue only when equivalent issue is not already present.
+ * @param {Array<Object>} issues
+ * @param {Object} issue
+ */
+function pushUniqueIssue(issues, issue) {
+  const signature = buildIssueSignature(issue);
+  if (!signature) {
+    return;
+  }
+  if (!issues.some((item) => buildIssueSignature(item) === signature)) {
+    issues.push(issue);
+  }
+}
+
+/**
+ * Add suggestion only when equivalent suggestion is not already present.
+ * @param {Array<Object>} suggestions
+ * @param {Object} suggestion
+ */
+function pushUniqueSuggestion(suggestions, suggestion) {
+  const signature = buildSuggestionSignature(suggestion);
+  if (!signature) {
+    return;
+  }
+  if (!suggestions.some((item) => buildSuggestionSignature(item) === signature)) {
+    suggestions.push(suggestion);
+  }
+}
 
 /**
  * バリデーション・修復マネージャークラス
@@ -178,9 +278,10 @@ export class ValidationManager {
    * XMLドキュメントを直接バリデーション
    * @param {Document} xmlDoc - バリデーション対象
    * @param {Object} options - バリデーションオプション
+   * @param {string} [modelSource] - モデルソース ('A', 'B') A/B混線防止用
    * @returns {Object} バリデーションレポート
    */
-  validateDocument(xmlDoc, options = {}) {
+  validateDocument(xmlDoc, options = {}, modelSource = null) {
     try {
       this.updateState({
         step: WORKFLOW_STEP.VALIDATING,
@@ -196,7 +297,7 @@ export class ValidationManager {
       });
 
       // UI統合処理（旧 validationIntegration.js の機能）
-      this.integrateResults(validationReport);
+      this.integrateResults(validationReport, modelSource);
 
       this.updateState({
         step: WORKFLOW_STEP.VALIDATED,
@@ -214,11 +315,45 @@ export class ValidationManager {
   }
 
   /**
+   * Resolve UI anchor element id for a validation issue.
+   * @param {Object} issue
+   * @returns {string}
+   */
+  resolveIssueElementId(issue) {
+    if (!issue || typeof issue !== 'object') {
+      return '';
+    }
+
+    if (issue.elementId) {
+      return String(issue.elementId);
+    }
+    if (issue.anchorElementId) {
+      return String(issue.anchorElementId);
+    }
+
+    const fromIdXPath = extractIdFromXPath(issue.idXPath);
+    if (fromIdXPath) {
+      return fromIdXPath;
+    }
+
+    const fromXPath = extractIdFromXPath(issue.xpath);
+    if (fromXPath) {
+      return fromXPath;
+    }
+
+    return '';
+  }
+
+  /**
    * バリデーション結果をUIシステムに統合
    * @param {Object} result - バリデーション結果
+   * @param {string} [modelSource] - モデルソース ('A', 'B') A/B混線防止用
    */
-  integrateResults(result) {
-    this.clearIntegration();
+  integrateResults(result, modelSource = null) {
+    // modelSource指定時は既存データをクリアせず追記（A/B両方を保持するため）
+    if (!modelSource) {
+      this.clearIntegration();
+    }
 
     const stats = {
       valid: 0,
@@ -230,25 +365,26 @@ export class ValidationManager {
 
     // 要素ごとにエラーを集約
     for (const issue of result.issues) {
-      if (issue.elementId) {
-        if (!this.elementValidationMap.has(issue.elementId)) {
-          this.elementValidationMap.set(issue.elementId, {
+      const resolvedElementId = this.resolveIssueElementId(issue);
+      if (resolvedElementId) {
+        if (!this.elementValidationMap.has(resolvedElementId)) {
+          this.elementValidationMap.set(resolvedElementId, {
             elementType: issue.elementType,
             errors: [],
             warnings: [],
             suggestions: [],
           });
         }
-        const elementData = this.elementValidationMap.get(issue.elementId);
+        const elementData = this.elementValidationMap.get(resolvedElementId);
         const suggestion = this.createSuggestion(issue);
 
         if (issue.severity === SEVERITY.ERROR) {
-          elementData.errors.push(issue);
+          pushUniqueIssue(elementData.errors, issue);
         } else if (issue.severity === SEVERITY.WARNING) {
-          elementData.warnings.push(issue);
+          pushUniqueIssue(elementData.warnings, issue);
         }
 
-        elementData.suggestions.push(suggestion);
+        pushUniqueSuggestion(elementData.suggestions, suggestion);
       }
 
       if (issue.sectionId) {
@@ -264,12 +400,12 @@ export class ValidationManager {
         const suggestion = this.createSuggestion(issue);
 
         if (issue.severity === SEVERITY.ERROR) {
-          sectionData.errors.push(issue);
+          pushUniqueIssue(sectionData.errors, issue);
         } else if (issue.severity === SEVERITY.WARNING) {
-          sectionData.warnings.push(issue);
+          pushUniqueIssue(sectionData.warnings, issue);
         }
 
-        sectionData.suggestions.push(suggestion);
+        pushUniqueSuggestion(sectionData.suggestions, suggestion);
       }
     }
 
@@ -292,7 +428,7 @@ export class ValidationManager {
         ...data.errors.map((e) => e.message),
         ...data.warnings.map((w) => w.message),
       ];
-      setSchemaError(elementId, status, messages);
+      setSchemaError(elementId, status, messages, modelSource);
     }
 
     // 状態更新用の統計情報を保存
@@ -448,16 +584,7 @@ export class ValidationManager {
       }
 
       const blob = new Blob([xmlString], { type: 'application/xml' });
-      const url = URL.createObjectURL(blob);
-
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, filename);
 
       this.updateState({
         step: WORKFLOW_STEP.COMPLETED,
@@ -646,10 +773,11 @@ export const sharedManager = new ValidationManager();
 /**
  * XMLドキュメントをバリデーションし、結果をUI表示システムに連携
  * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @param {string} [modelSource] - モデルソース ('A', 'B') A/B混線防止用
  * @returns {Object} バリデーション結果
  */
-export function validateAndIntegrate(xmlDoc) {
-  return sharedManager.validateDocument(xmlDoc);
+export function validateAndIntegrate(xmlDoc, modelSource = null) {
+  return sharedManager.validateDocument(xmlDoc, {}, modelSource);
 }
 
 /**
@@ -719,19 +847,6 @@ export function generateValidationSummaryHtml() {
   html += '</div>';
 
   return html;
-}
-
-/**
- * HTMLエスケープ
- */
-function escapeHtml(text) {
-  if (!text) return '';
-  return String(text)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
 
 /**
@@ -846,16 +961,16 @@ export function getValidationStyles() {
       .validation-info-section {
         margin-top: 12px;
         padding: 10px;
-        background: #f8f9fa;
-        border-radius: 6px;
-        border: 1px solid #e9ecef;
+        background: var(--bg-secondary);
+        border-radius: var(--border-radius-lg);
+        border: 1px solid var(--border-color-light);
       }
   
       .validation-header {
         margin: 0 0 8px 0;
-        font-size: var(--font-size-md);
+        font-size: var(--font-size-sm);
         font-weight: var(--font-weight-semibold);
-        color: #495057;
+        color: var(--text-heading);
       }
   
       .validation-category {
@@ -863,7 +978,7 @@ export function getValidationStyles() {
         font-weight: var(--font-weight-medium);
         margin-bottom: 4px;
         padding: 4px 8px;
-        border-radius: 4px;
+        border-radius: var(--border-radius);
       }
   
       .validation-category.error {
@@ -1027,8 +1142,37 @@ export function getValidationStats() {
 export function getElementsByStatus(status) {
   const result = [];
   for (const [elementId, data] of sharedManager.elementValidationMap.entries()) {
-    if (status === 'error' && data.errors.length > 0) result.push(elementId);
-    else if (status === 'warning' && data.warnings.length > 0) result.push(elementId);
+    if (status === 'error' && data.errors.length > 0) {
+      result.push({
+        elementId,
+        elementType: data.elementType || 'Unknown',
+        messages: data.errors.map((issue) => issue.message).filter(Boolean),
+      });
+      continue;
+    }
+
+    if (status === 'warning' && data.warnings.length > 0) {
+      result.push({
+        elementId,
+        elementType: data.elementType || 'Unknown',
+        messages: data.warnings.map((issue) => issue.message).filter(Boolean),
+      });
+      continue;
+    }
+
+    if (status === 'info' && data.suggestions.length > 0) {
+      const infoMessages = data.suggestions
+        .map((suggestion) => suggestion.detailText || suggestion.message)
+        .filter(Boolean);
+
+      if (infoMessages.length > 0) {
+        result.push({
+          elementId,
+          elementType: data.elementType || 'Unknown',
+          messages: infoMessages,
+        });
+      }
+    }
   }
   return result;
 }

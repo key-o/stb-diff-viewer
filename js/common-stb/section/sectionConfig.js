@@ -300,4 +300,3 @@ export function validateSectionConfig() {
 export function getSupportedElementTypes() {
   return Object.keys(SECTION_CONFIG);
 }
-

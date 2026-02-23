@@ -10,7 +10,7 @@
  */
 
 import * as THREE from 'three';
-import { materials } from '../rendering/materials.js';
+import { colorManager } from '../rendering/colorManager.js';
 import { BaseElementGenerator } from './core/BaseElementGenerator.js';
 import { ElementGeometryUtils } from './ElementGeometryUtils.js';
 
@@ -120,16 +120,8 @@ export class JointGenerator extends BaseElementGenerator {
    * @returns {Array<THREE.Mesh>|null} メッシュ配列またはnull
    */
   static _createJointAtPosition(element, position, context) {
-    const {
-      nodes,
-      jointDefinitions,
-      steelSections,
-      elementType,
-      isJsonInput,
-      log,
-      girderSections,
-      beamSections,
-    } = context;
+    const { nodes, jointDefinitions, elementType, isJsonInput, log, girderSections, beamSections } =
+      context;
 
     // 継手ID取得
     const jointId = position === 'start' ? element.joint_id_start : element.joint_id_end;
@@ -141,8 +133,6 @@ export class JointGenerator extends BaseElementGenerator {
       log.warn(`Joint definition not found: ${jointId}`);
       return null;
     }
-    console.log('[DEBUG] JointGenerator: jointDef =', jointDef);
-
     // ノード座標取得
     const startNodeId = element.id_node_start;
     const endNodeId = element.id_node_end;
@@ -153,36 +143,37 @@ export class JointGenerator extends BaseElementGenerator {
       log.warn(`Nodes not found for element ${element.id}`);
       return null;
     }
-    console.log('[DEBUG] JointGenerator: startNode =', startNode, ', endNode =', endNode);
-
     // 断面高さを取得（梁の天端基準配置のオフセットに使用）
-    let beamHeight = 300; // デフォルト値
+    let beamHeight = 300; // デフォルト値（RC高さ = 配置基準）
+    let steelHeight = 300; // 鉄骨高さ（継手プレート配置基準）
     const sectionId = element.id_section;
     if (sectionId) {
       // 要素タイプに応じて断面マップを選択
       const sections = element.elementType === 'Girder' ? girderSections : beamSections;
-      console.log(
-        '[DEBUG] JointGenerator: sectionId =',
-        sectionId,
-        ', elementType =',
-        element.elementType,
-        ', sections keys =',
-        sections ? Array.from(sections.keys()).slice(0, 5) : 'null',
-      );
       const sectionData = sections?.get(sectionId) || sections?.get(parseInt(sectionId, 10));
       if (sectionData) {
-        const height = ElementGeometryUtils.getSectionHeight(sectionData, sectionData.shape || 'H');
-        if (height > 0) {
-          beamHeight = height;
+        // SRC造の場合: RC高さ(配置基準)と鉄骨高さ(プレート配置)を分離
+        if (sectionData.isSRC && sectionData.concreteProfile?.height) {
+          beamHeight = sectionData.concreteProfile.height;
+          // 鉄骨高さは steelProfile から取得
+          if (sectionData.steelProfile?.dimensions) {
+            const steelSectionType = sectionData.steelProfile.section_type || 'H';
+            const sh = ElementGeometryUtils.getSectionHeight(
+              { dimensions: sectionData.steelProfile.dimensions },
+              steelSectionType,
+            );
+            if (sh > 0) steelHeight = sh;
+          }
+        } else {
+          const height = ElementGeometryUtils.getSectionHeight(
+            sectionData,
+            sectionData.shape || 'H',
+          );
+          if (height > 0) {
+            beamHeight = height;
+            steelHeight = height;
+          }
         }
-        console.log(
-          '[DEBUG] JointGenerator: sectionData =',
-          sectionData,
-          ', beamHeight =',
-          beamHeight,
-        );
-      } else {
-        console.log('[DEBUG] JointGenerator: sectionData NOT FOUND for sectionId =', sectionId);
       }
     }
 
@@ -199,19 +190,11 @@ export class JointGenerator extends BaseElementGenerator {
     // 継手中心位置（天端基準のため、断面せいの半分だけ下にオフセット）
     const jointCenter = new THREE.Vector3().copy(startPos).addScaledVector(direction, jointOffset);
     jointCenter.z -= beamHeight / 2;
-    console.log(
-      '[DEBUG] JointGenerator: jointCenter =',
-      jointCenter,
-      ', jointOffset =',
-      jointOffset,
-      ', beamHeight =',
-      beamHeight,
-    );
 
     const meshes = [];
 
-    // contextにbeamHeightを追加
-    const jointContext = { ...context, beamHeight };
+    // contextにbeamHeight（配置基準）とsteelHeight（プレート配置基準）を追加
+    const jointContext = { ...context, beamHeight, steelHeight };
 
     // 継手タイプに応じた形状を生成
     switch (jointDef.joint_type) {
@@ -273,7 +256,7 @@ export class JointGenerator extends BaseElementGenerator {
    * @returns {Array<THREE.Mesh>} メッシュ配列
    */
   static _createHShapeJoint(jointDef, center, direction, element, context) {
-    const { log, beamHeight: contextBeamHeight } = context;
+    const { log, steelHeight: contextSteelHeight } = context;
     const meshes = [];
 
     // フランジプレート
@@ -286,19 +269,25 @@ export class JointGenerator extends BaseElementGenerator {
       // 上フランジプレート
       const topFlangeGeometry = new THREE.BoxGeometry(plateLength, plateWidth, plateThickness);
 
-      // contextから取得したbeamHeightを使用（centerは既に梁中心にオフセット済み）
-      const beamHeight = contextBeamHeight || 300; // mm
-      const flangeOffset = beamHeight / 2 + plateThickness / 2;
+      // 鉄骨高さを使用（SRC造の場合、RC高さではなく鉄骨高さでフランジ位置を決定）
+      const steelH = contextSteelHeight || 300; // mm
+      const flangeOffset = steelH / 2 + plateThickness / 2;
 
       // 上フランジ
-      const topFlangeMesh = new THREE.Mesh(topFlangeGeometry, materials.matchedMesh);
+      const topFlangeMesh = new THREE.Mesh(
+        topFlangeGeometry,
+        colorManager.getMaterial('diff', { comparisonState: 'matched' }),
+      );
       topFlangeMesh.position.copy(center);
       topFlangeMesh.position.z += flangeOffset;
       this._applyDirection(topFlangeMesh, direction);
       meshes.push(topFlangeMesh);
 
       // 下フランジ
-      const bottomFlangeMesh = new THREE.Mesh(topFlangeGeometry.clone(), materials.matchedMesh);
+      const bottomFlangeMesh = new THREE.Mesh(
+        topFlangeGeometry.clone(),
+        colorManager.getMaterial('diff', { comparisonState: 'matched' }),
+      );
       bottomFlangeMesh.position.copy(center);
       bottomFlangeMesh.position.z -= flangeOffset;
       this._applyDirection(bottomFlangeMesh, direction);
@@ -319,13 +308,19 @@ export class JointGenerator extends BaseElementGenerator {
       // 両側にウェブプレート
       const webOffset = 50; // H形鋼のウェブ厚さ + プレート厚さの半分
 
-      const leftWebMesh = new THREE.Mesh(webGeometry, materials.matchedMesh);
+      const leftWebMesh = new THREE.Mesh(
+        webGeometry,
+        colorManager.getMaterial('diff', { comparisonState: 'matched' }),
+      );
       leftWebMesh.position.copy(center);
       leftWebMesh.position.y += webOffset;
       this._applyDirection(leftWebMesh, direction);
       meshes.push(leftWebMesh);
 
-      const rightWebMesh = new THREE.Mesh(webGeometry.clone(), materials.matchedMesh);
+      const rightWebMesh = new THREE.Mesh(
+        webGeometry.clone(),
+        colorManager.getMaterial('diff', { comparisonState: 'matched' }),
+      );
       rightWebMesh.position.copy(center);
       rightWebMesh.position.y -= webOffset;
       this._applyDirection(rightWebMesh, direction);
@@ -376,7 +371,10 @@ export class JointGenerator extends BaseElementGenerator {
           isVertical ? plateThickness : plateWidth,
         );
 
-        const mesh = new THREE.Mesh(geometry, materials.matchedMesh);
+        const mesh = new THREE.Mesh(
+          geometry,
+          colorManager.getMaterial('diff', { comparisonState: 'matched' }),
+        );
         mesh.position.copy(center).add(dir);
         this._applyDirection(mesh, direction);
         meshes.push(mesh);
@@ -398,7 +396,7 @@ export class JointGenerator extends BaseElementGenerator {
    * @returns {Array<THREE.Mesh>} メッシュ配列
    */
   static _createTShapeJoint(jointDef, center, direction, element, context) {
-    const { log } = context;
+    const { log, steelHeight: contextSteelHeight } = context;
     // T形継手はH形と同様だが上フランジのみ
     const meshes = [];
 
@@ -410,10 +408,13 @@ export class JointGenerator extends BaseElementGenerator {
 
       const flangeGeometry = new THREE.BoxGeometry(plateLength, plateWidth, plateThickness);
 
-      const beamHeight = 200;
-      const flangeOffset = beamHeight / 2 + plateThickness / 2;
+      const steelH = contextSteelHeight || 200;
+      const flangeOffset = steelH / 2 + plateThickness / 2;
 
-      const flangeMesh = new THREE.Mesh(flangeGeometry, materials.matchedMesh);
+      const flangeMesh = new THREE.Mesh(
+        flangeGeometry,
+        colorManager.getMaterial('diff', { comparisonState: 'matched' }),
+      );
       flangeMesh.position.copy(center);
       flangeMesh.position.z += flangeOffset;
       this._applyDirection(flangeMesh, direction);
@@ -431,7 +432,10 @@ export class JointGenerator extends BaseElementGenerator {
 
       const webGeometry = new THREE.BoxGeometry(plateLength, plateThickness, plateWidth);
 
-      const webMesh = new THREE.Mesh(webGeometry, materials.matchedMesh);
+      const webMesh = new THREE.Mesh(
+        webGeometry,
+        colorManager.getMaterial('diff', { comparisonState: 'matched' }),
+      );
       webMesh.position.copy(center);
       this._applyDirection(webMesh, direction);
       meshes.push(webMesh);

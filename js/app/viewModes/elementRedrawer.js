@@ -10,16 +10,14 @@
 import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
 import { getModelContext } from './displayModeController.js';
-import { parseElements } from '../../common-stb/parser/stbXmlParser.js';
+import { parseElements } from '../../common-stb/import/parser/stbXmlParser.js';
 import {
   drawLineElements,
   drawPolyElements,
   elementGroups,
-  materials,
   createLabelSprite,
   displayModeManager,
   labelDisplayManager,
-  GeometryGeneratorFactory,
   geometryGeneratorFactory,
   parseStbFile,
 } from '../../viewer/index.js';
@@ -40,9 +38,460 @@ import {
 } from '../../common-stb/comparison/index.js';
 import { COMPARISON_KEY_TYPE } from '../../config/comparisonKeyConfig.js';
 import comparisonKeyManager from '../comparisonKeyManager.js';
+import {
+  normalizeComparisonResult,
+  getCategoryCounts,
+} from '../../data/normalizeComparisonResult.js';
+import { COMPARISON_CATEGORY } from '../../constants/comparisonCategories.js';
+import { getMaterialForElementWithMode } from '../../viewer/rendering/materials.js';
 
 // ロガー
 const log = createLogger('elementRedrawer');
+
+// ============================================================================
+// ソリッドモード ヘルパー関数
+// ============================================================================
+
+/**
+ * ソリッドモードの比較結果を元にメッシュを生成しグループに追加する
+ * @param {Object} comparisonResult - 正規化済み比較結果
+ * @param {Object} stbDataA - モデルAのパース済みデータ
+ * @param {Object} stbDataB - モデルBのパース済みデータ
+ * @param {THREE.Group} group - 追加先のグループ
+ * @param {Object} generatorInfo - ジェネレータ情報 { class, method }
+ * @param {string} elementType - 要素タイプ
+ * @param {string} elementsKey - stbDataのキー名
+ * @param {string} sectionsKey - stbDataのキー名
+ * @private
+ */
+function createSolidModeMeshes(
+  comparisonResult,
+  stbDataA,
+  stbDataB,
+  group,
+  generatorInfo,
+  elementType,
+  elementsKey,
+  sectionsKey,
+) {
+  const generator = generatorInfo.class;
+  const generatorMethod = generatorInfo.method;
+  const openingElementsA = elementType === 'Wall' ? stbDataA.openingElements : null;
+  const openingElementsB = elementType === 'Wall' ? stbDataB.openingElements : null;
+
+  // EXACT要素（位置完全一致 + 属性一致）のメッシュを生成
+  const exactItems = comparisonResult[COMPARISON_CATEGORY.EXACT] || [];
+  if (exactItems.length > 0) {
+    const exactElements = exactItems.map((m) => m.dataA.element);
+    const exactMeshes = generator[generatorMethod](
+      exactElements,
+      stbDataA.nodes,
+      stbDataA[sectionsKey],
+      stbDataA.steelSections,
+      elementType,
+      false,
+      openingElementsA,
+    );
+
+    const exactPairs = new Map();
+    exactItems.forEach((pair) => {
+      exactPairs.set(pair.dataA.element.id, pair.dataB.element.id);
+    });
+
+    exactMeshes.forEach((mesh) => {
+      mesh.userData.modelSource = 'matched';
+      mesh.userData.category = COMPARISON_CATEGORY.EXACT;
+      mesh.userData.positionState = 'exact';
+      mesh.userData.attributeState = 'matched';
+      const elementIdA = mesh.userData.elementId;
+      const elementIdB = exactPairs.get(elementIdA);
+      if (elementIdB) {
+        mesh.userData.elementIdA = elementIdA;
+        mesh.userData.elementIdB = elementIdB;
+      }
+      group.add(mesh);
+    });
+  }
+
+  // ATTRIBUTE_MISMATCH要素（位置一致、属性が異なる）のメッシュを生成
+  const mismatchItems = comparisonResult[COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH] || [];
+  if (mismatchItems.length > 0) {
+    const mismatchElements = mismatchItems.map((m) => m.dataA.element);
+    const mismatchMeshes = generator[generatorMethod](
+      mismatchElements,
+      stbDataA.nodes,
+      stbDataA[sectionsKey],
+      stbDataA.steelSections,
+      elementType,
+      false,
+      openingElementsA,
+    );
+
+    const mismatchPairs = new Map();
+    mismatchItems.forEach((pair) => {
+      mismatchPairs.set(pair.dataA.element.id, pair.dataB.element.id);
+    });
+
+    mismatchMeshes.forEach((mesh) => {
+      mesh.userData.modelSource = 'matched';
+      mesh.userData.category = COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH;
+      mesh.userData.positionState = 'exact';
+      mesh.userData.attributeState = 'mismatch';
+      const elementIdA = mesh.userData.elementId;
+      const elementIdB = mismatchPairs.get(elementIdA);
+      if (elementIdB) {
+        mesh.userData.elementIdA = elementIdA;
+        mesh.userData.elementIdB = elementIdB;
+      }
+      group.add(mesh);
+    });
+  }
+
+  // モデルAのみの要素のメッシュを生成
+  if (comparisonResult.onlyA.length > 0) {
+    const onlyAElements = comparisonResult.onlyA.map((d) => d.element);
+    const onlyAMeshes = generator[generatorMethod](
+      onlyAElements,
+      stbDataA.nodes,
+      stbDataA[sectionsKey],
+      stbDataA.steelSections,
+      elementType,
+      false,
+      openingElementsA,
+    );
+    onlyAMeshes.forEach((mesh) => {
+      mesh.userData.modelSource = 'A';
+      group.add(mesh);
+    });
+  }
+
+  // モデルBのみの要素のメッシュを生成
+  if (comparisonResult.onlyB.length > 0) {
+    const onlyBElements = comparisonResult.onlyB.map((d) => d.element);
+    const onlyBMeshes = generator[generatorMethod](
+      onlyBElements,
+      stbDataB.nodes,
+      stbDataB[sectionsKey],
+      stbDataB.steelSections,
+      elementType,
+      false,
+      openingElementsB,
+    );
+    onlyBMeshes.forEach((mesh) => {
+      mesh.userData.modelSource = 'B';
+      group.add(mesh);
+    });
+  }
+}
+
+/**
+ * ソリッドモードの比較結果を元にラベルを作成しグループに追加する
+ * @param {Object} comparisonResult - 正規化済み比較結果
+ * @param {Object} stbDataA - モデルAのパース済みデータ
+ * @param {Object} stbDataB - モデルBのパース済みデータ
+ * @param {THREE.Group} group - 追加先のグループ
+ * @param {string} elementType - 要素タイプ
+ * @private
+ */
+function createSolidModeLabels(comparisonResult, stbDataA, stbDataB, group, elementType) {
+  labelDisplayManager.syncWithCheckbox(elementType);
+  const createLabelsFlag = labelDisplayManager.isLabelVisible(elementType);
+  log.debug(`[redraw${elementType}ForViewMode] solid mode - createLabels: ${createLabelsFlag}`);
+
+  if (!createLabelsFlag) return;
+
+  const exactItems = comparisonResult[COMPARISON_CATEGORY.EXACT] || [];
+  const mismatchItems = comparisonResult[COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH] || [];
+
+  // EXACT要素のラベル
+  const exactLabels = createLabelsForSolidElementsWithSource(
+    exactItems.map((m) => m.dataA.element),
+    stbDataA.nodes,
+    elementType,
+    'matched',
+  );
+  // ATTRIBUTE_MISMATCH要素のラベル
+  const mismatchLabels = createLabelsForSolidElementsWithSource(
+    mismatchItems.map((m) => m.dataA.element),
+    stbDataA.nodes,
+    elementType,
+    'matched',
+  );
+  // モデルAのみの要素のラベル
+  const onlyALabels = createLabelsForSolidElementsWithSource(
+    comparisonResult.onlyA.map((d) => d.element),
+    stbDataA.nodes,
+    elementType,
+    'A',
+  );
+  // モデルBのみの要素のラベル
+  const onlyBLabels = createLabelsForSolidElementsWithSource(
+    comparisonResult.onlyB.map((d) => d.element),
+    stbDataB.nodes,
+    elementType,
+    'B',
+  );
+
+  const allLabels = [...exactLabels, ...mismatchLabels, ...onlyALabels, ...onlyBLabels];
+  log.debug(`[redraw${elementType}ForViewMode] solid mode - created ${allLabels.length} labels`);
+  allLabels.forEach((label) => group.add(label));
+  addLabelsToGlobalState(allLabels);
+}
+
+/**
+ * 片方のモデルのみの場合のソリッドモード描画
+ * @param {Object} stbData - パース済みデータ
+ * @param {string} modelSource - モデルソース ('A' or 'B')
+ * @param {THREE.Group} group - 追加先のグループ
+ * @param {Object} generatorInfo - ジェネレータ情報 { class, method }
+ * @param {string} elementType - 要素タイプ
+ * @param {string} elementsKey - stbDataのキー名
+ * @param {string} sectionsKey - stbDataのキー名
+ * @private
+ */
+function createSolidModeMeshesForSingleModel(
+  stbData,
+  modelSource,
+  group,
+  generatorInfo,
+  elementType,
+  elementsKey,
+  sectionsKey,
+) {
+  const generator = generatorInfo.class;
+  const generatorMethod = generatorInfo.method;
+
+  const meshes = generator[generatorMethod](
+    stbData[elementsKey],
+    stbData.nodes,
+    stbData[sectionsKey],
+    stbData.steelSections,
+    elementType,
+    false,
+    elementType === 'Wall' ? stbData.openingElements : null,
+  );
+  meshes.forEach((mesh) => {
+    mesh.userData.modelSource = modelSource;
+    group.add(mesh);
+  });
+
+  // ラベル作成
+  labelDisplayManager.syncWithCheckbox(elementType);
+  const createLabelsFlag = labelDisplayManager.isLabelVisible(elementType);
+  log.debug(`[redraw${elementType}ForViewMode] solid mode - createLabels: ${createLabelsFlag}`);
+
+  if (createLabelsFlag) {
+    const labels = createLabelsForSolidElementsWithSource(
+      stbData[elementsKey],
+      stbData.nodes,
+      elementType,
+      modelSource,
+    );
+    log.debug(`[redraw${elementType}ForViewMode] solid mode - created ${labels.length} labels`);
+    labels.forEach((label) => group.add(label));
+    addLabelsToGlobalState(labels);
+  }
+}
+
+/**
+ * カラーモードをソリッドメッシュに適用する（動的インポート）
+ * @private
+ */
+function applyColorModeToSolidMeshes() {
+  import('../../colorModes/index.js')
+    .then(({ updateElementsForColorMode }) => {
+      updateElementsForColorMode();
+    })
+    .catch((err) => {
+      console.error('Failed to update colors for solid mode:', err);
+    });
+}
+
+// ============================================================================
+// ラインモード ヘルパー関数
+// ============================================================================
+
+/**
+ * ポリゴン要素（Wall, Slab）の線/パネル表示を描画する
+ * @param {Object} config - 要素設定
+ * @param {Object} modelContext - モデルコンテキスト
+ * @param {THREE.Group} group - 追加先のグループ
+ * @private
+ */
+function drawPolyModeElements(config, modelContext, group) {
+  const { elementType, stbTagName } = config;
+  const { modelBounds, modelADocument, modelBDocument, nodeMapA, nodeMapB } = modelContext;
+
+  const elementsA = parseElements(modelADocument, stbTagName);
+  const elementsB = parseElements(modelBDocument, stbTagName);
+
+  const comparisonKeyType = comparisonKeyManager.getKeyType();
+  const comparisonOptions = {
+    classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
+  };
+  const rawPolyResult = compareElements(
+    elementsA,
+    elementsB,
+    nodeMapA,
+    nodeMapB,
+    (el, nm) => polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType),
+    comparisonOptions,
+  );
+
+  const comparisonResult = normalizeComparisonResult(rawPolyResult);
+
+  labelDisplayManager.syncWithCheckbox(elementType);
+  const createLabels = labelDisplayManager.isLabelVisible(elementType);
+  log.debug(`[redraw${elementType}ForViewMode] poly mode - createLabels: ${createLabels}`);
+
+  const createdLabels = drawPolyElements(comparisonResult, group, createLabels, modelBounds);
+
+  // Wallの非ソリッド表示時にも開口輪郭を描画
+  if (elementType === 'Wall') {
+    const stbDataA = modelADocument
+      ? parseStbFile(modelADocument, { modelKey: 'A', saveToGlobalState: true })
+      : null;
+    const stbDataB = modelBDocument
+      ? parseStbFile(modelBDocument, { modelKey: 'B', saveToGlobalState: true })
+      : null;
+    drawWallOpeningOutlines(
+      comparisonResult,
+      group,
+      modelBounds,
+      createWallLookup(stbDataA?.wallElements),
+      createWallLookup(stbDataB?.wallElements),
+      stbDataA?.openingElements || null,
+      stbDataB?.openingElements || null,
+    );
+  }
+
+  if (createdLabels && createdLabels.length > 0) {
+    log.debug(
+      `[redraw${elementType}ForViewMode] poly mode - created ${createdLabels.length} labels`,
+    );
+    addLabelsToGlobalState(createdLabels);
+  } else {
+    log.debug(`[redraw${elementType}ForViewMode] poly mode - no labels created`);
+  }
+}
+
+/**
+ * 2ノード要素の線表示を描画する
+ * @param {Object} config - 要素設定
+ * @param {Object} modelContext - モデルコンテキスト
+ * @param {THREE.Group} group - 追加先のグループ
+ * @private
+ */
+function drawLineModeElements(config, modelContext, group) {
+  const { elementType, stbTagName, nodeStartAttr, nodeEndAttr } = config;
+  const { modelBounds, modelADocument, modelBDocument, nodeMapA, nodeMapB } = modelContext;
+
+  const elementsA = parseElements(modelADocument, stbTagName);
+  const elementsB = parseElements(modelBDocument, stbTagName);
+  const comparisonKeyType = comparisonKeyManager.getKeyType();
+  const comparisonOptions = {
+    classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
+  };
+  const rawLineResult = compareElements(
+    elementsA,
+    elementsB,
+    nodeMapA,
+    nodeMapB,
+    (el, nm) => lineElementKeyExtractor(el, nm, nodeStartAttr, nodeEndAttr, comparisonKeyType),
+    comparisonOptions,
+  );
+
+  const comparisonResult = normalizeComparisonResult(rawLineResult);
+
+  labelDisplayManager.syncWithCheckbox(elementType);
+  const createLabels = labelDisplayManager.isLabelVisible(elementType);
+  log.debug(`[redraw${elementType}ForViewMode] line mode - createLabels: ${createLabels}`);
+
+  const createdLabels = drawLineElements(
+    comparisonResult,
+    group,
+    elementType,
+    createLabels,
+    modelBounds,
+  );
+
+  if (createdLabels && createdLabels.length > 0) {
+    log.debug(
+      `[redraw${elementType}ForViewMode] line mode - created ${createdLabels.length} labels`,
+    );
+    addLabelsToGlobalState(createdLabels);
+  } else {
+    log.debug(`[redraw${elementType}ForViewMode] line mode - no labels created`);
+  }
+}
+
+/**
+ * ソリッドモードでの比較を実行し、正規化された比較結果を返す
+ * @param {Object} config - 要素設定
+ * @param {Object} stbDataA - モデルAのパース済みデータ
+ * @param {Object} stbDataB - モデルBのパース済みデータ
+ * @param {string} elementType - 要素タイプ
+ * @param {string} elementsKey - stbDataのキー名
+ * @returns {Object} 正規化済み比較結果
+ * @private
+ */
+function runSolidModeComparison(config, stbDataA, stbDataB, elementType, elementsKey) {
+  const { nodeStartAttr, nodeEndAttr } = config;
+  const comparisonKeyType = comparisonKeyManager.getKeyType();
+
+  // 要素タイプに応じたキー抽出関数を選択し、元のJSオブジェクトを保持するラッパーで包む
+  let baseExtractor;
+  if (elementType === 'Slab' || elementType === 'Wall') {
+    baseExtractor = (el, nm) =>
+      polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType);
+  } else {
+    baseExtractor = (el, nm) =>
+      lineElementKeyExtractor(el, nm, nodeStartAttr, nodeEndAttr, comparisonKeyType);
+  }
+
+  // 元のJSオブジェクトをdata.elementに保持するラッパー
+  const keyExtractor = (element, nodeMap) => {
+    const result = baseExtractor(element, nodeMap);
+    if (result.key !== null && result.data !== null) {
+      result.data.element = element;
+    }
+    return result;
+  };
+
+  // 属性比較コールバックを作成（4カテゴリ分類: matched/mismatch/onlyA/onlyB）
+  const attributeComparator = createAttributeComparator((data) => data.element || data);
+  const comparisonOptions = {
+    attributeComparator,
+    classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
+  };
+
+  const rawComparisonResult = compareElements(
+    stbDataA[elementsKey] || [],
+    stbDataB[elementsKey] || [],
+    stbDataA.nodes,
+    stbDataB.nodes,
+    keyExtractor,
+    comparisonOptions,
+  );
+
+  // Normalize to canonical 5-category format
+  const comparisonResult = normalizeComparisonResult(rawComparisonResult);
+
+  const counts = getCategoryCounts(comparisonResult);
+  log.debug(
+    `[redraw${elementType}ForViewMode] solid mode comparison: ` +
+      `matched=${counts.matched}, ` +
+      `attributeMismatch=${counts.attributeMismatch}, ` +
+      `onlyA=${counts.onlyA}, ` +
+      `onlyB=${counts.onlyB}`,
+  );
+
+  return comparisonResult;
+}
+
+// ============================================================================
+// メイン再描画オーケストレーター
+// ============================================================================
 
 /**
  * 共通: 要素の再描画処理
@@ -58,10 +507,9 @@ const log = createLogger('elementRedrawer');
  * @private
  */
 function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = true) {
-  const { elementType, stbTagName, nodeStartAttr, nodeEndAttr, elementsKey, sectionsKey } = config;
+  const { elementType, elementsKey, sectionsKey, nodeEndAttr } = config;
 
   // ジェネレータをviewer層から動的解決（クラスの静的メソッドを使用）
-  const geometryGeneratorFactory = new GeometryGeneratorFactory();
   const generatorInfo = geometryGeneratorFactory.getGeneratorInfo(elementType);
 
   if (!generatorInfo) {
@@ -70,11 +518,9 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
     return;
   }
 
-  const generator = generatorInfo.class;
-  const generatorMethod = generatorInfo.method;
-
   // モデルコンテキストを取得
-  const { modelBounds, modelADocument, modelBDocument, nodeMapA, nodeMapB } = getModelContext();
+  const modelContext = getModelContext();
+  const { modelADocument, modelBDocument } = modelContext;
 
   // 必要なデータが揃っているかチェック
   if (!modelADocument && !modelBDocument) return;
@@ -98,288 +544,48 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
       ? parseStbFile(modelBDocument, { modelKey: 'B', saveToGlobalState: true })
       : null;
 
-    // 両方のモデルがある場合は比較を実行
     if (stbDataA && stbDataB) {
-      // 統一比較エンジンを使用して差分を検出
-      const comparisonKeyType = comparisonKeyManager.getKeyType();
-
-      // 要素タイプに応じたキー抽出関数を選択し、元のJSオブジェクトを保持するラッパーで包む
-      let baseExtractor;
-      if (elementType === 'Slab' || elementType === 'Wall') {
-        baseExtractor = (el, nm) =>
-          polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType);
-      } else {
-        baseExtractor = (el, nm) =>
-          lineElementKeyExtractor(el, nm, nodeStartAttr, nodeEndAttr, comparisonKeyType);
-      }
-
-      // 元のJSオブジェクトをdata.elementに保持するラッパー
-      const keyExtractor = (element, nodeMap) => {
-        const result = baseExtractor(element, nodeMap);
-        if (result.key !== null && result.data !== null) {
-          result.data.element = element;
-        }
-        return result;
-      };
-
-      // 属性比較コールバックを作成（4カテゴリ分類: matched/mismatch/onlyA/onlyB）
-      const attributeComparator = createAttributeComparator((data) => data.element || data);
-      const comparisonOptions = {
-        attributeComparator,
-        classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
-      };
-
-      const comparisonResult = compareElements(
-        stbDataA[elementsKey] || [],
-        stbDataB[elementsKey] || [],
-        stbDataA.nodes,
-        stbDataB.nodes,
-        keyExtractor,
-        comparisonOptions,
+      // 両方のモデルがある場合: 比較を実行し、カテゴリ別にメッシュ・ラベルを生成
+      const comparisonResult = runSolidModeComparison(
+        config,
+        stbDataA,
+        stbDataB,
+        elementType,
+        elementsKey,
       );
-
-      log.debug(
-        `[redraw${elementType}ForViewMode] solid mode comparison: ` +
-          `matched=${comparisonResult.matched.length}, ` +
-          `mismatch=${comparisonResult.mismatch.length}, ` +
-          `onlyA=${comparisonResult.onlyA.length}, ` +
-          `onlyB=${comparisonResult.onlyB.length}`,
+      createSolidModeMeshes(
+        comparisonResult,
+        stbDataA,
+        stbDataB,
+        group,
+        generatorInfo,
+        elementType,
+        elementsKey,
+        sectionsKey,
       );
-
-      // マッチした要素（属性も一致）のメッシュを生成（モデルAのデータを使用）
-      if (comparisonResult.matched.length > 0) {
-        const matchedElements = comparisonResult.matched.map((m) => m.dataA.element);
-        const matchedMeshes = generator[generatorMethod](
-          matchedElements,
-          stbDataA.nodes,
-          stbDataA[sectionsKey],
-          stbDataA.steelSections,
-          elementType,
-          false, // isJsonInput
-          elementType === 'Wall' ? stbDataA.openingElements : null, // 壁の場合のみ開口情報を渡す
-        );
-
-        // matched要素のペア情報をマップに変換
-        const matchedPairs = new Map();
-        comparisonResult.matched.forEach((pair) => {
-          matchedPairs.set(pair.dataA.element.id, pair.dataB.element.id);
-        });
-
-        matchedMeshes.forEach((mesh) => {
-          mesh.userData.modelSource = 'matched';
-          // matched要素のA/BのIDを設定（プロパティ表示用）
-          const elementIdA = mesh.userData.elementId;
-          const elementIdB = matchedPairs.get(elementIdA);
-          if (elementIdB) {
-            mesh.userData.elementIdA = elementIdA;
-            mesh.userData.elementIdB = elementIdB;
-          }
-          group.add(mesh);
-        });
-      }
-
-      // 不一致要素（位置は一致、属性が異なる）のメッシュを生成（モデルAのデータを使用）
-      if (comparisonResult.mismatch.length > 0) {
-        const mismatchElements = comparisonResult.mismatch.map((m) => m.dataA.element);
-        const mismatchMeshes = generator[generatorMethod](
-          mismatchElements,
-          stbDataA.nodes,
-          stbDataA[sectionsKey],
-          stbDataA.steelSections,
-          elementType,
-          false, // isJsonInput
-          elementType === 'Wall' ? stbDataA.openingElements : null, // 壁の場合のみ開口情報を渡す
-        );
-
-        // mismatch要素のペア情報をマップに変換
-        const mismatchPairs = new Map();
-        comparisonResult.mismatch.forEach((pair) => {
-          mismatchPairs.set(pair.dataA.element.id, pair.dataB.element.id);
-        });
-
-        mismatchMeshes.forEach((mesh) => {
-          mesh.userData.modelSource = 'mismatch';
-          // mismatch要素のA/BのIDを設定（プロパティ表示用）
-          const elementIdA = mesh.userData.elementId;
-          const elementIdB = mismatchPairs.get(elementIdA);
-          if (elementIdB) {
-            mesh.userData.elementIdA = elementIdA;
-            mesh.userData.elementIdB = elementIdB;
-          }
-          group.add(mesh);
-        });
-      }
-
-      // モデルAのみの要素のメッシュを生成
-      if (comparisonResult.onlyA.length > 0) {
-        const onlyAElements = comparisonResult.onlyA.map((d) => d.element);
-        const onlyAMeshes = generator[generatorMethod](
-          onlyAElements,
-          stbDataA.nodes,
-          stbDataA[sectionsKey],
-          stbDataA.steelSections,
-          elementType,
-          false, // isJsonInput
-          elementType === 'Wall' ? stbDataA.openingElements : null, // 壁の場合のみ開口情報を渡す
-        );
-        onlyAMeshes.forEach((mesh) => {
-          mesh.userData.modelSource = 'A';
-          group.add(mesh);
-        });
-      }
-
-      // モデルBのみの要素のメッシュを生成
-      if (comparisonResult.onlyB.length > 0) {
-        const onlyBElements = comparisonResult.onlyB.map((d) => d.element);
-        const onlyBMeshes = generator[generatorMethod](
-          onlyBElements,
-          stbDataB.nodes,
-          stbDataB[sectionsKey],
-          stbDataB.steelSections,
-          elementType,
-          false, // isJsonInput
-          elementType === 'Wall' ? stbDataB.openingElements : null, // 壁の場合のみ開口情報を渡す
-        );
-        onlyBMeshes.forEach((mesh) => {
-          mesh.userData.modelSource = 'B';
-          group.add(mesh);
-        });
-      }
-
-      // ラベル作成（すべての要素に対して）
-      labelDisplayManager.syncWithCheckbox(elementType);
-      const createLabelsFlag = labelDisplayManager.isLabelVisible(elementType);
-      log.debug(`[redraw${elementType}ForViewMode] solid mode - createLabels: ${createLabelsFlag}`);
-
-      if (createLabelsFlag) {
-        // マッチした要素のラベル
-        const matchedLabels = createLabelsForSolidElementsWithSource(
-          comparisonResult.matched.map((m) => m.dataA.element),
-          stbDataA.nodes,
-          elementType,
-          'matched',
-        );
-        // 不一致要素のラベル
-        const mismatchLabels = createLabelsForSolidElementsWithSource(
-          comparisonResult.mismatch.map((m) => m.dataA.element),
-          stbDataA.nodes,
-          elementType,
-          'mismatch',
-        );
-        // モデルAのみの要素のラベル
-        const onlyALabels = createLabelsForSolidElementsWithSource(
-          comparisonResult.onlyA.map((d) => d.element),
-          stbDataA.nodes,
-          elementType,
-          'A',
-        );
-        // モデルBのみの要素のラベル
-        const onlyBLabels = createLabelsForSolidElementsWithSource(
-          comparisonResult.onlyB.map((d) => d.element),
-          stbDataB.nodes,
-          elementType,
-          'B',
-        );
-
-        const allLabels = [...matchedLabels, ...mismatchLabels, ...onlyALabels, ...onlyBLabels];
-        log.debug(
-          `[redraw${elementType}ForViewMode] solid mode - created ${allLabels.length} labels`,
-        );
-        allLabels.forEach((label) => group.add(label));
-        addLabelsToGlobalState(allLabels);
-      }
+      createSolidModeLabels(comparisonResult, stbDataA, stbDataB, group, elementType);
     } else {
       // 片方のモデルのみの場合（従来の処理）
       const stbData = stbDataA || stbDataB;
       const modelSource = stbDataA ? 'A' : 'B';
-
       if (stbData) {
-        const meshes = generator[generatorMethod](
-          stbData[elementsKey],
-          stbData.nodes,
-          stbData[sectionsKey],
-          stbData.steelSections,
+        createSolidModeMeshesForSingleModel(
+          stbData,
+          modelSource,
+          group,
+          generatorInfo,
           elementType,
-          false, // isJsonInput
-          elementType === 'Wall' ? stbData.openingElements : null, // 壁の場合のみ開口情報を渡す
+          elementsKey,
+          sectionsKey,
         );
-        meshes.forEach((mesh) => {
-          mesh.userData.modelSource = modelSource;
-          group.add(mesh);
-        });
-
-        // ラベル作成
-        labelDisplayManager.syncWithCheckbox(elementType);
-        const createLabelsFlag = labelDisplayManager.isLabelVisible(elementType);
-        log.debug(
-          `[redraw${elementType}ForViewMode] solid mode - createLabels: ${createLabelsFlag}`,
-        );
-
-        if (createLabelsFlag) {
-          const labels = createLabelsForSolidElementsWithSource(
-            stbData[elementsKey],
-            stbData.nodes,
-            elementType,
-            modelSource,
-          );
-          log.debug(
-            `[redraw${elementType}ForViewMode] solid mode - created ${labels.length} labels`,
-          );
-          labels.forEach((label) => group.add(label));
-          addLabelsToGlobalState(labels);
-        }
       }
     }
 
-    // 生成されたメッシュに現在のカラーモードを適用（動的インポート）
-    import('../../colorModes/index.js')
-      .then(({ updateElementsForColorMode }) => {
-        updateElementsForColorMode();
-      })
-      .catch((err) => {
-        console.error('Failed to update colors for solid mode:', err);
-      });
+    applyColorModeToSolidMeshes();
   } else {
     // 線表示 / パネル表示
-
-    // ポリゴン要素（Wall, Slab）の場合はdrawPolyElementsを使用
     if (elementType === 'Wall' || elementType === 'Slab') {
-      const elementsA = parseElements(modelADocument, stbTagName);
-      const elementsB = parseElements(modelBDocument, stbTagName);
-
-      const comparisonKeyType = comparisonKeyManager.getKeyType();
-      const comparisonOptions = {
-        classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
-      };
-      const comparisonResult = compareElements(
-        elementsA,
-        elementsB,
-        nodeMapA,
-        nodeMapB,
-        (el, nm) => polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType),
-        comparisonOptions,
-      );
-
-      labelDisplayManager.syncWithCheckbox(elementType);
-      const createLabels = labelDisplayManager.isLabelVisible(elementType);
-      log.debug(`[redraw${elementType}ForViewMode] poly mode - createLabels: ${createLabels}`);
-
-      const createdLabels = drawPolyElements(
-        comparisonResult,
-        materials,
-        group,
-        createLabels,
-        modelBounds,
-      );
-
-      if (createdLabels && createdLabels.length > 0) {
-        log.debug(
-          `[redraw${elementType}ForViewMode] poly mode - created ${createdLabels.length} labels`,
-        );
-        addLabelsToGlobalState(createdLabels);
-      } else {
-        log.debug(`[redraw${elementType}ForViewMode] poly mode - no labels created`);
-      }
+      drawPolyModeElements(config, modelContext, group);
     } else if (nodeEndAttr === null) {
       // 1ノード要素（基礎など）は線表示をサポートしない
       log.debug(
@@ -388,43 +594,7 @@ function redrawElementForViewMode(config, scheduleRender, updateLabelsAfter = tr
       if (scheduleRender) scheduleRender();
       return;
     } else {
-      // 2ノード要素の線表示（既存コード）
-      const elementsA = parseElements(modelADocument, stbTagName);
-      const elementsB = parseElements(modelBDocument, stbTagName);
-      const comparisonKeyType = comparisonKeyManager.getKeyType();
-      const comparisonOptions = {
-        classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
-      };
-      const comparisonResult = compareElements(
-        elementsA,
-        elementsB,
-        nodeMapA,
-        nodeMapB,
-        (el, nm) => lineElementKeyExtractor(el, nm, nodeStartAttr, nodeEndAttr, comparisonKeyType),
-        comparisonOptions,
-      );
-
-      labelDisplayManager.syncWithCheckbox(elementType);
-      const createLabels = labelDisplayManager.isLabelVisible(elementType);
-      log.debug(`[redraw${elementType}ForViewMode] line mode - createLabels: ${createLabels}`);
-
-      const createdLabels = drawLineElements(
-        comparisonResult,
-        materials,
-        group,
-        elementType,
-        createLabels,
-        modelBounds,
-      );
-
-      if (createdLabels && createdLabels.length > 0) {
-        log.debug(
-          `[redraw${elementType}ForViewMode] line mode - created ${createdLabels.length} labels`,
-        );
-        addLabelsToGlobalState(createdLabels);
-      } else {
-        log.debug(`[redraw${elementType}ForViewMode] line mode - no labels created`);
-      }
+      drawLineModeElements(config, modelContext, group);
     }
   }
 
@@ -478,6 +648,313 @@ export const redrawSlabsForViewMode = createRedrawFunction('Slab');
 export const redrawWallsForViewMode = createRedrawFunction('Wall');
 export const redrawParapetsForViewMode = createRedrawFunction('Parapet');
 export const redrawStripFootingsForViewMode = createRedrawFunction('StripFooting');
+
+/**
+ * 壁要素配列からID検索用Mapを生成
+ * @param {Array<Object>} walls - 壁要素配列
+ * @returns {Map<string, Object>} 壁IDをキーとしたマップ
+ */
+function createWallLookup(walls) {
+  const map = new Map();
+  if (!walls || !Array.isArray(walls)) return map;
+  for (const wall of walls) {
+    if (wall?.id != null) {
+      map.set(String(wall.id), wall);
+    }
+  }
+  return map;
+}
+
+/**
+ * 壁ローカル座標系を計算
+ * WallGenerator と同等の考え方で、幅方向・法線・高さを推定する
+ * @param {Array<Object>} vertexCoordsList - 壁頂点座標配列
+ * @returns {Object|null} 壁ローカル座標系
+ */
+function computeWallFrame(vertexCoordsList) {
+  if (!Array.isArray(vertexCoordsList) || vertexCoordsList.length < 3) return null;
+
+  const vertices = [];
+  for (const p of vertexCoordsList) {
+    if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) {
+      return null;
+    }
+    vertices.push(new THREE.Vector3(p.x, p.y, p.z));
+  }
+
+  const sortedByZ = [...vertices].sort((a, b) => a.z - b.z);
+  const minZ = sortedByZ[0].z;
+  const maxZ = sortedByZ[sortedByZ.length - 1].z;
+  const wallHeight = Math.max(maxZ - minZ, 1);
+
+  const tolerance = 10;
+  const bottomPoints = sortedByZ.filter((v) => Math.abs(v.z - minZ) < tolerance);
+
+  let pStart = bottomPoints[0] || vertices[0];
+  let pEnd = bottomPoints[0] || vertices[0];
+  let maxDistSq = 0;
+
+  if (bottomPoints.length >= 2) {
+    for (let i = 0; i < bottomPoints.length; i++) {
+      for (let j = i + 1; j < bottomPoints.length; j++) {
+        const dSq = bottomPoints[i].distanceToSquared(bottomPoints[j]);
+        if (dSq > maxDistSq) {
+          maxDistSq = dSq;
+          pStart = bottomPoints[i];
+          pEnd = bottomPoints[j];
+        }
+      }
+    }
+  } else {
+    for (let i = 0; i < vertices.length; i++) {
+      for (let j = i + 1; j < vertices.length; j++) {
+        const dx = vertices[i].x - vertices[j].x;
+        const dy = vertices[i].y - vertices[j].y;
+        const dSq = dx * dx + dy * dy;
+        if (dSq > maxDistSq) {
+          maxDistSq = dSq;
+          pStart = vertices[i];
+          pEnd = vertices[j];
+        }
+      }
+    }
+  }
+
+  const wallDirection = new THREE.Vector3().subVectors(pEnd, pStart);
+  wallDirection.z = 0;
+  if (wallDirection.lengthSq() > 0.0001) {
+    wallDirection.normalize();
+  } else {
+    wallDirection.set(1, 0, 0);
+  }
+
+  const wallUp = new THREE.Vector3(0, 0, 1);
+  const wallNormal = new THREE.Vector3().crossVectors(wallDirection, wallUp).normalize();
+
+  let minL = Infinity;
+  let maxL = -Infinity;
+  let minT = Infinity;
+  let maxT = -Infinity;
+
+  for (const v of vertices) {
+    const vec = new THREE.Vector3().subVectors(v, pStart);
+    const distL = vec.dot(wallDirection);
+    const distT = vec.dot(wallNormal);
+    if (distL < minL) minL = distL;
+    if (distL > maxL) maxL = distL;
+    if (distT < minT) minT = distT;
+    if (distT > maxT) maxT = distT;
+  }
+
+  const wallWidth = Math.max(maxL - minL, 1);
+  const centerL = (minL + maxL) / 2;
+  const centerT = (minT + maxT) / 2;
+  const centerZ = minZ + wallHeight / 2;
+
+  const center = new THREE.Vector3()
+    .copy(pStart)
+    .addScaledVector(wallDirection, centerL)
+    .addScaledVector(wallNormal, centerT);
+  center.z = centerZ;
+
+  return { center, wallDirection, wallNormal, wallUp, wallWidth, wallHeight };
+}
+
+/**
+ * 壁に紐づく開口情報を取得（STB 2.0.2/2.1.0両対応）
+ * @param {Object} wall - 壁要素
+ * @param {Map<string, Object>|null} openingElements - 開口情報マップ
+ * @returns {Array<Object>} 開口配列
+ */
+function resolveOpeningsForWall(wall, openingElements, rawWallElement = null) {
+  const openings = [];
+  if (!wall || !openingElements) return openings;
+
+  const getOpeningPosition = (opening) => ({
+    positionX: opening.position_X ?? opening.offset_X ?? 0,
+    positionY: opening.position_Y ?? opening.offset_Y ?? 0,
+  });
+
+  const openIds = [];
+  if (Array.isArray(wall.open_ids) && wall.open_ids.length > 0) {
+    openIds.push(...wall.open_ids);
+  }
+
+  // フォールバック: 比較時の生XML要素から開口IDを直接抽出
+  if (openIds.length === 0 && rawWallElement) {
+    const addOpenId = (id) => {
+      if (!id) return;
+      const normalized = String(id).trim();
+      if (!normalized) return;
+      if (!openIds.includes(normalized)) {
+        openIds.push(normalized);
+      }
+    };
+
+    if (typeof rawWallElement.getElementsByTagNameNS === 'function') {
+      const nsNodes = rawWallElement.getElementsByTagNameNS('*', 'StbOpenId');
+      for (const node of nsNodes) {
+        addOpenId(node.getAttribute?.('id'));
+      }
+    }
+    if (typeof rawWallElement.getElementsByTagName === 'function') {
+      const nodes = rawWallElement.getElementsByTagName('StbOpenId');
+      for (const node of nodes) {
+        addOpenId(node.getAttribute?.('id'));
+      }
+    }
+  }
+
+  if (openIds.length > 0) {
+    for (const openId of openIds) {
+      const opening = openingElements.get(openId);
+      if (!opening) continue;
+      const pos = getOpeningPosition(opening);
+      openings.push({
+        id: opening.id,
+        width: opening.length_X,
+        height: opening.length_Y,
+        positionX: pos.positionX,
+        positionY: pos.positionY,
+      });
+    }
+  } else {
+    for (const opening of openingElements.values()) {
+      if (opening.kind_member === 'WALL' && String(opening.id_member) === String(wall.id)) {
+        const pos = getOpeningPosition(opening);
+        openings.push({
+          id: opening.id,
+          width: opening.length_X,
+          height: opening.length_Y,
+          positionX: pos.positionX,
+          positionY: pos.positionY,
+        });
+      }
+    }
+  }
+
+  return openings;
+}
+
+/**
+ * 開口輪郭をWallグループへ追加描画する（非ソリッド表示向け）
+ * @param {Object} comparisonResult - 正規化済み比較結果
+ * @param {THREE.Group} group - 壁グループ
+ * @param {THREE.Box3} modelBounds - モデルバウンディング
+ * @param {Map<string, Object>} wallMapA - モデルAの壁マップ
+ * @param {Map<string, Object>} wallMapB - モデルBの壁マップ
+ * @param {Map<string, Object>|null} openingMapA - モデルAの開口マップ
+ * @param {Map<string, Object>|null} openingMapB - モデルBの開口マップ
+ */
+function drawWallOpeningOutlines(
+  comparisonResult,
+  group,
+  modelBounds,
+  wallMapA,
+  wallMapB,
+  openingMapA,
+  openingMapB,
+) {
+  if (!comparisonResult || !group) return;
+
+  const matchedItems = Array.isArray(comparisonResult.matched) ? comparisonResult.matched : [];
+  const onlyAItems = Array.isArray(comparisonResult.onlyA) ? comparisonResult.onlyA : [];
+  const onlyBItems = Array.isArray(comparisonResult.onlyB) ? comparisonResult.onlyB : [];
+
+  const outlineOffset = 1;
+  const minOpeningSize = 10;
+
+  const drawForItem = (item, modelSource) => {
+    const sourceData = modelSource === 'B' ? item : item?.dataA;
+    const wallId = sourceData?.id;
+    const vertexCoordsList = sourceData?.vertexCoordsList;
+    if (!wallId || !Array.isArray(vertexCoordsList)) return;
+
+    const wallMap = modelSource === 'B' ? wallMapB : wallMapA;
+    const openingMap = modelSource === 'B' ? openingMapB : openingMapA;
+    const wall = wallMap.get(String(wallId));
+    if (!wall) return;
+
+    const openings = resolveOpeningsForWall(wall, openingMap, sourceData?.rawElement || null);
+    if (openings.length === 0) return;
+
+    const frame = computeWallFrame(vertexCoordsList);
+    if (!frame) return;
+
+    const category = modelSource === 'A' ? 'onlyA' : modelSource === 'B' ? 'onlyB' : 'matched';
+    const matchType = item?.matchType;
+    const baseLineMaterial = getMaterialForElementWithMode(
+      'Wall',
+      category,
+      true,
+      false,
+      String(wallId),
+      matchType,
+    );
+    const lineMaterial = baseLineMaterial.clone();
+    lineMaterial.depthTest = false;
+    lineMaterial.depthWrite = false;
+    lineMaterial.transparent = true;
+    lineMaterial.opacity = 0.95;
+
+    const halfWidth = frame.wallWidth / 2;
+    const halfHeight = frame.wallHeight / 2;
+
+    for (const opening of openings) {
+      const width = Number(opening.width) || 0;
+      const height = Number(opening.height) || 0;
+      if (width <= 0 || height <= 0) continue;
+
+      const openingLeft = (Number(opening.positionX) || 0) - halfWidth;
+      const openingBottom = (Number(opening.positionY) || 0) - halfHeight;
+      const openingRight = openingLeft + width;
+      const openingTop = openingBottom + height;
+
+      const clampedLeft = Math.max(openingLeft, -halfWidth + 1);
+      const clampedRight = Math.min(openingRight, halfWidth - 1);
+      const clampedBottom = Math.max(openingBottom, -halfHeight + 1);
+      const clampedTop = Math.min(openingTop, halfHeight - 1);
+
+      if (
+        clampedRight - clampedLeft < minOpeningSize ||
+        clampedTop - clampedBottom < minOpeningSize
+      ) {
+        continue;
+      }
+
+      const toWorld = (localX, localY) =>
+        frame.center
+          .clone()
+          .addScaledVector(frame.wallDirection, localX)
+          .addScaledVector(frame.wallUp, localY)
+          .addScaledVector(frame.wallNormal, outlineOffset);
+
+      const p1 = toWorld(clampedLeft, clampedBottom);
+      const p2 = toWorld(clampedRight, clampedBottom);
+      const p3 = toWorld(clampedRight, clampedTop);
+      const p4 = toWorld(clampedLeft, clampedTop);
+      const points = [p1, p2, p3, p4, p1];
+      points.forEach((p) => modelBounds.expandByPoint(p));
+
+      const geometry = new THREE.BufferGeometry().setFromPoints(points);
+      const openingLine = new THREE.Line(geometry, lineMaterial);
+      openingLine.renderOrder = 20;
+      openingLine.userData = {
+        elementType: 'Wall',
+        openingId: opening.id,
+        hostElementId: String(wallId),
+        modelSource,
+        isOpeningOutline: true,
+        isLine: true,
+      };
+      group.add(openingLine);
+    }
+  };
+
+  for (const item of matchedItems) drawForItem(item, 'matched');
+  for (const item of onlyAItems) drawForItem(item, 'A');
+  for (const item of onlyBItems) drawForItem(item, 'B');
+}
 
 /**
  * 梁の再描画処理（大梁と小梁の両方を処理 - 特殊ケース）
@@ -585,7 +1062,6 @@ function createLabelsForSolidElementsWithSource(elements, nodes, elementType, mo
  * @param {Function} scheduleRender - 再描画要求関数
  */
 export function redrawJointsForViewMode(scheduleRender) {
-  console.log('[DEBUG] redrawJointsForViewMode called');
   // 継手は特殊な要素で、梁・柱に関連付けられている
   // solid表示モードの場合のみ継手プレートを描画
 
@@ -593,13 +1069,11 @@ export function redrawJointsForViewMode(scheduleRender) {
   const { modelADocument, modelBDocument } = getModelContext();
 
   if (!modelADocument && !modelBDocument) {
-    console.log('[DEBUG] redrawJointsForViewMode: No model documents');
     return;
   }
 
   const group = elementGroups['Joint'];
   if (!group) {
-    console.log('[DEBUG] redrawJointsForViewMode: Joint group not found');
     return;
   }
 
@@ -611,7 +1085,6 @@ export function redrawJointsForViewMode(scheduleRender) {
   group.visible = true;
 
   const viewMode = displayModeManager.getDisplayMode('Joint');
-  console.log('[DEBUG] redrawJointsForViewMode: viewMode =', viewMode);
   log.debug(`[redrawJointsForViewMode] mode: ${viewMode}`);
 
   if (viewMode !== 'solid') {
@@ -635,25 +1108,6 @@ export function redrawJointsForViewMode(scheduleRender) {
   const jointedElementsB = [];
 
   if (stbDataA) {
-    console.log('[DEBUG] stbDataA:', {
-      girders: stbDataA.girderElements?.length || 0,
-      beams: stbDataA.beamElements?.length || 0,
-      jointElements: stbDataA.jointElements?.size || 0,
-    });
-    // 最初の大梁要素の中身を確認
-    if (stbDataA.girderElements?.length > 0) {
-      const firstGirder = stbDataA.girderElements[0];
-      console.log('[DEBUG] First girder element:', {
-        id: firstGirder.id,
-        joint_id_start: firstGirder.joint_id_start,
-        joint_id_end: firstGirder.joint_id_end,
-        keys: Object.keys(firstGirder).join(', '),
-      });
-    }
-    // jointElements の中身を確認
-    if (stbDataA.jointElements) {
-      console.log('[DEBUG] jointElements keys:', Array.from(stbDataA.jointElements.keys()));
-    }
     log.debug(
       `[redrawJointsForViewMode] stbDataA: girders=${stbDataA.girderElements?.length || 0}, beams=${stbDataA.beamElements?.length || 0}, jointElements=${stbDataA.jointElements?.size || 0}`,
     );
@@ -661,12 +1115,6 @@ export function redrawJointsForViewMode(scheduleRender) {
     // Girder要素から継手情報を持つものを抽出
     for (const girder of stbDataA.girderElements || []) {
       if (girder.joint_id_start || girder.joint_id_end) {
-        console.log(
-          '[DEBUG] Found jointed girder:',
-          girder.id,
-          girder.joint_id_start,
-          girder.joint_id_end,
-        );
         log.debug(
           `[redrawJointsForViewMode] Found jointed girder: id=${girder.id}, joint_id_start=${girder.joint_id_start}, joint_id_end=${girder.joint_id_end}`,
         );
@@ -676,14 +1124,12 @@ export function redrawJointsForViewMode(scheduleRender) {
     // Beam要素から継手情報を持つものを抽出
     for (const beam of stbDataA.beamElements || []) {
       if (beam.joint_id_start || beam.joint_id_end) {
-        console.log('[DEBUG] Found jointed beam:', beam.id, beam.joint_id_start, beam.joint_id_end);
         log.debug(
           `[redrawJointsForViewMode] Found jointed beam: id=${beam.id}, joint_id_start=${beam.joint_id_start}, joint_id_end=${beam.joint_id_end}`,
         );
         jointedElementsA.push({ ...beam, elementType: 'Beam' });
       }
     }
-    console.log('[DEBUG] Total jointed elements A:', jointedElementsA.length);
     log.debug(`[redrawJointsForViewMode] Total jointed elements A: ${jointedElementsA.length}`);
   }
 
@@ -713,13 +1159,7 @@ export function redrawJointsForViewMode(scheduleRender) {
   const jointMethod = jointInfo.method;
 
   // 継手メッシュを生成
-  console.log('[DEBUG] Creating joint meshes, jointedElementsA:', jointedElementsA.length);
   if (stbDataA && jointedElementsA.length > 0) {
-    console.log('[DEBUG] Calling JointGenerator.createJointMeshes with:', {
-      jointedElements: jointedElementsA.length,
-      nodes: stbDataA.nodes?.size || 0,
-      jointElements: stbDataA.jointElements?.size || 0,
-    });
     const meshes = jointGenerator[jointMethod](
       jointedElementsA,
       stbDataA.nodes,
@@ -732,20 +1172,10 @@ export function redrawJointsForViewMode(scheduleRender) {
         beamSections: stbDataA.beamSections,
       },
     );
-    console.log('[DEBUG] Created meshes:', meshes.length);
-    meshes.forEach((mesh, index) => {
+    meshes.forEach((mesh) => {
       mesh.userData.modelSource = 'A';
       group.add(mesh);
-      if (index === 0) {
-        console.log('[DEBUG] First mesh position:', mesh.position);
-        console.log('[DEBUG] First mesh geometry bounding box:', mesh.geometry.boundingBox);
-        mesh.geometry.computeBoundingBox();
-        console.log('[DEBUG] First mesh computed bounding box:', mesh.geometry.boundingBox);
-      }
     });
-    console.log('[DEBUG] Group children count after adding:', group.children.length);
-    console.log('[DEBUG] Group visible:', group.visible);
-    console.log('[DEBUG] Group position:', group.position);
     log.debug(`[redrawJointsForViewMode] Created ${meshes.length} joint meshes from model A`);
   }
 
@@ -900,7 +1330,6 @@ export function redrawUndefinedElementsForViewMode(scheduleRender) {
   // 線要素を描画
   const createdLabels = drawLineElements(
     comparisonResult,
-    materials,
     group,
     'Undefined',
     createLabels,

@@ -5,6 +5,10 @@
 
 import { IFCExporterBase, generateIfcGuid } from './IFCExporterBase.js';
 import { createLogger } from '../../utils/logger.js';
+import {
+  calculateBeamBasis,
+  rotateVectorAroundAxis,
+} from '../../data/geometry/vectorMath.js';
 
 const log = createLogger('IFCBeamExporter');
 
@@ -51,6 +55,8 @@ export class IFCBeamExporter extends IFCExporterBase {
       rotation = 0,
       placementMode = 'center',
       sectionHeight = 0,
+      isSRC = false,
+      steelProfile = null,
     } = beamData;
 
     // Validate name
@@ -142,52 +148,20 @@ export class IFCBeamExporter extends IFCExporterBase {
       return null;
     }
 
-    // 梁のローカルY軸（せい方向=上方向）を計算
-    // Three.js GeometryCalculator.calculateBeamBasis と同じロジック
-    // 水平梁の場合、Y軸は鉛直上向きに近い方向
-    let localYX, localYY, localYZ;
-    if (Math.abs(dirZ) < 0.99) {
-      // 水平に近い梁:
-      // xAxis = globalUp × beamAxis（水平方向）
-      // yAxis = beamAxis × xAxis（せい方向=上向き）
-      // globalUp = (0, 0, 1)
-      const crossX = 0 * dirZ - 1 * dirY; // globalUp × dir
-      const crossY = 1 * dirX - 0 * dirZ;
-      const crossZ = 0 * dirY - 0 * dirX;
-      const crossLen = Math.sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ);
-      if (crossLen > 1e-6) {
-        // ローカルX軸（梁軸と垂直、水平）
-        const localXX = crossX / crossLen;
-        const localXY = crossY / crossLen;
-        const localXZ = crossZ / crossLen;
-        // ローカルY軸 = 梁軸 × ローカルX軸（せい方向=上向き）
-        localYX = dirY * localXZ - dirZ * localXY;
-        localYY = dirZ * localXX - dirX * localXZ;
-        localYZ = dirX * localXY - dirY * localXX;
-      } else {
-        localYX = 0;
-        localYY = 0;
-        localYZ = 1;
-      }
-    } else {
-      // 垂直に近い梁: Y軸はグローバルY方向
-      localYX = 0;
-      localYY = 1;
-      localYZ = 0;
-    }
+    // 梁のローカル基底ベクトルを計算（vectorMath共通関数を使用）
+    const dir = { x: dirX, y: dirY, z: dirZ };
+    const basis = calculateBeamBasis(dir);
 
     // 天端基準配置の場合、配置点をローカルY軸方向に -sectionHeight/2 シフト
-    // localY軸方向(せい方向、上向き)に対して負の方向にシフトすることで、
-    // 天端座標を保持したまま、梁の中心を配置する
     let adjustedStartX = startPoint.x;
     let adjustedStartY = startPoint.y;
     let adjustedStartZ = startPoint.z;
 
     if (placementMode === 'top-aligned' && sectionHeight > 0 && isFinite(sectionHeight)) {
       const shift = -sectionHeight / 2;
-      adjustedStartX += localYX * shift;
-      adjustedStartY += localYY * shift;
-      adjustedStartZ += localYZ * shift;
+      adjustedStartX += basis.yAxis.x * shift;
+      adjustedStartY += basis.yAxis.y * shift;
+      adjustedStartZ += basis.yAxis.z * shift;
     }
 
     // 梁の配置点（天端基準調整後）(mm)
@@ -198,62 +172,13 @@ export class IFCBeamExporter extends IFCExporterBase {
     // 梁の軸方向
     const beamAxisDir = w.createEntity('IFCDIRECTION', [[dirX, dirY, dirZ]]);
 
-    // 梁の参照方向（RefDirection）- 梁軸と直交する方向を計算
-    // localXと同じ計算（Three.js GeometryCalculator.calculateBeamBasis と整合）
-    let baseRefDirX, baseRefDirY, baseRefDirZ;
-    if (Math.abs(dirZ) < 0.99) {
-      // 水平に近い梁: globalUp × beamAxis（水平方向）
-      // globalUp = (0, 0, 1)
-      const crossX = 0 * dirZ - 1 * dirY; // = -dirY
-      const crossY = 1 * dirX - 0 * dirZ; // = dirX
-      const crossZ = 0 * dirY - 0 * dirX; // = 0
-      const crossLen = Math.sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ);
-      if (crossLen > 1e-6) {
-        baseRefDirX = crossX / crossLen;
-        baseRefDirY = crossY / crossLen;
-        baseRefDirZ = crossZ / crossLen;
-      } else {
-        baseRefDirX = 0;
-        baseRefDirY = 0;
-        baseRefDirZ = 1;
-      }
-    } else {
-      // 垂直に近い梁: X方向を参照方向とする
-      baseRefDirX = 1;
-      baseRefDirY = 0;
-      baseRefDirZ = 0;
-    }
-
-    // 回転角度を適用（梁軸周りの回転）
-    let refDirX = baseRefDirX;
-    let refDirY = baseRefDirY;
-    let refDirZ = baseRefDirZ;
+    // 梁の参照方向（RefDirection）- 回転角度を適用
+    let refDir = basis.xAxis;
     if (Math.abs(rotation) > 1e-6) {
       const rotationRad = (rotation * Math.PI) / 180;
-      const cosR = Math.cos(rotationRad);
-      const sinR = Math.sin(rotationRad);
-
-      // 梁軸周りの回転（Rodrigues' rotation formula）
-      // v' = v*cos(θ) + (k×v)*sin(θ) + k*(k·v)*(1-cos(θ))
-      // k = (dirX, dirY, dirZ) が回転軸
-      const dotKV = dirX * baseRefDirX + dirY * baseRefDirY + dirZ * baseRefDirZ;
-      const crossKVX = dirY * baseRefDirZ - dirZ * baseRefDirY;
-      const crossKVY = dirZ * baseRefDirX - dirX * baseRefDirZ;
-      const crossKVZ = dirX * baseRefDirY - dirY * baseRefDirX;
-
-      refDirX = baseRefDirX * cosR + crossKVX * sinR + dirX * dotKV * (1 - cosR);
-      refDirY = baseRefDirY * cosR + crossKVY * sinR + dirY * dotKV * (1 - cosR);
-      refDirZ = baseRefDirZ * cosR + crossKVZ * sinR + dirZ * dotKV * (1 - cosR);
-
-      // 正規化
-      const refLen = Math.sqrt(refDirX * refDirX + refDirY * refDirY + refDirZ * refDirZ);
-      if (refLen > 1e-6) {
-        refDirX /= refLen;
-        refDirY /= refLen;
-        refDirZ /= refLen;
-      }
+      refDir = rotateVectorAroundAxis(basis.xAxis, dir, rotationRad);
     }
-    const beamRefDir = w.createEntity('IFCDIRECTION', [[refDirX, refDirY, refDirZ]]);
+    const beamRefDir = w.createEntity('IFCDIRECTION', [[refDir.x, refDir.y, refDir.z]]);
 
     // 梁の配置座標系
     const beamPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
@@ -287,12 +212,29 @@ export class IFCBeamExporter extends IFCExporterBase {
       length,
     ]);
 
+    // 形状表現の Items を構築
+    const solidItems = [`#${solidId}`];
+
+    // SRC造の場合、鉄骨プロファイルも追加（コンクリート外殻＋鉄骨内部の複合表現）
+    if (isSRC && steelProfile) {
+      const steelProfileId = this._createProfileId(steelProfile, false);
+      if (steelProfileId !== null) {
+        const steelSolidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
+          `#${steelProfileId}`,
+          `#${extrudePlacement}`,
+          `#${extrudeDir}`,
+          length,
+        ]);
+        solidItems.push(`#${steelSolidId}`);
+      }
+    }
+
     // 形状表現
     const shapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
       `#${this._refs.bodyContext}`, // ContextOfItems
       'Body', // RepresentationIdentifier
       'SweptSolid', // RepresentationType
-      [`#${solidId}`], // Items
+      solidItems, // Items
     ]);
 
     // 製品定義形状
@@ -385,86 +327,38 @@ export class IFCBeamExporter extends IFCExporterBase {
     const dirY = dy / length;
     const dirZ = dz / length;
 
-    // ローカル座標系の基底ベクトルを計算
-    let localXX, localXY, localXZ;
-    let localYX, localYY, localYZ;
+    // ローカル座標系の基底ベクトルを計算（vectorMath共通関数を使用）
+    // calculateBeamBasis は水平梁・傾斜梁・垂直要素いずれにも正しい基底を返す
+    // - 水平梁: yAxis = {0,0,1}（真上向き）
+    // - 傾斜梁: yAxis は梁軸に垂直かつ鉛直面内の上向き成分
+    // - 垂直要素: globalX基準のフォールバック
+    const dir = { x: dirX, y: dirY, z: dirZ };
+    const basis = calculateBeamBasis(dir);
+    let localX = basis.xAxis;
+    let localY = basis.yAxis;
 
-    // 天端基準配置の場合、水平梁ではlocalYを真下向きに固定
-    const isHorizontalBeam = Math.abs(dirZ) < 0.1; // 勾配10%未満を水平とみなす
-    const useTopAligned = placementMode === 'top-aligned' && isHorizontalBeam;
-
-    if (useTopAligned) {
-      // 天端基準配置: localYは真下向き（0, 0, -1）
-      // localXは梁軸に垂直かつ水平
-      const crossX = -dirY;
-      const crossY = dirX;
-      const crossLen = Math.sqrt(crossX * crossX + crossY * crossY);
-      if (crossLen > 1e-6) {
-        localXX = crossX / crossLen;
-        localXY = crossY / crossLen;
-        localXZ = 0;
-      } else {
-        // Y軸方向の梁の場合
-        localXX = 1;
-        localXY = 0;
-        localXZ = 0;
-      }
-      // localYは真上向き（頂点のy=0が天端、y=-Hが底なのでlocalYは上向き）
-      localYX = 0;
-      localYY = 0;
-      localYZ = 1;
-    } else if (Math.abs(dirZ) < 0.99) {
-      // 通常の水平梁（中心基準）または傾斜梁
-      const crossX = -dirY;
-      const crossY = dirX;
-      // const crossZ = 0;
-      const crossLen = Math.sqrt(crossX * crossX + crossY * crossY);
-      if (crossLen > 1e-6) {
-        localXX = crossX / crossLen;
-        localXY = crossY / crossLen;
-        localXZ = 0;
-        // Y軸 = Z軸 × X軸
-        localYX = dirY * localXZ - dirZ * localXY;
-        localYY = dirZ * localXX - dirX * localXZ;
-        localYZ = dirX * localXY - dirY * localXX;
-      } else {
-        localXX = 1;
-        localXY = 0;
-        localXZ = 0;
-        localYX = 0;
-        localYY = 0;
-        localYZ = 1;
-      }
-    } else {
-      // 垂直に近い梁
-      localXX = 1;
-      localXY = 0;
-      localXZ = 0;
-      localYX = 0;
-      localYY = 1;
-      localYZ = 0;
-    }
-
-    // 回転を適用
+    // 回転を適用（梁軸周りのX/Y軸回転）
     if (Math.abs(rotation) > 1e-6) {
       const rotRad = (rotation * Math.PI) / 180;
       const cosR = Math.cos(rotRad);
       const sinR = Math.sin(rotRad);
 
-      const newXX = localXX * cosR + localYX * sinR;
-      const newXY = localXY * cosR + localYY * sinR;
-      const newXZ = localXZ * cosR + localYZ * sinR;
-      const newYX = -localXX * sinR + localYX * cosR;
-      const newYY = -localXY * sinR + localYY * cosR;
-      const newYZ = -localXZ * sinR + localYZ * cosR;
-
-      localXX = newXX;
-      localXY = newXY;
-      localXZ = newXZ;
-      localYX = newYX;
-      localYY = newYY;
-      localYZ = newYZ;
+      const newX = {
+        x: localX.x * cosR + localY.x * sinR,
+        y: localX.y * cosR + localY.y * sinR,
+        z: localX.z * cosR + localY.z * sinR,
+      };
+      const newY = {
+        x: -localX.x * sinR + localY.x * cosR,
+        y: -localX.y * sinR + localY.y * cosR,
+        z: -localX.z * sinR + localY.z * cosR,
+      };
+      localX = newX;
+      localY = newY;
     }
+
+    const localXX = localX.x, localXY = localX.y, localXZ = localX.z;
+    const localYX = localY.x, localYY = localY.y, localYZ = localY.z;
 
     // 断面をposでソート
     const sortedSections = [...sections].sort((a, b) => a.pos - b.pos);
@@ -627,6 +521,8 @@ export class IFCBeamExporter extends IFCExporterBase {
       profile,
       rotation = 0,
       isReferenceDirection = true,
+      isSRC = false,
+      steelProfile = null,
     } = columnData;
 
     // 必須パラメータのチェック
@@ -722,6 +618,23 @@ export class IFCBeamExporter extends IFCExporterBase {
       length,
     ]);
 
+    // 形状表現の Items を構築
+    const solidItems = [`#${solidId}`];
+
+    // SRC造の場合、鉄骨プロファイルも追加（コンクリート外殻＋鉄骨内部の複合表現）
+    if (isSRC && steelProfile) {
+      const steelProfileId = this._createProfileId(steelProfile, true);
+      if (steelProfileId !== null) {
+        const steelSolidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
+          `#${steelProfileId}`,
+          `#${extrudePosition}`,
+          `#${extrudeDir}`,
+          length,
+        ]);
+        solidItems.push(`#${steelSolidId}`);
+      }
+    }
+
     // 柱の配置点（中心）(mm) - Three.jsと同じ配置方法
     const columnOrigin = w.createEntity('IFCCARTESIANPOINT', [[centerX, centerY, centerZ]]);
 
@@ -759,7 +672,7 @@ export class IFCBeamExporter extends IFCExporterBase {
       `#${this._refs.bodyContext}`,
       'Body',
       'SweptSolid',
-      [`#${solidId}`],
+      solidItems,
     ]);
 
     // 製品定義形状
@@ -1032,58 +945,25 @@ export class IFCBeamExporter extends IFCExporterBase {
     // ブレースの軸方向（押出方向と同じ）
     const braceAxisDir = w.createEntity('IFCDIRECTION', [[dirX, dirY, dirZ]]);
 
-    // 参照方向の計算（グローバルZ方向との外積、または垂直の場合はY方向）
-    let baseRefDirX, baseRefDirY, baseRefDirZ;
-    if (Math.abs(dirZ) < 0.99) {
-      // 非垂直: グローバルZ方向との外積
-      const crossX = dirY * 1 - dirZ * 0;
-      const crossY = dirZ * 0 - dirX * 1;
-      const crossZ = dirX * 0 - dirY * 0;
-      const crossLen = Math.sqrt(crossX * crossX + crossY * crossY + crossZ * crossZ);
-      if (crossLen > 1e-6) {
-        baseRefDirX = crossX / crossLen;
-        baseRefDirY = crossY / crossLen;
-        baseRefDirZ = crossZ / crossLen;
-      } else {
-        baseRefDirX = 0;
-        baseRefDirY = 0;
-        baseRefDirZ = 1;
-      }
-    } else {
-      // ほぼ垂直: グローバルY方向を参照
-      baseRefDirX = 0;
-      baseRefDirY = 1;
-      baseRefDirZ = 0;
+    // 参照方向の計算（vectorMath共通関数を使用）
+    // ブレースでは dir × globalUp を参照方向とする（梁のxAxisの反転に相当）
+    const dir = { x: dirX, y: dirY, z: dirZ };
+    const basis = calculateBeamBasis(dir);
+    // ブレースの参照方向は -xAxis（dir × globalUp = -(globalUp × dir)）
+    let baseRefDir = { x: -basis.xAxis.x, y: -basis.xAxis.y, z: -basis.xAxis.z };
+
+    // 垂直に近い場合はY方向を参照（calculateBeamBasisの垂直時とは異なるため上書き）
+    if (Math.abs(dirZ) >= 0.99) {
+      baseRefDir = { x: 0, y: 1, z: 0 };
     }
 
     // 回転角度を適用（ブレース軸周りの回転）
-    let refDirX = baseRefDirX;
-    let refDirY = baseRefDirY;
-    let refDirZ = baseRefDirZ;
+    let refDir = baseRefDir;
     if (Math.abs(rotation) > 1e-6) {
       const rotationRad = (rotation * Math.PI) / 180;
-      const cosR = Math.cos(rotationRad);
-      const sinR = Math.sin(rotationRad);
-
-      // 軸周りの回転（Rodrigues' rotation formula）
-      const dotKV = dirX * baseRefDirX + dirY * baseRefDirY + dirZ * baseRefDirZ;
-      const crossKVX = dirY * baseRefDirZ - dirZ * baseRefDirY;
-      const crossKVY = dirZ * baseRefDirX - dirX * baseRefDirZ;
-      const crossKVZ = dirX * baseRefDirY - dirY * baseRefDirX;
-
-      refDirX = baseRefDirX * cosR + crossKVX * sinR + dirX * dotKV * (1 - cosR);
-      refDirY = baseRefDirY * cosR + crossKVY * sinR + dirY * dotKV * (1 - cosR);
-      refDirZ = baseRefDirZ * cosR + crossKVZ * sinR + dirZ * dotKV * (1 - cosR);
-
-      // 正規化
-      const refLen = Math.sqrt(refDirX * refDirX + refDirY * refDirY + refDirZ * refDirZ);
-      if (refLen > 1e-6) {
-        refDirX /= refLen;
-        refDirY /= refLen;
-        refDirZ /= refLen;
-      }
+      refDir = rotateVectorAroundAxis(baseRefDir, dir, rotationRad);
     }
-    const braceRefDir = w.createEntity('IFCDIRECTION', [[refDirX, refDirY, refDirZ]]);
+    const braceRefDir = w.createEntity('IFCDIRECTION', [[refDir.x, refDir.y, refDir.z]]);
 
     // 配置座標系（始点、軸方向、参照方向）
     const bracePlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [

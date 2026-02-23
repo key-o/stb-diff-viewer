@@ -93,13 +93,18 @@ export class BasicStrategy extends BaseStrategy {
     const onlyB = [];
     const matched = [];
     const mismatch = [];
+    let nullKeyCountA = 0;
+    let nullKeyCountB = 0;
 
     for (const elementA of elementsA) {
       const { key, data } = keyExtractor(elementA, nodeMapA);
       if (key !== null) {
         keysA.set(key, data);
-      } else if (classifyNullKeysAsOnly && data !== null) {
-        onlyA.push(data);
+      } else {
+        nullKeyCountA++;
+        if (classifyNullKeysAsOnly && data !== null) {
+          onlyA.push(data);
+        }
       }
     }
 
@@ -107,9 +112,19 @@ export class BasicStrategy extends BaseStrategy {
       const { key, data } = keyExtractor(elementB, nodeMapB);
       if (key !== null) {
         keysB.set(key, data);
-      } else if (classifyNullKeysAsOnly && data !== null) {
-        onlyB.push(data);
+      } else {
+        nullKeyCountB++;
+        if (classifyNullKeysAsOnly && data !== null) {
+          onlyB.push(data);
+        }
       }
+    }
+
+    if (nullKeyCountA > 0 || nullKeyCountB > 0) {
+      console.warn(
+        `[Data] 比較キー未生成の要素: A=${nullKeyCountA}件, B=${nullKeyCountB}件` +
+          (classifyNullKeysAsOnly ? ' (onlyA/onlyBに分類)' : ' (除外)'),
+      );
     }
 
     for (const [key, dataAItem] of keysA.entries()) {
@@ -142,3 +157,6 @@ export class BasicStrategy extends BaseStrategy {
     };
   }
 }
+
+// 互換性のためのエイリアス
+export { BasicStrategy as BasicComparisonStrategy };

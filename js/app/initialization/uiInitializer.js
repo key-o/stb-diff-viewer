@@ -25,6 +25,7 @@ import { initDxfLoaderUI, initDxfLoaderEventListeners } from '../dxfLoader.js';
 import { setupVersionPanelEventListeners } from '../../ui/panels/versionPanel.js';
 import { initClipping2DEventListeners } from '../../ui/viewer3d/clipping2DImpl.js';
 import { injectElementInfoService } from '../../viewer/services/elementInfoAdapter.js';
+import { initializeValidationPanel } from '../../ui/panels/validationPanelIntegration.js';
 import { getState } from '../globalState.js';
 import { convertComparisonResultsForTree } from './initializationUtils.js';
 import {
@@ -118,6 +119,9 @@ export function initializeUIComponents(scheduleRender, elementGroups) {
 
   // フローティングウィンドウを初期化
   initializeFloatingWindow();
+
+  // STBバリデーションパネルを初期化
+  initializeValidationPanel();
 
   // 要素ツリー表示を初期化
   initializeTreeView('element-tree-container', (selectedElement) => {

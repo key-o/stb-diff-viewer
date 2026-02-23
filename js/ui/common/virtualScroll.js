@@ -351,4 +351,3 @@ export class VirtualScrollManager {
     this.spacerBottom = null;
   }
 }
-

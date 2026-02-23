@@ -79,7 +79,7 @@ function triggerViewModeRedraw(elementType) {
   }
 
   // Import redraw functions dynamically to avoid circular dependencies
-  import('../../app/viewModes.js')
+  import('../../app/viewModes/index.js')
     .then((viewModes) => {
       const scheduleRender = () => eventBus.emit(RenderEvents.REQUEST_RENDER);
       const redrawFn = viewModes[functionName];

@@ -11,6 +11,7 @@ import { floatingWindowManager } from '../floatingWindowManager.js';
 import { extractBeamSectionGrid } from '../../../data/extractors/beamSectionListExtractor.js';
 import { BeamSectionListRenderer } from './BeamSectionListRenderer.js';
 import { createLogger } from '../../../utils/logger.js';
+import { getState } from '../../../app/globalState.js';
 
 const log = createLogger('ui/BeamSectionListPanel');
 
@@ -21,7 +22,14 @@ const WINDOW_ID = 'beam-section-list-window';
  */
 export class BeamSectionListPanel {
   constructor() {
-    this.renderer = new BeamSectionListRenderer();
+    this.renderSettings = {
+      scaleDenominator: 40,
+      coverThickness: null,
+    };
+    this.renderer = new BeamSectionListRenderer({
+      scaleDenominator: this.renderSettings.scaleDenominator,
+      coverThickness: this.renderSettings.coverThickness,
+    });
     this.currentData = null;
     this.currentDoc = null;
     this.isInitialized = false;
@@ -85,6 +93,24 @@ export class BeamSectionListPanel {
               モデルB
             </label>
           </div>
+          <div class="section-list-render-settings">
+            <label>
+              縮尺
+              <select id="beam-section-scale-select">
+                <option value="20">1/20</option>
+                <option value="30">1/30</option>
+                <option value="40" selected>1/40</option>
+                <option value="50">1/50</option>
+                <option value="75">1/75</option>
+                <option value="100">1/100</option>
+              </select>
+            </label>
+            <label>
+              かぶり
+              <input id="beam-section-cover-input" type="number" min="10" max="120" step="5" placeholder="自動" title="空欄でXML値を使用">
+              mm
+            </label>
+          </div>
           <div class="section-list-info" id="beam-section-list-info"></div>
         </div>
         <div class="section-list-table-wrapper" id="beam-section-list-table-container">
@@ -111,6 +137,24 @@ export class BeamSectionListPanel {
     sourceRadios.forEach((radio) => {
       radio.addEventListener('change', (e) => this.handleSourceChange(e.target.value));
     });
+
+    const scaleSelect = document.getElementById('beam-section-scale-select');
+    if (scaleSelect) {
+      scaleSelect.addEventListener('change', () => {
+        this.updateRenderSettingsFromControls();
+        this.rerenderCurrentData();
+      });
+    }
+
+    const coverInput = document.getElementById('beam-section-cover-input');
+    if (coverInput) {
+      const applyCoverChange = () => {
+        this.updateRenderSettingsFromControls();
+        this.rerenderCurrentData();
+      };
+      coverInput.addEventListener('change', applyCoverChange);
+      coverInput.addEventListener('blur', applyCoverChange);
+    }
   }
 
   /**
@@ -118,6 +162,7 @@ export class BeamSectionListPanel {
    */
   onShow() {
     log.info('BeamSectionListPanel shown');
+    this.updateRenderSettingsFromControls();
     this.refresh();
   }
 
@@ -154,7 +199,7 @@ export class BeamSectionListPanel {
     }
 
     // XMLドキュメントを取得
-    const xmlDoc = source === 'A' ? window.docA : window.docB;
+    const xmlDoc = source === 'A' ? getState('models.documentA') : getState('models.documentB');
 
     if (!xmlDoc) {
       container.innerHTML = `<div class="section-list-empty">モデル${source}が読み込まれていません</div>`;
@@ -164,6 +209,7 @@ export class BeamSectionListPanel {
 
     // ローディング表示
     container.innerHTML = '<div class="section-list-loading">データを抽出しています...</div>';
+    this.updateRenderSettingsFromControls();
 
     // 非同期で処理（UIブロックを避ける）
     setTimeout(() => {
@@ -172,32 +218,24 @@ export class BeamSectionListPanel {
         this.currentData = extractBeamSectionGrid(xmlDoc);
         this.currentDoc = xmlDoc;
 
-        console.log('[BeamSectionListPanel] Extracted grid data:', {
-          stories: this.currentData.stories,
-          symbols: this.currentData.symbols,
-          grid: Array.from(this.currentData.grid.entries()).slice(0, 3), // 最初の3件
-        });
-
-        // 情報を更新（階 × 符号の形式）
-        if (infoEl) {
-          const floorCount = this.currentData.stories?.length || 0;
-          const symbolCount = this.currentData.symbols?.length || 0;
-          infoEl.textContent = `${floorCount}階 × ${symbolCount}符号`;
-        }
-
-        // データが空でないか確認
-        if (!this.currentData.stories || this.currentData.stories.length === 0) {
-          console.warn('[BeamSectionListPanel] No stories found');
-        }
-        if (!this.currentData.symbols || this.currentData.symbols.length === 0) {
-          console.warn('[BeamSectionListPanel] No beam symbols found');
-        }
-
         // コンテナにgrid-modeクラスを追加（CSS用）
         container.classList.add('grid-mode');
 
         // グリッド形式でテーブルをレンダリング
         this.renderer.renderGrid(this.currentData, container);
+
+        // 情報を更新（階 × 符号 + 縮尺）
+        if (infoEl) {
+          const floorCount = this.currentData.stories?.length || 0;
+          const symbolCount = this.currentData.symbols?.length || 0;
+          const scaleLabel = this.renderer.getScaleLabel();
+          const coverLabel = this.renderSettings.coverThickness
+            ? `かぶり ${this.renderSettings.coverThickness}mm`
+            : 'かぶり 自動';
+          infoEl.textContent = scaleLabel
+            ? `${floorCount}階 × ${symbolCount}符号 | ${scaleLabel} | ${coverLabel}`
+            : `${floorCount}階 × ${symbolCount}符号 | ${coverLabel}`;
+        }
 
         log.info('Beam section grid rendered', {
           floors: this.currentData.stories?.length,
@@ -225,6 +263,54 @@ export class BeamSectionListPanel {
    */
   hide() {
     floatingWindowManager.hideWindow(WINDOW_ID);
+  }
+
+  /**
+   * ツールバーから描画設定を反映
+   */
+  updateRenderSettingsFromControls() {
+    const scaleSelect = document.getElementById('beam-section-scale-select');
+    const coverInput = document.getElementById('beam-section-cover-input');
+
+    const scaleDenominator = Number(scaleSelect?.value || this.renderSettings.scaleDenominator);
+    const coverText = String(coverInput?.value || '').trim();
+    const coverThickness = coverText === '' ? null : Number(coverText);
+
+    this.renderSettings.scaleDenominator = Number.isFinite(scaleDenominator)
+      ? scaleDenominator
+      : this.renderSettings.scaleDenominator;
+    this.renderSettings.coverThickness =
+      Number.isFinite(coverThickness) && coverThickness > 0 ? coverThickness : null;
+
+    this.renderer.setScaleDenominator(this.renderSettings.scaleDenominator);
+    this.renderer.setCoverThickness(this.renderSettings.coverThickness);
+  }
+
+  /**
+   * 既存抽出データで再描画
+   */
+  rerenderCurrentData() {
+    const container = document.getElementById('beam-section-list-table-container');
+    const infoEl = document.getElementById('beam-section-list-info');
+    if (!container) return;
+    if (!this.currentData) {
+      this.refresh();
+      return;
+    }
+
+    this.renderer.renderGrid(this.currentData, container);
+
+    if (infoEl) {
+      const floorCount = this.currentData.stories?.length || 0;
+      const symbolCount = this.currentData.symbols?.length || 0;
+      const scaleLabel = this.renderer.getScaleLabel();
+      const coverLabel = this.renderSettings.coverThickness
+        ? `かぶり ${this.renderSettings.coverThickness}mm`
+        : 'かぶり 自動';
+      infoEl.textContent = scaleLabel
+        ? `${floorCount}階 × ${symbolCount}符号 | ${scaleLabel} | ${coverLabel}`
+        : `${floorCount}階 × ${symbolCount}符号 | ${coverLabel}`;
+    }
   }
 }
 

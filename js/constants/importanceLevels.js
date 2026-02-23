@@ -18,3 +18,9 @@ export const IMPORTANCE_LEVEL_NAMES = {
   [IMPORTANCE_LEVELS.UNNECESSARY]: '低',
   [IMPORTANCE_LEVELS.NOT_APPLICABLE]: '対象外',
 };
+
+// 色付けモード用の簡略化された表示名（違反/対象外の2値）
+export const IMPORTANCE_COLOR_CATEGORY_NAMES = {
+  violation: '違反',
+  notApplicable: '対象外',
+};

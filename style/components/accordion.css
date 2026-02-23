@@ -91,7 +91,7 @@
 
 .accordion-content label {
   margin-bottom: var(--spacing-sm);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
 }
 
 /* ========================================

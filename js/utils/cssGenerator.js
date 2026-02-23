@@ -9,6 +9,7 @@
  */
 
 import { DIFF_CATEGORIES } from '../config/diffFilterConfig.js';
+import { DIFF_COLORS } from '../config/colorConfig.js';
 
 /**
  * 差分凡例用CSSを生成
@@ -21,15 +22,15 @@ function generateDiffLegendCSS(categories = DIFF_CATEGORIES) {
       (cat) => `
 /* ${cat.label.ja} (${cat.id}) */
 .${cat.htmlColorClass} {
-  background-color: ${cat.color};
+  background-color: ${DIFF_COLORS[cat.colorKey]};
 }
 
 #diff-color-${cat.id} {
-  background-color: ${cat.color};
+  background-color: ${DIFF_COLORS[cat.colorKey]};
 }
 
 .diff-status-${cat.id} {
-  color: ${cat.color};
+  color: ${DIFF_COLORS[cat.colorKey]};
 }
 `,
     )
@@ -97,7 +98,7 @@ export function initializeDiffLegendCSS(categories = DIFF_CATEGORIES) {
  * @returns {string} CSS変数定義
  */
 function generateDiffColorVariables(categories = DIFF_CATEGORIES) {
-  const variables = categories.map((cat) => `  --diff-color-${cat.id}: ${cat.color};`).join('\n');
+  const variables = categories.map((cat) => `  --diff-color-${cat.id}: ${DIFF_COLORS[cat.colorKey]};`).join('\n');
 
   return `
 :root {

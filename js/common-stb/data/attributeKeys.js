@@ -131,4 +131,3 @@ export const EXTENDED_PILE_KEYS = Object.freeze([
   'angle_extended_foot_taper', // 根固め部テーパー角度
   'angle_extended_top_taper', // 頭部テーパー角度
 ]);
-

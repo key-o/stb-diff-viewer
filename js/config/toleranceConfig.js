@@ -8,8 +8,6 @@
  * - 厳密モード（完全一致のみ）の設定
  */
 
-import { storageHelper } from '../utils/storageHelper.js';
-
 /**
  * 許容差設定のデフォルト値
  * @type {Object}
@@ -36,30 +34,11 @@ export const DEFAULT_TOLERANCE_CONFIG = {
   strictMode: false,
 };
 
-// StorageHelperのキー
-const STORAGE_KEY = 'toleranceConfig';
-
-/**
- * storageHelperから設定を読み込む
- * @returns {Object|null} 保存された設定、または存在しない場合はnull
- */
-function loadConfigFromStorage() {
-  return storageHelper.get(STORAGE_KEY);
-}
-
-/**
- * storageHelperに設定を保存する
- * @param {Object} config - 保存する設定
- */
-function saveConfigToStorage(config) {
-  storageHelper.set(STORAGE_KEY, config);
-}
-
 /**
  * 現在の許容差設定を保持
  * @type {Object}
  */
-let currentToleranceConfig = loadConfigFromStorage() || { ...DEFAULT_TOLERANCE_CONFIG };
+let currentToleranceConfig = { ...DEFAULT_TOLERANCE_CONFIG };
 
 /**
  * 許容差設定を取得
@@ -99,9 +78,6 @@ export function setToleranceConfig(config) {
   if (typeof config.strictMode === 'boolean') {
     currentToleranceConfig.strictMode = config.strictMode;
   }
-
-  // LocalStorageに保存
-  saveConfigToStorage(currentToleranceConfig);
 }
 
 /**
@@ -114,9 +90,6 @@ export function resetToleranceConfig() {
     enabled: DEFAULT_TOLERANCE_CONFIG.enabled,
     strictMode: DEFAULT_TOLERANCE_CONFIG.strictMode,
   };
-
-  // LocalStorageに保存
-  saveConfigToStorage(currentToleranceConfig);
 }
 
 /**

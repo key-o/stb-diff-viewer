@@ -14,10 +14,14 @@
 import { validateImportanceSettings } from '../common-stb/validation/importanceValidation.js';
 import { getState, setState } from './globalState.js';
 import { eventBus, ImportanceEvents } from './events/index.js';
-import { DEFAULT_IMPORTANCE_SETTINGS } from '../config/importanceConfig.js';
+import { FALLBACK_IMPORTANCE_SETTINGS } from '../config/importanceConfig.js';
 import { loadConfigById } from '../config/importanceConfigLoader.js';
 import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../constants/importanceLevels.js';
-import { loadXsdSchema, getElementDefinition } from '../common-stb/parser/xsdSchemaParser.js';
+import {
+  initializeXsdSchemas,
+  getElementDefinition,
+  validateAttributeValue,
+} from '../common-stb/import/parser/xsdSchemaParser.js';
 
 const MVD_MODES = {
   S2: 's2',
@@ -278,11 +282,30 @@ class ImportanceManager {
       [MVD_MODES.S2]: new Map(),
       [MVD_MODES.S4]: new Map(),
     };
+    this.s2ParameterChecks = new Map();
     this.orderedElementPaths = [];
     this.elementPathsByTab = new Map();
     this.isInitialized = false;
     this.currentConfigId = MVD_MODES.COMBINED;
-    this.currentConfigName = 'MVD S2+S4 (結合)';
+    this.currentConfigName = 'MVD 統合';
+  }
+
+  /**
+   * 生成済みの重要度設定・パス情報をクリアする
+   */
+  resetGeneratedSettings() {
+    this.userImportanceSettings.clear();
+    this.mvdImportanceSettings = {
+      [MVD_MODES.S2]: new Map(),
+      [MVD_MODES.S4]: new Map(),
+    };
+    this.defaultMvdImportanceSettings = {
+      [MVD_MODES.S2]: new Map(),
+      [MVD_MODES.S4]: new Map(),
+    };
+    this.s2ParameterChecks.clear();
+    this.orderedElementPaths = [];
+    this.elementPathsByTab = new Map();
   }
 
   normalizePath(path) {
@@ -298,8 +321,13 @@ class ImportanceManager {
    * @param {string} _xsdContent - ST-Bridge XSDスキーマ内容
    * @returns {Promise<boolean>} 初期化成功フラグ
    */
-  async initialize(_xsdContent = null) {
+  async initialize(_xsdContent = null, options = {}) {
+    const { reset = false } = options;
     try {
+      if (reset) {
+        this.resetGeneratedSettings();
+      }
+
       // XSD解析と設定生成を実行（デフォルト設定ロード含む）
       // ファイルからのXSDロードを試み、パラメータを補完します
       await this.parseXsdAndGenerateSettings(_xsdContent);
@@ -331,6 +359,17 @@ class ImportanceManager {
         '[ImportanceManager] MVD設定ファイルの読み込みに失敗したため既定値を使用します:',
         error,
       );
+    }
+
+    this.s2ParameterChecks.clear();
+    const s2ParameterChecks = s2Config?.parameterChecks || {};
+    for (const [rawPath, options] of Object.entries(s2ParameterChecks)) {
+      const path = this.normalizePath(rawPath);
+      if (!path) continue;
+      this.s2ParameterChecks.set(path, {
+        checkRequired: options?.checkRequired !== false,
+        checkValue: options?.checkValue !== false,
+      });
     }
 
     const s2Map = new Map();
@@ -404,7 +443,7 @@ class ImportanceManager {
 
     // 設定ファイルが読めなかった場合のフォールバック
     if (!s2Config && !s4Config) {
-      for (const [rawPath, level] of Object.entries(DEFAULT_IMPORTANCE_SETTINGS)) {
+      for (const [rawPath, level] of Object.entries(FALLBACK_IMPORTANCE_SETTINGS)) {
         const path = this.normalizePath(rawPath);
         if (!path) continue;
         s4Map.set(path, level);
@@ -519,7 +558,7 @@ class ImportanceManager {
     } else if (this.currentConfigId === MVD_MODES.S4) {
       this.currentConfigName = 'MVD S4 (任意)';
     } else {
-      this.currentConfigName = 'MVD S2+S4 (結合)';
+      this.currentConfigName = 'MVD 統合';
     }
   }
 
@@ -545,6 +584,38 @@ class ImportanceManager {
       this.mvdImportanceSettings[MVD_MODES.S2].get(normalizedPath) || IMPORTANCE_LEVELS.OPTIONAL;
     const s4Level = this.mvdImportanceSettings[MVD_MODES.S4].get(normalizedPath);
     return this.normalizeS4Level(normalizedPath, s2Level, s4Level);
+  }
+
+  /**
+   * パスがXSDで必須かどうかを取得
+   * @param {string} elementPath
+   * @returns {{required: boolean, kind: 'attribute'|'element'|'unknown'}}
+   */
+  getSchemaRequirement(elementPath) {
+    const normalizedPath = this.normalizePath(elementPath);
+    if (!normalizedPath) {
+      return { required: false, kind: 'unknown' };
+    }
+
+    const attrMarkerIndex = normalizedPath.lastIndexOf('/@');
+    if (attrMarkerIndex < 0) {
+      return { required: false, kind: 'element' };
+    }
+
+    const elementPathOnly = normalizedPath.slice(0, attrMarkerIndex);
+    const attrName = normalizedPath.slice(attrMarkerIndex + 2);
+    const elementName = elementPathOnly.split('/').filter(Boolean).pop();
+    if (!elementName || !attrName) {
+      return { required: false, kind: 'unknown' };
+    }
+
+    const elementDef = getElementDefinition(elementName);
+    const attrDef = elementDef?.attributes?.get?.(attrName);
+    if (!attrDef) {
+      return { required: false, kind: 'attribute' };
+    }
+
+    return { required: !!attrDef.required, kind: 'attribute' };
   }
 
   /**
@@ -614,7 +685,17 @@ class ImportanceManager {
     depth = 0,
   ) {
     const paths = [];
-    const currentPath = `${parentPath}/${elementName}`;
+    const normalizedParentPath =
+      typeof parentPath === 'string' && parentPath.endsWith('/') && parentPath.length > 1
+        ? parentPath.slice(0, -1)
+        : parentPath;
+    const parentEndsWithElementAtRoot =
+      depth === 0 &&
+      typeof normalizedParentPath === 'string' &&
+      normalizedParentPath.toLowerCase().endsWith(`/${elementName.toLowerCase()}`);
+    const currentPath = parentEndsWithElementAtRoot
+      ? normalizedParentPath
+      : `${normalizedParentPath}/${elementName}`;
 
     // 最大深度チェック（無限再帰防止）
     const MAX_DEPTH = 20;
@@ -676,11 +757,10 @@ class ImportanceManager {
     await this.loadDefaultSettings();
 
     try {
-      // XSDスキーマをロード
-      // note: _xsdContentが渡されても、ファイルから正規のスキーマを読み込むことを優先
-      const loaded = await loadXsdSchema();
+      // XSDをロード
+      const loaded = await initializeXsdSchemas();
       if (!loaded) {
-        console.warn('XSDスキーマのロードに失敗しました。補完をスキップします。');
+        console.warn('XSDのロードに失敗しました。補完をスキップします。');
       } else {
         // 各タブについて、XSDから階層的にパスを生成
         for (const tab of STB_ELEMENT_TABS) {
@@ -742,11 +822,11 @@ class ImportanceManager {
 
   /**
    * デフォルト重要度設定を読み込む
-   * MVDベースのDEFAULT_IMPORTANCE_SETTINGSから設定を読み込む
+   * MVDベースのFALLBACK_IMPORTANCE_SETTINGSから設定を読み込む
    */
   async loadDefaultSettings() {
-    // DEFAULT_IMPORTANCE_SETTINGSから設定を読み込む
-    for (const [rawPath, importance] of Object.entries(DEFAULT_IMPORTANCE_SETTINGS)) {
+    // FALLBACK_IMPORTANCE_SETTINGSから設定を読み込む
+    for (const [rawPath, importance] of Object.entries(FALLBACK_IMPORTANCE_SETTINGS)) {
       const path = this.normalizePath(rawPath);
       if (!path) continue;
       if (!this.orderedElementPaths.includes(path)) {
@@ -779,7 +859,7 @@ class ImportanceManager {
           tabPaths.push(normalizedPath);
         }
 
-        // DEFAULT_IMPORTANCE_SETTINGSにない場合はREQUIREDをデフォルトとする
+        // FALLBACK_IMPORTANCE_SETTINGSにない場合はREQUIREDをデフォルトとする
         if (!this.userImportanceSettings.has(normalizedPath)) {
           this.userImportanceSettings.set(normalizedPath, IMPORTANCE_LEVELS.REQUIRED);
         }
@@ -1315,7 +1395,7 @@ class ImportanceManager {
       this.defaultMvdImportanceSettings[MVD_MODES.S4],
     );
     this.currentConfigId = MVD_MODES.COMBINED;
-    this.currentConfigName = 'MVD S2+S4 (結合)';
+    this.currentConfigName = 'MVD 統合';
     this.loadDefaultSettings();
     this.rebuildEffectiveImportanceSettings();
     this.notifySettingsChanged();
@@ -1329,6 +1409,10 @@ class ImportanceManager {
     const stats = {
       total: this.orderedElementPaths.length,
       byLevel: {},
+      totalParameterCount: 0,
+      xsdRequiredCount: 0,
+      s2TargetCount: 0,
+      s4TargetCount: 0,
     };
 
     // レベル別の統計
@@ -1338,6 +1422,28 @@ class ImportanceManager {
 
     for (const importance of this.userImportanceSettings.values()) {
       stats.byLevel[importance]++;
+    }
+
+    for (const path of this.orderedElementPaths) {
+      // 重要度設定画面では属性パラメータを対象とする
+      if (!path.includes('/@')) {
+        continue;
+      }
+      stats.totalParameterCount++;
+
+      if (this.getSchemaRequirement(path).required) {
+        stats.xsdRequiredCount++;
+      }
+
+      const s2Level = this.getMvdImportanceLevel(path, MVD_MODES.S2);
+      const s4Level = this.getMvdImportanceLevel(path, MVD_MODES.S4);
+
+      if (s2Level !== IMPORTANCE_LEVELS.NOT_APPLICABLE) {
+        stats.s2TargetCount++;
+      }
+      if (s4Level !== IMPORTANCE_LEVELS.NOT_APPLICABLE) {
+        stats.s4TargetCount++;
+      }
     }
 
     return stats;
@@ -1383,16 +1489,65 @@ class ImportanceManager {
       return IMPORTANCE_LEVELS.REQUIRED; // デフォルト
     }
 
-    // 基本的な要素パス
-    const basePath = `//ST_BRIDGE/${type}`;
-    let importance = this.userImportanceSettings.get(basePath);
+    const resolvedType = type.startsWith('Stb') ? type : `Stb${type}`;
 
-    if (importance === undefined) {
-      // デフォルト値を返す
-      importance = IMPORTANCE_LEVELS.REQUIRED;
+    const getElementAttributeValue = (target, attrName) => {
+      if (!target) return undefined;
+      if (typeof target.getAttribute === 'function') {
+        const value = target.getAttribute(attrName);
+        return value === null ? undefined : value;
+      }
+      return target[attrName];
+    };
+
+    const elementDef = getElementDefinition(resolvedType);
+    const schemaAttributes = new Set(
+      elementDef?.attributes ? Array.from(elementDef.attributes.keys()) : [],
+    );
+
+    // この要素タイプに対して設定されている属性重要度パスを対象に、
+    // 必須チェック + 値制約チェック（JSONスキーマ）を行う。
+    const pathMarker = `/${resolvedType}/@`;
+    let hasTargetViolation = false;
+
+    for (const [path, configuredLevel] of this.userImportanceSettings.entries()) {
+      if (!path || !path.includes(pathMarker)) continue;
+      if (configuredLevel !== IMPORTANCE_LEVELS.REQUIRED) continue;
+
+      const markerIndex = path.lastIndexOf('/@');
+      if (markerIndex < 0) continue;
+      const attrName = path.slice(markerIndex + 2);
+      if (!attrName) continue;
+      if (schemaAttributes.size > 0 && !schemaAttributes.has(attrName)) continue;
+
+      const checkOptions = this.s2ParameterChecks.get(path) || {
+        checkRequired: true,
+        checkValue: true,
+      };
+      if (!checkOptions.checkRequired && !checkOptions.checkValue) {
+        continue;
+      }
+
+      const value = getElementAttributeValue(element, attrName);
+      const isMissing = value === undefined || value === null || value === '';
+      if (isMissing && checkOptions.checkRequired) {
+        hasTargetViolation = true;
+        continue;
+      }
+
+      if (!isMissing && checkOptions.checkValue) {
+        const validation = validateAttributeValue(resolvedType, attrName, String(value));
+        if (!validation.valid) {
+          hasTargetViolation = true;
+        }
+      }
     }
 
-    return importance;
+    if (hasTargetViolation) {
+      return IMPORTANCE_LEVELS.REQUIRED;
+    }
+
+    return IMPORTANCE_LEVELS.NOT_APPLICABLE;
   }
 }
 

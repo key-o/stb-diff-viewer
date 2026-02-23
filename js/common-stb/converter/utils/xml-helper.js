@@ -123,4 +123,3 @@ export function navigateXmlPath(root, pathArray) {
   if (!result) return null;
   return Array.isArray(result) ? result : [result];
 }
-

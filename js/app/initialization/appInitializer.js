@@ -17,7 +17,8 @@ import {
 } from '../../viewer/index.js';
 import { setupInteractionListeners, getSelectedCenter } from '../interaction.js';
 import { setupViewModeListeners, setupCameraModeListeners } from '../viewModes/index.js';
-import { setupColorModeListeners } from '../../colorModes/index.js';
+import { setupColorModeListeners, setFloatingWindowManager } from '../../colorModes/index.js';
+import { floatingWindowManager } from '../../ui/panels/floatingWindowManager.js';
 import {
   setupUIEventListeners,
   toggleLegend,
@@ -35,9 +36,11 @@ import { initializeGlobalMessenger } from '../moduleMessaging.js';
 import { IFCConverter, IFCConverterUI } from '../../export/api/ifcConverter.js';
 import { initializeImportanceManager } from '../importanceManager.js';
 import { setupDiffSummaryEventListeners } from '../../ui/panels/diffSummary.js';
+import { setRenderFunction } from '../../utils/renderScheduler.js';
 import { initKeyboardShortcuts } from '../../viewer/interaction/keyboard-shortcuts.js';
 import { initializeViewCube } from '../../ui/viewer3d/viewCube/ViewCube.js';
 import { CAMERA_ORTHOGRAPHIC } from '../../config/renderingConstants.js';
+import { renderElementSettingsRows } from '../../ui/panels/elementSettingsTable.js';
 
 const log = createLogger('appInitializer');
 
@@ -70,6 +73,9 @@ function registerGlobalFunctions(scheduleRender) {
 
   setState('rendering.scheduleRender', scheduleRender);
   setState('rendering.requestRender', scheduleRender);
+
+  // 依存性注入: renderSchedulerにレンダリング関数を設定
+  setRenderFunction(scheduleRender);
 
   log.info('グローバル関数を登録しました');
 }
@@ -193,6 +199,9 @@ export function initializeApp(scheduleRender, rendererInitialized) {
       log.error('重要度マネージャーの初期化に失敗しました:', error);
     });
 
+  // 要素設定テーブルを動的生成（UIイベント登録前に実行）
+  renderElementSettingsRows();
+
   // 初期化処理
   setupUIEventListeners();
   setupViewportResizeHandler(camera);
@@ -200,6 +209,7 @@ export function initializeApp(scheduleRender, rendererInitialized) {
   setupViewModeListeners(scheduleRender);
   setupCameraModeListeners(scheduleRender); // カメラモード切り替えの初期化
   initDepth2DClippingUI(); // 2D奥行きクリッピングUIの初期化
+  setFloatingWindowManager(floatingWindowManager); // DI: スキーマモード用ウィンドウマネージャー注入
   setupColorModeListeners(); // 色付けモードの初期化
   setupDiffSummaryEventListeners(); // 差分サマリー機能の初期化
   initKeyboardShortcuts(); // キーボードショートカットの初期化

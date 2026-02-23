@@ -29,6 +29,7 @@
 import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../../constants/importanceLevels.js';
 import { COMPARISON_KEY_TYPE } from '../../config/comparisonKeyConfig.js';
 import { getToleranceConfig } from '../../config/toleranceConfig.js';
+import { DEFAULT_PILE_LENGTH } from '../../config/geometryConfig.js';
 
 // キー生成関数をインポート
 import {
@@ -43,10 +44,7 @@ import {
 // 比較戦略をインポート
 import { BasicStrategy } from './BaseStrategy.js';
 import { ToleranceStrategy } from './ToleranceStrategy.js';
-import {
-  VersionAwareStrategy,
-  DIFF_TYPE,
-} from './VersionAwareStrategy.js';
+import { VersionAwareStrategy, DIFF_TYPE } from './VersionAwareStrategy.js';
 
 // --- 定数 ---
 const STB_NAMESPACE = 'https://www.building-smart.or.jp/dl'; // ST-Bridge 名前空間 (stbParserと重複するが、独立性のため保持)
@@ -67,7 +65,14 @@ const versionAwareStrategy = new VersionAwareStrategy();
  * @param {Object} [options={}] - 比較オプション（attributeComparator等）
  * @returns {{matched: Array<{dataA: any, dataB: any}>, mismatch: Array<{dataA: any, dataB: any}>, onlyA: Array<any>, onlyB: Array<any>}} 比較結果オブジェクト。
  */
-export function compareElements(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor, options = {}) {
+export function compareElements(
+  elementsA,
+  elementsB,
+  nodeMapA,
+  nodeMapB,
+  keyExtractor,
+  options = {},
+) {
   // BasicStrategyに委譲
   return basicStrategy.compare(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor, options);
 }
@@ -114,7 +119,7 @@ export function lineElementKeyExtractor(
       const levelTopValue = parseFloat(levelTop);
 
       // Default pile length for line display (actual length from section data used in 3D)
-      const defaultPileLength = 5000; // 5000mm default
+      const defaultPileLength = DEFAULT_PILE_LENGTH;
 
       // Calculate top node position (id_node + offsets + level_top for Z)
       endCoords = {
@@ -207,6 +212,7 @@ export function lineElementKeyExtractor(
         name: name || undefined,
         guid: guid || undefined,
         element: elementData,
+        rawElement: element,
       },
     };
   }
@@ -280,6 +286,7 @@ export function polyElementKeyExtractor(
           name: name || undefined,
           guid: guid || undefined,
           element,
+          rawElement: element,
         },
       };
     } else {
@@ -328,6 +335,12 @@ export function nodeElementKeyExtractor(
         id: nodeId,
         name: name || undefined,
         guid: guid || undefined,
+        element: {
+          id: nodeId,
+          ...(name ? { name } : {}),
+          ...(guid ? { guid } : {}),
+        },
+        rawElement: element,
       },
     };
   }
@@ -341,7 +354,7 @@ export function nodeElementKeyExtractor(
  * @param {Array<Element>} elements - 要素リスト
  * @param {string} elementType - 要素タイプ
  * @param {string[]} targetLevels - 対象とする重要度レベルの配列
- * @param {Function} lookupFn - 重要度判定関数
+ * @param {Function} lookupFn - 重要度判定関数 (element, elementType) => level
  * @returns {Array<Element>} フィルタリングされた要素リスト
  */
 function filterElementsByImportance(elements, elementType, targetLevels, lookupFn) {
@@ -350,46 +363,9 @@ function filterElementsByImportance(elements, elementType, targetLevels, lookupF
   }
 
   return elements.filter((element) => {
-    const importance = getElementImportance(element, elementType, lookupFn);
+    const importance = lookupFn(element, elementType);
     return targetLevels.includes(importance);
   });
-}
-
-/**
- * 要素の重要度を取得する
- * @param {Element} element - XML要素
- * @param {string} elementType - 要素タイプ（'StbColumn', 'StbBeam'など）
- * @param {Function} lookupFn - 重要度判定関数 (path => level)
- * @returns {string} 重要度レベル
- */
-function getElementImportance(element, elementType, lookupFn) {
-  if (typeof lookupFn !== 'function') {
-    return IMPORTANCE_LEVELS.REQUIRED; // デフォルト
-  }
-
-  // 基本的な要素パス
-  const basePath = `//ST_BRIDGE/${elementType}`;
-  let importance = lookupFn(basePath);
-
-  // より具体的なパスがあれば使用（例：属性レベル）
-  let elementId = null;
-  if (element && typeof element.getAttribute === 'function') {
-    // DOM Element の場合
-    elementId = element.getAttribute('id');
-  } else if (element && typeof element === 'object' && element.id) {
-    // JavaScript object の場合
-    elementId = element.id;
-  }
-
-  if (elementId) {
-    const idPath = `${basePath}/@id`;
-    const idImportance = lookupFn(idPath);
-    if (idImportance !== IMPORTANCE_LEVELS.REQUIRED) {
-      importance = idImportance;
-    }
-  }
-
-  return importance;
 }
 
 /**
@@ -403,7 +379,7 @@ function getElementImportance(element, elementType, lookupFn) {
  * @param {Object} options - オプション設定
  * @param {string[]} [options.targetImportanceLevels] - 対象重要度レベル
  * @param {boolean} [options.includeImportanceInfo=true] - 重要度情報を結果に含めるか
- * @param {Function} [options.importanceLookup] - 重要度判定関数 (path => level)
+ * @param {Function} [options.importanceLookup] - 重要度判定関数 (element, elementType) => level
  * @returns {{matched: Array, onlyA: Array, onlyB: Array, importanceStats: Object}} 重要度を考慮した比較結果
  */
 export function compareElementsWithImportance(
@@ -464,8 +440,8 @@ export function compareElementsWithImportance(
           element = item.element || null;
         }
 
-        const importance = element
-          ? getElementImportance(element, elementType, importanceLookup)
+        const importance = (element && typeof importanceLookup === 'function')
+          ? importanceLookup(element, elementType)
           : IMPORTANCE_LEVELS.OPTIONAL;
 
         return {

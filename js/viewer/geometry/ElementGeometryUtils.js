@@ -38,7 +38,7 @@ import {
   inferSectionTypeFromDimensions,
 } from './core/GeometryCalculator.js';
 import { convertProfileToThreeShape } from './core/ThreeJSConverter.js';
-import { ensureUnifiedSectionType } from '../../common-stb/section/sectionTypeUtil.js';
+import { resolveGeometryProfileTypeInPlace } from '../../common-stb/section/sectionTypeUtil.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('viewer:geometry:utils');
@@ -233,7 +233,7 @@ export class ElementGeometryUtils {
     }
 
     // 統一フォーマットに変換
-    return ensureUnifiedSectionType(sectionData);
+    return resolveGeometryProfileTypeInPlace(sectionData);
   }
 
   // ========================================
@@ -702,3 +702,4 @@ if (typeof window !== 'undefined') {
 }
 
 export default ElementGeometryUtils;
+

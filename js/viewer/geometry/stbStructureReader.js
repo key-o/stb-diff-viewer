@@ -41,9 +41,9 @@ import {
   extractJointArrangements, // 継手配置情報の抽出
   applyJointArrangementsToElements, // 継手IDを部材に適用
   extractStripFootingElements, // 布基礎要素の抽出
-} from '../../common-stb/parser/stbXmlParser.js';
-import { extractAllSections } from '../../common-stb/parser/sectionExtractor.js';
-import { ensureUnifiedSectionType } from '../../common-stb/section/sectionTypeUtil.js';
+} from '../../common-stb/import/parser/stbXmlParser.js';
+import { extractAllSections } from '../../common-stb/import/extractor/sectionExtractor.js';
+import { resolveGeometryProfileTypeInPlace } from '../../common-stb/section/sectionTypeUtil.js';
 
 // ============================================
 // 状態保存コールバック（依存性注入）
@@ -215,7 +215,6 @@ export function parseStbFile(xmlDoc, options = {}) {
 
   // 継手配置情報の抽出と部材への適用
   const jointArrangements = extractJointArrangements(xmlDoc);
-  console.log('[DEBUG] stbStructureReader: jointArrangements.length =', jointArrangements.length);
   if (jointArrangements.length > 0) {
     // 各部材に継手IDを付与
     applyJointArrangementsToElements(columnElements, jointArrangements, 'COLUMN');
@@ -223,10 +222,6 @@ export function parseStbFile(xmlDoc, options = {}) {
     applyJointArrangementsToElements(girderElements, jointArrangements, 'GIRDER');
     applyJointArrangementsToElements(beamElements, jointArrangements, 'BEAM');
     applyJointArrangementsToElements(braceElements, jointArrangements, 'BRACE');
-    console.log('[DEBUG] stbStructureReader: Applied joint arrangements to elements');
-    // 大梁の継手ID確認
-    const jointedGirders = girderElements.filter((g) => g.joint_id_start || g.joint_id_end);
-    console.log('[DEBUG] stbStructureReader: Girders with joint IDs:', jointedGirders.length);
   }
 
   // 布基礎情報の抽出
@@ -443,7 +438,7 @@ function enrichSectionMapsWithSteelDimensions(sectionMaps, steelSections) {
       if (typeBySteel) {
         section.section_type = typeBySteel;
       }
-      ensureUnifiedSectionType(section);
+      resolveGeometryProfileTypeInPlace(section);
       // 寸法抽出
       const dims = deriveDimensionsFromSteelShape(steel);
       if (dims) {
@@ -675,3 +670,4 @@ function deriveDimensionsFromSteelShape(steel) {
   }
   return null;
 }
+

@@ -113,7 +113,7 @@
 
 .editing-summary {
   margin-top: 8px;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
 }
 
 /* ========================================
@@ -123,7 +123,7 @@
 .load-display-control {
   margin-left: 20px;
   margin-top: 8px;
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   color: #666;
   display: flex;
   align-items: center;

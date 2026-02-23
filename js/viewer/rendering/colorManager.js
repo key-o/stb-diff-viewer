@@ -207,6 +207,9 @@ class ColorManager {
       wireframe: params.wireframe,
       hasError: params.hasError,
       status: params.status,
+      isTransparent: params.isTransparent,
+      layoutType: params.layoutType,
+      overrideColor: params.overrideColor,
     });
   }
 
@@ -221,8 +224,13 @@ class ColorManager {
       clippingPlanes: renderer?.clippingPlanes || [],
     };
 
+    // 構成要素ごとの明示色（例: SRC柱のRC/S）
+    if (params.overrideColor) {
+      color = params.overrideColor;
+    }
+
     // 色付けモードに応じて色を決定
-    switch (colorMode) {
+    switch (params.overrideColor ? '__OVERRIDE__' : colorMode) {
       case 'diff':
         // 6カテゴリ分類: diffStatusが直接指定されている場合
         if (params.diffStatus) {
@@ -261,6 +269,15 @@ class ColorManager {
         materialOptions.transparent = visualStyle.opacity < 1.0;
         break;
 
+      case 'highlight':
+        return this._createHighlightMaterial(params);
+
+      case 'layout':
+        return this._createLayoutMaterial(params);
+
+      case '__OVERRIDE__':
+        break;
+
       default:
         color = '#888888';
     }
@@ -293,6 +310,17 @@ class ColorManager {
         opacity: materialOptions.opacity !== undefined ? materialOptions.opacity : 0.7,
         ...materialOptions,
       });
+    } else if (params.isTransparent) {
+      // SRC造RC部分用半透明マテリアル
+      material = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(color),
+        roughness: 0.7,
+        metalness: 0.0,
+        transparent: true,
+        opacity: 0.4,
+        depthWrite: false,
+        ...materialOptions,
+      });
     } else {
       // 通常のメッシュ要素用マテリアル
       const baseOpacity = materialOptions.opacity !== undefined ? materialOptions.opacity : 1.0;
@@ -315,6 +343,65 @@ class ColorManager {
     }
 
     return material;
+  }
+
+  /**
+   * ハイライト用マテリアルを作成
+   * @private
+   * @param {Object} params - { isLine: boolean }
+   * @returns {THREE.Material}
+   */
+  _createHighlightMaterial(params) {
+    const clippingPlanes = renderer?.clippingPlanes || [];
+    const highlightColor = '#ffc107'; // Material Amber
+
+    if (params.isLine) {
+      return new THREE.LineBasicMaterial({
+        color: new THREE.Color(highlightColor),
+        linewidth: 5,
+        clippingPlanes,
+      });
+    }
+
+    return new THREE.MeshStandardMaterial({
+      color: new THREE.Color(highlightColor),
+      roughness: 0.5,
+      metalness: 0.2,
+      side: THREE.DoubleSide,
+      emissive: new THREE.Color(0x554400),
+      clippingPlanes,
+    });
+  }
+
+  /**
+   * レイアウト要素（通り芯・階）用マテリアルを作成
+   * @private
+   * @param {Object} params - { layoutType: 'axis'|'story', isLine: boolean }
+   * @returns {THREE.Material}
+   */
+  _createLayoutMaterial(params) {
+    const clippingPlanes = renderer?.clippingPlanes || [];
+    const layoutType = params.layoutType || 'axis';
+
+    if (params.isLine) {
+      return new THREE.LineBasicMaterial({
+        color: new THREE.Color(0xaaaaaa),
+        linewidth: 1,
+        transparent: layoutType === 'story',
+        opacity: layoutType === 'story' ? 0.5 : 1.0,
+        clippingPlanes,
+      });
+    }
+
+    // 面マテリアル（MeshBasicMaterial — ライティング影響なし）
+    return new THREE.MeshBasicMaterial({
+      color: new THREE.Color(layoutType === 'axis' ? 0x888888 : 0xaaaaaa),
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: layoutType === 'axis' ? 0.1 : 0.08,
+      depthWrite: false,
+      clippingPlanes,
+    });
   }
 
   /**

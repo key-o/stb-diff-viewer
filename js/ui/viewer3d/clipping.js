@@ -398,6 +398,36 @@ export function createBoxClippingPlanes(box) {
 // === NEW FUNCTIONS FOR RANGE-ADJUSTABLE CLIPPING ===
 
 /**
+ * 指定された階のクリッピング範囲データを返す（セクションボックス用）
+ * @param {string} storyId - Story ID
+ * @param {number} range - Range in mm
+ * @returns {Object|null} Story bounds data
+ */
+export function getStoryClipBounds(storyId, range) {
+  if (!storyId || storyId === 'all') return null;
+  const stories = getCurrentStories();
+  const selectedStory = stories.find((story) => story.id === storyId);
+  if (!selectedStory) return null;
+  return calculateStoryBoundsWithRange(selectedStory, stories, range);
+}
+
+/**
+ * 指定された軸のクリッピング範囲データを返す（セクションボックス用）
+ * @param {string} axisType - "X" or "Y"
+ * @param {string} axisId - Axis ID
+ * @param {number} range - Range in mm
+ * @returns {Object|null} Axis bounds data
+ */
+export function getAxisClipBounds(axisType, axisId, range) {
+  if (!axisId || axisId === 'all') return null;
+  const axesData = getCurrentAxesData();
+  const axes = axisType === 'X' ? axesData.xAxes : axesData.yAxes;
+  const selectedAxis = axes.find((axis) => axis.id === axisId);
+  if (!selectedAxis) return null;
+  return calculateAxisBoundsWithRange(selectedAxis, axisType, axes, range);
+}
+
+/**
  * Calculate story bounds with custom range
  * @param {Object} selectedStory - Selected story data
  * @param {Array} allStories - All story data

@@ -10,6 +10,7 @@ import { collectReportData } from './reportDataCollector.js';
 import { captureCurrentView, captureMultipleViews } from './reportScreenshot.js';
 import { buildReportHtml } from './reportHtmlBuilder.js';
 import { eventBus, ExportEvents } from '../../app/events/index.js';
+import { downloadBlob } from '../../utils/downloadHelper.js';
 
 /**
  * @typedef {Object} ReportOptions
@@ -97,18 +98,5 @@ function stripExtension(filename) {
  */
 function downloadHtml(html, filename) {
   const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-
-  // クリーンアップ
-  setTimeout(() => {
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 100);
+  downloadBlob(blob, filename);
 }

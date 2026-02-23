@@ -9,8 +9,6 @@
  * @module config/diffFilterConfig
  */
 
-import { COLORS } from './colorConfig.js';
-
 // ============================================================================
 // 差分カテゴリ定義（6カテゴリ）
 // ============================================================================
@@ -31,7 +29,7 @@ export const DIFF_CATEGORIES = [
       ja: '位置・属性とも完全に一致',
       en: 'Position and attributes match completely',
     },
-    color: COLORS.GREEN, // #4CAF50
+    colorKey: 'matched',
     icon: '✓',
     group: 'existence', // 存在差分グループ
     order: 1,
@@ -49,7 +47,7 @@ export const DIFF_CATEGORIES = [
       ja: 'モデルAにのみ存在（削除された要素）',
       en: 'Exists only in Model A (deleted elements)',
     },
-    color: COLORS.BLUE, // #2196F3
+    colorKey: 'onlyA',
     icon: 'A',
     group: 'existence',
     order: 2,
@@ -67,7 +65,7 @@ export const DIFF_CATEGORIES = [
       ja: 'モデルBにのみ存在（追加された要素）',
       en: 'Exists only in Model B (added elements)',
     },
-    color: COLORS.RED, // #F44336
+    colorKey: 'onlyB',
     icon: 'B',
     group: 'existence',
     order: 3,
@@ -85,7 +83,7 @@ export const DIFF_CATEGORIES = [
       ja: '位置が許容差内、属性は一致',
       en: 'Position within tolerance, attributes match',
     },
-    color: COLORS.AMBER, // #FFC107
+    colorKey: 'positionTolerance',
     icon: '≈',
     group: 'content', // 内容差分グループ
     order: 4,
@@ -103,7 +101,7 @@ export const DIFF_CATEGORIES = [
       ja: '位置は一致、属性が不一致',
       en: 'Position matches, attributes differ',
     },
-    color: COLORS.ORANGE, // #FF9800
+    colorKey: 'attributeMismatch',
     icon: '!',
     group: 'content',
     order: 5,
@@ -121,7 +119,7 @@ export const DIFF_CATEGORIES = [
       ja: '位置が許容差内、かつ属性も不一致',
       en: 'Position within tolerance and attributes differ',
     },
-    color: COLORS.PURPLE, // #9C27B0
+    colorKey: 'combined',
     icon: '⚠',
     group: 'content',
     order: 6,
@@ -372,7 +370,7 @@ export const DIFF_STATUS_VALUES = DIFF_CATEGORIES.map((cat) => cat.id);
  * @throws {Error} 無効な場合
  */
 function validateCategory(category) {
-  const required = ['id', 'label', 'color', 'group', 'order'];
+  const required = ['id', 'label', 'colorKey', 'group', 'order'];
   for (const field of required) {
     if (category[field] === undefined) {
       throw new Error(`Missing required field in category: ${field}`);
@@ -381,8 +379,8 @@ function validateCategory(category) {
   if (!category.label.ja) {
     throw new Error(`Missing Japanese label for category: ${category.id}`);
   }
-  if (!/^#[0-9A-Fa-f]{6}$/.test(category.color)) {
-    throw new Error(`Invalid color format for category ${category.id}: ${category.color}`);
+  if (typeof category.colorKey !== 'string') {
+    throw new Error(`Invalid colorKey for category ${category.id}: ${category.colorKey}`);
   }
   return true;
 }

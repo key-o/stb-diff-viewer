@@ -10,7 +10,7 @@ import {
   isSchemaLoaded,
   getAttributeInfo,
   validateAttributeValue,
-} from '../../../common-stb/parser/xsdSchemaParser.js';
+} from '../../../common-stb/import/parser/jsonSchemaLoader.js';
 
 const log = createLogger('viewer:edit-mode');
 import {
@@ -18,7 +18,7 @@ import {
   validateDocumentForExport,
   generateModificationReport,
 } from '../../../export/stb/stbExporter.js';
-import { regenerateElementGeometry } from '../../../viewer/elementUpdater.js';
+import { regenerateElementGeometry } from '../../../viewer/index.js';
 import { eventBus, EditEvents, RenderEvents } from '../../../app/events/index.js';
 import { scheduleRender } from '../../../utils/renderScheduler.js';
 import {
@@ -32,6 +32,7 @@ import {
   extractSectionData,
 } from './SectionHelpers.js';
 import { showSuccess, showError, showWarning } from '../../common/toast.js';
+import { getState } from '../../../app/globalState.js';
 
 // 編集機能の状態管理
 let editMode = false;
@@ -117,7 +118,7 @@ export function exportModifications() {
   }
 
   // モデルAまたはBのドキュメントを選択
-  const sourceDoc = window.docA || window.docB;
+  const sourceDoc = getState('models.documentA') || getState('models.documentB');
   if (!sourceDoc) {
     showWarning('エクスポート対象のドキュメントがありません。');
     return;
@@ -312,7 +313,7 @@ export async function editAttributeValue(elementType, elementId, attributeName, 
 async function updateXMLAndGeometry(elementType, elementId, attributeName, newValue) {
   try {
     // モデルAのXMLドキュメントを取得
-    const doc = window.docA;
+    const doc = getState('models.documentA');
     if (!doc) {
       log.error('docA not found');
       return false;
@@ -435,12 +436,12 @@ export function updateEditingSummary() {
       修正: ${modifications.length}件
       ${
         modifications.length > 0
-          ? '<button id="export-btn" style="font-size: var(--font-size-2xs); padding: 1px 4px; margin-left: 3px; background: #d4edda; border: 1px solid #c3e6cb; color: #155724;" onclick="window.exportModifications()">出力</button>'
+          ? '<button id="export-btn" style="font-size: var(--font-size-xs); padding: 1px 4px; margin-left: 3px; background: #d4edda; border: 1px solid #c3e6cb; color: #155724;" onclick="window.exportModifications()">出力</button>'
           : ''
       }
       ${
         modifications.length > 0
-          ? '<button id="clear-modifications-btn" style="font-size: var(--font-size-2xs); padding: 1px 4px; margin-left: 2px; background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24;" onclick="window.clearModifications()">削除</button>'
+          ? '<button id="clear-modifications-btn" style="font-size: var(--font-size-xs); padding: 1px 4px; margin-left: 2px; background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24;" onclick="window.clearModifications()">削除</button>'
           : ''
       }
     `;

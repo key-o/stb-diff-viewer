@@ -13,7 +13,7 @@
  */
 
 import * as THREE from 'three';
-import { materials } from '../rendering/materials.js';
+import { colorManager } from '../rendering/colorManager.js';
 import { ElementGeometryUtils } from './ElementGeometryUtils.js';
 import { BaseElementGenerator } from './core/BaseElementGenerator.js';
 
@@ -140,7 +140,7 @@ export class FootingGenerator extends BaseElementGenerator {
     // 8. メッシュ作成（ElementGeometryUtils使用）
     const mesh = ElementGeometryUtils.createMeshWithMetadata(
       geometry,
-      materials.matchedMesh,
+      colorManager.getMaterial('diff', { comparisonState: 'matched' }),
       footing,
       {
         elementType: elementType,

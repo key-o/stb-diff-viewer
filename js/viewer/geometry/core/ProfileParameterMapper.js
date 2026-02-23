@@ -80,6 +80,9 @@ export function mapToProfileParams(dimensions, sectionType) {
     case 'T-SHAPE':
       return mapTShapeParams(dimensions);
 
+    case 'CROSS_H':
+      return mapCrossHParams(dimensions);
+
     default:
       // デフォルトは矩形として扱う
       return mapRectangleParams(dimensions);
@@ -188,6 +191,25 @@ function mapTShapeParams(dims) {
 }
 
 /**
+ * クロスH形鋼パラメータのマッピング
+ *
+ * X方向・Y方向それぞれのH鋼寸法を calculateCrossHProfile に渡す形式に変換する。
+ * dims には _X サフィックス付きの寸法（X方向H鋼）と _Y サフィックス付きの寸法（Y方向H鋼）を期待する。
+ * @private
+ */
+function mapCrossHParams(dims) {
+  // X方向H鋼（垂直腕）
+  const overallDepthX = dims.overallDepthX || dims.H_x || dims.H || getHeight(dims) || 400.0;
+  const overallWidthX = dims.overallWidthX || dims.B_x || dims.B || getWidth(dims) || 200.0;
+
+  // Y方向H鋼（水平腕）— 省略時はX方向と同一（対称クロス）
+  const overallDepthY = dims.overallDepthY || dims.H_y || overallDepthX;
+  const overallWidthY = dims.overallWidthY || dims.B_y || overallWidthX;
+
+  return { overallDepthX, overallWidthX, overallDepthY, overallWidthY };
+}
+
+/**
  * デフォルトパラメータを取得
  * @param {string} sectionType - 断面タイプ
  * @returns {Object} デフォルトパラメータ
@@ -224,6 +246,9 @@ function getDefaultParams(sectionType) {
     case 'T':
     case 'T-SHAPE':
       return { overallDepth: 200.0, flangeWidth: 150.0, webThickness: 8.0, flangeThickness: 12.0 };
+
+    case 'CROSS_H':
+      return { overallDepthX: 400.0, overallWidthX: 200.0, overallDepthY: 400.0, overallWidthY: 200.0 };
 
     default:
       return { width: 400.0, height: 400.0 };
@@ -263,6 +288,9 @@ export function normalizeProfileType(sectionType) {
   // T形鋼
   if (['T', 'T-SHAPE'].includes(type)) return 'T';
 
+  // クロスH形鋼
+  if (type === 'CROSS_H') return 'CROSS_H';
+
   return 'RECTANGLE'; // デフォルト
 }
 
@@ -290,6 +318,7 @@ export function inferSectionTypeFromDimensions(dimensions, hint) {
   const profileHint = dimensions.profile_hint;
   if (profileHint) {
     const ph = profileHint.toUpperCase();
+    if (ph === 'CROSS_H') return 'CROSS_H';
     if (ph === 'CIRCLE') return 'CIRCLE';
     if (ph === 'PIPE') return 'PIPE';
     if (ph === 'H') return 'H';

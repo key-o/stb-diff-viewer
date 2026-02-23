@@ -7,14 +7,15 @@
  * @module ui/sectionList/BeamSectionListRenderer
  */
 
+import { BaseSectionListRenderer } from './BaseSectionListRenderer.js';
 import { RcBeamVisualRenderer } from '../../../components/rcBeamVisual/index.js';
 
 /**
  * RC梁断面リストテーブルレンダラー
  */
-export class BeamSectionListRenderer {
+export class BeamSectionListRenderer extends BaseSectionListRenderer {
   constructor(options = {}) {
-    this.svgRenderer = new RcBeamVisualRenderer({
+    const svgRenderer = new RcBeamVisualRenderer({
       maxWidth: options.svgWidth || 100,
       maxHeight: options.svgHeight || 100,
       padding: options.svgPadding || 15,
@@ -22,156 +23,64 @@ export class BeamSectionListRenderer {
       showDimensions: false,
     });
 
+    super(svgRenderer);
+
+    this.scaleOptions = {
+      scaleDenominator:
+        Number(options.scaleDenominator) > 0 ? Number(options.scaleDenominator) : 40,
+      previewDpi: Number(options.previewDpi) > 0 ? Number(options.previewDpi) : 96,
+      maxDiagramWidth: Number(options.maxDiagramWidth) > 0 ? Number(options.maxDiagramWidth) : 90,
+      maxDiagramHeight:
+        Number(options.maxDiagramHeight) > 0 ? Number(options.maxDiagramHeight) : 90,
+    };
+
+    this.lastComputedScale = null;
+    this.coverThickness =
+      Number(options.coverThickness) > 0 ? Number(options.coverThickness) : null;
+
     this.options = {
       showPositionLabels: options.showPositionLabels !== false,
       compactMode: options.compactMode || false,
     };
   }
 
-  /**
-   * グリッド形式で梁断面リストテーブルをレンダリング
-   * @param {Object} data - extractBeamSectionGridの出力
-   *   { stories: Array, symbols: Array, grid: Map }
-   * @param {HTMLElement} container - 描画先コンテナ
-   */
-  renderGrid(data, container) {
-    if (!container) return;
+  // --- Abstract method implementations ---
 
-    const { stories, symbols, grid } = data;
-
-    if (!symbols || symbols.length === 0 || !stories || stories.length === 0) {
-      container.innerHTML = '<div class="section-list-empty">RC梁断面データがありません</div>';
-      return;
-    }
-
-    const table = document.createElement('table');
-    table.className = 'beam-section-grid-table';
-
-    // ヘッダー行
-    const thead = this.renderGridHeader(symbols);
-    table.appendChild(thead);
-
-    // ボディ行
-    const tbody = this.renderGridBody(stories, symbols, grid);
-    table.appendChild(tbody);
-
-    // コンテナをクリアしてテーブルを追加
-    container.innerHTML = '';
-    container.appendChild(table);
+  /** @override */
+  getEmptyMessage() {
+    return 'RC梁断面データがありません';
   }
 
-  /**
-   * グリッドのヘッダー行を生成
-   * @param {Array<string>} symbols - 符号一覧
-   * @returns {HTMLElement} thead要素
-   */
-  renderGridHeader(symbols) {
-    const thead = document.createElement('thead');
-    const headerRow = document.createElement('tr');
-
-    // 階列ヘッダー（左端固定列）
-    const thFloor = document.createElement('th');
-    thFloor.className = 'section-grid-header-floor';
-    thFloor.textContent = '階';
-    headerRow.appendChild(thFloor);
-
-    // 各符号列のヘッダー
-    symbols.forEach((symbol) => {
-      const thSymbol = document.createElement('th');
-      thSymbol.className = 'section-grid-header-symbol';
-      thSymbol.textContent = symbol;
-      headerRow.appendChild(thSymbol);
-    });
-
-    thead.appendChild(headerRow);
-    return thead;
+  /** @override */
+  getGridTableClassName() {
+    return 'beam-section-grid-table';
   }
 
-  /**
-   * グリッドのボディ行を生成
-   * @param {Array} stories - 階一覧
-   * @param {Array<string>} symbols - 符号一覧
-   * @param {Map} grid - グリッドデータ（キー: "階ID:符号"）
-   * @returns {HTMLElement} tbody要素
-   */
-  renderGridBody(stories, symbols, grid) {
-    const tbody = document.createElement('tbody');
-
-    stories.forEach((story) => {
-      const tr = document.createElement('tr');
-
-      // 階セル（左端固定列）
-      const tdFloor = document.createElement('td');
-      tdFloor.className = 'section-grid-floor-cell';
-      tdFloor.textContent = story.name;
-      tr.appendChild(tdFloor);
-
-      // 各符号のセル
-      symbols.forEach((symbol) => {
-        const tdSection = document.createElement('td');
-        tdSection.className = 'section-grid-section-cell';
-
-        // グリッドキーを構築：階ID:符号
-        const gridKey = `${story.id}:${symbol}`;
-        const sectionData = grid.get(gridKey);
-
-        if (sectionData) {
-          if (Array.isArray(sectionData)) {
-            tdSection.innerHTML = this.renderSectionVariants(sectionData);
-          } else {
-            tdSection.innerHTML = this.renderSectionCell(sectionData);
-          }
-        } else {
-          // 空セル
-          tdSection.innerHTML = '<div class="section-cell-empty">-</div>';
-          tdSection.classList.add('empty');
-        }
-
-        tr.appendChild(tdSection);
-      });
-
-      tbody.appendChild(tr);
-    });
-
-    return tbody;
+  /** @override */
+  getGridCellData(grid, storyId, symbol) {
+    return grid.get(`${storyId}:${symbol}`);
   }
 
-  /**
-   * 同一セル内に複数断面がある場合のレンダリング
-   * @param {Array<Object>} sectionDataList - 断面データ配列
-   * @returns {string} HTML文字列
-   */
-  renderSectionVariants(sectionDataList) {
-    const uniqueVariants = [];
-    const seenSectionIds = new Set();
-
-    sectionDataList.forEach((sectionData) => {
-      const sectionId = sectionData?.sectionId || sectionData?.id || '';
-      const dedupeKey = `${sectionId}:${sectionData?.symbolNames || ''}`;
-      if (!seenSectionIds.has(dedupeKey)) {
-        seenSectionIds.add(dedupeKey);
-        uniqueVariants.push(sectionData);
-      }
-    });
-
-    if (uniqueVariants.length === 1) {
-      return this.renderSectionCell(uniqueVariants[0]);
-    }
-
-    const parts = ['<div class="section-cell-variants">'];
-    uniqueVariants.forEach((sectionData, index) => {
-      const label = sectionData?.sectionId
-        ? `断面${index + 1} (ID: ${this.escapeHtml(sectionData.sectionId)})`
-        : `断面${index + 1}`;
-      parts.push('<div class="section-cell-variant">');
-      parts.push(`<div class="section-cell-variant-label">${label}</div>`);
-      parts.push(this.renderSectionCell(sectionData));
-      parts.push('</div>');
-    });
-    parts.push('</div>');
-
-    return parts.join('');
+  /** @override */
+  getSectionIdentifiers(sectionData) {
+    const dedupeId = sectionData?.sectionId || sectionData?.id || '';
+    const labelId = sectionData?.sectionId || '';
+    return { dedupeId, labelId };
   }
+
+  // --- Virtual hook overrides ---
+
+  /** @override */
+  onBeforeGridRender(data) {
+    this.lastComputedScale = this.computeUnifiedScale(data);
+  }
+
+  /** @override */
+  onEmptyGrid() {
+    this.lastComputedScale = null;
+  }
+
+  // --- Beam-specific methods ---
 
   /**
    * 断面セルの内容をレンダリング
@@ -213,17 +122,10 @@ export class BeamSectionListRenderer {
         // cover情報をpositionDataに追加（RcBeamVisualRendererが必要とする）
         const beamDataForSvg = {
           ...positionData,
-          cover: sectionData.cover || { top: 40, bottom: 40, left: 40, right: 40 },
+          cover: this.resolveRenderCover(sectionData.cover),
         };
-        console.log('[BeamSectionListRenderer] Rendering position:', {
-          position,
-          beamDataForSvg,
-          symbol: sectionData.symbolNames,
-        });
-        const svgString = this.svgRenderer.renderToString(beamDataForSvg);
-        console.log('[BeamSectionListRenderer] SVG result:', {
-          hasString: !!svgString,
-          length: svgString?.length || 0,
+        const svgString = this.svgRenderer.renderToString(beamDataForSvg, {
+          fixedScale: this.lastComputedScale?.scale,
         });
         parts.push(`<div class="beam-section-diagram">${svgString}</div>`);
 
@@ -426,18 +328,117 @@ export class BeamSectionListRenderer {
   }
 
   /**
-   * HTMLエスケープ
-   * @param {string} str - 文字列
+   * 現在の描画縮尺ラベルを取得
    * @returns {string}
    */
-  escapeHtml(str) {
-    if (!str) return '';
-    return str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+  getScaleLabel() {
+    if (!this.lastComputedScale?.effectiveDenominator) {
+      return '';
+    }
+    return `縮尺 1/${this.lastComputedScale.effectiveDenominator}`;
+  }
+
+  /**
+   * 縮尺分母を設定
+   * @param {number} denominator - 1/n の n
+   */
+  setScaleDenominator(denominator) {
+    const value = Number(denominator);
+    if (Number.isFinite(value) && value > 0) {
+      this.scaleOptions.scaleDenominator = value;
+    }
+  }
+
+  /**
+   * 描画時のかぶり厚さ（mm）を設定
+   * @param {number|null} thickness - nullでXML値を使用
+   */
+  setCoverThickness(thickness) {
+    const value = Number(thickness);
+    this.coverThickness = Number.isFinite(value) && value > 0 ? value : null;
+  }
+
+  /**
+   * 断面グリッド全体の共通縮尺を算出
+   * @param {Object} data - グリッドデータ
+   * @returns {{scale:number, effectiveDenominator:string}|null}
+   */
+  computeUnifiedScale(data) {
+    const dims = this.collectBeamDimensions(data?.grid);
+    if (dims.maxWidth <= 0 || dims.maxDepth <= 0) {
+      return null;
+    }
+
+    const mmToPx = this.scaleOptions.previewDpi / 25.4;
+    const baseScale = mmToPx / this.scaleOptions.scaleDenominator;
+    const padding = this.svgRenderer?.settings?.padding || 0;
+    const usableWidth = Math.max(1, this.scaleOptions.maxDiagramWidth - padding * 2);
+    const usableHeight = Math.max(1, this.scaleOptions.maxDiagramHeight - padding * 2);
+    const fitScale = Math.min(usableWidth / dims.maxWidth, usableHeight / dims.maxDepth);
+    const finalScale = Math.min(baseScale, fitScale);
+
+    const effectiveDenominator = mmToPx / finalScale;
+    return {
+      scale: finalScale,
+      effectiveDenominator:
+        effectiveDenominator >= 100
+          ? Math.round(effectiveDenominator).toString()
+          : effectiveDenominator.toFixed(1),
+    };
+  }
+
+  /**
+   * グリッド内の最大梁幅・梁せいを抽出
+   * @param {Map} grid - グリッドデータ
+   * @returns {{maxWidth:number, maxDepth:number}}
+   */
+  collectBeamDimensions(grid) {
+    let maxWidth = 0;
+    let maxDepth = 0;
+
+    if (!(grid instanceof Map)) {
+      return { maxWidth, maxDepth };
+    }
+
+    grid.forEach((sectionDataOrList) => {
+      const list = Array.isArray(sectionDataOrList) ? sectionDataOrList : [sectionDataOrList];
+      list.forEach((sectionData) => {
+        const positions = sectionData?.positions || {};
+        Object.values(positions).forEach((positionData) => {
+          const width = Number(positionData?.width) || 0;
+          const depth = Number(positionData?.depth) || 0;
+          if (width > maxWidth) maxWidth = width;
+          if (depth > maxDepth) maxDepth = depth;
+        });
+      });
+    });
+
+    return { maxWidth, maxDepth };
+  }
+
+  /**
+   * 描画用かぶりを決定
+   * @param {Object} sourceCover - 抽出済みかぶり情報
+   * @returns {{top:number,bottom:number,left:number,right:number}}
+   */
+  resolveRenderCover(sourceCover) {
+    const base = {
+      top: Number(sourceCover?.top) || 40,
+      bottom: Number(sourceCover?.bottom) || 40,
+      left: Number(sourceCover?.left) || Number(sourceCover?.top) || 40,
+      right: Number(sourceCover?.right) || Number(sourceCover?.top) || 40,
+    };
+
+    if (this.coverThickness) {
+      return {
+        top: this.coverThickness,
+        bottom: this.coverThickness,
+        left: this.coverThickness,
+        right: this.coverThickness,
+      };
+    }
+
+    return base;
   }
 }
 

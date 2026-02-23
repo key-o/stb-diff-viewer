@@ -7,13 +7,7 @@
  * - Escape: 選択解除
  */
 
-import { controls } from '../index.js';
-import {
-  getSelectedCenter,
-  resetSelection,
-  createOrUpdateOrbitCenterHelper,
-  hideOrbitCenterHelper,
-} from '../../app/interaction.js';
+import { controls } from '../core/core.js';
 import { focusOnSelected, fitCameraToModel } from '../camera/cameraFitter.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -23,9 +17,11 @@ let isInitialized = false;
 
 /**
  * 選択要素に回転中心を設定
- * @returns {boolean} 成功した場合true
+ * @returns {Promise<boolean>} 成功した場合true
  */
-export function setOrbitCenterToSelected() {
+export async function setOrbitCenterToSelected() {
+  const { getSelectedCenter, createOrUpdateOrbitCenterHelper } =
+    await import('../../app/interaction.js');
   const center = getSelectedCenter();
 
   if (!center) {
@@ -52,7 +48,8 @@ export function setOrbitCenterToSelected() {
 /**
  * 回転中心をリセット（ヘルパーを非表示に）
  */
-export function resetOrbitCenter() {
+export async function resetOrbitCenter() {
+  const { hideOrbitCenterHelper } = await import('../../app/interaction.js');
   hideOrbitCenterHelper();
 }
 
@@ -77,14 +74,15 @@ function handleKeyDown(event) {
       // F: 選択要素にフォーカス
       if (!event.ctrlKey && !event.altKey && !event.metaKey) {
         event.preventDefault();
-        const success = focusOnSelected({ enableTransition: true, padding: 2.0 });
-        if (success) {
-          // フォーカス後に回転中心も設定
-          setOrbitCenterToSelected();
-          log.info('Focused on selected element');
-        } else {
-          log.debug('No element to focus on');
-        }
+        focusOnSelected({ enableTransition: true, padding: 2.0 }).then((success) => {
+          if (success) {
+            // フォーカス後に回転中心も設定
+            setOrbitCenterToSelected();
+            log.info('Focused on selected element');
+          } else {
+            log.debug('No element to focus on');
+          }
+        });
       }
       break;
 
@@ -105,8 +103,10 @@ function handleKeyDown(event) {
 
     case 'escape':
       // Escape: 選択解除
-      resetSelection();
-      log.debug('Selection cleared via Escape key');
+      import('../../app/interaction.js').then(({ resetSelection }) => {
+        resetSelection();
+        log.debug('Selection cleared via Escape key');
+      });
       break;
   }
 }

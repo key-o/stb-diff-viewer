@@ -260,4 +260,3 @@ export function getElementRegistry() {
   }
   return instance;
 }
-

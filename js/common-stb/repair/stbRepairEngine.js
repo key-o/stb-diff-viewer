@@ -13,7 +13,7 @@
  * @module common/stb/repair/stbRepairEngine
  */
 
-import { parseElements } from '../parser/stbXmlParser.js';
+import { parseElements } from '../import/parser/stbXmlParser.js';
 import { SEVERITY, CATEGORY, getRepairableIssues } from '../validation/stbValidator.js';
 
 // ========================================

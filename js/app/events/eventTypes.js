@@ -230,6 +230,8 @@ export const ClippingEvents = {
   ERROR: 'clipping:error',
   /** 2D表示モードの変更 */
   MODE_2D_CHANGED: 'clipping:mode2dChanged',
+  /** セクションボックスのON/OFF */
+  SECTION_BOX_TOGGLED: 'clipping:sectionBoxToggled',
 };
 
 /**
@@ -247,6 +249,66 @@ export const EditEvents = {
   EDIT_CANCELLED: 'edit:cancelled',
   /** 編集モードが切り替わった */
   MODE_TOGGLED: 'edit:modeToggled',
+};
+
+/**
+ * アプリ→UI通知イベント（R1違反解消用）
+ * @constant {Object}
+ */
+export const AppEvents = {
+  /** UIの全状態をクリア */
+  CLEAR_UI_STATE: 'app:clearUIState',
+  /** ツリービューをクリア */
+  CLEAR_TREE: 'app:clearTree',
+  /** セクションツリーをクリア */
+  CLEAR_SECTION_TREE: 'app:clearSectionTree',
+};
+
+/**
+ * ローディングインジケータ関連イベント（レイヤー違反解消用）
+ * modelLoader(L3) → UI(L5) の直接依存を排除するために使用
+ * @constant {Object}
+ */
+export const LoadingIndicatorEvents = {
+  /** ローディング表示を開始 */
+  SHOW: 'loadingIndicator:show',
+  /** ローディング進捗を更新 */
+  UPDATE: 'loadingIndicator:update',
+  /** ローディングを完了表示 */
+  COMPLETE: 'loadingIndicator:complete',
+  /** ローディングを非表示 */
+  HIDE: 'loadingIndicator:hide',
+  /** ローディングエラーを表示 */
+  ERROR: 'loadingIndicator:error',
+};
+
+/**
+ * ファイナライゼーション関連イベント（レイヤー違反解消用）
+ * modelLoader(L3) → UI(L5) の直接依存を排除するために使用
+ * @constant {Object}
+ */
+export const FinalizationEvents = {
+  /** UI状態を設定（ラベル、階、軸情報） */
+  SET_GLOBAL_STATE: 'finalization:setGlobalState',
+  /** セレクターとラベルを更新 */
+  UPDATE_SELECTORS: 'finalization:updateSelectors',
+};
+
+/**
+ * インタラクション→UI通知イベント（R1違反解消用）
+ * @constant {Object}
+ */
+export const InteractionEvents = {
+  /** 要素情報を表示 */
+  DISPLAY_ELEMENT_INFO: 'interaction:displayElementInfo',
+  /** ツリーで要素を選択 */
+  SELECT_ELEMENT_IN_TREE: 'interaction:selectElementInTree',
+  /** コンテキストメニューを表示 */
+  SHOW_CONTEXT_MENU: 'interaction:showContextMenu',
+  /** コンテキストメニューを初期化 */
+  INIT_CONTEXT_MENU: 'interaction:initContextMenu',
+  /** 選択要素にセクションボックスを適用 */
+  ACTIVATE_SECTION_BOX_FOR_SELECTION: 'interaction:activateSectionBoxForSelection',
 };
 
 /**
@@ -286,6 +348,10 @@ export const EventTypes = {
   Clipping: ClippingEvents,
   Edit: EditEvents,
   Validation: ValidationEvents,
+  App: AppEvents,
+  Interaction: InteractionEvents,
+  LoadingIndicator: LoadingIndicatorEvents,
+  Finalization: FinalizationEvents,
 };
 
 /**
@@ -312,6 +378,10 @@ export function isValidEventType(eventType) {
     ...Object.values(ClippingEvents),
     ...Object.values(EditEvents),
     ...Object.values(ValidationEvents),
+    ...Object.values(AppEvents),
+    ...Object.values(InteractionEvents),
+    ...Object.values(LoadingIndicatorEvents),
+    ...Object.values(FinalizationEvents),
   ];
   return allTypes.includes(eventType);
 }

@@ -13,13 +13,10 @@ export const VIEW_MODE_CHECKBOX_IDS = {
   Beam: 'toggleBeam3DView',
   Brace: 'toggleBrace3DView',
   Pile: 'togglePile3DView',
-  Footing: 'toggleFooting3DView',
   StripFooting: 'toggleStripFooting3DView',
-  FoundationColumn: 'toggleFoundationColumn3DView',
   Slab: 'toggleSlab3DView',
   Wall: 'toggleWall3DView',
   Parapet: 'toggleParapet3DView',
-  Joint: 'toggleJoint3DView',
 };
 
 /**

@@ -6,12 +6,8 @@
  * @module ui/events/clippingListeners
  */
 
-import {
-  applyStoryClip,
-  applyAxisClip,
-  updateClippingRange,
-  clearAllClippingPlanes,
-} from '../viewer3d/clipping.js';
+import { getStoryClipBounds, getAxisClipBounds } from '../viewer3d/clipping.js';
+import { toggleSectionBox, activateSectionBoxForBounds } from '../viewer3d/sectionBox.js';
 
 /**
  * Setup clipping range slider listeners
@@ -25,7 +21,15 @@ export function setupClippingRangeListeners() {
     storyRangeSlider.addEventListener('input', (event) => {
       const rangeValue = parseInt(event.target.value);
       storyRangeValue.textContent = (rangeValue / 1000).toFixed(1);
-      updateClippingRange(rangeValue);
+
+      // スライダー変更時にSectionBoxを直接更新
+      const storySelector = document.getElementById('storySelector');
+      if (storySelector) {
+        const bounds = getStoryClipBounds(storySelector.value, rangeValue);
+        if (bounds) {
+          activateSectionBoxForBounds(bounds);
+        }
+      }
     });
   }
 
@@ -37,7 +41,14 @@ export function setupClippingRangeListeners() {
     xAxisRangeSlider.addEventListener('input', (event) => {
       const rangeValue = parseInt(event.target.value);
       xAxisRangeValue.textContent = (rangeValue / 1000).toFixed(1);
-      updateClippingRange(rangeValue);
+
+      const xAxisSelector = document.getElementById('xAxisSelector');
+      if (xAxisSelector) {
+        const bounds = getAxisClipBounds('X', xAxisSelector.value, rangeValue);
+        if (bounds) {
+          activateSectionBoxForBounds(bounds);
+        }
+      }
     });
   }
 
@@ -49,7 +60,14 @@ export function setupClippingRangeListeners() {
     yAxisRangeSlider.addEventListener('input', (event) => {
       const rangeValue = parseInt(event.target.value);
       yAxisRangeValue.textContent = (rangeValue / 1000).toFixed(1);
-      updateClippingRange(rangeValue);
+
+      const yAxisSelector = document.getElementById('yAxisSelector');
+      if (yAxisSelector) {
+        const bounds = getAxisClipBounds('Y', yAxisSelector.value, rangeValue);
+        if (bounds) {
+          activateSectionBoxForBounds(bounds);
+        }
+      }
     });
   }
 }
@@ -58,54 +76,11 @@ export function setupClippingRangeListeners() {
  * Setup clipping button listeners
  */
 export function setupClippingButtonListeners() {
-  // Story clipping apply button
-  const storyClipButton = document.getElementById('applyStoryClipButton');
-  if (storyClipButton) {
-    storyClipButton.addEventListener('click', () => {
-      const storySelector = document.getElementById('storySelector');
-      const storyRange = document.getElementById('storyClipRange');
-      if (storySelector && storyRange) {
-        const storyId = storySelector.value;
-        const range = parseInt(storyRange.value);
-        applyStoryClip(storyId, range);
-      }
-    });
-  }
-
-  // X-axis clipping apply button
-  const xAxisClipButton = document.getElementById('applyXAxisClipButton');
-  if (xAxisClipButton) {
-    xAxisClipButton.addEventListener('click', () => {
-      const xAxisSelector = document.getElementById('xAxisSelector');
-      const xAxisRange = document.getElementById('xAxisClipRange');
-      if (xAxisSelector && xAxisRange) {
-        const axisId = xAxisSelector.value;
-        const range = parseInt(xAxisRange.value);
-        applyAxisClip('X', axisId, range);
-      }
-    });
-  }
-
-  // Y-axis clipping apply button
-  const yAxisClipButton = document.getElementById('applyYAxisClipButton');
-  if (yAxisClipButton) {
-    yAxisClipButton.addEventListener('click', () => {
-      const yAxisSelector = document.getElementById('yAxisSelector');
-      const yAxisRange = document.getElementById('yAxisClipRange');
-      if (yAxisSelector && yAxisRange) {
-        const axisId = yAxisSelector.value;
-        const range = parseInt(yAxisRange.value);
-        applyAxisClip('Y', axisId, range);
-      }
-    });
-  }
-
-  // Clear clipping button
-  const clearClipButton = document.getElementById('clearClipButton');
-  if (clearClipButton) {
-    clearClipButton.addEventListener('click', () => {
-      clearAllClippingPlanes();
+  // Section box toggle button
+  const sectionBoxButton = document.getElementById('toggleSectionBoxButton');
+  if (sectionBoxButton) {
+    sectionBoxButton.addEventListener('click', () => {
+      toggleSectionBox();
     });
   }
 }
-

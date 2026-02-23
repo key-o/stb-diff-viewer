@@ -8,8 +8,9 @@
 /* global FormData */
 
 import { getEnvironmentConfig } from '../../config/environment.js';
-import { showError, showWarning } from '../../ui/common/toast.js';
+import { eventBus, ToastEvents } from '../../app/events/index.js';
 import { createLogger } from '../../utils/logger.js';
+import { downloadBlob } from '../../utils/downloadHelper.js';
 
 const logger = createLogger('IFCConverter');
 
@@ -289,9 +290,11 @@ export class IFCConverterUI {
       // CORS問題の特別処理
       if (error.message && error.message.includes('CORS')) {
         this.converter.showCorsWarning(); // CORS警告を表示
-        showError(`CORS設定エラー: APIサーバーでCORS設定に問題があります。詳細: ${error.message}`);
+        eventBus.emit(ToastEvents.SHOW_ERROR, {
+          message: `CORS設定エラー: APIサーバーでCORS設定に問題があります。詳細: ${error.message}`,
+        });
       } else {
-        showError(`IFC変換エラー: ${error.message}`);
+        eventBus.emit(ToastEvents.SHOW_ERROR, { message: `IFC変換エラー: ${error.message}` });
       }
 
       logger.error('IFC変換エラー:', error);
@@ -332,7 +335,9 @@ export class IFCConverterUI {
     const modelData = this.getCurrentModelData();
 
     if (!modelData) {
-      showWarning('変換するモデルデータがありません。まずSTBファイルを読み込んでください。');
+      eventBus.emit(ToastEvents.SHOW_WARNING, {
+        message: '変換するモデルデータがありません。まずSTBファイルを読み込んでください。',
+      });
       return;
     }
 
@@ -628,14 +633,7 @@ export class IFCConverterUI {
   }
 
   downloadIFCFile(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, filename);
   }
 }
 
@@ -668,7 +666,7 @@ style.textContent = `
   
   .progress-text {
     text-align: center;
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-sm);
     color: #495057;
     font-weight: 500;
   }

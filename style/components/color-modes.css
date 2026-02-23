@@ -180,7 +180,7 @@
 .schema-list-item-id {
   font-weight: var(--font-weight-medium);
   color: var(--text-heading);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
 }
 
 .schema-list-item-messages {

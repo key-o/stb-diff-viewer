@@ -4,8 +4,23 @@
  * 要素の配置・回転を計算する純粋な数値計算関数群。
  * Three.jsに依存せず、単体テスト可能。
  *
+ * 基本ベクトル演算（normalizeVector, crossProduct, dotProduct）と
+ * calculateBeamBasis は data/geometry/vectorMath.js に定義され、
+ * ここから re-export される。
+ *
  * @module GeometryCalculator
  */
+
+import {
+  normalizeVector,
+  crossProduct,
+  dotProduct,
+  calculateBeamBasis,
+  rotateVectorAroundAxis,
+} from '../../../data/geometry/vectorMath.js';
+
+// vectorMath からの re-export（後方互換性維持）
+export { normalizeVector, crossProduct, dotProduct, calculateBeamBasis, rotateVectorAroundAxis };
 
 /**
  * Vector3型定義（Plain Object）
@@ -44,25 +59,6 @@ export function calculateDistance(point1, point2) {
   const dy = point2.y - point1.y;
   const dz = point2.z - point1.z;
   return Math.sqrt(dx * dx + dy * dy + dz * dz);
-}
-
-/**
- * ベクトルを正規化
- * @param {Vector3} vector - ベクトル
- * @returns {Vector3} 正規化されたベクトル
- */
-export function normalizeVector(vector) {
-  const length = Math.sqrt(vector.x * vector.x + vector.y * vector.y + vector.z * vector.z);
-
-  if (length === 0) {
-    return { x: 0, y: 0, z: 0 };
-  }
-
-  return {
-    x: vector.x / length,
-    y: vector.y / length,
-    z: vector.z / length,
-  };
 }
 
 /**
@@ -136,29 +132,7 @@ export function lerpVectors(point1, point2, t) {
   };
 }
 
-/**
- * ベクトルの外積を計算
- * @param {Vector3} vector1 - ベクトル1
- * @param {Vector3} vector2 - ベクトル2
- * @returns {Vector3} vector1 × vector2
- */
-export function crossProduct(vector1, vector2) {
-  return {
-    x: vector1.y * vector2.z - vector1.z * vector2.y,
-    y: vector1.z * vector2.x - vector1.x * vector2.z,
-    z: vector1.x * vector2.y - vector1.y * vector2.x,
-  };
-}
-
-/**
- * ベクトルの内積を計算
- * @param {Vector3} vector1 - ベクトル1
- * @param {Vector3} vector2 - ベクトル2
- * @returns {number} 内積
- */
-export function dotProduct(vector1, vector2) {
-  return vector1.x * vector2.x + vector1.y * vector2.y + vector1.z * vector2.z;
-}
+// crossProduct, dotProduct は vectorMath からの re-export（上記）
 
 /**
  * ベクトルの長さを計算
@@ -339,30 +313,7 @@ export function calculateColumnPlacement(
   };
 }
 
-/**
- * 梁の基底ベクトルを計算
- * @param {Vector3} direction - 梁軸方向（正規化済み）
- * @returns {Object} { xAxis, yAxis, zAxis }
- */
-export function calculateBeamBasis(direction) {
-  const zAxis = normalizeVector(direction);
-  const globalUp = { x: 0, y: 0, z: 1 };
-
-  const verticalDot = Math.abs(dotProduct(zAxis, globalUp));
-  if (verticalDot > 0.99) {
-    const globalX = { x: 1, y: 0, z: 0 };
-    let xAxis = normalizeVector(globalX);
-    const yAxis = normalizeVector(crossProduct(zAxis, xAxis));
-    xAxis = normalizeVector(crossProduct(yAxis, zAxis));
-
-    return { xAxis, yAxis, zAxis };
-  }
-
-  const xAxis = normalizeVector(crossProduct(globalUp, zAxis));
-  const yAxis = normalizeVector(crossProduct(zAxis, xAxis));
-
-  return { xAxis, yAxis, zAxis };
-}
+// calculateBeamBasis は vectorMath からの re-export（上記）
 
 /**
  * 基底ベクトルから回転四元数を計算

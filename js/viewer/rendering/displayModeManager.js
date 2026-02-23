@@ -6,13 +6,13 @@
  */
 
 import { BaseElementStateManager } from './baseElementStateManager.js';
-import { DISPLAY_MODE_ELEMENTS } from '../../constants/elementTypes.js';
+import { DISPLAY_MODE_ELEMENTS, SOLID_ONLY_ELEMENTS } from '../../constants/elementTypes.js';
 import { DISPLAY_MODES } from '../../constants/displayModes.js';
 
 /**
- * 表示可能な要素タイプ（elementTypes.jsから取得）
+ * 表示可能な要素タイプ（切替対応要素 + 立体表示のみ要素）
  */
-const ELEMENT_TYPES = [...DISPLAY_MODE_ELEMENTS];
+const ELEMENT_TYPES = [...DISPLAY_MODE_ELEMENTS, ...SOLID_ONLY_ELEMENTS];
 
 /**
  * DisplayModeManagerクラス

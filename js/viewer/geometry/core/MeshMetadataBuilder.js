@@ -57,6 +57,7 @@ export class MeshMetadataBuilder {
       profileBased: true,
       profileMeta: profileResult?.meta || { profileSource: 'unknown' },
       sectionDataOriginal: sectionData || null,
+      sectionId: !isJsonInput && element.id_section ? String(element.id_section) : undefined,
     };
 
     // 配置情報がある場合、長さを追加

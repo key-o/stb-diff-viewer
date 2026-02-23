@@ -5,6 +5,8 @@
  * @module common/stb/export/xmlFormatter
  */
 
+import { downloadBlob } from '../../utils/downloadHelper.js';
+
 /**
  * XMLを読みやすい形式にフォーマット
  * @param {string} xmlString - XML文字列
@@ -57,18 +59,7 @@ export function downloadStbFile(xmlContent, filename) {
   const stbFilename = filename.endsWith('.stb') ? filename : filename.replace(/\.[^.]*$/, '.stb');
 
   const blob = new Blob([xmlContent], { type: 'application/xml' });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = stbFilename;
-  link.style.display = 'none';
-
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, stbFilename);
 }
 
 /**
@@ -78,16 +69,5 @@ export function downloadStbFile(xmlContent, filename) {
  */
 export function downloadTextFile(content, filename) {
   const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.style.display = 'none';
-
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, filename);
 }

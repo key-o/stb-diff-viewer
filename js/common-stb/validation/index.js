@@ -7,7 +7,6 @@
  * - validateStbDocument: ドキュメント全体のバリデーション
  * - StbRepairEngine: データ修復エンジン
  * - ValidationWorkflow: 完全なワークフロー管理
- * - ValidationPanel: UI コンポーネント
  * - exportValidatedStb: バリデート済みデータのエクスポート
  */
 
@@ -57,9 +56,6 @@ export {
   getExportSummary,
 } from '../export/stb/stbExporter.js';
 
-// UIコンポーネント
-export { ValidationPanel, createValidationPanel } from '../ui/panels/validationPanel.js';
-
 // UI連携 (ValidationManager経由)
 export {
   validateAndIntegrate,
@@ -71,6 +67,12 @@ export {
   generateValidationSummaryHtml,
   getValidationStyles,
 } from './validationManager.js';
+
+// JSON Schemaスキーマ検証（メイン）
+export { validateJsonSchema } from './jsonSchemaValidator.js';
+
+// XSDスキーマ検証（後方互換・テスト用）
+export { validateXsdSchema } from './xsdSchemaValidator.js';
 
 // ユーティリティ関数
 export { quickValidate } from './stbValidator.js'; // quickValidate は stbValidator.js に入れてないが、default options で代用できるが、exportがないとエラーになる。

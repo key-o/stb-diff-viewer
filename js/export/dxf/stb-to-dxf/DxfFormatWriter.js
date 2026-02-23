@@ -7,6 +7,7 @@
  */
 
 import { ELEMENT_TYPE_COLORS } from './DxfProviders.js';
+import { downloadBlob } from '../../../utils/downloadHelper.js';
 
 // ========================================
 // ハンドル生成システム
@@ -428,15 +429,6 @@ export async function downloadDxf(content, filename, directoryHandle = null) {
 
   // 従来のダウンロード方式
   const blob = new Blob([content], { type: 'application/dxf' });
-  const url = URL.createObjectURL(blob);
-
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${filename}.dxf`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  URL.revokeObjectURL(url);
+  downloadBlob(blob, `${filename}.dxf`);
   return true;
 }

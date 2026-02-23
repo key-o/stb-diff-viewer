@@ -11,7 +11,7 @@
  */
 
 import * as THREE from 'three';
-import { materials } from '../rendering/materials.js';
+import { colorManager } from '../rendering/colorManager.js';
 import { BaseElementGenerator } from './core/BaseElementGenerator.js';
 
 /**
@@ -184,7 +184,10 @@ export class SlabGenerator extends BaseElementGenerator {
     }
 
     // 10. メッシュ作成
-    const mesh = new THREE.Mesh(geometry, materials.matchedMesh);
+    const mesh = new THREE.Mesh(
+      geometry,
+      colorManager.getMaterial('diff', { comparisonState: 'matched' }),
+    );
 
     // 11. 配置（中心位置に配置）
     mesh.position.copy(center);

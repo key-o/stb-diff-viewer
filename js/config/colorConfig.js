@@ -85,6 +85,19 @@ export const DEFAULT_ELEMENT_COLORS = {
   Story: COLORS.GREY_LIGHT, // マテリアルグレーライト（階高表示用）
 };
 
+/**
+ * SRC柱の構成要素別カラー
+ * - steel: 内蔵鉄骨（視認しやすい鉄骨色）
+ * - concrete: RC外殻（コンクリート色）
+ * @type {{Column: {steel: string, concrete: string}}}
+ */
+export const SRC_COMPONENT_COLORS = {
+  Column: {
+    steel: '#607D8B', // Blue Grey 500（鉄骨色）
+    concrete: '#B0BEC5', // Blue Grey 200（RC外殻）
+  },
+};
+
 // ============================================================================
 // スキーマ検証結果色
 // ============================================================================
@@ -143,9 +156,10 @@ export const TOLERANCE_DIFF_COLORS = {
  */
 export const IMPORTANCE_COLORS = {
   // キーはIMPORTANCE_LEVELSの値（小文字）と一致させる
-  required: COLORS.RED, // 必須（高重要度）
-  optional: COLORS.ORANGE, // 任意（中重要度）
-  unnecessary: COLORS.GREY, // 不要（低重要度）
+  // 違反要素は全て同一色（高/中/低の区分なし）
+  required: COLORS.RED, // 違反
+  optional: COLORS.RED, // 違反
+  unnecessary: COLORS.RED, // 違反
   notApplicable: COLORS.GREY_DARK, // 対象外
 };
 
@@ -181,6 +195,7 @@ export const DEFAULT_LOAD_COLORS = {
 export default {
   COLORS,
   DEFAULT_ELEMENT_COLORS,
+  SRC_COMPONENT_COLORS,
   DEFAULT_SCHEMA_COLORS,
   DIFF_COLORS,
   TOLERANCE_DIFF_COLORS,

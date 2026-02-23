@@ -10,6 +10,7 @@
 import { DEFAULT_ELEMENT_COLORS } from '../config/colorConfig.js';
 import { colorManager } from '../viewer/index.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
+import { createApplyColorMode } from './colorModeState.js';
 
 /**
  * 部材別色設定UIを初期化（表示要素テーブル内の色ボックス）
@@ -105,14 +106,8 @@ export function resetElementColors() {
   });
 }
 
-/**
- * 全要素に部材別色分けを適用
- */
-export function applyElementColorModeToAll() {
-  import('./index.js').then(({ applyColorModeToAllObjects }) => {
-    applyColorModeToAllObjects('ElementColorMode');
-  });
-}
+/** 全要素に部材別色分けを適用 */
+export const applyElementColorModeToAll = createApplyColorMode('ElementColorMode');
 
 /**
  * 部材色設定の取得

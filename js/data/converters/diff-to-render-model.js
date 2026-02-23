@@ -8,6 +8,8 @@
  */
 
 import { createDiffStatus, calculateBoundingBox } from './render-model-utils.js';
+import { COMPARISON_CATEGORY } from '../../constants/comparisonCategories.js';
+import { getCategoryCounts } from '../normalizeComparisonResult.js';
 
 // ============================================
 // 型定義
@@ -79,15 +81,22 @@ export function convertToDiffRenderModel(comparisonResults, options = {}) {
   let totalMatched = 0;
   let totalOnlyA = 0;
   let totalOnlyB = 0;
+  let totalExact = 0;
+  let totalWithinTolerance = 0;
+  let totalAttributeMismatch = 0;
 
   // 各要素タイプを変換
   for (const [elementType, comparisonResult] of comparisonResults.entries()) {
     const container = convertElementTypeResult(elementType, comparisonResult, nodeMapA, nodeMapB);
     elements.set(elementType, container);
 
-    totalMatched += container.matched.length;
-    totalOnlyA += container.onlyA.length;
-    totalOnlyB += container.onlyB.length;
+    const counts = getCategoryCounts(comparisonResult);
+    totalMatched += counts.matched;
+    totalOnlyA += counts.onlyA;
+    totalOnlyB += counts.onlyB;
+    totalExact += counts.exact;
+    totalWithinTolerance += counts.withinTolerance;
+    totalAttributeMismatch += counts.attributeMismatch;
   }
 
   // バウンディングボックス計算（節点から）
@@ -104,6 +113,9 @@ export function convertToDiffRenderModel(comparisonResults, options = {}) {
     },
     statistics: {
       totalMatched,
+      totalExact,
+      totalWithinTolerance,
+      totalAttributeMismatch,
       totalOnlyA,
       totalOnlyB,
       totalElements: totalMatched + totalOnlyA + totalOnlyB,
@@ -238,8 +250,14 @@ function determineDiffStatus(dataA, dataB, matchType) {
   if (dataA && !dataB) {
     return createDiffStatus('removed');
   }
-  if (matchType === 'exact' || matchType === 'unchanged') {
+  if (matchType === 'exact' || matchType === 'unchanged' || matchType === COMPARISON_CATEGORY.EXACT) {
     return createDiffStatus('unchanged');
+  }
+  if (matchType === 'withinTolerance' || matchType === COMPARISON_CATEGORY.WITHIN_TOLERANCE) {
+    return createDiffStatus('modified'); // withinTolerance = minor modification
+  }
+  if (matchType === 'attributeMismatch' || matchType === COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH) {
+    return createDiffStatus('modified');
   }
   return createDiffStatus('modified');
 }

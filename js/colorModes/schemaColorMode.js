@@ -17,10 +17,26 @@ import {
   getElementsByStatus,
 } from '../common-stb/validation/validationManager.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
-import { floatingWindowManager } from '../ui/panels/floatingWindowManager.js';
+import { getState } from '../app/globalState.js';
+import { showColorModeStatus } from './colorModeManager.js';
+import { createApplyColorMode } from './colorModeState.js';
+import {
+  buildSchemaKey,
+  setSchemaError,
+  getSchemaError,
+  clearSchemaErrors,
+  getSchemaErrorStats,
+} from '../common-stb/validation/schemaErrorStore.js';
+// フローティングウィンドウマネージャー（依存性注入で設定）
+let _floatingWindowManager = null;
 
-// スキーマエラー情報を保存するマップ
-const schemaErrorMap = new Map();
+/**
+ * フローティングウィンドウマネージャーを設定（依存性注入）
+ * @param {object} manager - floatingWindowManager インスタンス
+ */
+export function setFloatingWindowManager(manager) {
+  _floatingWindowManager = manager;
+}
 
 /**
  * スキーマ色タイプの定義
@@ -58,21 +74,16 @@ export function initializeSchemaColorControls() {
     // 既存のリセットボタン（デフォルト色に戻すボタン）があるかチェック
     const existingResetButton = container.querySelector('button.btn-reset');
     if (!existingResetButton) {
-      import('../ui/common/buttonManager.js').then(({ buttonManager }) => {
-        const resetButton = buttonManager.createButton({
-          type: 'reset',
-          text: 'デフォルト色に戻す',
-          onClick: () => resetSchemaColors(),
-          ariaLabel: 'スキーマ色をデフォルトに戻す',
-          title: 'スキーマエラー色をデフォルト設定に戻します',
-          customStyle: {
-            marginTop: '10px',
-            fontSize: '0.8em',
-            width: '100%',
-          },
-        });
-        container.appendChild(resetButton);
-      });
+      const resetButton = document.createElement('button');
+      resetButton.type = 'button';
+      resetButton.className = 'btn-reset';
+      resetButton.textContent = 'デフォルト色に戻す';
+      resetButton.setAttribute('aria-label', 'スキーマ色をデフォルトに戻す');
+      resetButton.title = 'スキーマエラー色をデフォルト設定に戻します';
+      resetButton.style.marginTop = '10px';
+      resetButton.style.width = '100%';
+      resetButton.addEventListener('click', () => resetSchemaColors());
+      container.appendChild(resetButton);
     }
   }
 
@@ -100,7 +111,7 @@ function initializeSchemaListButtons() {
   });
 
   // フローティングウィンドウとして登録
-  floatingWindowManager.registerWindow({
+  _floatingWindowManager?.registerWindow({
     windowId: 'schema-error-list-float',
     closeButtonId: 'close-schema-error-list-btn',
     headerId: 'schema-error-list-header',
@@ -161,7 +172,7 @@ function showSchemaErrorListModal(status) {
   }
 
   // フローティングウィンドウを表示
-  floatingWindowManager.showWindow('schema-error-list-float');
+  _floatingWindowManager?.showWindow('schema-error-list-float');
   console.log('[SchemaColorMode] Float window displayed for status:', status);
 }
 
@@ -169,7 +180,7 @@ function showSchemaErrorListModal(status) {
  * スキーマエラー要素リストフローティングウィンドウを非表示
  */
 function hideSchemaErrorListModal() {
-  floatingWindowManager.hideWindow('schema-error-list-float');
+  _floatingWindowManager?.hideWindow('schema-error-list-float');
 }
 
 /**
@@ -373,22 +384,17 @@ export function resetSchemaColors() {
   });
 }
 
-/**
- * 全要素にスキーマエラー色分けを適用
- */
-export function applySchemaColorModeToAll() {
-  import('./index.js').then(({ applyColorModeToAllObjects }) => {
-    applyColorModeToAllObjects('SchemaColorMode');
-  });
-}
+/** 全要素にスキーマエラー色分けを適用 */
+export const applySchemaColorModeToAll = createApplyColorMode('SchemaColorMode');
 
 /**
  * スキーマモード用バリデーション実行
+ * docA/docB 両方を検証し、結果をモデルソース付きキーで保存する。
  */
 export function runValidationForSchemaMode() {
   // 読み込まれているドキュメントを取得
-  const docA = window.docA;
-  const docB = window.docB;
+  const docA = getState('models.documentA');
+  const docB = getState('models.documentB');
 
   if (!docA && !docB) {
     console.warn('[ColorMode] No documents loaded for validation');
@@ -399,12 +405,12 @@ export function runValidationForSchemaMode() {
 
   // モデルAをバリデーション
   if (docA) {
-    validateAndIntegrate(docA);
+    validateAndIntegrate(docA, 'A');
   }
 
-  // モデルBも同様にバリデーション（必要に応じて）
-  if (docB && !docA) {
-    validateAndIntegrate(docB);
+  // モデルBも検証（docAの有無に関わらず）
+  if (docB) {
+    validateAndIntegrate(docB, 'B');
   }
 
   // バリデーションサマリーをステータスバーに表示
@@ -412,32 +418,10 @@ export function runValidationForSchemaMode() {
   if (lastResult) {
     const errorCount = lastResult.issues.filter((i) => i.severity === 'error').length;
     const warningCount = lastResult.issues.filter((i) => i.severity === 'warning').length;
-    showColorModeStatusFromSchema(
-      `バリデーション完了: エラー ${errorCount}件, 警告 ${warningCount}件`,
-      5000,
-    );
+    showColorModeStatus(`バリデーション完了: エラー ${errorCount}件, 警告 ${warningCount}件`, 5000);
 
     // 統計UIを更新
     updateSchemaStatsUI();
-  }
-}
-
-/**
- * 色付けモード状況メッセージを表示（スキーマモジュール内用）
- */
-function showColorModeStatusFromSchema(message, duration = 5000) {
-  const statusElement = document.getElementById('color-mode-status');
-  const textElement = document.getElementById('color-mode-status-text');
-
-  if (statusElement && textElement) {
-    textElement.textContent = message;
-    statusElement.classList.remove('hidden');
-
-    if (duration > 0) {
-      setTimeout(() => {
-        statusElement.classList.add('hidden');
-      }, duration);
-    }
   }
 }
 
@@ -472,60 +456,8 @@ function updateSchemaStatsUI() {
   if (errorCountEl) errorCountEl.textContent = stats.error;
 }
 
-/**
- * 要素のスキーマエラー情報を設定
- * @param {string} elementId 要素ID
- * @param {string} status エラー状態 ('valid' | 'info' | 'warning' | 'error')
- * @param {string[]} errorMessages エラーメッセージの配列
- */
-export function setSchemaError(elementId, status, errorMessages = []) {
-  schemaErrorMap.set(elementId, {
-    status,
-    errorMessages,
-  });
-}
-
-/**
- * 要素のスキーマエラー情報を取得
- * @param {string} elementId 要素ID
- * @returns {object} エラー情報オブジェクト
- */
-export function getSchemaError(elementId) {
-  return (
-    schemaErrorMap.get(elementId) || {
-      status: 'valid',
-      errorMessages: [],
-    }
-  );
-}
-
-/**
- * 全てのスキーマエラー情報をクリア
- */
-export function clearSchemaErrors() {
-  schemaErrorMap.clear();
-}
-
-/**
- * スキーマエラーの統計情報を取得
- * @returns {object} 統計情報
- */
-export function getSchemaErrorStats() {
-  const totalElements = schemaErrorMap.size;
-  let errorElements = 0;
-
-  schemaErrorMap.forEach((errorInfo) => {
-    if (errorInfo.hasError) {
-      errorElements++;
-    }
-  });
-
-  return {
-    totalElements,
-    errorElements,
-    validElements: totalElements - errorElements,
-  };
-}
+// Re-export schema error store functions for backward compatibility
+export { buildSchemaKey, setSchemaError, getSchemaError, clearSchemaErrors, getSchemaErrorStats };
 
 /**
  * デモ用スキーマエラー設定関数

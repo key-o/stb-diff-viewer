@@ -83,7 +83,7 @@
 }
 
 .load-display-mode-label {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary, #333333);
   margin-bottom: 4px;

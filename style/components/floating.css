@@ -24,7 +24,7 @@
   max-width: 600px;
   max-height: 80vh;
   z-index: var(--z-floating);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   color: var(--text-primary);
   display: none; /* 初期状態は非表示 */
 }
@@ -73,7 +73,7 @@
   cursor: pointer;
   padding: 2px 6px;
   border-radius: var(--border-radius-sm);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
 }
 
 .float-window-btn:hover {
@@ -96,6 +96,31 @@
 
 .float-window-content input[type="checkbox"] {
   margin-right: 5px;
+}
+
+/* フローティングウィンドウ内の select 統一スタイル */
+.float-window-content select {
+  padding: var(--input-padding-y) var(--input-padding-x);
+  font-size: inherit;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: #fff;
+  background-clip: padding-box;
+  border: var(--border-width) solid var(--input-border-color);
+  border-radius: var(--input-border-radius);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 5'%3e%3cpath fill='%23343a40' d='M2 0L0 2h4zm0 5L0 3h4z'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 8px 10px;
+  padding-right: 1.75rem;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.float-window-content select:focus {
+  border-color: var(--input-focus-border-color);
+  outline: 0;
+  box-shadow: 0 0 0 0.2rem rgba(74, 111, 165, 0.25);
 }
 
 .float-window-content hr {
@@ -133,6 +158,19 @@
 #clipping-settings-float {
   min-width: 400px;
   max-width: 500px;
+}
+
+/* STBバリデーションウィンドウ */
+#validation-panel-float {
+  min-width: 520px;
+  max-width: 760px;
+}
+
+/* バリデーションパネルの float-window-content は外側スクロール不要
+   validation-panel 自身が max-height: 600px + overflow: hidden を持つため
+   both-edges の scrollbar-gutter による左側余白を抑制する */
+#validation-panel-float .float-window-content {
+  overflow: hidden;
 }
 
 /* ツリービューウィンドウ（統合） */

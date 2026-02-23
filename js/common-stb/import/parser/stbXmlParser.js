@@ -635,6 +635,8 @@ function extractBeamLikeElements(xmlDoc, elementType) {
 
     const haunch_start = el.getAttribute('haunch_start');
     const haunch_end = el.getAttribute('haunch_end');
+    const kind_haunch_start = el.getAttribute('kind_haunch_start');
+    const kind_haunch_end = el.getAttribute('kind_haunch_end');
     const joint_start = el.getAttribute('joint_start');
     const joint_end = el.getAttribute('joint_end');
     // 継手ID（部材要素に直接記述される場合）
@@ -673,6 +675,9 @@ function extractBeamLikeElements(xmlDoc, elementType) {
       if (haunch_start !== null || haunch_end !== null) {
         data.haunch_start = haunch_start ? parseFloat(haunch_start) : 0;
         data.haunch_end = haunch_end ? parseFloat(haunch_end) : 0;
+        // XSDデフォルト値: SLOPE
+        data.kind_haunch_start = kind_haunch_start || 'SLOPE';
+        data.kind_haunch_end = kind_haunch_end || 'SLOPE';
       }
 
       if (joint_start !== null || joint_end !== null) {

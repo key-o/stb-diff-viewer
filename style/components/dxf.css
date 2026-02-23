@@ -6,7 +6,7 @@
 .dxf-intro {
   margin-bottom: 12px;
   color: var(--text-secondary, #6c757d);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
 }
 
 .dxf-intro p {
@@ -26,8 +26,8 @@
 
 /* DXF読み込み結果サマリー */
 #dxf-summary {
-  background-color: var(--panel-bg, #f8f9fa);
-  border: 1px solid var(--border-color, #dee2e6);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   padding: 12px;
   margin-top: 12px;
@@ -36,7 +36,7 @@
 .dxf-summary-title {
   font-weight: var(--font-weight-bold);
   margin-bottom: 8px;
-  color: var(--success-color, #28a745);
+  color: var(--color-success);
 }
 
 .dxf-summary-content {
@@ -58,23 +58,28 @@
 .dxf-layer-list {
   max-height: 200px;
   overflow-y: auto;
-  border: 1px solid var(--border-color, #dee2e6);
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   padding: 8px;
-  background-color: var(--panel-bg, #f8f9fa);
+  background-color: var(--bg-secondary);
 }
 
 .dxf-layer-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 0;
+  padding: 6px 8px;
   cursor: pointer;
   font-size: var(--font-size-sm);
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.dxf-layer-item:last-child {
+  border-bottom: none;
 }
 
 .dxf-layer-item:hover {
-  background-color: var(--hover-bg, rgba(0, 0, 0, 0.05));
+  background-color: var(--bg-hover);
 }
 
 .dxf-layer-item input[type="checkbox"] {
@@ -101,7 +106,7 @@
 .dxf-export-intro {
   margin-bottom: 12px;
   color: var(--text-secondary, #6c757d);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
 }
 
 .dxf-export-intro p {
@@ -219,7 +224,7 @@
   padding: 6px 10px;
   border: 1px solid var(--border-color, #dee2e6);
   border-radius: var(--border-radius);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   background-color: var(--input-bg, #fff);
   color: var(--text-primary, #212529);
 }

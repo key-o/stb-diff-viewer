@@ -9,6 +9,9 @@ import {
   resetToleranceConfig,
 } from '../../config/toleranceConfig.js';
 import { createLogger } from '../../utils/logger.js';
+import { storageHelper } from '../../utils/storageHelper.js';
+
+const STORAGE_KEY = 'toleranceConfig';
 
 const logger = createLogger('ToleranceSettings');
 
@@ -133,7 +136,7 @@ function injectToleranceStyles() {
 
     .tolerance-subsection-title {
       margin: 0 0 8px 0;
-      font-size: var(--font-size-md);
+      font-size: var(--font-size-sm);
       color: #495057;
       font-weight: var(--font-weight-semibold);
     }
@@ -148,7 +151,7 @@ function injectToleranceStyles() {
     .tolerance-checkbox-label {
       display: flex;
       align-items: center;
-      font-size: var(--font-size-md);
+      font-size: var(--font-size-sm);
       cursor: pointer;
     }
 
@@ -177,7 +180,7 @@ function injectToleranceStyles() {
 
     .tolerance-axis-item label {
       min-width: 40px;
-      font-size: var(--font-size-md);
+      font-size: var(--font-size-sm);
       font-weight: var(--font-weight-medium);
       color: #495057;
     }
@@ -187,7 +190,7 @@ function injectToleranceStyles() {
       padding: 4px 8px;
       border: 1px solid #ced4da;
       border-radius: 3px;
-      font-size: var(--font-size-md);
+      font-size: var(--font-size-sm);
       width: 80px;
     }
 
@@ -212,7 +215,7 @@ function injectToleranceStyles() {
     .tolerance-actions .btn {
       flex: 1;
       padding: 8px 12px;
-      font-size: var(--font-size-md);
+      font-size: var(--font-size-sm);
       border-radius: 4px;
       cursor: pointer;
       border: none;
@@ -252,6 +255,12 @@ export function initializeToleranceSettings(container) {
 
   // HTMLを挿入
   container.innerHTML = createToleranceSettingsHTML();
+
+  // LocalStorageから保存済み設定を復元
+  const savedConfig = storageHelper.get(STORAGE_KEY);
+  if (savedConfig) {
+    setToleranceConfig(savedConfig);
+  }
 
   // 現在の設定値を読み込んでUIに反映
   loadSettingsToUI();
@@ -314,6 +323,7 @@ function applySettingsFromUI() {
 
   // 設定を適用
   setToleranceConfig(newConfig);
+  storageHelper.set(STORAGE_KEY, getToleranceConfig());
 
   logger.info('Tolerance settings applied', newConfig);
 
@@ -331,8 +341,16 @@ function applySettingsFromUI() {
  */
 function resetToDefaults() {
   resetToleranceConfig();
+  const config = getToleranceConfig();
+  storageHelper.set(STORAGE_KEY, config);
   loadSettingsToUI();
   logger.info('Settings reset to defaults');
+
+  // リセット後も再比較を実行
+  if (window.toleranceSettingsChanged) {
+    window.toleranceSettingsChanged(config);
+  }
+
   showNotification('🔄 デフォルト設定に戻しました', 'info');
 }
 

@@ -55,6 +55,8 @@ import { setupStbConvertListeners } from './stbConvertHandler.js';
 
 import { setupMasterToggleListeners } from './masterToggleListeners.js';
 
+import { setupAppEventBridge } from './appEventBridge.js';
+
 // --- 統合リスナー設定関数 ---
 
 /**
@@ -62,6 +64,7 @@ import { setupMasterToggleListeners } from './masterToggleListeners.js';
  */
 export function setupUIEventListeners() {
   try {
+    setupAppEventBridge();
     setupModelVisibilityListeners();
     setupSelectorChangeListeners();
     setupLabelToggleListeners();

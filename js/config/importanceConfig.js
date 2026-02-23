@@ -9,17 +9,17 @@
  */
 
 import { IMPORTANCE_LEVELS } from '../constants/importanceLevels.js';
-import { IMPORTANCE_COLORS } from './colorConfig.js';
-
-// Re-export for backwards compatibility
-export { IMPORTANCE_COLORS };
 
 /**
- * デフォルト重要度設定
+ * フォールバック重要度設定（読み込み専用）
+ * JSON設定ファイルの読み込みが失敗した際のフォールバックとしてのみ使用される。
+ * 通常時は importance-s2.json / importance-s4.json が上書きするため直接参照しないこと。
+ * 参照箇所: importanceManager.js の loadDefaultSettings() のみ
+ *
  * ST-Bridge要素パスとその重要度レベルのマッピング
  * MVD（インプリメンテーション合意事項）に基づく
  */
-export const DEFAULT_IMPORTANCE_SETTINGS = {
+export const FALLBACK_IMPORTANCE_SETTINGS = {
   // === ST_BRIDGE (ST_BRIDGE) ===
   '//ST_BRIDGE/ST_BRIDGE/@version': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/ST_BRIDGE/StbCommon': IMPORTANCE_LEVELS.REQUIRED,
@@ -36,33 +36,33 @@ export const DEFAULT_IMPORTANCE_SETTINGS = {
   '//ST_BRIDGE/StbAxes/@group_name': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbAxes/StbParallelAxis': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbBeam_RC_BarSpacingApply/@pitch_bar_Spacing': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbBeam_RC_RebarpositionApply/@center_side': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbBeam_RC_RebarpositionApply/@center_top_bottom': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbBeam_RC_RebarpositionApply/@depth_cover_side': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbBeam_RC_RebarpositionApply/@depth_cover_top_bottom': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbBeam_RC_RebarpositionApply/@interval': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbBeam_RC_RebarpositionApply/@length_to_center': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbBeam_RC_RebarPositionApply/@center_side': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbBeam_RC_RebarPositionApply/@center_top_bottom': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbBeam_RC_RebarPositionApply/@depth_cover_side': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbBeam_RC_RebarPositionApply/@depth_cover_top_bottom': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbBeam_RC_RebarPositionApply/@interval': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbBeam_RC_RebarPositionApply/@length_to_center': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbBeam_SRC_BarSpacingApply/@pitch_bar_Spacing': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbBeam_SRC_RebarpositionApply/@center_side': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbBeam_SRC_RebarpositionApply/@center_top_bottom': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbBeam_SRC_RebarpositionApply/@depth_cover_side': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbBeam_SRC_RebarpositionApply/@depth_cover_top_bottom': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbBeam_SRC_RebarpositionApply/@interval': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbBeam_SRC_RebarpositionApply/@length_to_center': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbBeam_SRC_RebarPositionApply/@center_side': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbBeam_SRC_RebarPositionApply/@center_top_bottom': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbBeam_SRC_RebarPositionApply/@depth_cover_side': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbBeam_SRC_RebarPositionApply/@depth_cover_top_bottom': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbBeam_SRC_RebarPositionApply/@interval': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbBeam_SRC_RebarPositionApply/@length_to_center': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbBeams/StbBeam': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbBraces/StbBrace': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbColumnViaNode/StbMemberOffsetList': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbColumnViaNode/StbNodeIdOrder': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbColumn_RC_BarSpacingApply/@pitch_bar_Spacing': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbColumn_RC_RebarpositionApply/@center': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbColumn_RC_RebarpositionApply/@depth_cover': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbColumn_RC_RebarpositionApply/@interval': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbColumn_RC_RebarpositionApply/@length_to_center': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbColumn_RC_RebarPositionApply/@center': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbColumn_RC_RebarPositionApply/@depth_cover': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbColumn_RC_RebarPositionApply/@interval': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbColumn_RC_RebarPositionApply/@length_to_center': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbColumn_SRC_BarSpacingApply/@pitch_bar_Spacing': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbColumn_SRC_RebarpositionApply/@center': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbColumn_SRC_RebarpositionApply/@depth_cover': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbColumn_SRC_RebarpositionApply/@interval': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbColumn_SRC_RebarpositionApply/@length_to_center': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbColumn_SRC_RebarPositionApply/@center': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbColumn_SRC_RebarPositionApply/@depth_cover': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbColumn_SRC_RebarPositionApply/@interval': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbColumn_SRC_RebarPositionApply/@length_to_center': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbColumns/StbColumn': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbCommon/@app_name': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbCommon/@app_version': IMPORTANCE_LEVELS.REQUIRED,
@@ -381,8 +381,8 @@ export const DEFAULT_IMPORTANCE_SETTINGS = {
   '//ST_BRIDGE/StbSections/StbSecColumn_S/@kind_column': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbSections/StbSecColumn_S/@name': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbSections/StbSecColumn_S/StbSecSteelFigureColumn_S': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_S/StbSecbaseConventional_S': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_S/StbSecbaseProduct_S': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbSections/StbSecColumn_S/StbSecBaseConventional_S': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbSections/StbSecColumn_S/StbSecBaseProduct_S': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbSections/StbSecColumn_SRC/@floor': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbSections/StbSecColumn_SRC/@guid': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbSections/StbSecColumn_SRC/@id': IMPORTANCE_LEVELS.REQUIRED,
@@ -393,85 +393,85 @@ export const DEFAULT_IMPORTANCE_SETTINGS = {
   '//ST_BRIDGE/StbSections/StbSecColumn_SRC/StbSecFigureColumn_SRC': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbSections/StbSecColumn_SRC/StbSecSteelFigureColumn_SRC':
     IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeBox/@encaSe_type':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeBox/@encaSe_type':
     IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeBox/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeBox/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeCross/@offset_XX':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeBox/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeBox/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeCross/@offset_XX':
     IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeCross/@offset_XY':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeCross/@offset_XY':
     IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeCross/@offset_YX':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeCross/@offset_YX':
     IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeCross/@offset_YY':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeCross/@offset_YY':
     IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeCross/@strength_main_X':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeCross/@strength_main_X':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeCross/@strength_main_Y':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeCross/@strength_main_Y':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeCross/@strength_web_X':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeCross/@strength_web_X':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeCross/@strength_web_Y':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeCross/@strength_web_Y':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeH/@direction': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeH/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeH/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeH/@strength_main':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeH/@direction': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeH/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeH/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeH/@strength_main':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeH/@strength_web':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeH/@strength_web':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapePipe/@encaSe_type':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapePipe/@encaSe_type':
     IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapePipe/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapePipe/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeT/@direction_type':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapePipe/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapePipe/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeT/@direction_type':
     IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeT/@offset_HX': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeT/@offset_HY': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeT/@offset_T': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeT/@strength_main_H':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeT/@offset_HX': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeT/@offset_HY': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeT/@offset_T': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeT/@strength_main_H':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeT/@strength_main_T':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeT/@strength_main_T':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeT/@strength_web_H':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeT/@strength_web_H':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameshapeT/@strength_web_T':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_NotSameShapeT/@strength_web_T':
     IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbSections/StbSecColumn_SRC_Rect/@width_X': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbSections/StbSecColumn_SRC_Rect/@width_Y': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeBox/@encaSe_type': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeBox/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeBox/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeCross/@offset_XX': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeCross/@offset_XY': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeCross/@offset_YX': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeCross/@offset_YY': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeCross/@strength_main_X':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeBox/@encaSe_type': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeBox/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeBox/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeCross/@offset_XX': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeCross/@offset_XY': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeCross/@offset_YX': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeCross/@offset_YY': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeCross/@strength_main_X':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeCross/@strength_main_Y':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeCross/@strength_main_Y':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeCross/@strength_web_X':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeCross/@strength_web_X':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeCross/@strength_web_Y':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeCross/@strength_web_Y':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeH/@direction': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeH/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeH/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeH/@strength_main': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeH/@strength_web': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapePipe/@encaSe_type': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapePipe/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapePipe/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeT/@direction_type': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeT/@offset_HX': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeT/@offset_HY': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeT/@offset_T': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeT/@strength_main_H':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeH/@direction': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeH/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeH/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeH/@strength_main': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeH/@strength_web': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapePipe/@encaSe_type': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapePipe/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapePipe/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeT/@direction_type': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeT/@offset_HX': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeT/@offset_HY': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeT/@offset_T': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeT/@strength_main_H':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeT/@strength_main_T':
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeT/@strength_main_T':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeT/@strength_web_H': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameshapeT/@strength_web_T': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeT/@strength_web_H': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbSections/StbSecColumn_SRC_SameShapeT/@strength_web_T': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbSections/StbSecColumn_SRC_ThreeTypesShapeBox/@encaSe_type':
     IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbSections/StbSecColumn_SRC_ThreeTypesShapeBox/@offset_X':
@@ -548,58 +548,58 @@ export const DEFAULT_IMPORTANCE_SETTINGS = {
   '//ST_BRIDGE/StbSections/StbSecUndefined/@guid': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbSections/StbSecUndefined/@id': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbSections/StbSecUndefined/@name': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_S/@height_mortar': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_SRC/@height_mortar': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_SRC_AnchorBolt/@arrangement_bolt':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_S/@height_mortar': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_SRC/@height_mortar': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_SRC_AnchorBolt/@arrangement_bolt':
     IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_SRC_AnchorBolt/@kind_bolt':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_SRC_AnchorBolt/@kind_bolt':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_SRC_AnchorBolt/@length_bolt':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_SRC_AnchorBolt/@length_bolt':
     IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_SRC_AnchorBolt/@name_bolt':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_SRC_AnchorBolt/@name_bolt':
     IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_SRC_AnchorBolt/@strength_bolt':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_SRC_AnchorBolt/@strength_bolt':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_SRC_Plate/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_SRC_Plate/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_SRC_Plate/@t': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_SRC_RibPlate/@length_e_X':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_SRC_Plate/@offset_X': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_SRC_Plate/@offset_Y': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_SRC_Plate/@t': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_SRC_RibPlate/@length_e_X':
     IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_SRC_RibPlate/@length_e_Y':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_SRC_RibPlate/@length_e_Y':
     IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_SRC_RibPlate/@t': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_S_AnchorBolt/@arrangement_bolt':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_SRC_RibPlate/@t': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_S_AnchorBolt/@arrangement_bolt':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_S_AnchorBolt/@kind_bolt':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_S_AnchorBolt/@kind_bolt':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_S_AnchorBolt/@length_bolt':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_S_AnchorBolt/@length_bolt':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_S_AnchorBolt/@name_bolt':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_S_AnchorBolt/@name_bolt':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_S_AnchorBolt/@strength_bolt':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_S_AnchorBolt/@strength_bolt':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_S_Plate/@offset_X': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_S_Plate/@offset_Y': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_S_Plate/@t': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_S_RibPlate/@length_e_X':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_S_Plate/@offset_X': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_S_Plate/@offset_Y': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_S_Plate/@t': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_S_RibPlate/@length_e_X':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_S_RibPlate/@length_e_Y':
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_S_RibPlate/@length_e_Y':
     IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecbaseConventional_S_RibPlate/@t': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecbaseProduct_S/@direction_type': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseProduct_S/@height_mortar': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseProduct_S/@product_code': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseProduct_S/@product_company': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSections/StbSecbaseProduct_SRC/@direction_type': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseProduct_SRC/@height_mortar': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseProduct_SRC/@product_code': IMPORTANCE_LEVELS.REQUIRED,
-  '//ST_BRIDGE/StbSections/StbSecbaseProduct_SRC/@product_company': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbSections/StbSecBaseConventional_S_RibPlate/@t': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbSections/StbSecBaseProduct_S/@direction_type': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecBaseProduct_S/@height_mortar': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecBaseProduct_S/@product_code': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecBaseProduct_S/@product_company': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbSections/StbSecBaseProduct_SRC/@direction_type': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecBaseProduct_SRC/@height_mortar': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecBaseProduct_SRC/@product_code': IMPORTANCE_LEVELS.REQUIRED,
+  '//ST_BRIDGE/StbSections/StbSecBaseProduct_SRC/@product_company': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbSlabOffset/@id_node': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbSlabOffset/@offset_X': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbSlabOffset/@offset_Y': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbSlabOffset/@offset_Z': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbSlabOffsetList/StbSlabOffset': IMPORTANCE_LEVELS.OPTIONAL,
-  '//ST_BRIDGE/StbSlab_RC_BarpositionApply/@a': IMPORTANCE_LEVELS.OPTIONAL,
+  '//ST_BRIDGE/StbSlab_RC_BarPositionApply/@a': IMPORTANCE_LEVELS.OPTIONAL,
   '//ST_BRIDGE/StbSlabs/StbSlab': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbStories/StbStory': IMPORTANCE_LEVELS.REQUIRED,
   '//ST_BRIDGE/StbStories/StbStory/@guid': IMPORTANCE_LEVELS.REQUIRED,
@@ -683,14 +683,14 @@ export function getXPathPattern(elementType, attribute) {
  */
 export function getImportanceLevel(elementType, attribute) {
   const xpath = getXPathPattern(elementType, attribute);
-  if (DEFAULT_IMPORTANCE_SETTINGS[xpath] !== undefined) {
-    return DEFAULT_IMPORTANCE_SETTINGS[xpath];
+  if (FALLBACK_IMPORTANCE_SETTINGS[xpath] !== undefined) {
+    return FALLBACK_IMPORTANCE_SETTINGS[xpath];
   }
 
   // Backward compatibility: old settings omitted "StbModel" in many paths.
   const legacyPath = xpath.replace('//ST_BRIDGE/StbModel/', '//ST_BRIDGE/');
-  if (DEFAULT_IMPORTANCE_SETTINGS[legacyPath] !== undefined) {
-    return DEFAULT_IMPORTANCE_SETTINGS[legacyPath];
+  if (FALLBACK_IMPORTANCE_SETTINGS[legacyPath] !== undefined) {
+    return FALLBACK_IMPORTANCE_SETTINGS[legacyPath];
   }
 
   return undefined;
