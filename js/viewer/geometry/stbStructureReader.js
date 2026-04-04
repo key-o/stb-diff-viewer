@@ -243,11 +243,13 @@ export function parseStbFile(xmlDoc, options = {}) {
   // 各要素配列からUndefined断面を参照する要素を分離するヘルパー関数
   // originalType: 元の要素タイプ（'Column', 'Girder'など）
   // nodeStartAttr, nodeEndAttr: ライン描画用のノード属性名
-  const separateUndefinedElements = (elements, originalType, nodeStartAttr, nodeEndAttr) => {
+  // typedSections: 当該要素タイプの断面マップ（IDが衝突してもこちらが優先）
+  const separateUndefinedElements = (elements, originalType, nodeStartAttr, nodeEndAttr, typedSections) => {
     const normalElements = [];
     for (const element of elements) {
       const sectionId = parseInt(element.id_section, 10);
-      if (undefinedSectionIds.has(sectionId)) {
+      // 当該タイプの断面マップに存在する場合は通常要素として扱う（StbSecUndefinedとのID衝突を無視）
+      if (undefinedSectionIds.has(sectionId) && !typedSections.has(sectionId)) {
         // Undefined要素として分類し、元の要素タイプとノード属性情報を保持
         undefinedElements.push({
           ...element,
@@ -269,12 +271,14 @@ export function parseStbFile(xmlDoc, options = {}) {
     'Column',
     'id_node_bottom',
     'id_node_top',
+    columnSections,
   );
   const filteredPostElements = separateUndefinedElements(
     postElements,
     'Post',
     'id_node_bottom',
     'id_node_top',
+    postSections,
   );
   // 水平要素（start-end形式）
   const filteredGirderElements = separateUndefinedElements(
@@ -282,18 +286,21 @@ export function parseStbFile(xmlDoc, options = {}) {
     'Girder',
     'id_node_start',
     'id_node_end',
+    girderSections,
   );
   const filteredBeamElements = separateUndefinedElements(
     beamElements,
     'Beam',
     'id_node_start',
     'id_node_end',
+    beamSections,
   );
   const filteredBraceElements = separateUndefinedElements(
     braceElements,
     'Brace',
     'id_node_start',
     'id_node_end',
+    braceSections,
   );
 
   // 5. グローバル公開（診断/デバッグ用）
