@@ -12,14 +12,17 @@
 import { getState, setState, addStateListener } from '../../app/globalState.js';
 import { floatingWindowManager } from './floatingWindowManager.js';
 import { sceneController } from '../../app/controllers/sceneController.js';
-import { selectElement3D } from '../../app/interaction.js';
+import { selectElement3D } from '../../app/controllers/interactionController.js';
 import * as THREE from 'three';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
-import { eventBus, ComparisonEvents } from '../../app/events/index.js';
-import { VersionEvents } from '../../app/events/eventTypes.js';
+import { eventBus, ComparisonEvents } from '../../data/events/index.js';
+import { VersionEvents } from '../../constants/eventTypes.js';
 import { ELEMENT_LABELS } from '../../config/elementLabels.js';
 import { shouldShowVersionSpecificDifferences, getCurrentVersionInfo } from './versionPanel.js';
 import { scheduleRender } from '../../utils/renderScheduler.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:panels:diffList');
 
 /**
  * 差分一覧表示クラス
@@ -96,7 +99,7 @@ export class DiffListPanel {
     this.bindEvents();
     this.registerWithWindowManager();
 
-    console.log('[Event] DiffListPanel初期化完了');
+    log.info('[Event] DiffListPanel初期化完了');
   }
 
   /**
@@ -630,9 +633,9 @@ export class DiffListPanel {
       // カメラを要素の中心にフォーカス
       this.focusCameraOnObject(targetObject);
 
-      console.log(`[Event] 要素フォーカス: ${elementType} ${elementId} (${category})`);
+      log.info(`[Event] 要素フォーカス: ${elementType} ${elementId} (${category})`);
     } else {
-      console.warn(`[UI] DiffList: 要素が見つかりません (type=${elementType}, id=${elementId})`);
+      log.warn(`[UI] DiffList: 要素が見つかりません (type=${elementType}, id=${elementId})`);
       // 要素が見つからない場合のフィードバック
       this.showNotFoundMessage(elementType, elementId);
     }
@@ -649,7 +652,7 @@ export class DiffListPanel {
     // 要素グループを取得
     const group = sceneController.getElementGroups()[elementType];
     if (!group) {
-      console.warn(`[UI] DiffList: 要素グループが見つかりません (type=${elementType})`);
+      log.warn(`[UI] DiffList: 要素グループが見つかりません (type=${elementType})`);
       return null;
     }
 
@@ -699,7 +702,7 @@ export class DiffListPanel {
       // 再描画
       scheduleRender();
     } catch (e) {
-      console.warn('[UI] DiffList: カメラフォーカス失敗', e);
+      log.warn('[UI] DiffList: カメラフォーカス失敗', e);
     }
   }
 

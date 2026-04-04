@@ -79,6 +79,7 @@ import {
 import { SectionBox } from './clipping/SectionBox.js';
 import { setElementInfoProviders } from './services/elementInfoAdapter.js';
 import { setClippingStateProvider } from './clipping/clippingManager.js';
+import { setViewerStateProvider } from './stateProvider.js';
 
 // ============================================
 // シーン・コア
@@ -141,6 +142,7 @@ export {
   getModelBounds,
   setElementInfoProviders,
   setClippingStateProvider,
+  setViewerStateProvider,
 };
 
 // パフォーマンスユーティリティの再エクスポート
@@ -168,7 +170,7 @@ export {
 
 // 色管理・マテリアル管理
 export { colorManager } from './rendering/colorManager.js';
-export { applyImportanceColorMode } from './rendering/materials.js';
+export { applyImportanceColorMode, getMaterialForElementWithMode } from './rendering/materials.js';
 
 // 表示モード管理
 export { default as displayModeManager } from './rendering/displayModeManager.js';

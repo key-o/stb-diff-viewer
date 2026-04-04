@@ -116,13 +116,13 @@ export async function getOrParseStructureData() {
  * @type {Record<string, Function>}
  */
 const CALCULATOR_MAP = {
-  'H': calculateHShapeProfile,
-  'BOX': calculateBoxProfile,
-  'PIPE': calculatePipeProfile,
-  'L': calculateLShapeProfile,
-  'C': calculateChannelProfile,
-  'T': calculateTShapeProfile,
-  'RECTANGLE': calculateRectangleProfile,
+  H: calculateHShapeProfile,
+  BOX: calculateBoxProfile,
+  PIPE: calculatePipeProfile,
+  L: calculateLShapeProfile,
+  C: calculateChannelProfile,
+  T: calculateTShapeProfile,
+  RECTANGLE: calculateRectangleProfile,
 };
 
 /**

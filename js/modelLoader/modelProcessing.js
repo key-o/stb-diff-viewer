@@ -13,7 +13,7 @@ import {
   getVersionInfo,
 } from '../common-stb/import/parser/utils/versionDetector.js';
 import { parseStbCalData } from '../common-stb/import/extractor/StbCalDataExtractor.js';
-import { setState } from '../app/globalState.js';
+import { getLoaderSetState } from './loaderDependencies.js';
 
 /**
  * Process model documents and extract structural data.
@@ -68,6 +68,10 @@ export async function processModelDocuments(fileA, fileB) {
     versionA: versionA || 'unknown',
     versionB: versionB || 'unknown',
     isCrossVersion: versionA && versionB && versionA !== versionB,
+    sourceTypeA: resultA?.sourceType || 'stb',
+    sourceTypeB: resultB?.sourceType || 'stb',
+    ifcSchemaA: resultA?.ifcSchema || null,
+    ifcSchemaB: resultB?.ifcSchema || null,
   };
 
   return {
@@ -85,14 +89,54 @@ export async function processModelDocuments(fileA, fileB) {
 }
 
 /**
+ * ファイルがIFC形式かどうかを判定
+ * @param {File} file - チェック対象ファイル
+ * @returns {boolean}
+ */
+function isIfcFile(file) {
+  return file.name.toLowerCase().endsWith('.ifc');
+}
+
+/**
+ * ファイルがSS7形式かどうかを判定
+ * @param {File} file - チェック対象ファイル
+ * @returns {boolean}
+ */
+function isSs7CsvFile(file) {
+  const name = file.name.toLowerCase();
+  return name.endsWith('.csv') || name.endsWith('.ss7');
+}
+
+/**
  * Process a single model file (pure transformation, no side effects)
+ * Supports STB (XML), IFC, and SS7 CSV files.
+ * IFC files are converted to STB XML DOM in-memory via web-ifc WASM.
+ * SS7 CSV files are converted to STB XML DOM in-memory via SS7-STB bridge.
  * @param {File} file - Model file to process
  * @returns {Promise<Object>} Processing result for single model
  */
 async function processModelFile(file) {
-  const document = await loadStbXmlAutoEncoding(file);
+  let document;
+  let sourceType = 'stb';
+  let ifcSchema = null;
+
+  if (isIfcFile(file)) {
+    const { convertIfcToStbDocument } = await import('../common-ifc/IfcToStbBridge.js');
+    const result = await convertIfcToStbDocument(file);
+    document = result.document;
+    ifcSchema = result.ifcSchema;
+    sourceType = 'ifc';
+  } else if (isSs7CsvFile(file)) {
+    const { convertSs7ToStbDocument } = await import('../common-ss7/Ss7ToStbBridge.js');
+    document = await convertSs7ToStbDocument(file);
+    sourceType = 'ss7csv';
+  } else {
+    document = await loadStbXmlAutoEncoding(file);
+    sourceType = 'stb';
+  }
+
   if (!document) {
-    throw new Error('STB XMLの解析に失敗しました。');
+    throw new Error('モデルファイルの解析に失敗しました。');
   }
 
   return {
@@ -104,6 +148,8 @@ async function processModelFile(file) {
     calData: parseStbCalData(document),
     version: detectStbVersion(document),
     versionInfo: getVersionInfo(document),
+    sourceType,
+    ifcSchema,
   };
 }
 
@@ -111,6 +157,7 @@ async function processModelFile(file) {
  * Clear model processing state
  */
 export function clearModelProcessingState() {
+  const setState = getLoaderSetState();
   setState('models.documentA', null);
   setState('models.documentB', null);
 }

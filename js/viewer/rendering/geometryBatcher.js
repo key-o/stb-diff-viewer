@@ -7,7 +7,6 @@
  */
 
 import * as THREE from 'three';
-import { globalGeometryCache } from './geometryCache.js';
 
 /**
  * ライン要素のバッチ処理クラス

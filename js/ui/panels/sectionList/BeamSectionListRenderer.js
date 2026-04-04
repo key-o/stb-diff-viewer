@@ -231,7 +231,7 @@ export class BeamSectionListRenderer extends BaseSectionListRenderer {
         const posLabel = this.getPositionLabel(position);
         if (bar && bar.count > 0) {
           parts.push(
-            `<span class="position-spec">${posLabel}: ${bar.count}-${bar.dia} (${bar.grade})</span>`,
+            `<span class="position-spec">${posLabel}: ${this.formatBarCountText(bar)}</span>`,
           );
         } else {
           parts.push(`<span class="position-spec">${posLabel}: なし</span>`);
@@ -245,7 +245,7 @@ export class BeamSectionListRenderer extends BaseSectionListRenderer {
       const bar = positions[position]?.[barKey];
 
       if (bar && bar.count > 0) {
-        parts.push(`${bar.count}-${bar.dia} (${bar.grade})`);
+        parts.push(this.formatBarCountText(bar));
       } else {
         parts.push('-');
       }
@@ -309,6 +309,19 @@ export class BeamSectionListRenderer extends BaseSectionListRenderer {
       SAME: '全',
     };
     return labels[position] || position;
+  }
+
+  /**
+   * 配筋本数テキストをフォーマット（2段筋対応）
+   * @param {Object} bar - 配筋データ（count, count1st, count2nd, dia, grade）
+   * @returns {string} フォーマット済み文字列（例: "7/5-D35 (SD490)"）
+   */
+  formatBarCountText(bar) {
+    if (!bar || bar.count <= 0) return '-';
+    const count1st = bar.count1st || bar.count;
+    const count2nd = bar.count2nd || 0;
+    const countText = count2nd > 0 ? `${count1st}/${count2nd}` : `${count1st}`;
+    return `${countText}-${bar.dia} (${bar.grade})`;
   }
 
   /**

@@ -10,7 +10,10 @@ import { updateLabelVisibility } from '../viewer3d/unifiedLabelManager.js';
 import { setState } from '../../app/globalState.js';
 import { renderingController } from '../../app/controllers/renderingController.js';
 import { REDRAW_REQUIRED_ELEMENT_TYPES } from '../../config/uiElementConfig.js';
-import { eventBus, RenderEvents } from '../../app/events/index.js';
+import { eventBus, RenderEvents } from '../../data/events/index.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:events:labelVisibilityListeners');
 
 /**
  * 要素タイプと再描画関数名のマッピング
@@ -22,6 +25,9 @@ const ELEMENT_REDRAW_FUNCTION_MAP = {
   Girder: 'redrawBeamsForViewMode',
   Beam: 'redrawBeamsForViewMode',
   Brace: 'redrawBracesForViewMode',
+  IsolatingDevice: 'redrawIsolatingDevicesForViewMode',
+  DampingDevice: 'redrawDampingDevicesForViewMode',
+  FrameDampingDevice: 'redrawFrameDampingDevicesForViewMode',
   Pile: 'redrawPilesForViewMode',
   Footing: 'redrawFootingsForViewMode',
   FoundationColumn: 'redrawFoundationColumnsForViewMode',
@@ -88,7 +94,7 @@ function triggerViewModeRedraw(elementType) {
       }
     })
     .catch((error) => {
-      console.error('Failed to import view mode functions:', error);
+      log.error('Failed to import view mode functions:', error);
       // Fallback to normal label update
       updateLabelVisibility();
       eventBus.emit(RenderEvents.REQUEST_RENDER);
@@ -104,7 +110,7 @@ export function setupLabelContentListener() {
   if (labelContentSelector) {
     labelContentSelector.addEventListener('change', handleLabelContentChange);
   } else {
-    console.warn('[UI] ラベル: コンテンツセレクタが見つかりません');
+    log.warn('[UI] ラベル: コンテンツセレクタが見つかりません');
   }
 }
 
@@ -114,7 +120,7 @@ export function setupLabelContentListener() {
  */
 function handleLabelContentChange(event) {
   const newContentType = event.target.value;
-  console.log(`[Event] ラベル内容変更: ${newContentType}`);
+  log.info(`[Event] ラベル内容変更: ${newContentType}`);
 
   // Update global state
   setState('ui.labelContentType', newContentType);
@@ -123,7 +129,7 @@ function handleLabelContentChange(event) {
   if (typeof window.regenerateAllLabels === 'function') {
     window.regenerateAllLabels();
   } else {
-    console.warn('[UI] ラベル: regenerateAllLabels関数が未設定');
+    log.warn('[UI] ラベル: regenerateAllLabels関数が未設定');
   }
 
   // Request render update via EventBus

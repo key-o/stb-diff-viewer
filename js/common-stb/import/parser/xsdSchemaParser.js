@@ -18,6 +18,10 @@
  */
 
 // デバッグログの有効/無効（本番環境では false）
+
+import { createLogger } from '../../../utils/logger.js';
+
+const log = createLogger('common-stb:import:parser:xsdSchemaParser');
 const XSD_DEBUG = false;
 
 // 最大再帰深度（循環参照対策）
@@ -71,6 +75,7 @@ export async function initializeXsdSchemas(options = {}) {
     const hasAnyLoaded = results.some(Boolean);
 
     if (!hasAnyLoaded) {
+      schemaBootstrapPromise = null;
       return false;
     }
 
@@ -85,7 +90,7 @@ export async function initializeXsdSchemas(options = {}) {
 
     return true;
   })().catch((error) => {
-    console.error('Error initializing XSD schemas:', error);
+    log.error('Error initializing XSD schemas:', error);
     schemaBootstrapPromise = null;
     return false;
   });
@@ -177,7 +182,7 @@ export async function loadXsdSchemaForVersion(version) {
 
     const parseError = xsdDoc.querySelector('parsererror');
     if (parseError) {
-      console.error(`XSD ${version} Parse error:`, parseError.textContent);
+      log.error(`XSD ${version} Parse error:`, parseError.textContent);
       throw new Error(`Failed to parse XSD file for version ${version}`);
     }
 
@@ -196,7 +201,7 @@ export async function loadXsdSchemaForVersion(version) {
 
     return true;
   } catch (error) {
-    console.error(`Error loading XSD schema for version ${version}:`, error);
+    log.error(`Error loading XSD schema for version ${version}:`, error);
     return false;
   }
 }
@@ -207,7 +212,7 @@ export async function loadXsdSchemaForVersion(version) {
  */
 export function setActiveVersion(version) {
   if (!xsdSchemas.has(version)) {
-    console.warn(
+    log.warn(
       `[XSD] Version ${version} not loaded yet. Please load it first with loadXsdSchemaForVersion().`,
     );
     return;
@@ -246,7 +251,7 @@ export function isVersionLoaded(version) {
  */
 function parseElementDefinitionsForVersion(version, xsdDoc) {
   if (!xsdDoc) {
-    console.error(`parseElementDefinitionsForVersion: xsdDoc is null for version ${version}`);
+    log.error(`parseElementDefinitionsForVersion: xsdDoc is null for version ${version}`);
     return;
   }
 
@@ -295,7 +300,7 @@ function parseElementDefinitionsForVersion(version, xsdDoc) {
  */
 function parseElementDefinitions() {
   if (!xsdSchema) {
-    console.error('parseElementDefinitions: xsdSchema is null');
+    log.error('parseElementDefinitions: xsdSchema is null');
     return;
   }
 
@@ -800,7 +805,7 @@ export function validateAttributeValue(elementType, attributeName, value) {
   }
 
   // 空値のチェック
-  if (!value || value.trim() === '') {
+  if (value == null || String(value).trim() === '') {
     if (attrInfo.required) {
       return { valid: false, error: '必須属性です' };
     }
@@ -911,7 +916,10 @@ function getMissingRequiredAttributes(elementType, attributes) {
 
   const missing = [];
   elementDef.attributes.forEach((attrInfo, attrName) => {
-    if (attrInfo.required && (!attributes[attrName] || attributes[attrName].trim() === '')) {
+    if (
+      attrInfo.required &&
+      (attributes[attrName] == null || String(attributes[attrName]).trim() === '')
+    ) {
       missing.push(attrName);
     }
   });
@@ -1251,7 +1259,7 @@ function resolveTypeChildren(typeRef, visited, depth) {
  */
 function resolveTypeReference(typeRef, visited = new Set()) {
   if (!xsdSchema) {
-    console.error('resolveTypeReference: xsdSchema is null');
+    log.error('resolveTypeReference: xsdSchema is null');
     return null;
   }
 
@@ -1333,7 +1341,7 @@ function resolveTypeReference(typeRef, visited = new Set()) {
  */
 function resolveAttributeGroupReference(ref) {
   if (!xsdSchema) {
-    console.error('resolveAttributeGroupReference: xsdSchema is null');
+    log.error('resolveAttributeGroupReference: xsdSchema is null');
     return null;
   }
 

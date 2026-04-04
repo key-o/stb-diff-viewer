@@ -23,13 +23,15 @@ import * as THREE from 'three';
 // ★★★ stbXmlParser からインポートする関数を追加 ★★★
 import {
   buildNodeMap,
-  parseElements,
   extractSteelSections,
   extractColumnElements,
   extractPostElements,
   extractBeamElements,
   extractGirderElements,
   extractBraceElements,
+  extractIsolatingDeviceElements,
+  extractDampingDeviceElements,
+  extractFrameDampingDeviceElements,
   extractPileElements, // 杭要素の抽出
   extractFootingElements, // 基礎要素の抽出
   extractFoundationColumnElements, // 基礎柱要素の抽出
@@ -44,6 +46,9 @@ import {
 } from '../../common-stb/import/parser/stbXmlParser.js';
 import { extractAllSections } from '../../common-stb/import/extractor/sectionExtractor.js';
 import { resolveGeometryProfileTypeInPlace } from '../../common-stb/section/sectionTypeUtil.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('viewer:geometry:stbStructureReader');
 
 // ============================================
 // 状態保存コールバック（依存性注入）
@@ -81,18 +86,6 @@ function setStateInternal(key, value) {
 }
 
 /**
- * 状態を取得（プロバイダー経由）
- * @param {string} key - 状態キー
- * @returns {*} 値
- */
-function getStateInternal(key) {
-  if (stateProvider && stateProvider.getState) {
-    return stateProvider.getState(key);
-  }
-  return undefined;
-}
-
-/**
  * パースキャッシュをクリア
  * @param {string} [modelKey] - 特定のモデルキーのみクリアする場合に指定
  */
@@ -123,7 +116,7 @@ export function parseStbFile(xmlDoc, options = {}) {
 
   // 入力バリデーション
   if (!xmlDoc || !xmlDoc.documentElement) {
-    console.warn('parseStbFile: xmlDoc is null, undefined, or has no documentElement');
+    log.warn('parseStbFile: xmlDoc is null, undefined, or has no documentElement');
     // 空の結果を返して後続を安全にスキップ
     const emptyMap = new Map();
     return {
@@ -134,11 +127,16 @@ export function parseStbFile(xmlDoc, options = {}) {
       girderSections: emptyMap,
       beamSections: emptyMap,
       braceSections: emptyMap,
+      isolatingDeviceSections: emptyMap,
+      dampingDeviceSections: emptyMap,
+      isolatingdeviceSections: emptyMap,
+      dampingdeviceSections: emptyMap,
       columnElements: [],
       postElements: [],
       beamElements: [],
       girderElements: [],
       braceElements: [],
+      frameDampingDeviceElements: [],
     };
   }
   // 1. 節点データの抽出と変換 (IDをキーとするMap<string, THREE.Vector3>)
@@ -165,6 +163,10 @@ export function parseStbFile(xmlDoc, options = {}) {
   const slabSections = sectionMaps.slabSections;
   const wallSections = sectionMaps.wallSections;
   const parapetSections = sectionMaps.parapetSections;
+  const isolatingDeviceSections =
+    sectionMaps.isolatingDeviceSections || sectionMaps.isolatingdeviceSections || new Map();
+  const dampingDeviceSections =
+    sectionMaps.dampingDeviceSections || sectionMaps.dampingdeviceSections || new Map();
   const undefinedSections = sectionMaps.undefinedSections || new Map();
 
   // 追加: steelSections 情報を用いて抽出断面に寸法/種別を付加
@@ -194,6 +196,12 @@ export function parseStbFile(xmlDoc, options = {}) {
   const girderElements = extractGirderElements(xmlDoc);
 
   const braceElements = extractBraceElements(xmlDoc);
+
+  const isolatingDeviceElements = extractIsolatingDeviceElements(xmlDoc);
+
+  const dampingDeviceElements = extractDampingDeviceElements(xmlDoc);
+
+  const frameDampingDeviceElements = extractFrameDampingDeviceElements(xmlDoc);
 
   const pileElements = extractPileElements(xmlDoc);
 
@@ -298,6 +306,8 @@ export function parseStbFile(xmlDoc, options = {}) {
       girderSections,
       beamSections,
       braceSections,
+      isolatingDeviceSections,
+      dampingDeviceSections,
       slabSections,
       wallSections,
       parapetSections,
@@ -307,6 +317,9 @@ export function parseStbFile(xmlDoc, options = {}) {
       beamElements: filteredBeamElements,
       girderElements: filteredGirderElements,
       braceElements: filteredBraceElements,
+      isolatingDeviceElements,
+      dampingDeviceElements,
+      frameDampingDeviceElements,
       pileElements,
       footingElements,
       foundationColumnElements,
@@ -334,6 +347,9 @@ export function parseStbFile(xmlDoc, options = {}) {
     setStateInternal('models.elementData.girderElements', filteredGirderElements);
     setStateInternal('models.elementData.beamElements', filteredBeamElements);
     setStateInternal('models.elementData.braceElements', filteredBraceElements);
+    setStateInternal('models.elementData.isolatingDeviceElements', isolatingDeviceElements);
+    setStateInternal('models.elementData.dampingDeviceElements', dampingDeviceElements);
+    setStateInternal('models.elementData.frameDampingDeviceElements', frameDampingDeviceElements);
     setStateInternal('models.elementData.pileElements', pileElements);
     setStateInternal('models.elementData.footingElements', footingElements);
     setStateInternal('models.elementData.foundationColumnElements', foundationColumnElements);
@@ -350,6 +366,8 @@ export function parseStbFile(xmlDoc, options = {}) {
     setStateInternal('models.sectionMaps.girderSections', girderSections);
     setStateInternal('models.sectionMaps.beamSections', beamSections);
     setStateInternal('models.sectionMaps.braceSections', braceSections);
+    setStateInternal('models.sectionMaps.isolatingDeviceSections', isolatingDeviceSections);
+    setStateInternal('models.sectionMaps.dampingDeviceSections', dampingDeviceSections);
     setStateInternal('models.sectionMaps.pileSections', pileSections);
     setStateInternal('models.sectionMaps.footingSections', footingSections);
     setStateInternal('models.sectionMaps.foundationcolumnSections', foundationColumnSections);
@@ -368,6 +386,10 @@ export function parseStbFile(xmlDoc, options = {}) {
     girderSections, // 統一エンジンから抽出（大梁断面）
     beamSections, // 統一エンジンから抽出（小梁断面）
     braceSections, // 統一エンジンから抽出（新規追加）
+    isolatingDeviceSections, // 免震装置断面
+    dampingDeviceSections, // 制振装置断面
+    isolatingdeviceSections: isolatingDeviceSections, // 旧キー互換
+    dampingdeviceSections: dampingDeviceSections, // 旧キー互換
     pileSections, // 統一エンジンから抽出（杭断面）
     footingSections, // 統一エンジンから抽出（基礎断面）
     foundationColumnSections, // 統一エンジンから抽出（基礎柱断面）
@@ -380,6 +402,9 @@ export function parseStbFile(xmlDoc, options = {}) {
     beamElements: filteredBeamElements, // Undefined断面参照要素を除外
     girderElements: filteredGirderElements, // Undefined断面参照要素を除外
     braceElements: filteredBraceElements, // Undefined断面参照要素を除外
+    isolatingDeviceElements, // 免震装置要素
+    dampingDeviceElements, // 制振装置要素
+    frameDampingDeviceElements, // 制振装置（フレーム）要素
     pileElements, // 杭要素のデータ（新規追加）
     footingElements, // 基礎要素のデータ（新規追加）
     foundationColumnElements, // 基礎柱要素のデータ（新規追加）
@@ -670,4 +695,3 @@ function deriveDimensionsFromSteelShape(steel) {
   }
   return null;
 }
-

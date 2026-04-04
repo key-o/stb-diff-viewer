@@ -6,6 +6,10 @@
 
 import { validationController } from '../../app/controllers/validationController.js';
 import { escapeHtml as escapeHtmlUtil } from '../../utils/htmlUtils.js';
+import { createLogger } from '../../utils/logger.js';
+import { downloadBlob } from '../../utils/downloadHelper.js';
+
+const log = createLogger('ui:panels:validationPanel');
 
 /**
  * バリデーションパネルクラス
@@ -53,6 +57,14 @@ export class ValidationPanel {
           <label><input type="checkbox" id="validation-opt-references" checked> 参照整合性</label>
           <label><input type="checkbox" id="validation-opt-geometry" checked> 幾何チェック</label>
           <label><input type="checkbox" id="validation-opt-include-info"> 情報レベルを含める</label>
+          <label>
+            MVDレベル
+            <select id="validation-opt-mvd-level">
+              <option value="">なし</option>
+              <option value="s2">S2（基本）</option>
+              <option value="s4">S4（詳細）</option>
+            </select>
+          </label>
         </div>
 
         <div class="validation-summary" id="validation-summary">
@@ -85,6 +97,9 @@ export class ValidationPanel {
           </div>
 
           <div id="tab-report" class="tab-content">
+            <div class="report-actions">
+              <button id="btn-download-report" class="btn-secondary" disabled>テキストダウンロード</button>
+            </div>
             <pre id="report-content" class="report-content">レポートがありません</pre>
           </div>
         </div>
@@ -134,6 +149,11 @@ export class ValidationPanel {
     if (btnExport) {
       btnExport.addEventListener('click', () => this.executeExport());
     }
+
+    const btnDownloadReport = this.container.querySelector('#btn-download-report');
+    if (btnDownloadReport) {
+      btnDownloadReport.addEventListener('click', () => this.downloadReport());
+    }
   }
 
   /**
@@ -150,10 +170,11 @@ export class ValidationPanel {
         background: #f8f9fa;
         border-radius: 8px;
         padding: 16px;
-        max-height: 600px;
+        height: 100%;
         overflow: hidden;
         display: flex;
         flex-direction: column;
+        box-sizing: border-box;
       }
 
       .validation-header {
@@ -262,20 +283,26 @@ export class ValidationPanel {
 
       .validation-content {
         flex: 1;
+        min-height: 0;
         overflow: hidden;
+        display: flex;
+        flex-direction: column;
       }
 
       .tab-content {
         display: none;
-        height: 100%;
-        overflow-y: auto;
+        flex: 1;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
       }
 
       .tab-content.active {
-        display: block;
+        display: flex;
       }
 
       .issues-filter {
+        flex-shrink: 0;
         display: flex;
         gap: 16px;
         margin-bottom: 12px;
@@ -289,7 +316,8 @@ export class ValidationPanel {
       }
 
       .issues-list {
-        max-height: 300px;
+        flex: 1;
+        min-height: 0;
         overflow-y: auto;
       }
 
@@ -348,15 +376,19 @@ export class ValidationPanel {
         margin-top: 4px;
       }
 
+      #tab-report {
+        overflow-y: auto;
+      }
+
       .report-content {
         background: white;
         padding: 12px;
         border-radius: 4px;
         font-size: var(--font-size-sm);
-        max-height: 300px;
-        overflow: auto;
+        overflow: visible;
         white-space: pre-wrap;
         word-break: break-word;
+        box-sizing: border-box;
       }
 
       .placeholder {
@@ -382,6 +414,10 @@ export class ValidationPanel {
         display: block;
         font-size: var(--font-size-sm);
         margin: 4px 0;
+      }
+
+      #tab-statistics {
+        overflow-y: auto;
       }
 
       #statistics-content {
@@ -442,6 +478,11 @@ export class ValidationPanel {
     }
     if (btnExport) {
       btnExport.disabled = false;
+    }
+
+    const btnDownloadReport = this.container.querySelector('#btn-download-report');
+    if (btnDownloadReport) {
+      btnDownloadReport.disabled = false;
     }
 
     // 修復オプションの表示
@@ -631,7 +672,7 @@ export class ValidationPanel {
    */
   executeValidate() {
     if (!this.onValidateCallback) {
-      console.warn('Validate callback not set');
+      log.warn('Validate callback not set');
       return;
     }
 
@@ -640,7 +681,7 @@ export class ValidationPanel {
 
   executeRepair() {
     if (!this.onRepairCallback) {
-      console.warn('Repair callback not set');
+      log.warn('Repair callback not set');
       return;
     }
 
@@ -660,11 +701,27 @@ export class ValidationPanel {
    */
   executeExport() {
     if (!this.onExportCallback) {
-      console.warn('Export callback not set');
+      log.warn('Export callback not set');
       return;
     }
 
     this.onExportCallback();
+  }
+
+  /**
+   * レポートをテキストファイルとしてダウンロード
+   */
+  downloadReport() {
+    const content = this.container.querySelector('#report-content');
+    const text = content?.textContent || '';
+    if (!text || text === 'レポートがありません') {
+      log.warn('ダウンロードできるレポートがありません');
+      return;
+    }
+
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    downloadBlob(blob, `validation-report-${timestamp}.txt`);
   }
 
   /**
@@ -697,6 +754,7 @@ export class ValidationPanel {
       this.container.querySelector('#validation-opt-geometry')?.checked !== false;
     const includeInfo =
       this.container.querySelector('#validation-opt-include-info')?.checked === true;
+    const mvdLevel = this.container.querySelector('#validation-opt-mvd-level')?.value || null;
 
     return {
       targetModel,
@@ -704,6 +762,7 @@ export class ValidationPanel {
         validateReferences,
         validateGeometry,
         includeInfo,
+        mvdLevel: mvdLevel || null,
       },
     };
   }

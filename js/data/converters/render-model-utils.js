@@ -7,6 +7,9 @@
  */
 
 import { createPosition } from '../../constants/renderModelTypes.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('data:converters:render-model-utils');
 
 // ============================================
 // 節点マップ
@@ -39,7 +42,7 @@ export function createNodePositionMap(nodes) {
 export function getNodePosition(nodeMap, nodeId) {
   const pos = nodeMap.get(String(nodeId));
   if (!pos) {
-    console.warn(`Node not found: ${nodeId}`);
+    log.warn(`Node not found: ${nodeId}`);
     return createPosition(0, 0, 0);
   }
   return pos;
@@ -88,6 +91,8 @@ const SECTION_CATEGORIES = [
   'beamSections',
   'braceSections',
   'foundationColumnSections',
+  'isolatingDeviceSections',
+  'dampingDeviceSections',
 ];
 
 /**

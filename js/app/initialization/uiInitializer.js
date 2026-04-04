@@ -13,7 +13,7 @@ import {
   initializeToastEventListeners,
 } from '../../ui/common/toast.js';
 import { initializeFloatingWindow } from '../../ui/panels/floatingWindow.js';
-import { initializeTreeView, buildTree } from '../../ui/panels/elementTreeView.js';
+import { initializeTreeView } from '../../ui/panels/elementTreeView.js';
 import {
   initializeSectionTreeView,
   buildSectionTree,
@@ -24,8 +24,10 @@ import { initializeToleranceSettings } from '../../ui/panels/toleranceSettings.j
 import { initDxfLoaderUI, initDxfLoaderEventListeners } from '../dxfLoader.js';
 import { setupVersionPanelEventListeners } from '../../ui/panels/versionPanel.js';
 import { initClipping2DEventListeners } from '../../ui/viewer3d/clipping2DImpl.js';
+import { initSectionBoxEventListeners } from '../../ui/viewer3d/sectionBox.js';
 import { injectElementInfoService } from '../../viewer/services/elementInfoAdapter.js';
 import { initializeValidationPanel } from '../../ui/panels/validationPanelIntegration.js';
+import { initializeXmlViewer } from '../../ui/panels/xmlViewer.js';
 import { getState } from '../globalState.js';
 import { convertComparisonResultsForTree } from './initializationUtils.js';
 import {
@@ -104,6 +106,10 @@ export function initializeUIComponents(scheduleRender, elementGroups) {
   initClipping2DEventListeners();
   log.info('2Dクリッピングイベントリスナーが初期化されました');
 
+  // セクションボックスイベントリスナーを初期化
+  initSectionBoxEventListeners();
+  log.info('セクションボックスイベントリスナーが初期化されました');
+
   // DXFローダーイベントリスナーを初期化
   initDxfLoaderEventListeners();
   log.info('DXFローダーイベントリスナーが初期化されました');
@@ -122,6 +128,9 @@ export function initializeUIComponents(scheduleRender, elementGroups) {
 
   // STBバリデーションパネルを初期化
   initializeValidationPanel();
+
+  // 生XMLビューアパネルを初期化
+  initializeXmlViewer();
 
   // 要素ツリー表示を初期化
   initializeTreeView('element-tree-container', (selectedElement) => {

@@ -15,10 +15,11 @@ import { createLogger } from '../utils/logger.js';
 
 const logger = createLogger('modelLoader:finalizer');
 
-import { initViewModes, updateModelVisibility } from '../app/viewModes/index.js';
+import { getLoaderInitViewModes, getLoaderUpdateModelVisibility } from './loaderDependencies.js';
 import { createOrUpdateGridHelper, setView, VIEW_DIRECTIONS } from '../viewer/index.js';
 import { setColorMode, COLOR_MODES } from '../colorModes/index.js';
-import { eventBus, ModelEvents, AxisEvents, FinalizationEvents } from '../app/events/index.js';
+import { eventBus } from '../data/events/eventBus.js';
+import { ModelEvents, AxisEvents, FinalizationEvents } from '../constants/eventTypes.js';
 
 /**
  * Finalize visualization after rendering completion
@@ -47,6 +48,8 @@ export function finalizeVisualization(finalizationData, scheduleRender, _cameraC
   setColorMode(hasBothModels ? COLOR_MODES.DIFF : COLOR_MODES.ELEMENT);
 
   // Initialize view modes
+  const initViewModes = getLoaderInitViewModes();
+  const updateModelVisibility = getLoaderUpdateModelVisibility();
   initViewModes(finalizationData, scheduleRender);
   updateModelVisibility(scheduleRender);
 

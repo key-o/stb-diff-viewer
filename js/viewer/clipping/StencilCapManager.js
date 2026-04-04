@@ -81,7 +81,11 @@ export class StencilCapManager {
         group.userData.isStencilCap = true;
 
         for (const src of meshes) {
-          const backMat = _makeStencilMat(THREE.BackSide, THREE.IncrementWrapStencilOp, otherPlanes);
+          const backMat = _makeStencilMat(
+            THREE.BackSide,
+            THREE.IncrementWrapStencilOp,
+            otherPlanes,
+          );
           const frontMat = _makeStencilMat(
             THREE.FrontSide,
             THREE.DecrementWrapStencilOp,

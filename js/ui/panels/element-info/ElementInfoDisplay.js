@@ -32,7 +32,7 @@ const logger = createLogger('viewer:element-info');
 // グローバル状態とimportanceManagerをインポート
 import { getState } from '../../../app/globalState.js';
 import { getImportanceManager } from '../../../app/importanceManager.js';
-import { eventBus, ImportanceEvents } from '../../../app/events/index.js';
+import { eventBus, ImportanceEvents } from '../../../data/events/index.js';
 
 // バリデーション連携機能をインポート
 import {
@@ -88,6 +88,26 @@ function xmlNodeToJson(node) {
 }
 
 /**
+ * StbSections配下から断面IDに対応する断面タグ名を取得
+ * @param {Document|null|undefined} doc
+ * @param {string|null|undefined} sectionId
+ * @returns {string|null}
+ */
+function findSectionTagNameById(doc, sectionId) {
+  if (!doc || !sectionId) return null;
+  const sectionsRoot = doc.querySelector('StbSections');
+  if (!sectionsRoot) return null;
+
+  const targetId = String(sectionId);
+  for (const child of sectionsRoot.children || []) {
+    if (child?.getAttribute?.('id') === targetId) {
+      return child.tagName || null;
+    }
+  }
+  return null;
+}
+
+/**
  * nodeA/nodeBの全属性を走査し、REQUIRED属性のうちA/B間で値が異なるものを返す
  * @param {Element|null} nodeA
  * @param {Element|null} nodeB
@@ -128,7 +148,10 @@ export function exportElementInfoAsJson() {
   const elementId = nodeA?.getAttribute('id') || nodeB?.getAttribute('id') || 'unknown';
 
   // バリデーション情報（スキーマ違反）
-  const rawValidation = getElementValidation(elementId);
+  const elementTagName = nodeA?.tagName || nodeB?.tagName || '';
+  const rawValidation = getElementValidation(elementId, {
+    targetElementName: elementTagName || undefined,
+  });
   const validation = rawValidation
     ? {
         errors: rawValidation.errors.map(
@@ -620,21 +643,58 @@ function showInfo(
 
   // バリデーション情報を追加（親要素）
   const elementId = idA || idB;
+  const displayedValidationIds = new Set();
+  const elementTagName = nodeA?.tagName || nodeB?.tagName || '';
   if (elementId) {
-    const validationHtml = generateValidationInfoHtml(elementId);
+    const validationHtml = generateValidationInfoHtml(elementId, {
+      targetElementName: elementTagName || undefined,
+    });
     if (validationHtml) {
       content += validationHtml;
+      displayedValidationIds.add(`${elementId}:${elementTagName || '*'}`);
     }
   }
 
   // バリデーション情報を追加（断面要素：断面自身のIDで格納されているため別途取得）
+  // 既に表示済みのIDは重複表示を防ぐためスキップ
   const sectionIdA = nodeA?.getAttribute('id_section');
   const sectionIdB = nodeB?.getAttribute('id_section');
   const sectionIds = [...new Set([sectionIdA, sectionIdB].filter(Boolean))];
   for (const sectionId of sectionIds) {
-    const sectionValidationHtml = generateValidationInfoHtml(sectionId);
-    if (sectionValidationHtml) {
-      content += sectionValidationHtml;
+    const sectionTags = new Set();
+    if (sectionId === sectionIdA) {
+      const tagA = findSectionTagNameById(nodeA?.ownerDocument, sectionId);
+      if (tagA) sectionTags.add(tagA);
+    }
+    if (sectionId === sectionIdB) {
+      const tagB = findSectionTagNameById(nodeB?.ownerDocument, sectionId);
+      if (tagB) sectionTags.add(tagB);
+    }
+
+    if (sectionTags.size === 0) {
+      const fallbackKey = `${sectionId}:*`;
+      if (!displayedValidationIds.has(fallbackKey)) {
+        const sectionValidationHtml = generateValidationInfoHtml(sectionId);
+        if (sectionValidationHtml) {
+          content += sectionValidationHtml;
+          displayedValidationIds.add(fallbackKey);
+        }
+      }
+      continue;
+    }
+
+    for (const sectionTag of sectionTags) {
+      const sectionDisplayKey = `${sectionId}:${sectionTag}`;
+      if (displayedValidationIds.has(sectionDisplayKey)) continue;
+
+      const sectionValidationHtml = generateValidationInfoHtml(sectionId, {
+        contextTagName: sectionTag,
+        contextId: sectionId,
+      });
+      if (sectionValidationHtml) {
+        content += sectionValidationHtml;
+        displayedValidationIds.add(sectionDisplayKey);
+      }
     }
   }
 

@@ -9,6 +9,9 @@
 
 import { renderer, setView, VIEW_DIRECTIONS } from '../../viewer/index.js';
 import { getState } from '../../app/globalState.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('export:report:reportScreenshot');
 
 /**
  * @typedef {Object} ScreenshotResult
@@ -41,7 +44,7 @@ export function captureCurrentView() {
 
     return gl.toDataURL('image/png');
   } catch {
-    console.warn('[Report] スクリーンショットの取得に失敗しました');
+    log.warn('[Report] スクリーンショットの取得に失敗しました');
     return null;
   }
 }
@@ -79,7 +82,7 @@ export async function captureMultipleViews(viewKeys = ['iso']) {
         viewKey,
       });
     } catch {
-      console.warn(`[Report] ${viewKey}ビューのスクリーンショット取得に失敗`);
+      log.warn(`[Report] ${viewKey}ビューのスクリーンショット取得に失敗`);
     }
   }
 

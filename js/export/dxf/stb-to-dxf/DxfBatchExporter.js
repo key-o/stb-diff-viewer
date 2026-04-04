@@ -16,16 +16,65 @@ import {
   getLoadedFilenameInternal,
 } from './DxfProviders.js';
 import { canExportStbToDxf, exportStbToDxf } from './StbToDxfExporter.js';
-import { eventBus, ToastEvents } from '../../../app/events/index.js';
+import { eventBus, ToastEvents } from '../../../data/events/index.js';
 
 const log = createLogger('DxfBatchExporter');
+
+/** X軸→Y軸切り替え待機時間（ms） */
+const AXIS_DIRECTION_SWITCH_DELAY_MS = 1000;
+
+/**
+ * File System Access APIでフォルダを選択する
+ * @returns {Promise<{handle: FileSystemDirectoryHandle|null, cancelled: boolean}>}
+ */
+async function pickDirectoryHandle() {
+  if (!('showDirectoryPicker' in window)) {
+    log.info('File System Access API未対応ブラウザ、通常のダウンロード方式を使用');
+    return { handle: null, cancelled: false };
+  }
+  try {
+    const handle = await window.showDirectoryPicker({
+      mode: 'readwrite',
+      startIn: 'downloads',
+    });
+    log.info('保存先フォルダが選択されました:', handle.name);
+    return { handle, cancelled: false };
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      log.info('フォルダ選択がキャンセルされました');
+      return { handle: null, cancelled: true };
+    }
+    log.warn('File System Access API使用不可、通常のダウンロード方式を使用:', error);
+    return { handle: null, cancelled: false };
+  }
+}
+
+/**
+ * クリッピング状態を復元する
+ * @param {Object|null} state - 保存済みクリッピング状態
+ */
+async function restoreClippingState(state) {
+  if (!state || !state.type) {
+    clearAllClippingPlanesInternal();
+    return;
+  }
+  if (state.type === 'xAxis') {
+    await applyAxisClipInternal('X', state.id, state.range);
+  } else if (state.type === 'yAxis') {
+    await applyAxisClipInternal('Y', state.id, state.range);
+  } else if (state.type === 'story') {
+    await applyStoryClipInternal(state.id, state.range);
+  } else {
+    clearAllClippingPlanesInternal();
+  }
+}
 
 /**
  * 全階をDXFエクスポート（階連続出力）
  * 各階ごとにDXFファイルを生成し、選択したフォルダに一括保存します。
  * @param {Array<string>} selectedElementTypes - 選択された要素タイプ
  * @param {Object} options - オプション
- * @param {number} [options.downloadDelay=500] - ダウンロード間隔（ミリ秒）
+ * @param {number} [options.downloadDelay=100] - ダウンロード間隔（ミリ秒）
  * @returns {Promise<boolean>} 成功/失敗
  */
 export async function exportAllStoriesToDxf(selectedElementTypes, options = {}) {
@@ -49,34 +98,15 @@ export async function exportAllStoriesToDxf(selectedElementTypes, options = {}) 
     baseFilename,
   });
 
-  // エクスポート可能か確認
   const { canExport, reason } = canExportStbToDxf();
   if (!canExport) {
     eventBus.emit(ToastEvents.SHOW_WARNING, { message: `エクスポートできません: ${reason}` });
     return false;
   }
 
-  // File System Access APIで保存先フォルダを選択
-  let directoryHandle = null;
-  if ('showDirectoryPicker' in window) {
-    try {
-      directoryHandle = await window.showDirectoryPicker({
-        mode: 'readwrite',
-        startIn: 'downloads',
-      });
-      log.info('保存先フォルダが選択されました:', directoryHandle.name);
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        log.info('フォルダ選択がキャンセルされました');
-        return false;
-      }
-      log.warn('File System Access API使用不可、通常のダウンロード方式を使用:', error);
-    }
-  } else {
-    log.info('File System Access API未対応ブラウザ、通常のダウンロード方式を使用');
-  }
+  const { handle: directoryHandle, cancelled } = await pickDirectoryHandle();
+  if (cancelled) return false;
 
-  // 元のクリッピング状態を保存
   const originalClippingState = getCurrentClippingStateInternal();
 
   try {
@@ -89,42 +119,28 @@ export async function exportAllStoriesToDxf(selectedElementTypes, options = {}) 
 
       log.info(`階エクスポート中: ${storyName} (${i + 1}/${stories.length})`);
 
-      // 階クリッピングを適用
-      applyStoryClipInternal(story.id);
-
-      // 少し待ってからエクスポート
+      await applyStoryClipInternal(story.id);
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // DXFエクスポート実行（平面図ビューを強制）
       const success = await exportStbToDxf(selectedElementTypes, filename, {
         includeLabels,
         includeAxes,
         includeLevels,
         labelHeight,
         directoryHandle,
-        forceViewDirection: 'top', // 全階出力は平面図（上から見下ろす）
+        forceViewDirection: 'top',
       });
 
       if (success) {
         exportedCount++;
       }
 
-      // 次のエクスポートまで少し待機
       if (i < stories.length - 1 && !directoryHandle) {
         await new Promise((resolve) => setTimeout(resolve, downloadDelay));
       }
     }
 
-    // 元のクリッピング状態を復元
-    if (
-      originalClippingState &&
-      originalClippingState.type === 'story' &&
-      originalClippingState.id
-    ) {
-      applyStoryClipInternal(originalClippingState.id, originalClippingState.range);
-    } else {
-      clearAllClippingPlanesInternal();
-    }
+    await restoreClippingState(originalClippingState);
 
     log.info(`全階DXFエクスポート完了: ${exportedCount}/${stories.length}階`);
     eventBus.emit(ToastEvents.SHOW_SUCCESS, {
@@ -147,6 +163,8 @@ export async function exportAllStoriesToDxf(selectedElementTypes, options = {}) 
  * @param {Array<string>} selectedElementTypes - 選択された要素タイプ
  * @param {string} axisDirection - 軸方向 ('X' または 'Y')
  * @param {Object} options - オプション
+ * @param {number} [options.downloadDelay=100] - ダウンロード間隔（ミリ秒）
+ * @param {FileSystemDirectoryHandle|null} [options.directoryHandle] - 保存先フォルダ（指定時はフォルダ選択ダイアログをスキップ）
  * @returns {Promise<boolean>} 成功/失敗
  */
 export async function exportAlongAllAxesToDxf(
@@ -182,34 +200,22 @@ export async function exportAlongAllAxesToDxf(
     baseFilename,
   });
 
-  // エクスポート可能か確認
   const { canExport, reason } = canExportStbToDxf();
   if (!canExport) {
     eventBus.emit(ToastEvents.SHOW_WARNING, { message: `エクスポートできません: ${reason}` });
     return false;
   }
 
-  // File System Access APIで保存先フォルダを選択
-  let directoryHandle = null;
-  if ('showDirectoryPicker' in window) {
-    try {
-      directoryHandle = await window.showDirectoryPicker({
-        mode: 'readwrite',
-        startIn: 'downloads',
-      });
-      log.info('保存先フォルダが選択されました:', directoryHandle.name);
-    } catch (error) {
-      if (error.name === 'AbortError') {
-        log.info('フォルダ選択がキャンセルされました');
-        return false;
-      }
-      log.warn('File System Access API使用不可、通常のダウンロード方式を使用:', error);
-    }
+  // options.directoryHandle が指定済みの場合はフォルダ選択をスキップ
+  let directoryHandle;
+  if ('directoryHandle' in options) {
+    directoryHandle = options.directoryHandle;
   } else {
-    log.info('File System Access API未対応ブラウザ、通常のダウンロード方式を使用');
+    const { handle, cancelled } = await pickDirectoryHandle();
+    if (cancelled) return false;
+    directoryHandle = handle;
   }
 
-  // 元のクリッピング状態を保存
   const originalClippingState = getCurrentClippingStateInternal();
 
   try {
@@ -222,16 +228,11 @@ export async function exportAlongAllAxesToDxf(
 
       log.info(`通り芯エクスポート中: ${axisName} (${i + 1}/${axes.length})`);
 
-      // 通り芯クリッピングを適用
-      applyAxisClipInternal(axisDirection, axis.id);
-
-      // 少し待ってからエクスポート
+      await applyAxisClipInternal(axisDirection, axis.id);
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      // ビュー方向を決定（X通り芯→front、Y通り芯→side）
       const viewDir = axisDirection === 'X' ? 'front' : 'side';
 
-      // DXFエクスポート実行（軸に応じた立面図ビューを強制）
       const success = await exportStbToDxf(selectedElementTypes, filename, {
         includeLabels,
         includeAxes,
@@ -245,24 +246,12 @@ export async function exportAlongAllAxesToDxf(
         exportedCount++;
       }
 
-      // 次のエクスポートまで少し待機
       if (i < axes.length - 1 && !directoryHandle) {
         await new Promise((resolve) => setTimeout(resolve, downloadDelay));
       }
     }
 
-    // 元のクリッピング状態を復元
-    if (originalClippingState && originalClippingState.type) {
-      if (originalClippingState.type === 'xAxis') {
-        applyAxisClipInternal('X', originalClippingState.id, originalClippingState.range);
-      } else if (originalClippingState.type === 'yAxis') {
-        applyAxisClipInternal('Y', originalClippingState.id, originalClippingState.range);
-      } else if (originalClippingState.type === 'story') {
-        applyStoryClipInternal(originalClippingState.id, originalClippingState.range);
-      }
-    } else {
-      clearAllClippingPlanesInternal();
-    }
+    await restoreClippingState(originalClippingState);
 
     log.info(`通り芯DXFエクスポート完了: ${exportedCount}/${axes.length}軸`);
     eventBus.emit(ToastEvents.SHOW_SUCCESS, {
@@ -282,24 +271,28 @@ export async function exportAlongAllAxesToDxf(
 /**
  * 両方向の通り芯に沿ってDXFエクスポート
  * X軸とY軸両方の通り芯についてエクスポートします。
+ * フォルダ選択ダイアログは一度だけ表示され、X・Y両方向で共有されます。
  * @param {Array<string>} selectedElementTypes - 選択された要素タイプ
  * @param {Object} options - オプション
- * @returns {Promise<boolean>} 成功/失敗
+ * @returns {Promise<boolean>} 少なくとも一方向が成功した場合 true
  */
 export async function exportAlongAllAxesBothDirections(selectedElementTypes, options = {}) {
   log.info('両方向通り芯DXFエクスポート開始');
 
-  // X軸方向
-  await exportAlongAllAxesToDxf(selectedElementTypes, 'X', options);
+  // フォルダを一度だけ選択してX・Y両方向で共有する
+  const { handle: directoryHandle, cancelled } = await pickDirectoryHandle();
+  if (cancelled) return false;
 
-  // 少し待ってからY軸方向
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  const mergedOptions = { ...options, directoryHandle };
 
-  // Y軸方向
-  await exportAlongAllAxesToDxf(selectedElementTypes, 'Y', options);
+  const xSuccess = await exportAlongAllAxesToDxf(selectedElementTypes, 'X', mergedOptions);
+
+  await new Promise((resolve) => setTimeout(resolve, AXIS_DIRECTION_SWITCH_DELAY_MS));
+
+  const ySuccess = await exportAlongAllAxesToDxf(selectedElementTypes, 'Y', mergedOptions);
 
   log.info('両方向通り芯DXFエクスポート完了');
-  return true;
+  return xSuccess || ySuccess;
 }
 
 /**

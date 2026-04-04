@@ -71,11 +71,14 @@ export {
 // JSON Schemaスキーマ検証（メイン）
 export { validateJsonSchema } from './jsonSchemaValidator.js';
 
+// MVD必須属性バリデーション
+export { validateMvdRequirements, initializeMvdData, isMvdDataLoaded } from './mvdValidator.js';
+
 // XSDスキーマ検証（後方互換・テスト用）
 export { validateXsdSchema } from './xsdSchemaValidator.js';
 
 // ユーティリティ関数
-export { quickValidate } from './stbValidator.js'; // quickValidate は stbValidator.js に入れてないが、default options で代用できるが、exportがないとエラーになる。
+export { quickValidate } from './stbValidator.js';
 
 // processStbFile
 export async function processStbFile(file, options = {}) {

@@ -587,6 +587,3 @@ export function createBeamMeshes(
     isJsonInput,
   );
 }
-
-
-

@@ -11,6 +11,9 @@ import {
   DIFF_COLORS,
   TOLERANCE_DIFF_COLORS as CONFIG_TOLERANCE_COLORS,
 } from '../../config/colorConfig.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('viewer:rendering:diffColorManager');
 
 // 差分状態タイプ（6カテゴリ）
 // - 存在差分: matched, onlyA, onlyB
@@ -82,7 +85,7 @@ class DiffColorManager extends BaseColorStateManager {
    */
   getToleranceDiffColor(state) {
     if (!TOLERANCE_DIFF_STATES.includes(state)) {
-      console.warn(`[DiffColorManager] Invalid tolerance diff state: ${state}`);
+      log.warn(`[DiffColorManager] Invalid tolerance diff state: ${state}`);
       return '#888888';
     }
     return this.toleranceColors.get(state) || '#888888';
@@ -96,12 +99,12 @@ class DiffColorManager extends BaseColorStateManager {
    */
   setToleranceDiffColor(state, color) {
     if (!TOLERANCE_DIFF_STATES.includes(state)) {
-      console.warn(`[DiffColorManager] Invalid tolerance diff state: ${state}`);
+      log.warn(`[DiffColorManager] Invalid tolerance diff state: ${state}`);
       return false;
     }
 
     if (!this._validateState(color)) {
-      console.warn(`[DiffColorManager] Invalid color format: ${color}`);
+      log.warn(`[DiffColorManager] Invalid color format: ${color}`);
       return false;
     }
 

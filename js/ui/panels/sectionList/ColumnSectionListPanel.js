@@ -8,10 +8,7 @@
  */
 
 import { floatingWindowManager } from '../floatingWindowManager.js';
-import {
-  extractColumnSectionList,
-  extractColumnSectionGrid,
-} from '../../../data/extractors/columnSectionListExtractor.js';
+import { extractColumnSectionGrid } from '../../../data/extractors/columnSectionListExtractor.js';
 import { ColumnSectionListRenderer } from './ColumnSectionListRenderer.js';
 import { exportToPdf } from './ColumnSectionListExporter.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -207,7 +204,11 @@ export class ColumnSectionListPanel {
         });
       } catch (error) {
         log.error('Error rendering section grid:', error);
-        container.innerHTML = `<div class="section-list-error">エラー: ${error.message}</div>`;
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'section-list-error';
+        errorDiv.textContent = `エラー: ${error.message}`;
+        container.innerHTML = '';
+        container.appendChild(errorDiv);
       }
     }, 10);
   }

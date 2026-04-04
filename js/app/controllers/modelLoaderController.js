@@ -14,31 +14,30 @@
  */
 
 import * as THREE from 'three';
-import { createLogger } from '../utils/logger.js';
+import { createLogger } from '../../utils/logger.js';
 import {
   clearSceneContent,
   createOrUpdateGridHelper,
   elementGroups,
   clearClippingPlanes,
+  clearParseCache,
   scene,
-} from '../viewer/index.js';
-import { UI_TIMING } from '../config/uiTimingConfig.js';
-
-const log = createLogger('ModelLoader');
-import { resetSelection } from './interaction.js';
-import { setState, getState, resetApplicationState } from './globalState.js';
-import { eventBus } from './events/eventBus.js';
-import { scheduleRender } from '../utils/renderScheduler.js';
+} from '../../viewer/index.js';
+import { UI_TIMING } from '../../config/uiTimingConfig.js';
+import { resetSelection } from './interactionController.js';
+import { setState, getState, resetApplicationState } from '../globalState.js';
+import { eventBus } from '../../data/events/eventBus.js';
+import { scheduleRender } from '../../utils/renderScheduler.js';
 import {
   EventTypes,
   ModelEvents,
   ComparisonEvents,
   AppEvents,
   ToastEvents,
-} from './events/eventTypes.js';
-import comparisonKeyManager from './comparisonKeyManager.js';
-import { clearParseCache } from '../viewer/index.js';
-import { COMPARISON_KEY_TYPE } from '../config/comparisonKeyConfig.js';
+} from '../../constants/eventTypes.js';
+import comparisonKeyManager from '../comparisonKeyManager.js';
+
+const log = createLogger('ModelLoader');
 
 // Refactored modules
 import {
@@ -46,33 +45,32 @@ import {
   getSelectedElementTypes,
   setLoadingState,
   validateComparisonParameters,
-} from '../modelLoader/fileValidation.js';
+} from '../../modelLoader/fileValidation.js';
 import {
   processModelDocuments,
   clearModelProcessingState,
-} from '../modelLoader/modelProcessing.js';
+} from '../../modelLoader/modelProcessing.js';
 import {
   processElementComparison,
   calculateElementBounds,
-} from '../modelLoader/elementComparison.js';
+} from '../../modelLoader/elementComparison.js';
 import {
   orchestrateElementRendering,
   calculateRenderingBounds,
   getRenderingStatistics,
-} from '../modelLoader/renderingOrchestrator.js';
+} from '../../modelLoader/renderingOrchestrator.js';
 import {
   orchestrateProgressiveRendering,
   isProgressiveRenderingEnabled,
   onLoadingStart,
   onLoadingComplete,
   onLoadingError,
-} from '../modelLoader/progressiveRendering.js';
+} from '../../modelLoader/progressiveRendering.js';
 import {
   finalizeVisualization,
   handleFinalizationError,
-} from '../modelLoader/visualizationFinalizer.js';
-import { syncDisplayModeFromUI } from './viewModes/index.js';
-import { runPostLoadValidations } from '../ui/panels/validationPanelIntegration.js';
+} from '../../modelLoader/visualizationFinalizer.js';
+import { syncDisplayModeFromUI } from '../viewModes/index.js';
 
 // モデル状態管理
 let stories = [];
@@ -264,9 +262,9 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
         { setActiveVersion: setXsdSchemaVersion },
         { getImportanceManager },
       ] = await Promise.all([
-        import('../common-stb/import/parser/jsonSchemaLoader.js'),
-        import('../common-stb/import/parser/xsdSchemaParser.js'),
-        import('./importanceManager.js'),
+        import('../../common-stb/import/parser/jsonSchemaLoader.js'),
+        import('../../common-stb/import/parser/xsdSchemaParser.js'),
+        import('../importanceManager.js'),
       ]);
       setJsonSchemaVersion(activeXsdVersion);
       setXsdSchemaVersion(activeXsdVersion);
@@ -307,18 +305,8 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     }
 
     // Phase 3: Element Comparison
-    let comparisonKeyType = comparisonKeyManager.getKeyType();
-    const selectedKeyRadio = document.querySelector('input[name="comparisonKeyType"]:checked');
-    const keyTypeFromUI = selectedKeyRadio?.value;
-    if (
-      keyTypeFromUI &&
-      Object.values(COMPARISON_KEY_TYPE).includes(keyTypeFromUI) &&
-      keyTypeFromUI !== comparisonKeyType
-    ) {
-      comparisonKeyManager.setKeyType(keyTypeFromUI);
-      comparisonKeyType = keyTypeFromUI;
-      log.info(`[Debug] UI選択から比較キータイプを同期: ${comparisonKeyType}`);
-    }
+    // comparisonKeyManager が単一の真実源 — UI側で既に同期済み
+    const comparisonKeyType = comparisonKeyManager.getKeyType();
     log.info(`[Debug] 比較キータイプ: ${comparisonKeyType}`);
 
     const comparisonOptions = {
@@ -343,27 +331,15 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     }
     log.info(`[Debug] 合計matched件数: ${totalMatched}`);
 
-    if (typeof window !== 'undefined') {
-      window.lastComparisonDebug = {
-        comparisonKeyType,
-        totalMatched,
-        timestamp: new Date().toISOString(),
-      };
-    }
-
     // 比較結果をグローバル状態に保存
     setState('comparisonResults', comparisonResults);
 
-    // 統計更新イベントを発行
-    window.dispatchEvent(
-      new CustomEvent('updateComparisonStatistics', {
-        detail: {
-          comparisonResults: comparisonResults,
-          reason: 'modelComparison',
-          timestamp: new Date().toISOString(),
-        },
-      }),
-    );
+    // 統計更新イベントを発行（EventBus経由）
+    eventBus.emit(ComparisonEvents.UPDATE_STATISTICS, {
+      comparisonResults: comparisonResults,
+      reason: 'modelComparison',
+      timestamp: new Date().toISOString(),
+    });
 
     // 比較完了イベントをEventBusで発行（バージョン情報を含む）
     eventBus.emit(EventTypes.Comparison.COMPLETED, {
@@ -500,26 +476,20 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     onLoadingComplete();
 
     // 要素情報用違反は即時実行し、STBバリデーションパネルは遅延実行
-    runPostLoadValidations({
+    // UI層に直接依存せずEventBus経由で通知（R1ルール遵守）
+    eventBus.emit(AppEvents.POST_LOAD_VALIDATION, {
       documentA: modelADocument,
       documentB: modelBDocument,
     });
 
     // Apply appropriate color mode based on loaded models
     setTimeout(() => {
-      import('../colorModes/index.js').then(({ applyDefaultColorModeAfterLoad }) => {
+      import('../../colorModes/index.js').then(({ applyDefaultColorModeAfterLoad }) => {
         const hasBothModels = !!modelADocument && !!modelBDocument;
         const hasSingleModel = (!!modelADocument || !!modelBDocument) && !hasBothModels;
         applyDefaultColorModeAfterLoad(hasBothModels, hasSingleModel, reapplyColorMode);
       });
     }, UI_TIMING.COLOR_MODE_APPLY_DELAY_MS);
-
-    // Log completion statistics
-    // const comparisonStats = getComparisonStatistics(comparisonResults);
-    // const finalizationSummary = createFinalizationSummary(
-    //   finalizationData,
-    //   finalizationResult.stats || {},
-    // );
 
     // 差分フィルタパネル等の統計更新イベントを発行
     eventBus.emit(ComparisonEvents.UPDATE_STATISTICS, {
@@ -572,10 +542,7 @@ export function reapplyColorMode() {
   }
 
   try {
-    // 色付けモードを取得
-    import('../colorModes/index.js').then(({ getCurrentColorMode }) => {
-      const currentMode = getCurrentColorMode();
-
+    import('../../colorModes/index.js').then(() => {
       // 現在のシーンの全オブジェクトに新しいマテリアルを適用
       // グローバル状態のシーンを優先し、なければ直接インポートしたシーンを使用
       const currentScene = getState('rendering.scene') || scene;
@@ -593,9 +560,7 @@ export function reapplyColorMode() {
       });
 
       // マテリアルを非同期で更新
-      Promise.all(
-        objectsToUpdate.map((object) => updateObjectMaterialAsync(object, currentMode)),
-      ).then(() => {
+      Promise.all(objectsToUpdate.map((object) => updateObjectMaterialAsync(object))).then(() => {
         // 全ての更新が完了したら再描画をリクエスト
         scheduleRender();
       });
@@ -608,11 +573,10 @@ export function reapplyColorMode() {
 /**
  * オブジェクトのマテリアルを色付けモードに応じて非同期で更新
  * @param {THREE.Object3D} object - 更新対象のオブジェクト
- * @param {string} _colorMode - 色付けモード
  * @returns {Promise} 更新完了のPromise
  */
-function updateObjectMaterialAsync(object, _colorMode) {
-  return import('../viewer/rendering/materials.js').then(({ getMaterialForElementWithMode }) => {
+function updateObjectMaterialAsync(object) {
+  return import('../../viewer/index.js').then(({ getMaterialForElementWithMode }) => {
     if (getMaterialForElementWithMode && object.userData) {
       const elementType = object.userData.elementType;
 
@@ -661,6 +625,9 @@ function convertToAdapterFormat(comparisonResults, nodeMapA, nodeMapB, sectionMa
     girders: [],
     beams: [],
     braces: [],
+    isolatingDevices: [],
+    dampingDevices: [],
+    frameDampingDevices: [],
     slabs: [],
     walls: [],
     nodes: [],
@@ -672,6 +639,9 @@ function convertToAdapterFormat(comparisonResults, nodeMapA, nodeMapB, sectionMa
     Girder: 'girders',
     Beam: 'beams',
     Brace: 'braces',
+    IsolatingDevice: 'isolatingDevices',
+    DampingDevice: 'dampingDevices',
+    FrameDampingDevice: 'frameDampingDevices',
     Slab: 'slabs',
     Wall: 'walls',
     StbNode: 'nodes',
@@ -679,66 +649,56 @@ function convertToAdapterFormat(comparisonResults, nodeMapA, nodeMapB, sectionMa
 
   // 比較結果を変換
   if (comparisonResults && comparisonResults instanceof Map) {
+    /**
+     * カテゴリのアイテム群を変換してresultに追加する
+     * @param {string} targetKey - result のキー名
+     * @param {string} elementType - 要素タイプ
+     * @param {Array} items - 変換対象アイテム配列
+     * @param {Function} getElementData - アイテムから elementData を取得するコールバック
+     * @param {string} comparisonStatus - 'matched' | 'onlyA' | 'onlyB'
+     * @param {string} modelSource - 'A' | 'B'
+     * @param {Function} getHasMismatch - アイテムから hasMismatch を取得するコールバック
+     */
+    const pushCategory = (
+      targetKey,
+      elementType,
+      items,
+      getElementData,
+      comparisonStatus,
+      modelSource,
+      getHasMismatch = () => false,
+    ) => {
+      if (!items) return;
+      for (const item of items) {
+        const element = convertElementForAdapter(
+          getElementData(item),
+          elementType,
+          comparisonStatus,
+          getHasMismatch(item),
+          modelSource,
+          nodeMapA,
+          nodeMapB,
+          sectionMaps,
+        );
+        if (element) result[targetKey].push(element);
+      }
+    };
+
     for (const [elementType, categoryResult] of comparisonResults) {
       const targetKey = typeMapping[elementType];
       if (!targetKey) continue;
 
-      // matched要素
-      if (categoryResult.matched) {
-        for (const item of categoryResult.matched) {
-          const element = convertElementForAdapter(
-            item.dataA || item.dataB,
-            elementType,
-            'matched',
-            item.hasMismatch || false,
-            'A',
-            nodeMapA,
-            nodeMapB,
-            sectionMaps,
-          );
-          if (element) {
-            result[targetKey].push(element);
-          }
-        }
-      }
-
-      // onlyA要素
-      if (categoryResult.onlyA) {
-        for (const item of categoryResult.onlyA) {
-          const element = convertElementForAdapter(
-            item,
-            elementType,
-            'onlyA',
-            false,
-            'A',
-            nodeMapA,
-            nodeMapB,
-            sectionMaps,
-          );
-          if (element) {
-            result[targetKey].push(element);
-          }
-        }
-      }
-
-      // onlyB要素
-      if (categoryResult.onlyB) {
-        for (const item of categoryResult.onlyB) {
-          const element = convertElementForAdapter(
-            item,
-            elementType,
-            'onlyB',
-            false,
-            'B',
-            nodeMapA,
-            nodeMapB,
-            sectionMaps,
-          );
-          if (element) {
-            result[targetKey].push(element);
-          }
-        }
-      }
+      pushCategory(
+        targetKey,
+        elementType,
+        categoryResult.matched,
+        (item) => item.dataA || item.dataB,
+        'matched',
+        'A',
+        (item) => item.hasMismatch || false,
+      );
+      pushCategory(targetKey, elementType, categoryResult.onlyA, (item) => item, 'onlyA', 'A');
+      pushCategory(targetKey, elementType, categoryResult.onlyB, (item) => item, 'onlyB', 'B');
     }
   }
 
@@ -764,9 +724,15 @@ function convertElementForAdapter(
   const nodeMap = modelSource === 'A' ? nodeMapA : nodeMapB;
 
   // 線状要素（柱、梁、ブレース）
-  if (['Column', 'Girder', 'Beam', 'Brace'].includes(elementType)) {
-    const idNode1 = elementData.id_node_bottom || elementData.id_node_start;
-    const idNode2 = elementData.id_node_top || elementData.id_node_end;
+  if (
+    ['Column', 'Girder', 'Beam', 'Brace', 'IsolatingDevice', 'DampingDevice'].includes(elementType)
+  ) {
+    const idNode1 =
+      getElementValueForAdapter(elementData, 'id_node_bottom') ||
+      getElementValueForAdapter(elementData, 'id_node_start');
+    const idNode2 =
+      getElementValueForAdapter(elementData, 'id_node_top') ||
+      getElementValueForAdapter(elementData, 'id_node_end');
 
     const startNode = nodeMap.get(idNode1);
     const endNode = nodeMap.get(idNode2);
@@ -781,19 +747,21 @@ function convertElementForAdapter(
       const sectionKey = getSectionMapKey(elementType);
       const sectionMap = sectionMaps[sectionKey];
       if (sectionMap) {
-        const sectionId = elementData.id_section;
+        const sectionId = getElementValueForAdapter(elementData, 'id_section');
         section = sectionMap.get(sectionId);
       }
     }
 
     return {
-      id: elementData.id,
+      id: getElementValueForAdapter(elementData, 'id'),
       modelSource,
       comparisonStatus,
       hasMismatch,
+      elementType,
       startNode: { x: startNode.x, y: startNode.y, z: startNode.z },
       endNode: { x: endNode.x, y: endNode.y, z: endNode.z },
       section: section ? convertSectionForAdapter(section) : null,
+      typeShape: getElementValueForAdapter(elementData, 'type_shape'),
     };
   }
 
@@ -810,9 +778,9 @@ function convertElementForAdapter(
   }
 
   // 面要素（スラブ、壁）- 簡略化実装
-  if (['Slab', 'Wall'].includes(elementType)) {
+  if (['Slab', 'Wall', 'FrameDampingDevice'].includes(elementType)) {
     // 面要素は節点リストを持つ
-    const nodeIds = elementData.nodeIds || [];
+    const nodeIds = extractNodeIdsForAdapter(elementData);
     const nodes = nodeIds
       .map((id) => {
         const node = nodeMap.get(id);
@@ -823,11 +791,14 @@ function convertElementForAdapter(
     if (nodes.length < 3) return null;
 
     return {
-      id: elementData.id,
+      id: getElementValueForAdapter(elementData, 'id'),
       modelSource,
       comparisonStatus,
       hasMismatch,
       nodes,
+      elementType,
+      sectionId: getElementValueForAdapter(elementData, 'id_section'),
+      typeShape: getElementValueForAdapter(elementData, 'type_shape'),
     };
   }
 
@@ -844,8 +815,46 @@ function getSectionMapKey(elementType) {
     Girder: 'girderSections',
     Beam: 'beamSections',
     Brace: 'braceSections',
+    IsolatingDevice: 'isolatingDeviceSections',
+    DampingDevice: 'dampingDeviceSections',
+    FrameDampingDevice: 'dampingDeviceSections',
   };
   return mapping[elementType];
+}
+
+/**
+ * アダプター向けに要素からノードID配列を抽出
+ * @private
+ */
+function extractNodeIdsForAdapter(elementData) {
+  if (!elementData) return [];
+  if (Array.isArray(elementData.nodeIds)) return elementData.nodeIds;
+  if (Array.isArray(elementData.node_ids)) return elementData.node_ids;
+
+  if (typeof elementData.getElementsByTagName === 'function') {
+    const nodeIdOrderEl = elementData.getElementsByTagName('StbNodeIdOrder')[0];
+    const nodeIdText = nodeIdOrderEl
+      ? nodeIdOrderEl.textContent || nodeIdOrderEl.innerText || ''
+      : '';
+    return nodeIdText.trim().split(/\s+/).filter(Boolean);
+  }
+
+  return [];
+}
+
+/**
+ * アダプター向けに要素値を取得
+ * @private
+ */
+function getElementValueForAdapter(elementData, key) {
+  if (!elementData || !key) return null;
+  if (elementData[key] !== undefined && elementData[key] !== null) {
+    return elementData[key];
+  }
+  if (typeof elementData.getAttribute === 'function') {
+    return elementData.getAttribute(key);
+  }
+  return null;
 }
 
 /**

@@ -8,6 +8,8 @@ import { createValidationPanel } from './validationPanel.js';
 import { sharedManager } from '../../common-stb/validation/validationManager.js';
 import { getState } from '../../app/globalState.js';
 import { notify } from '../../app/controllers/notificationController.js';
+import { eventBus } from '../../data/events/eventBus.js';
+import { AppEvents } from '../../constants/eventTypes.js';
 
 const log = createLogger('ui:validationPanelIntegration');
 
@@ -275,3 +277,8 @@ export function initializeValidationPanel() {
 export function getValidationPanelInstance() {
   return validationPanelInstance;
 }
+
+// app層からの通知をEventBus経由で受信（R1ルール遵守）
+eventBus.on(AppEvents.POST_LOAD_VALIDATION, (data) => {
+  runPostLoadValidations(data);
+});

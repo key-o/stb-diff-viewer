@@ -5,6 +5,7 @@
  * xsdSchemaParser.js の JSON Schema 版。提供する API は互換性を維持。
  *
  * スキーマファイル:
+ *   ./schemas/ST-Bridge211.schema.json  (version 2.1.1)
  *   ./schemas/ST-Bridge210.schema.json  (version 2.1.0)
  *   ./schemas/ST-Bridge202.schema.json  (version 2.0.2)
  */
@@ -13,10 +14,18 @@
 // グローバル状態（バージョン別管理）
 // ============================================================
 
+import { createLogger } from '../../../utils/logger.js';
+
+const log = createLogger('common-stb:import:parser:jsonSchemaLoader');
 const jsonSchemas = new Map(); // version -> parsed JSON schema object
 const elementDefsByVersion = new Map(); // version -> Map<elementName, elementDef>
 let activeVersion = '2.0.2';
 let schemaBootstrapPromise = null;
+const SCHEMA_FILE_BY_VERSION = {
+  '2.1.1': 'ST-Bridge211.schema.json',
+  '2.1.0': 'ST-Bridge210.schema.json',
+  '2.0.2': 'ST-Bridge202.schema.json',
+};
 
 // ============================================================
 // 初期化 API
@@ -30,7 +39,7 @@ let schemaBootstrapPromise = null;
  * @returns {Promise<boolean>} 少なくとも1つ読込できた場合 true
  */
 export async function initializeJsonSchemas(options = {}) {
-  const { preloadVersions = ['2.0.2', '2.1.0'], defaultActiveVersion = '2.0.2' } = options;
+  const { preloadVersions = ['2.0.2', '2.1.0', '2.1.1'], defaultActiveVersion = '2.0.2' } = options;
 
   if (schemaBootstrapPromise) {
     return schemaBootstrapPromise;
@@ -42,7 +51,10 @@ export async function initializeJsonSchemas(options = {}) {
     const results = await Promise.all(uniqueVersions.map((v) => loadJsonSchemaForVersion(v)));
     const hasAnyLoaded = results.some(Boolean);
 
-    if (!hasAnyLoaded) return false;
+    if (!hasAnyLoaded) {
+      schemaBootstrapPromise = null;
+      return false;
+    }
 
     const preferredVersion =
       uniqueVersions.includes(defaultActiveVersion) && isVersionLoaded(defaultActiveVersion)
@@ -53,7 +65,7 @@ export async function initializeJsonSchemas(options = {}) {
 
     return true;
   })().catch((err) => {
-    console.error('[JsonSchema] Error initializing schemas:', err);
+    log.error('[JsonSchema] Error initializing schemas:', err);
     schemaBootstrapPromise = null;
     return false;
   });
@@ -63,14 +75,17 @@ export async function initializeJsonSchemas(options = {}) {
 
 /**
  * 指定バージョンの JSON Schema を読み込む
- * @param {string} version - '2.0.2' | '2.1.0'
+ * @param {string} version - '2.0.2' | '2.1.0' | '2.1.1'
  * @returns {Promise<boolean>}
  */
 export async function loadJsonSchemaForVersion(version) {
   if (jsonSchemas.has(version)) return true;
 
-  const filename = version === '2.1.0' ? 'ST-Bridge210.schema.json' : 'ST-Bridge202.schema.json';
-  const candidates = [`./schemas/${filename}`, `../schemas/${filename}`];
+  const filenames = resolveSchemaFilenames(version);
+  const candidates = filenames.flatMap((filename) => [
+    `./schemas/${filename}`,
+    `../schemas/${filename}`,
+  ]);
 
   for (const path of candidates) {
     try {
@@ -86,8 +101,25 @@ export async function loadJsonSchemaForVersion(version) {
     }
   }
 
-  console.error(`[JsonSchema] Failed to load schema for version ${version}`);
+  log.error(`[JsonSchema] Failed to load schema for version ${version}`);
   return false;
+}
+
+function resolveSchemaFilenames(version) {
+  if (SCHEMA_FILE_BY_VERSION[version]) {
+    return [SCHEMA_FILE_BY_VERSION[version]];
+  }
+  if (version?.startsWith('2.1')) {
+    return [SCHEMA_FILE_BY_VERSION['2.1.1'], SCHEMA_FILE_BY_VERSION['2.1.0']];
+  }
+  if (version?.startsWith('2.0')) {
+    return [SCHEMA_FILE_BY_VERSION['2.0.2']];
+  }
+  return [
+    SCHEMA_FILE_BY_VERSION['2.1.1'],
+    SCHEMA_FILE_BY_VERSION['2.1.0'],
+    SCHEMA_FILE_BY_VERSION['2.0.2'],
+  ];
 }
 
 // ============================================================
@@ -100,7 +132,7 @@ export async function loadJsonSchemaForVersion(version) {
  */
 export function setActiveVersion(version) {
   if (!jsonSchemas.has(version)) {
-    console.warn(`[JsonSchema] Version ${version} not loaded yet.`);
+    log.warn(`[JsonSchema] Version ${version} not loaded yet.`);
     return;
   }
   activeVersion = version;
@@ -149,7 +181,7 @@ function parseElementDefsForVersion(version, schema) {
     defMap.set(elemName, {
       name: elemName,
       attributes,
-      children: new Map(), // JSON Schema には子要素ツリーなし
+      children: parseChildrenDef(elemSchema['x-children']),
       documentation: elemSchema.description || null,
     });
   }
@@ -191,6 +223,16 @@ function buildConstraints(propSchema) {
     maxInclusive: propSchema.maximum ?? null,
     minLength: propSchema.minLength ?? null,
   };
+}
+
+/**
+ * JSON Schema の x-children から子要素定義配列を構築
+ * @param {Object|undefined} xChildren - スキーマの x-children フィールド
+ * @returns {Array<{name, minOccurs, maxOccurs, choiceGroup}>|null}
+ */
+function parseChildrenDef(xChildren) {
+  if (!xChildren || !Array.isArray(xChildren.allowedChildren)) return null;
+  return xChildren.allowedChildren;
 }
 
 /** 有効な制約が1つ以上あるか */
@@ -262,13 +304,13 @@ export function getAttributeInfo(elementType, attributeName) {
 }
 
 /**
- * 子要素定義を取得（JSON Schema では常に空 Map）
+ * 子要素定義を取得
  * @param {string} elementType
- * @returns {Map}
+ * @returns {Array<{name, minOccurs, maxOccurs, choiceGroup}>|null} 子要素定義、またはスキーマに定義なしの場合 null
  */
 export function getElementChildren(elementType) {
   const def = getElementDefinition(elementType);
-  return def ? def.children : new Map();
+  return def ? def.children : null;
 }
 
 // ============================================================

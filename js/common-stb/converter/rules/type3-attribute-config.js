@@ -241,14 +241,22 @@ export const RESTORED_IN_202 = {
   StbColumn: {
     path: ['StbModel', 'StbMembers', 'StbColumns', 'StbColumn'],
     defaults: {
-      condition_bottom: 'PIN',
-      condition_top: 'PIN',
+      condition_bottom: 'FIX',
+      condition_top: 'FIX',
     },
   },
 
   StbPost: {
     path: ['StbModel', 'StbMembers', 'StbPosts', 'StbPost'],
     inherit: 'StbColumn',
+  },
+
+  StbGirder: {
+    path: ['StbModel', 'StbMembers', 'StbGirders', 'StbGirder'],
+    defaults: {
+      condition_start: 'FIX',
+      condition_end: 'FIX',
+    },
   },
 };
 

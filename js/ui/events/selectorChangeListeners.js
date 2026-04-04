@@ -7,10 +7,18 @@
  */
 
 import { updateLabelVisibility } from '../viewer3d/unifiedLabelManager.js';
-import { getStoryClipBounds, getAxisClipBounds } from '../viewer3d/clipping.js';
+import {
+  getStoryClipBounds,
+  getAxisClipBounds,
+  DEFAULT_STORY_CLIP_RANGE,
+  DEFAULT_AXIS_CLIP_RANGE,
+} from '../viewer3d/clipping.js';
 import { activateSectionBoxForBounds, deactivateSectionBox } from '../viewer3d/sectionBox.js';
-import { eventBus, AxisEvents, RenderEvents } from '../../app/events/index.js';
+import { eventBus, AxisEvents, RenderEvents } from '../../data/events/index.js';
 import { getState } from '../../app/globalState.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:events:selectorChangeListeners');
 
 /**
  * Setup selector change listeners
@@ -39,7 +47,10 @@ export function setupSelectorChangeListeners() {
  */
 function handleStorySelectionChange(event) {
   const selectedStoryId = event.target.value;
-  const storyRange = parseInt(document.getElementById('storyClipRange')?.value || '1000', 10);
+  const storyRange = parseInt(
+    document.getElementById('storyClipRange')?.value || DEFAULT_STORY_CLIP_RANGE,
+    10,
+  );
 
   if (selectedStoryId !== 'all') {
     const bounds = getStoryClipBounds(selectedStoryId, storyRange);
@@ -90,7 +101,7 @@ export function redrawAxesAtStory(targetStoryId) {
       targetStoryId,
     });
   } catch (error) {
-    console.error('Error redrawing axes at story:', error);
+    log.error('Error redrawing axes at story:', error);
   }
 }
 
@@ -100,7 +111,10 @@ export function redrawAxesAtStory(targetStoryId) {
  */
 function handleXAxisSelectionChange(event) {
   const selectedAxisId = event.target.value;
-  const axisRange = parseInt(document.getElementById('xAxisClipRange')?.value || '2000', 10);
+  const axisRange = parseInt(
+    document.getElementById('xAxisClipRange')?.value || DEFAULT_AXIS_CLIP_RANGE,
+    10,
+  );
 
   if (selectedAxisId !== 'all') {
     const bounds = getAxisClipBounds('X', selectedAxisId, axisRange);
@@ -126,7 +140,10 @@ function handleXAxisSelectionChange(event) {
  */
 function handleYAxisSelectionChange(event) {
   const selectedAxisId = event.target.value;
-  const axisRange = parseInt(document.getElementById('yAxisClipRange')?.value || '2000', 10);
+  const axisRange = parseInt(
+    document.getElementById('yAxisClipRange')?.value || DEFAULT_AXIS_CLIP_RANGE,
+    10,
+  );
 
   if (selectedAxisId !== 'all') {
     const bounds = getAxisClipBounds('Y', selectedAxisId, axisRange);
@@ -169,7 +186,7 @@ export function resetAllSelectors() {
   // Request render update via EventBus
   eventBus.emit(RenderEvents.REQUEST_RENDER);
 
-  console.log('[Event] 全セレクタをリセット');
+  log.info('[Event] 全セレクタをリセット');
 }
 
 /**

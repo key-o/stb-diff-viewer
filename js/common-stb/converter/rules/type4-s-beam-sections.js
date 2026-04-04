@@ -186,6 +186,33 @@ function convertSegmentBasedElements(elements, startOrder, useTaper = false) {
 }
 
 /**
+ * Build a map from section id to kind_haunch_start/end from S girder/beam members
+ * @param {object} rootData - ST-Bridge root data
+ * @returns {Map<string, {start: string, end: string}>} Section id -> haunch kinds
+ */
+function buildHaunchKindMap(rootData) {
+  const map = new Map();
+  const members = rootData?.['StbModel']?.[0]?.['StbMembers']?.[0];
+  if (!members) return map;
+
+  const registerMemberList = (memberList) => {
+    (memberList || []).forEach((member) => {
+      const attrs = member['$'] || {};
+      if (attrs.id_section) {
+        map.set(attrs.id_section, {
+          start: attrs.kind_haunch_start || 'SLOPE',
+          end: attrs.kind_haunch_end || 'SLOPE',
+        });
+      }
+    });
+  };
+
+  registerMemberList(members['StbGirders']?.[0]?.['StbGirder']);
+  registerMemberList(members['StbBeams']?.[0]?.['StbBeam']);
+  return map;
+}
+
+/**
  * Convert S Beam sections from v2.0.2 to v2.1.0
  * @param {object} stbRoot - ST-Bridge root element
  */
@@ -199,6 +226,7 @@ function convertSBeamSectionsTo210(stbRoot) {
   const beamsS = sections['StbSecBeam_S'];
   if (!beamsS) return;
 
+  const haunchKindMap = buildHaunchKindMap(rootData);
   let convertedCount = 0;
 
   beamsS.forEach((beam) => {
@@ -273,20 +301,35 @@ function convertSBeamSectionsTo210(stbRoot) {
     }
 
     // Process StbSecSteelBeam_S_Haunch (2-3 sections)
-    // Note: Currently treats all haunch as SLOPE (taper).
-    // Full implementation requires reading kind_haunch from member placement.
+    // Uses kind_haunch_start/end from member placement to determine Taper vs Straight
     if (figureBeam['StbSecSteelBeam_S_Haunch']) {
       const haunchElements = sortByPosition(
         figureBeam['StbSecSteelBeam_S_Haunch'],
         POS_ORDER_JOINT_HAUNCH,
       );
 
-      // Default to SLOPE behavior: use Taper when shapes differ
-      // TODO: Read kind_haunch_start/kind_haunch_end from member placement
-      // and use Straight for DROP haunch segments
-      const haunchShapes = convertSegmentBasedElements(haunchElements, orderIndex, false);
-      shapes.push(...haunchShapes);
-      orderIndex += haunchShapes.length;
+      const haunchKind = haunchKindMap.get(beamId);
+      if (haunchKind) {
+        // Per-segment conversion based on kind_haunch
+        for (let i = 0; i < haunchElements.length - 1; i++) {
+          const startAttrs = haunchElements[i]['$'];
+          const endAttrs = haunchElements[i + 1]['$'];
+          // First segment uses kind_haunch_start, last uses kind_haunch_end
+          const kind = i === 0 ? haunchKind.start : haunchKind.end;
+          if (kind === 'DROP') {
+            // DROP: always use Straight (step change, no taper)
+            shapes.push(createStraightShape(orderIndex++, startAttrs));
+          } else {
+            // SLOPE: use Taper when shapes differ
+            shapes.push(createShapeForSegment(orderIndex++, startAttrs, endAttrs, true));
+          }
+        }
+      } else {
+        // No member placement found - default to shape-based detection
+        const haunchShapes = convertSegmentBasedElements(haunchElements, orderIndex, false);
+        shapes.push(...haunchShapes);
+        orderIndex += haunchShapes.length;
+      }
       delete figureBeam['StbSecSteelBeam_S_Haunch'];
     }
 
@@ -533,9 +576,9 @@ function convertSColumnSectionsTo210(stbRoot) {
  * Convert S Column sections from v2.1.0 to v2.0.2
  * NOTE: S Column structure is identical between v2.0.2 and v2.1.0.
  * No conversion needed.
- * @param {object} stbRoot - ST-Bridge root element
+ * @param {object} _stbRoot - ST-Bridge root element
  */
-function convertSColumnSectionsTo202(stbRoot) {
+function convertSColumnSectionsTo202(_stbRoot) {
   // S Column structure is identical between v2.0.2 and v2.1.0
   // No conversion needed
   logger.debug('S Column sections: No conversion needed (structure identical)');

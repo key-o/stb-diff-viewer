@@ -50,6 +50,23 @@ export function convertToRenderModel(stbData, options = {}) {
     girders: convertGirders(stbData.girders, nodeMap, sections),
     beams: convertLinearElements(stbData.beams, nodeMap, sections, 'Beam'),
     braces: convertLinearElements(stbData.braces, nodeMap, sections, 'Brace'),
+    isolatingDevices: convertLinearElements(
+      stbData.isolatingDevices,
+      nodeMap,
+      sections,
+      'IsolatingDevice',
+    ),
+    dampingDevices: convertLinearElements(
+      stbData.dampingDevices,
+      nodeMap,
+      sections,
+      'DampingDevice',
+    ),
+    frameDampingDevices: convertSurfaceElements(
+      stbData.frameDampingDevices || stbData.frameDampingDeviceElements,
+      nodeMap,
+      'FrameDampingDevice',
+    ),
     slabs: convertSlabs(stbData.slabs, nodeMap),
     walls: convertWalls(stbData.walls, nodeMap, stbData.openings),
     footings: convertFootings(stbData.footings, nodeMap),
@@ -275,6 +292,34 @@ function convertWalls(walls, nodeMap, openings) {
       bottomLevel: parseFloat(wall.bottomLevel || wall.bottom_level) || 0,
       topLevel: parseFloat(wall.topLevel || wall.top_level) || 0,
       openings: convertOpenings(wallOpenings, nodeMap),
+    };
+  });
+}
+
+/**
+ * 面状要素を変換（汎用）
+ * @param {Array} elements - 面要素配列
+ * @param {Map} nodeMap - 節点位置マップ
+ * @param {string} elementType - 要素タイプ
+ * @returns {Array}
+ */
+function convertSurfaceElements(elements, nodeMap, elementType) {
+  if (!elements || !Array.isArray(elements)) {
+    return [];
+  }
+
+  return elements.map((element) => {
+    const nodeIds = element.nodeIds || element.node_ids || [];
+    const vertices = nodeIds.map((id) => getNodePosition(nodeMap, id));
+
+    return {
+      id: String(element.id),
+      name: element.name || '',
+      elementType,
+      nodeIds: nodeIds.map(String),
+      vertices,
+      idSection: element.idSection || element.id_section || null,
+      typeShape: element.typeShape || element.type_shape || null,
     };
   });
 }

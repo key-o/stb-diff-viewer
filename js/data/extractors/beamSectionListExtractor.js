@@ -23,6 +23,9 @@ import {
   extractBaseSymbol,
   compareSymbols,
 } from './sectionListUtils.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('data:extractors:beamSectionListExtractor');
 
 /**
  * StbGirder一覧を抽出（梁要素）
@@ -216,7 +219,7 @@ function extractMultiplePositionFigures(straightElements, result) {
     let finalOrder = order;
     if (order < 0) {
       finalOrder = straightElements.indexOf(el) + 1;
-      console.warn('[beamSectionListExtractor] No order attribute, using index:', {
+      log.warn('[beamSectionListExtractor] No order attribute, using index:', {
         index: straightElements.indexOf(el),
         finalOrder,
         width,
@@ -302,12 +305,20 @@ function extractBeamBarArrangement(barArrangementElement, result) {
   }
 
   // STB v2.0.2: StbSecBarBeam_RC_ThreeTypesがある場合
+  let isThreeTypes = false;
   if (!simpleBarElement) {
     const threeTypes = querySelectorAll(barArrangementElement, 'StbSecBarBeam_RC_ThreeTypes');
     if (threeTypes.length > 0) {
-      // ThreeTypesの場合、最初の要素を使用（すべての位置で同じ属性値）
-      simpleBarElement = threeTypes[0];
-      isV202Format = true;
+      isThreeTypes = true;
+      // ThreeTypesの場合、各位置（pos属性: START/CENTER/END）ごとに個別に読み込み
+      const posMap = { START: 'LEFT', CENTER: 'CENTER', END: 'RIGHT' };
+      for (const el of threeTypes) {
+        const pos = el.getAttribute('pos');
+        const position = posMap[pos] || 'SAME';
+        if (result.positions[position]) {
+          extractBarDataFromDirectAttributesSingle(el, result.positions[position]);
+        }
+      }
     }
   }
 
@@ -351,6 +362,21 @@ function extractBeamBarArrangement(barArrangementElement, result) {
       right: coverRight,
     };
   }
+
+  // ThreeTypes形式の場合もカバー情報を抽出
+  if (isThreeTypes && !result.cover) {
+    const coverTop = parseFloat(barArrangementElement.getAttribute('depth_cover_top')) || 40;
+    const coverBottom = parseFloat(barArrangementElement.getAttribute('depth_cover_bottom')) || 40;
+    const coverLeft =
+      parseFloat(barArrangementElement.getAttribute('width_cover_left')) ||
+      parseFloat(barArrangementElement.getAttribute('depth_cover_start_X')) ||
+      coverTop;
+    const coverRight =
+      parseFloat(barArrangementElement.getAttribute('width_cover_right')) ||
+      parseFloat(barArrangementElement.getAttribute('depth_cover_end_X')) ||
+      coverTop;
+    result.cover = { top: coverTop, bottom: coverBottom, left: coverLeft, right: coverRight };
+  }
 }
 
 /**
@@ -365,25 +391,33 @@ function extractBarDataFromDirectAttributes(barElement, result) {
   positions.forEach((position) => {
     const positionData = result.positions[position];
 
-    // 上端筋：N_main_top_1st（最上段），D_main（径）
-    const mainTopCount = parseInt(barElement.getAttribute('N_main_top_1st')) || 0;
+    // 上端筋：N_main_top_1st / N_main_top_2nd，D_main（径）
+    const mainTopCount1st = parseInt(barElement.getAttribute('N_main_top_1st')) || 0;
+    const mainTopCount2nd = parseInt(barElement.getAttribute('N_main_top_2nd')) || 0;
+    const mainTopCount = mainTopCount1st + mainTopCount2nd;
     if (mainTopCount > 0) {
       const dia = (barElement.getAttribute('D_main') || 'D25').toUpperCase();
       positionData.topBar = {
         count: mainTopCount,
+        count1st: mainTopCount1st,
+        count2nd: mainTopCount2nd,
         dia: dia,
-        grade: 'SD345',
+        grade: (barElement.getAttribute('strength_main') || 'SD345').toUpperCase(),
       };
     }
 
-    // 下端筋：N_main_bottom_1st，D_main
-    const mainBottomCount = parseInt(barElement.getAttribute('N_main_bottom_1st')) || 0;
+    // 下端筋：N_main_bottom_1st / N_main_bottom_2nd，D_main
+    const mainBottomCount1st = parseInt(barElement.getAttribute('N_main_bottom_1st')) || 0;
+    const mainBottomCount2nd = parseInt(barElement.getAttribute('N_main_bottom_2nd')) || 0;
+    const mainBottomCount = mainBottomCount1st + mainBottomCount2nd;
     if (mainBottomCount > 0) {
       const dia = (barElement.getAttribute('D_main') || 'D25').toUpperCase();
       positionData.bottomBar = {
         count: mainBottomCount,
+        count1st: mainBottomCount1st,
+        count2nd: mainBottomCount2nd,
         dia: dia,
-        grade: 'SD345',
+        grade: (barElement.getAttribute('strength_main') || 'SD345').toUpperCase(),
       };
     }
 
@@ -396,7 +430,7 @@ function extractBarDataFromDirectAttributes(barElement, result) {
         count: stirrupCount,
         dia: dia,
         pitch: pitch,
-        grade: 'SD295',
+        grade: (barElement.getAttribute('strength_stirrup') || 'SD295').toUpperCase(),
       };
     }
 
@@ -407,10 +441,71 @@ function extractBarDataFromDirectAttributes(barElement, result) {
       positionData.webBar = {
         count: webCount,
         dia: dia,
-        grade: 'SD345',
+        grade: (barElement.getAttribute('strength_web') || 'SD345').toUpperCase(),
       };
     }
   });
+}
+
+/**
+ * STB v2.0.2 ThreeTypes形式：単一位置の配筋情報を直接属性から抽出
+ * @param {Element} barElement - StbSecBarBeam_RC_ThreeTypes要素（個別位置）
+ * @param {Object} positionData - 位置データオブジェクト
+ */
+function extractBarDataFromDirectAttributesSingle(barElement, positionData) {
+  // 上端筋
+  const mainTopCount1st = parseInt(barElement.getAttribute('N_main_top_1st')) || 0;
+  const mainTopCount2nd = parseInt(barElement.getAttribute('N_main_top_2nd')) || 0;
+  const mainTopCount = mainTopCount1st + mainTopCount2nd;
+  if (mainTopCount > 0) {
+    const dia = (barElement.getAttribute('D_main') || 'D25').toUpperCase();
+    positionData.topBar = {
+      count: mainTopCount,
+      count1st: mainTopCount1st,
+      count2nd: mainTopCount2nd,
+      dia: dia,
+      grade: (barElement.getAttribute('strength_main') || 'SD345').toUpperCase(),
+    };
+  }
+
+  // 下端筋
+  const mainBottomCount1st = parseInt(barElement.getAttribute('N_main_bottom_1st')) || 0;
+  const mainBottomCount2nd = parseInt(barElement.getAttribute('N_main_bottom_2nd')) || 0;
+  const mainBottomCount = mainBottomCount1st + mainBottomCount2nd;
+  if (mainBottomCount > 0) {
+    const dia = (barElement.getAttribute('D_main') || 'D25').toUpperCase();
+    positionData.bottomBar = {
+      count: mainBottomCount,
+      count1st: mainBottomCount1st,
+      count2nd: mainBottomCount2nd,
+      dia: dia,
+      grade: (barElement.getAttribute('strength_main') || 'SD345').toUpperCase(),
+    };
+  }
+
+  // スターラップ
+  const stirrupCount = parseInt(barElement.getAttribute('N_stirrup')) || 0;
+  if (stirrupCount > 0) {
+    const dia = (barElement.getAttribute('D_stirrup') || 'D10').toUpperCase();
+    const pitch = parseInt(barElement.getAttribute('pitch_stirrup')) || 200;
+    positionData.stirrup = {
+      count: stirrupCount,
+      dia: dia,
+      pitch: pitch,
+      grade: (barElement.getAttribute('strength_stirrup') || 'SD295').toUpperCase(),
+    };
+  }
+
+  // 腹筋
+  const webCount = parseInt(barElement.getAttribute('N_web')) || 0;
+  if (webCount > 0) {
+    const dia = (barElement.getAttribute('D_web') || 'D13').toUpperCase();
+    positionData.webBar = {
+      count: webCount,
+      dia: dia,
+      grade: (barElement.getAttribute('strength_web') || 'SD345').toUpperCase(),
+    };
+  }
 }
 
 /**
@@ -644,7 +739,7 @@ function determinePositionPattern(result) {
  */
 export function extractBeamSectionGrid(xmlDoc) {
   if (!xmlDoc) {
-    console.warn('[extractBeamSectionGrid] xmlDoc is null or undefined');
+    log.warn('[extractBeamSectionGrid] xmlDoc is null or undefined');
     return {
       stories: [],
       symbols: [],
@@ -652,13 +747,13 @@ export function extractBeamSectionGrid(xmlDoc) {
     };
   }
 
-  console.log('[extractBeamSectionGrid] Starting extraction...');
+  log.info('[extractBeamSectionGrid] Starting extraction...');
 
   // バージョンを検出
   const isV210 = isVersion210(xmlDoc);
   const isV202 = isVersion202(xmlDoc);
 
-  console.log('[extractBeamSectionGrid] STB Version detected:', { isV210, isV202 });
+  log.info('[extractBeamSectionGrid] STB Version detected:', { isV210, isV202 });
 
   // バージョンラベルと断面セレクタを決定
   let parserVersion;
@@ -670,25 +765,25 @@ export function extractBeamSectionGrid(xmlDoc) {
     parserVersion = 'v2.0.2';
     sectionSelectors = ['StbSecBeam_RC'];
   } else {
-    console.warn('[extractBeamSectionGrid] Unknown STB version, using fallback parser');
+    log.warn('[extractBeamSectionGrid] Unknown STB version, using fallback parser');
     parserVersion = 'fallback';
     sectionSelectors = ['StbSecBeam_RC', 'StbSecGirder_RC'];
   }
 
-  console.log(`[extractBeamSectionGrid] Extracting with ${parserVersion} parser`);
+  log.info(`[extractBeamSectionGrid] Extracting with ${parserVersion} parser`);
 
   // 1. 階データを抽出
   const storiesMap = extractStories(xmlDoc);
   const storiesList = Array.from(storiesMap.values()).sort(compareStoriesDescending);
-  console.log(`[extractBeamSectionGrid] (${parserVersion}) Stories extracted:`, storiesList.length);
+  log.info(`[extractBeamSectionGrid] (${parserVersion}) Stories extracted:`, storiesList.length);
 
   // 2. 梁要素を抽出
   const girders = extractGirders(xmlDoc);
-  console.log(`[extractBeamSectionGrid] (${parserVersion}) Girders extracted:`, girders.length);
+  log.info(`[extractBeamSectionGrid] (${parserVersion}) Girders extracted:`, girders.length);
 
   // 3. 梁断面を抽出
   const beamSectionElements = sectionSelectors.flatMap((sel) => querySelectorAll(xmlDoc, sel));
-  console.log(
+  log.info(
     `[extractBeamSectionGrid] (${parserVersion}) Beam section elements found:`,
     beamSectionElements.length,
   );
@@ -699,11 +794,7 @@ export function extractBeamSectionGrid(xmlDoc) {
     if (id) {
       const detail = extractRcBeamSectionDetail(el);
       sectionsMap.set(id, detail);
-      console.log(
-        `[extractBeamSectionGrid] (${parserVersion}) Section extracted:`,
-        id,
-        detail.name,
-      );
+      log.info(`[extractBeamSectionGrid] (${parserVersion}) Section extracted:`, id, detail.name);
     }
   });
 
@@ -752,7 +843,7 @@ function buildBeamSectionGrid(
   const grid = new Map();
   const symbolSet = new Set();
 
-  console.log(
+  log.info(
     `[buildBeamSectionGrid] (${parserVersion}) Section usage entries:`,
     sectionUsageMap.size,
   );
@@ -760,17 +851,14 @@ function buildBeamSectionGrid(
   sectionUsageMap.forEach((usages, sectionId) => {
     const sectionData = sectionsMap.get(sectionId);
     if (!sectionData) {
-      console.warn(
-        `[buildBeamSectionGrid] (${parserVersion}) Section data not found for:`,
-        sectionId,
-      );
+      log.warn(`[buildBeamSectionGrid] (${parserVersion}) Section data not found for:`, sectionId);
       return;
     }
 
     usages.forEach(({ storyId, symbol }) => {
       const story = storiesMap.get(storyId);
       if (!story) {
-        console.warn(`[buildBeamSectionGrid] (${parserVersion}) Story not found for:`, storyId);
+        log.warn(`[buildBeamSectionGrid] (${parserVersion}) Story not found for:`, storyId);
         return;
       }
 
@@ -799,7 +887,7 @@ function buildBeamSectionGrid(
         if (!alreadyRegistered) {
           variants.push(cellData);
           grid.set(key, variants);
-          console.warn(
+          log.warn(
             `[buildBeamSectionGrid] (${parserVersion}) Multiple sections detected in same cell:`,
             key,
             variants.map((variant) => variant.sectionId),
@@ -808,14 +896,14 @@ function buildBeamSectionGrid(
       }
 
       symbolSet.add(symbol);
-      console.log(`[buildBeamSectionGrid] (${parserVersion}) Grid cell added:`, key);
+      log.info(`[buildBeamSectionGrid] (${parserVersion}) Grid cell added:`, key);
     });
   });
 
   // 符号を自然順でソート
   const symbols = Array.from(symbolSet).sort(compareSymbols);
 
-  console.log(`[buildBeamSectionGrid] (${parserVersion}) Final result:`, {
+  log.info(`[buildBeamSectionGrid] (${parserVersion}) Final result:`, {
     storiesCount: storiesList.length,
     symbolsCount: symbols.length,
     gridSize: grid.size,

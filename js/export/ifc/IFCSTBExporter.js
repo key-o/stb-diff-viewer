@@ -5,6 +5,9 @@
 
 import { IFCBeamExporter } from './IFCBeamExporter.js';
 import { generateIfcGuid } from './IFCExporterBase.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('export:ifc:IFCSTBExporter');
 
 /**
  * STB構造要素の統合エクスポーター
@@ -30,12 +33,12 @@ export class IFCSTBExporter extends IFCBeamExporter {
     const { name = 'Slab', vertices, thickness = 150, predefinedType = 'FLOOR' } = slabData;
 
     if (!vertices || vertices.length < 3) {
-      console.warn(`[IFC Export] 床 "${name}" をスキップ: 頂点が3点未満`);
+      log.warn(`[IFC Export] 床 "${name}" をスキップ: 頂点が3点未満`);
       return null;
     }
 
     if (thickness <= 0) {
-      console.warn(`[IFC Export] 床 "${name}" をスキップ: 厚さが不正`);
+      log.warn(`[IFC Export] 床 "${name}" をスキップ: 厚さが不正`);
       return null;
     }
 
@@ -133,112 +136,130 @@ export class IFCSTBExporter extends IFCBeamExporter {
    * @param {boolean} [foundationColumnData.isReferenceDirection=true] - 基準方向フラグ
    * @returns {number|null} 基礎柱エンティティID（未対応の場合はnull）
    */
-  addFoundationColumn(foundationColumnData) {
-    this._ensureInitialized();
+  /**
+   * 基礎柱の1セグメント（FDまたはWR）の押出形状を作成
+   * @private
+   * @param {Object} profile - 断面プロファイル
+   * @param {number} segmentLength - セグメント長さ (mm)
+   * @param {number} segmentBottomZ - セグメント底部Z座標（ローカル、配置点からの相対）
+   * @returns {number|null} IFCEXTRUDEDAREASOLID のエンティティID
+   */
+  _createFoundationColumnSegmentSolid(profile, segmentLength, segmentBottomZ) {
     const w = this.writer;
-    const {
-      name = 'FoundationColumn',
-      bottomPoint,
-      topPoint,
-      profile,
-      rotation = 0,
-      isReferenceDirection = true,
-    } = foundationColumnData;
 
-    // 必須パラメータのチェック
-    if (!bottomPoint || !topPoint || !profile) {
-      console.warn(
-        `[IFC Export] 基礎柱 "${name}" をスキップ: 必須パラメータ（bottomPoint, topPoint, profile）が不足しています`,
-      );
-      return null;
-    }
-
-    // 基礎柱の長さを計算 (mm)
-    const dx = topPoint.x - bottomPoint.x;
-    const dy = topPoint.y - bottomPoint.y;
-    const dz = topPoint.z - bottomPoint.z;
-    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-    if (length < 1e-6) {
-      console.warn(`[IFC Export] 基礎柱 "${name}" をスキップ: 長さが0です`);
-      return null;
-    }
-
-    // プロファイルを作成（Position は null）
     const profileId = this._createProfileId(profile, true);
-    if (profileId === null) {
-      console.warn(
-        `[IFC Export] 基礎柱 "${name}" をスキップ: 未対応のプロファイルタイプ "${profile.type}"`,
-      );
-      return null;
-    }
+    if (profileId === null) return null;
 
-    // 基礎柱の中心点を計算
-    const centerX = (bottomPoint.x + topPoint.x) / 2;
-    const centerY = (bottomPoint.y + topPoint.y) / 2;
-    const centerZ = (bottomPoint.z + topPoint.z) / 2;
-
-    // 押出方向（垂直: Z方向）
     const extrudeDir = w.createEntity('IFCDIRECTION', [[0.0, 0.0, 1.0]]);
-
-    // プロファイルの位置（中心基準にするため、-length/2 から開始）
-    const extrudeOrigin = w.createEntity('IFCCARTESIANPOINT', [[0.0, 0.0, -length / 2]]);
+    const extrudeOrigin = w.createEntity('IFCCARTESIANPOINT', [[0.0, 0.0, segmentBottomZ]]);
     const extrudePosition = w.createEntity('IFCAXIS2PLACEMENT3D', [
       `#${extrudeOrigin}`,
       null,
       null,
     ]);
 
-    // 押出形状を作成 (mm)
-    const solidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
+    return w.createEntity('IFCEXTRUDEDAREASOLID', [
       `#${profileId}`,
       `#${extrudePosition}`,
       `#${extrudeDir}`,
-      length,
+      segmentLength,
     ]);
+  }
 
-    // 基礎柱の配置点（中心）(mm)
-    const foundationColumnOrigin = w.createEntity('IFCCARTESIANPOINT', [
-      [centerX, centerY, centerZ],
-    ]);
+  /**
+   * 基礎柱を追加（FD/WR二重断面対応）
+   * 基礎柱は1節点（topPoint）から下方向に伸びる。
+   * FD（基礎部）とWR（立上り部）で異なる断面を持つことができる。
+   * @param {Object} data - 基礎柱データ
+   * @param {string} data.name - 名前
+   * @param {Object} data.topPoint - 上端座標 {x, y, z} (mm) = id_nodeの位置
+   * @param {Object} data.bottomPoint - 下端座標 {x, y, z} (mm)
+   * @param {number} data.lengthFD - 基礎部の長さ (mm)
+   * @param {number} data.lengthWR - 立上り部の長さ (mm)
+   * @param {Object|null} data.profileFD - 基礎部の断面プロファイル
+   * @param {Object|null} data.profileWR - 立上り部の断面プロファイル
+   * @param {number} [data.rotation=0] - 回転角度（度）
+   * @returns {number|null} IFCCOLUMNエンティティID
+   */
+  addFoundationColumn(data) {
+    this._ensureInitialized();
+    const w = this.writer;
+    const {
+      name = 'FoundationColumn',
+      topPoint,
+      bottomPoint,
+      lengthFD = 0,
+      lengthWR = 0,
+      profileFD,
+      profileWR,
+      rotation = 0,
+    } = data;
 
-    // 回転角度を計算（度 → ラジアン）
-    let effectiveRotationDeg = rotation;
-    if (!isReferenceDirection) {
-      effectiveRotationDeg += 90;
+    if (!topPoint || !bottomPoint) {
+      log.warn(`[IFC Export] 基礎柱 "${name}" をスキップ: 座標が不足しています`);
+      return null;
     }
-    const effectiveRotationRad = (effectiveRotationDeg * Math.PI) / 180;
 
-    // Z軸（垂直方向）
+    const totalLength = lengthFD + lengthWR;
+    if (totalLength < 1e-6) {
+      log.warn(`[IFC Export] 基礎柱 "${name}" をスキップ: 長さが0です`);
+      return null;
+    }
+
+    // 各セグメントの押出形状を作成
+    // 配置原点 = topPoint とし、ローカルZ軸負方向に伸びる
+    // ローカル座標系: topPoint が原点、下端が -totalLength
+    const solidIds = [];
+
+    // WR部（立上り部）: topPoint直下 → FD部の上端
+    // ローカルZ: -lengthWR ～ 0
+    if (profileWR && lengthWR > 0) {
+      const solidWR = this._createFoundationColumnSegmentSolid(profileWR, lengthWR, -lengthWR);
+      if (solidWR) solidIds.push(solidWR);
+    }
+
+    // FD部（基礎部）: WRの下 → 底部
+    // ローカルZ: -(lengthWR + lengthFD) ～ -lengthWR
+    if (profileFD && lengthFD > 0) {
+      const solidFD = this._createFoundationColumnSegmentSolid(
+        profileFD,
+        lengthFD,
+        -(lengthWR + lengthFD),
+      );
+      if (solidFD) solidIds.push(solidFD);
+    }
+
+    if (solidIds.length === 0) {
+      log.warn(`[IFC Export] 基礎柱 "${name}" をスキップ: 形状を生成できませんでした`);
+      return null;
+    }
+
+    // 配置点（topPoint）
+    const originId = w.createEntity('IFCCARTESIANPOINT', [[topPoint.x, topPoint.y, topPoint.z]]);
+
+    // 回転
+    const rotationRad = (rotation * Math.PI) / 180;
+    const cosVal = Math.cos(rotationRad);
+    const sinVal = Math.sin(rotationRad);
     const axisDir = w.createEntity('IFCDIRECTION', [[0.0, 0.0, 1.0]]);
-
-    // 参照方向（XY平面上の回転）
-    const cosVal = Math.cos(effectiveRotationRad);
-    const sinVal = Math.sin(effectiveRotationRad);
     const refDir = w.createEntity('IFCDIRECTION', [[cosVal, sinVal, 0.0]]);
 
-    // 配置座標系
-    const foundationColumnPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
-      `#${foundationColumnOrigin}`,
+    const placement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
+      `#${originId}`,
       `#${axisDir}`,
       `#${refDir}`,
     ]);
 
-    // 基礎柱のローカル配置
-    const foundationColumnLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
-      null,
-      `#${foundationColumnPlacement3D}`,
-    ]);
+    const localPlacement = w.createEntity('IFCLOCALPLACEMENT', [null, `#${placement3D}`]);
 
-    // 形状表現
+    // 形状表現（複数solidの場合もまとめて1つのShapeRepresentationに）
     const shapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
       `#${this._refs.bodyContext}`,
       'Body',
       'SweptSolid',
-      [`#${solidId}`],
+      solidIds.map((id) => `#${id}`),
     ]);
 
-    // 製品定義形状
     const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
       null,
       null,
@@ -250,15 +271,14 @@ export class IFCSTBExporter extends IFCBeamExporter {
       generateIfcGuid(),
       null, // OwnerHistory
       name,
-      'FoundationColumn', // Description: 基礎柱であることを示す
-      'FoundationColumn', // ObjectType: 基礎柱であることを示す
-      `#${foundationColumnLocalPlacement}`,
+      'FoundationColumn', // Description
+      'FoundationColumn', // ObjectType
+      `#${localPlacement}`,
       `#${productShape}`,
       null, // Tag
       null, // PredefinedType
     ]);
 
-    // 基礎柱を階に所属させる（底部Z座標で適切な階を決定）
     this._addToStorey(foundationColumnId, bottomPoint.z);
 
     return foundationColumnId;
@@ -291,12 +311,12 @@ export class IFCSTBExporter extends IFCBeamExporter {
 
     // 必須パラメータのチェック
     if (!position) {
-      console.warn(`[IFC Export] 基礎 "${name}" をスキップ: 位置が不足しています`);
+      log.warn(`[IFC Export] 基礎 "${name}" をスキップ: 位置が不足しています`);
       return null;
     }
 
     if (width_X <= 0 || width_Y <= 0 || depth <= 0) {
-      console.warn(`[IFC Export] 基礎 "${name}" をスキップ: 寸法が不正です`);
+      log.warn(`[IFC Export] 基礎 "${name}" をスキップ: 寸法が不正です`);
       return null;
     }
 
@@ -405,12 +425,12 @@ export class IFCSTBExporter extends IFCBeamExporter {
 
     // 必須パラメータのチェック
     if (!topPoint || !bottomPoint) {
-      console.warn(`[IFC Export] 杭 "${name}" をスキップ: 杭頭・杭先端座標が不足しています`);
+      log.warn(`[IFC Export] 杭 "${name}" をスキップ: 杭頭・杭先端座標が不足しています`);
       return null;
     }
 
     if (diameter <= 0) {
-      console.warn(`[IFC Export] 杭 "${name}" をスキップ: 杭径が不正です`);
+      log.warn(`[IFC Export] 杭 "${name}" をスキップ: 杭径が不正です`);
       return null;
     }
 
@@ -421,7 +441,7 @@ export class IFCSTBExporter extends IFCBeamExporter {
     const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
 
     if (length < 1e-6) {
-      console.warn(`[IFC Export] 杭 "${name}" をスキップ: 長さが0です`);
+      log.warn(`[IFC Export] 杭 "${name}" をスキップ: 長さが0です`);
       return null;
     }
 

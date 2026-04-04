@@ -20,12 +20,12 @@ class Logger {
     this.level = LOG_LEVELS[level.toUpperCase()] ?? LOG_LEVELS.INFO;
   }
 
-  debug(...args) {
+  debug(..._args) {
     if (this.level <= LOG_LEVELS.DEBUG) {
     }
   }
 
-  info(...args) {
+  info(..._args) {
     if (this.level <= LOG_LEVELS.INFO) {
     }
   }

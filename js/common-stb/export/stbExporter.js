@@ -11,19 +11,22 @@
  */
 
 import { formatXml, downloadStbFile, downloadTextFile } from './xmlFormatter.js';
+import { createLogger } from '../../utils/logger.js';
+
+const _log = createLogger('common-stb:export:stbExporter');
 
 // ======================================================================
 // 依存性注入（ロガーとバリデーション機能）
 // ======================================================================
 
 /**
- * デフォルトロガー（console使用）
+ * デフォルトロガー（createLogger使用）
  * @private
  */
 const defaultLogger = {
-  debug: (...args) => {},
-  warn: (...args) => console.warn(...args),
-  error: (...args) => console.error(...args),
+  debug: (...args) => _log.debug(...args),
+  warn: (...args) => _log.warn(...args),
+  error: (...args) => _log.error(...args),
 };
 
 /**

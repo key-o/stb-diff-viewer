@@ -12,15 +12,19 @@
  * 保守性向上のため、巨大なcompareModels()関数から抽出されました。
  */
 
-import { notify } from '../app/controllers/notificationController.js';
-import { setState } from '../app/globalState.js';
+import { getLoaderSetState, getLoaderNotify } from './loaderDependencies.js';
 import { validateFileType } from '../config/fileTypeConfig.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('modelLoader:fileValidation');
 
 /**
  * Validate and retrieve files for comparison
  * @returns {Object} File validation result
  */
 export function validateAndGetFiles() {
+  const notify = getLoaderNotify();
+  const setState = getLoaderSetState();
   const fileAInput = document.getElementById('fileA');
   const fileBInput = document.getElementById('fileB');
   const fileA = fileAInput?.files[0] || null;
@@ -67,7 +71,7 @@ export function getSelectedElementTypes() {
   ].map((cb) => cb.value);
 
   if (selectedElementTypes.length === 0) {
-    console.warn('表示する要素が選択されていません。');
+    log.warn('表示する要素が選択されていません。');
   }
 
   return selectedElementTypes;
@@ -131,7 +135,7 @@ export function validateComparisonParameters(params) {
 
   // Element types validation (warning, not error)
   if (selectedElementTypes.length === 0) {
-    console.warn('No element types selected for display');
+    log.warn('No element types selected for display');
   }
 
   return {

@@ -27,6 +27,9 @@ import {
   clearSchemaErrors,
   getSchemaErrorStats,
 } from '../common-stb/validation/schemaErrorStore.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('colorModes:schemaColorMode');
 // フローティングウィンドウマネージャー（依存性注入で設定）
 let _floatingWindowManager = null;
 
@@ -64,7 +67,16 @@ function initializeSingleSchemaColorControl(colorType) {
  * スキーマエラー色設定UIのイベントリスナーを設定
  */
 export function initializeSchemaColorControls() {
-  console.log('[SchemaColorMode] initializeSchemaColorControls() called');
+  log.info('[SchemaColorMode] initializeSchemaColorControls() called');
+
+  // colorConfig.jsをSSOTとしてカラー入力を初期化（HTML側のvalue=はJS読み込み前のプレースホルダー）
+  SCHEMA_COLOR_TYPES.forEach((colorType) => {
+    const colorInput = document.getElementById(`schema-${colorType}-color`);
+    if (colorInput && DEFAULT_SCHEMA_COLORS[colorType]) {
+      colorInput.value = DEFAULT_SCHEMA_COLORS[colorType];
+    }
+  });
+
   // 全ての色タイプに対してコントロールを初期化
   SCHEMA_COLOR_TYPES.forEach(initializeSingleSchemaColorControl);
 
@@ -95,18 +107,18 @@ export function initializeSchemaColorControls() {
  * スキーマエラーリスト表示ボタンの初期化
  */
 function initializeSchemaListButtons() {
-  console.log('[SchemaColorMode] initializeSchemaListButtons() called');
+  log.info('[SchemaColorMode] initializeSchemaListButtons() called');
   const statusTypes = ['info', 'warning', 'error'];
 
   statusTypes.forEach((status) => {
     const btn = document.getElementById(`schema-${status}-list-btn`);
     if (btn) {
       btn.addEventListener('click', () => {
-        console.log(`[SchemaColorMode] List button clicked for status: ${status}`);
+        log.info(`[SchemaColorMode] List button clicked for status: ${status}`);
         showSchemaErrorListModal(status);
       });
     } else {
-      console.warn(`[SchemaColorMode] Button not found: schema-${status}-list-btn`);
+      log.warn(`[SchemaColorMode] Button not found: schema-${status}-list-btn`);
     }
   });
 
@@ -138,7 +150,7 @@ function showSchemaErrorListModal(status) {
   const container = document.getElementById('schema-list-container');
 
   if (!floatWindow || !container) {
-    console.error('[SchemaColorMode] Float window elements not found:', {
+    log.error('[SchemaColorMode] Float window elements not found:', {
       floatWindow: floatWindow ? 'found' : 'missing',
       container: container ? 'found' : 'missing',
     });
@@ -173,7 +185,7 @@ function showSchemaErrorListModal(status) {
 
   // フローティングウィンドウを表示
   _floatingWindowManager?.showWindow('schema-error-list-float');
-  console.log('[SchemaColorMode] Float window displayed for status:', status);
+  log.info('[SchemaColorMode] Float window displayed for status:', status);
 }
 
 /**
@@ -247,6 +259,8 @@ const SECTION_TO_ELEMENT_TYPE = {
   girderSections: 'Girder',
   beamSections: 'Beam',
   braceSections: 'Brace',
+  isolatingDeviceSections: 'IsolatingDevice',
+  dampingDeviceSections: 'DampingDevice',
   pileSections: 'Pile',
   footingSections: 'Footing',
   foundationColumnSections: 'FoundationColumn',
@@ -310,7 +324,7 @@ function focusOnSchemaErrorElement(elementId, elementType) {
     hideSchemaErrorListModal();
   } else {
     const searchField = isSectionError ? 'sectionId' : 'elementId';
-    console.warn(
+    log.warn(
       `[SchemaErrorList] Element not found: ${elementType} → ${actualElementType}, ${elementId} (by ${searchField})`,
     );
   }
@@ -397,7 +411,7 @@ export function runValidationForSchemaMode() {
   const docB = getState('models.documentB');
 
   if (!docA && !docB) {
-    console.warn('[ColorMode] No documents loaded for validation');
+    log.warn('[ColorMode] No documents loaded for validation');
     // デモエラーをフォールバックとして設定
     setDemoSchemaErrors();
     return;

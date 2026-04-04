@@ -8,9 +8,15 @@
  */
 
 // プロジェクト固有の依存関係をインポート
-import { validateElement, isSchemaLoaded } from '../../common-stb/import/parser/jsonSchemaLoader.js';
+import {
+  validateElement,
+  isSchemaLoaded,
+} from '../../common-stb/import/parser/jsonSchemaLoader.js';
 import { formatValidationReport } from '../../common-stb/validation/stbValidator.js';
 import { formatRepairReport } from '../../common-stb/repair/stbRepairEngine.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('export:stb:stbExporter');
 
 // 共通モジュールをインポート
 import {
@@ -30,11 +36,11 @@ import {
   downloadTextFile,
 } from '../../common-stb/export/stbExporter.js';
 
-// StbDiffViewer用ロガーを設定（console使用）
+// StbDiffViewer用ロガーを設定
 setLogger({
-  debug: (...args) => {},
-  warn: (...args) => console.warn(...args),
-  error: (...args) => console.error(...args),
+  debug: (...args) => log.debug(...args),
+  warn: (...args) => log.warn(...args),
+  error: (...args) => log.error(...args),
 });
 
 // バリデーション関数を注入
@@ -46,9 +52,11 @@ setValidatorFunctions({
 });
 
 // 動的インポートパスを設定
+// NOTE: import() は呼出し元の common-stb/export/stbExporter.js から相対解決されるため、
+//       common-stb 内の兄弟ディレクトリへのパスを指定する
 setDynamicImportPaths({
-  repair: '../../repair/stbRepairEngine.js',
-  validator: '../../common-stb/validation/stbValidator.js',
+  repair: '../repair/stbRepairEngine.js',
+  validator: '../validation/stbValidator.js',
 });
 
 // 全機能を再エクスポート

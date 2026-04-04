@@ -33,12 +33,13 @@ export function formatXml(xmlString) {
 
     const indented = '  '.repeat(indentLevel) + trimmed;
 
-    // 開始タグ（自己終了タグでない）の場合、インデントレベルを上げる
+    // 開始タグ（自己終了タグでない、かつインライン要素でない）の場合、インデントレベルを上げる
     if (
       trimmed.startsWith('<') &&
       !trimmed.startsWith('</') &&
       !trimmed.startsWith('<?') &&
-      !trimmed.endsWith('/>')
+      !trimmed.endsWith('/>') &&
+      !/^<[^>]+>[^<]*<\//.test(trimmed)
     ) {
       indentLevel++;
     }

@@ -36,6 +36,23 @@ export const FILE_TYPE_DEFINITIONS = [
     enabled: true,
   },
   {
+    id: 'ifc',
+    name: { ja: 'IFC', en: 'IFC' },
+    description: {
+      ja: '建築・建設業界標準データ交換形式',
+      en: 'Industry Foundation Classes for BIM data exchange',
+    },
+    extensions: ['.ifc'],
+    mimeTypes: ['application/x-step', 'application/octet-stream'],
+    magicBytes: [],
+    encoding: ['ASCII', 'UTF-8'],
+    loader: 'IfcLoader',
+    validator: 'validateIfcStructure',
+    priority: 15,
+    icon: '🏗️',
+    enabled: true,
+  },
+  {
     id: 'dxf',
     name: { ja: 'DXF (AutoCAD)', en: 'DXF (AutoCAD)' },
     description: { ja: 'AutoCAD図面交換形式', en: 'AutoCAD Drawing Exchange Format' },
@@ -61,7 +78,7 @@ export const FILE_TYPE_DEFINITIONS = [
     validator: 'validateSs7Structure',
     priority: 30,
     icon: '📊',
-    enabled: false, // 将来実装予定
+    enabled: true,
   },
 ];
 
@@ -75,7 +92,7 @@ export const FILE_TYPE_DEFINITIONS = [
  */
 const FILE_VALIDATION_RULES = {
   maxFileSize: 100 * 1024 * 1024, // 100MB
-  allowedCategories: ['stb'], // 現在有効なファイルタイプID
+  allowedCategories: ['stb', 'ss7'], // 現在有効なファイルタイプID
   requireValidation: true,
   showWarningOnUnknownType: true,
 };

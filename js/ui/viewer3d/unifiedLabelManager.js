@@ -14,11 +14,7 @@
 
 import { getState, setState } from '../../app/globalState.js';
 import { getAllLabels } from '../state.js';
-import {
-  getCurrentStorySelection,
-  getCurrentXAxisSelection,
-  getCurrentYAxisSelection,
-} from './selectors.js';
+import { getCurrentStorySelection } from './selectors.js';
 import { renderingController } from '../../app/controllers/renderingController.js';
 import { LABEL_ELEMENTS } from '../../constants/elementTypes.js';
 import { scheduleRender } from '../../utils/renderScheduler.js';
@@ -192,6 +188,15 @@ function generateSectionLabel(element, elementType) {
       case 'Brace':
         sectionMap = sectionMaps.braceSections;
         break;
+      case 'IsolatingDevice':
+        sectionMap = sectionMaps.isolatingDeviceSections;
+        break;
+      case 'DampingDevice':
+        sectionMap = sectionMaps.dampingDeviceSections;
+        break;
+      case 'FrameDampingDevice':
+        sectionMap = sectionMaps.dampingDeviceSections;
+        break;
     }
 
     if (sectionMap && sectionMap.has && sectionMap.has(element.id_section)) {
@@ -340,20 +345,16 @@ function isLabelTypeVisible(elementType) {
 
 /**
  * ラベルがクリッピング範囲内にあるかチェック
- * @param {Object} label - ラベルオブジェクト
+ * @param {Object} _label - ラベルオブジェクト
  * @returns {boolean} クリッピング範囲内かどうか
  */
-function isLabelWithinClippingBounds(label) {
+function isLabelWithinClippingBounds(_label) {
   // 階クリッピング
   const storySelection = getCurrentStorySelection();
   if (storySelection && storySelection !== 'all') {
     // 階クリッピングのロジック（既存のコードから移植）
     // 実装は省略
   }
-
-  // X軸・Y軸クリッピング
-  const xAxisSelection = getCurrentXAxisSelection();
-  const yAxisSelection = getCurrentYAxisSelection();
 
   // 簡略化されたクリッピングチェック
   return true; // 実際の実装では詳細なチェックが必要

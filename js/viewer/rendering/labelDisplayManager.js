@@ -7,6 +7,9 @@
 
 import { BaseElementStateManager } from './baseElementStateManager.js';
 import { LABEL_ELEMENTS } from '../../constants/elementTypes.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('viewer:rendering:labelDisplayManager');
 
 /**
  * ラベル表示可能な要素タイプ（elementTypes.jsから取得）
@@ -150,7 +153,7 @@ class LabelDisplayManager extends BaseElementStateManager {
     const checkbox = document.getElementById(id);
 
     if (!checkbox) {
-      console.warn(`[LabelDisplayManager] Checkbox not found: ${id}`);
+      log.warn(`[LabelDisplayManager] Checkbox not found: ${id}`);
       return;
     }
 

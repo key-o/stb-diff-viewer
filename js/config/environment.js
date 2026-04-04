@@ -5,6 +5,10 @@
  */
 
 // 設定（直接定義）
+
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('config:environment');
 const globalConfig = {
   environments: {
     development: {
@@ -38,9 +42,17 @@ const globalConfig = {
 // 環境検出
 function detectEnvironment() {
   const hostname = window.location.hostname;
+  const protocol = window.location.protocol;
   const search = window.location.search;
 
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+  if (
+    protocol === 'file:' ||
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    /^192\.168\.\d+\.\d+$/.test(hostname) ||
+    /^10\.\d+\.\d+\.\d+$/.test(hostname) ||
+    /^172\.(1[6-9]|2\d|3[01])\.\d+\.\d+$/.test(hostname)
+  ) {
     return 'development';
   } else if (search.includes('env=staging')) {
     return 'staging';
@@ -107,9 +119,9 @@ export function isFeatureEnabled(featureName) {
 export function displayEnvironmentInfo() {
   const config = getEnvironmentConfig();
   console.group('🌍 環境設定情報');
-  console.log('環境:', config.environment);
-  console.log('API URL:', config.stb2ifc?.apiBaseUrl);
-  console.log('デバッグモード:', config.stb2ifc?.debug);
-  console.log('有効な機能:', config.features);
+  log.info('環境:', config.environment);
+  log.info('API URL:', config.stb2ifc?.apiBaseUrl);
+  log.info('デバッグモード:', config.stb2ifc?.debug);
+  log.info('有効な機能:', config.features);
   console.groupEnd();
 }

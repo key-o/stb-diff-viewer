@@ -15,7 +15,10 @@ import { globalDiffStatusFilter, DIFF_STATUS_VALUES } from './diffStatusFilter.j
 import { getDiffLegendRenderer } from './diffLegendRenderer.js';
 import { initializeDiffLegendCSS } from '../../utils/cssGenerator.js';
 import { DIFF_CATEGORIES } from '../../config/diffFilterConfig.js';
-import { eventBus, DiffStatusEvents } from '../../app/events/index.js';
+import { eventBus, DiffStatusEvents } from '../../data/events/index.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:panels:diffStatusPanel');
 
 /**
  * 差分ステータスフィルタパネルクラス
@@ -55,7 +58,7 @@ export class DiffStatusPanel {
     // 静的HTMLの要素が存在するか確認
     const diffFilterSettings = document.getElementById('diff-filter-settings');
     if (!diffFilterSettings) {
-      console.warn('[DiffStatusPanel] diff-filter-settings element not found');
+      log.warn('[DiffStatusPanel] diff-filter-settings element not found');
       return;
     }
 
@@ -69,7 +72,7 @@ export class DiffStatusPanel {
     this.bindEvents();
     this.isInitialized = true;
 
-    console.log('[Event] DiffStatusPanel初期化完了');
+    log.info('[Event] DiffStatusPanel初期化完了');
   }
 
   /**
@@ -98,7 +101,7 @@ export class DiffStatusPanel {
         .map((cat) => renderer.renderCategoryItem(cat))
         .join('\n');
       legendContainer.innerHTML = legendItems;
-      console.log('[Event] 差分フィルタ凡例を動的生成しました');
+      log.info('[Event] 差分フィルタ凡例を動的生成しました');
     }
   }
 

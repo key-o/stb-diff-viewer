@@ -11,6 +11,10 @@
  * STB namespace URI
  * @type {string}
  */
+
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('common-stb:utils:domHelpers');
 const STB_NAMESPACE = 'https://www.building-smart.or.jp/dl/stbridge';
 
 /**
@@ -45,7 +49,7 @@ export function querySelector(xmlDoc, selector, namespaceURI = STB_NAMESPACE) {
 
     return null;
   } catch (error) {
-    console.warn(`querySelector error for selector "${selector}":`, error);
+    log.warn(`querySelector error for selector "${selector}":`, error);
     return null;
   }
 }
@@ -98,7 +102,7 @@ export function querySelectorAll(xmlDoc, selector, namespaceURI = STB_NAMESPACE)
 
     return results;
   } catch (error) {
-    console.warn(`querySelectorAll error for selector "${selector}":`, error);
+    log.warn(`querySelectorAll error for selector "${selector}":`, error);
     return [];
   }
 }
@@ -135,7 +139,7 @@ export function getElementByTagNameWithFallback(xmlDoc, tagName, namespaceURI = 
     // 空のコレクションを返す
     return xmlDoc.getElementsByTagName('_nonexistent_tag_');
   } catch (error) {
-    console.warn(`getElementByTagNameWithFallback error for tagName "${tagName}":`, error);
+    log.warn(`getElementByTagNameWithFallback error for tagName "${tagName}":`, error);
     return xmlDoc.getElementsByTagName('_nonexistent_tag_');
   }
 }
@@ -186,7 +190,7 @@ export function getAttributeValue(element, attributeName, defaultValue = '') {
     // Handle both null (standard DOM) and empty string (@xmldom/xmldom)
     return value !== null && value !== '' ? value : defaultValue;
   } catch (error) {
-    console.warn(`getAttributeValue error for attribute "${attributeName}":`, error);
+    log.warn(`getAttributeValue error for attribute "${attributeName}":`, error);
     return defaultValue;
   }
 }

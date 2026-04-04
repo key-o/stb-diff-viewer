@@ -11,6 +11,10 @@
  */
 
 // --- Global UI State ---
+
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('ui:state');
 let allLabels = []; // All label objects
 let currentStories = []; // Current story information
 let currentAxesData = { xAxes: [], yAxes: [] }; // Current axis information
@@ -156,7 +160,7 @@ function notifyStateChange() {
     try {
       listener(currentState);
     } catch (error) {
-      console.error('Error in state change listener:', error);
+      log.error('Error in state change listener:', error);
     }
   });
 }

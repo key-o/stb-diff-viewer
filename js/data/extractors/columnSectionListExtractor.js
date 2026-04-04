@@ -18,6 +18,9 @@ import {
   extractBaseSymbol,
   compareSymbols,
 } from './sectionListUtils.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('data:extractors:columnSectionListExtractor');
 
 /**
  * StbColumn一覧を抽出（RC柱のみ）
@@ -235,11 +238,30 @@ function extractRectBarInfo(rectBar, result) {
   result.mainBar.dtY = dtY;
 
   // 芯鉄筋（中子筋）
-  const nCoreX =
+  // N_core_X/Y（旧形式）→ N_axial（v2.0.2合計本数）の順でフォールバック
+  let nCoreX =
     parseInt(rectBar.getAttribute('N_core_X') || rectBar.getAttribute('count_2nd_X')) || 0;
-  const nCoreY =
+  let nCoreY =
     parseInt(rectBar.getAttribute('N_core_Y') || rectBar.getAttribute('count_2nd_Y')) || 0;
-  const dCore = rectBar.getAttribute('D_core') || rectBar.getAttribute('dia_2nd');
+
+  // N_axial（方向分離なし合計本数）の場合、X/Yに均等分配
+  if (nCoreX === 0 && nCoreY === 0) {
+    const nAxial = parseInt(rectBar.getAttribute('N_axial')) || 0;
+    if (nAxial > 0) {
+      // 各辺に均等分配（4辺に分ける）
+      const perSide = Math.floor(nAxial / 4);
+      const remainder = nAxial % 4;
+      // X方向辺（左右の辺）に perSide 本ずつ、Y方向辺（上下の辺）にも perSide 本ずつ
+      // 余りはX/Yに交互に分配
+      nCoreX = perSide * 2 + (remainder >= 2 ? 1 : 0) + (remainder >= 4 ? 1 : 0);
+      nCoreY = perSide * 2 + (remainder >= 1 ? 1 : 0) + (remainder >= 3 ? 1 : 0);
+    }
+  }
+
+  const dCore =
+    rectBar.getAttribute('D_core') ||
+    rectBar.getAttribute('D_axial') ||
+    rectBar.getAttribute('dia_2nd');
   const corePosition =
     parseFloat(rectBar.getAttribute('pos_core') || rectBar.getAttribute('pitch_2nd_X')) || 0;
 
@@ -404,13 +426,13 @@ export function extractColumnSectionList(xmlDoc) {
     };
   }
 
-  console.log('[extractColumnSectionList] Starting extraction...');
+  log.info('[extractColumnSectionList] Starting extraction...');
 
   // バージョンを検出
   const isV210 = isVersion210(xmlDoc);
   const isV202 = isVersion202(xmlDoc);
 
-  console.log('[extractColumnSectionList] STB Version detected:', { isV210, isV202 });
+  log.info('[extractColumnSectionList] STB Version detected:', { isV210, isV202 });
 
   // バージョンに応じてラベルを決定
   let parserVersion;
@@ -419,7 +441,7 @@ export function extractColumnSectionList(xmlDoc) {
   } else if (isV202) {
     parserVersion = 'v2.0.2';
   } else {
-    console.warn('[extractColumnSectionList] Unknown STB version, using fallback parser');
+    log.warn('[extractColumnSectionList] Unknown STB version, using fallback parser');
     parserVersion = 'fallback';
   }
 
@@ -533,9 +555,16 @@ function convertSectionForRender(section, storyUsages) {
   const { id, name, concrete, dimensions, mainBar, hoop, coreBar } = section;
 
   // 符号名リストを生成（例: "10C1, 9C1"）- 降順（上階から）
+  // story名の末尾サフィックス（SL, F, 階等）を除去し、section名の階プレフィックス（B1, 1 等）を除去して結合
+  // 例: story="B1SL" + section="B1C1" → "B1" + "C1" = "B1C1"
+  //     story="1SL"  + section="C1"   → "1"  + "C1" = "1C1"
   const storyNames = storyUsages
     .sort((a, b) => (b.level || 0) - (a.level || 0))
-    .map((s) => s.name.replace(/[F階]/g, '') + name)
+    .map((s) => {
+      const storyPrefix = s.name.replace(/(?:SL|FL|F|階)+$/i, '');
+      const sectionBase = name.replace(/^B?\d+/, '');
+      return storyPrefix + sectionBase;
+    })
     .join(', ');
 
   // SVGレンダラー用のデータ形式
@@ -575,6 +604,8 @@ function convertSectionForRender(section, storyUsages) {
       dia: hoop.dia,
       pitch: hoop.pitch,
       grade: hoop.grade,
+      countX: hoop.countX || 0,
+      countY: hoop.countY || 0,
     },
 
     // 芯鉄筋
@@ -677,7 +708,7 @@ export function extractColumnSectionGrid(xmlDoc) {
       if (!existing.some((section) => section?.id === row.sectionData?.id)) {
         existing.push(row.sectionData);
         floorMap.set(row.symbol, existing);
-        console.warn(
+        log.warn(
           '[extractColumnSectionGrid] Multiple sections detected in same cell:',
           `${row.storyId}:${row.symbol}`,
           existing.map((section) => section?.id),
@@ -689,7 +720,7 @@ export function extractColumnSectionGrid(xmlDoc) {
     if (existing.id !== row.sectionData.id) {
       const variants = [existing, row.sectionData];
       floorMap.set(row.symbol, variants);
-      console.warn(
+      log.warn(
         '[extractColumnSectionGrid] Multiple sections detected in same cell:',
         `${row.storyId}:${row.symbol}`,
         variants.map((section) => section?.id),

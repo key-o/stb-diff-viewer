@@ -16,14 +16,28 @@ import { SECTION_CONFIG } from '../../section/sectionConfig.js';
 // STB 名前空間（querySelector がヒットしない場合にフォールバック）
 const STB_NS = 'https://www.building-smart.or.jp/dl';
 
+import { createLogger } from '../../../utils/logger.js';
+
+const _log = createLogger('common-stb:extractor:sectionExtractor');
+
 // プロジェクト固有の設定とロガーを直接使用
 const _sectionConfig = SECTION_CONFIG;
 const _logger = {
-  log: () => {},
-  debug: () => {},
-  warn: console.warn,
-  error: console.error,
+  log: (...args) => _log.info(...args),
+  debug: (...args) => _log.debug(...args),
+  warn: (...args) => _log.warn(...args),
+  error: (...args) => _log.error(...args),
 };
+
+const SECTION_RESULT_KEY_ALIASES = {
+  FoundationColumn: ['foundationColumnSections', 'foundationcolumnSections'],
+  IsolatingDevice: ['isolatingDeviceSections', 'isolatingdeviceSections'],
+  DampingDevice: ['dampingDeviceSections', 'dampingdeviceSections'],
+};
+
+function getSectionResultKeys(elementType) {
+  return SECTION_RESULT_KEY_ALIASES[elementType] || [`${elementType.toLowerCase()}Sections`];
+}
 
 /**
  * 全要素タイプの断面データを一括抽出
@@ -40,8 +54,11 @@ export function extractAllSections(xmlDoc) {
 
   // 設定に基づいて各要素タイプを処理
   Object.entries(_sectionConfig).forEach(([elementType, config]) => {
-    const sectionKey = `${elementType.toLowerCase()}Sections`;
-    result[sectionKey] = extractSectionsByType(xmlDoc, elementType, config);
+    const sectionMap = extractSectionsByType(xmlDoc, elementType, config);
+    const keys = getSectionResultKeys(elementType);
+    keys.forEach((sectionKey) => {
+      result[sectionKey] = sectionMap;
+    });
   });
 
   logExtractionResults(result);
@@ -1400,4 +1417,3 @@ function extractSteelFigureOffsetLevel(element, config) {
 
   return null;
 }
-

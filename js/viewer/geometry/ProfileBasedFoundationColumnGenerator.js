@@ -299,7 +299,9 @@ export class ProfileBasedFoundationColumnGenerator extends BaseElementGenerator 
     );
 
     // プロファイル生成（共有ユーティリティを使用）
-    const profileResult = createSectionProfile(sectionData, sectionType, foundationColumn.id, log, { supportCircle: true });
+    const profileResult = createSectionProfile(sectionData, sectionType, foundationColumn.id, log, {
+      supportCircle: true,
+    });
 
     if (!profileResult || !profileResult.shape) {
       log.warn(

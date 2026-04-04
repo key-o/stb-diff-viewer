@@ -11,7 +11,7 @@
 
 import * as THREE from 'three';
 import { createLogger } from '../utils/logger.js';
-import { getState } from '../app/globalState.js';
+import { getViewerState } from './stateProvider.js';
 
 const logger = createLogger('ElementUpdater');
 import { elementGroups } from './core/core.js';
@@ -19,6 +19,8 @@ import { ProfileBasedColumnGenerator } from './geometry/ProfileBasedColumnGenera
 import { ProfileBasedPostGenerator } from './geometry/ProfileBasedPostGenerator.js';
 import { ProfileBasedBeamGenerator } from './geometry/ProfileBasedBeamGenerator.js';
 import { ProfileBasedBraceGenerator } from './geometry/ProfileBasedBraceGenerator.js';
+import { IsolatingDeviceGenerator } from './geometry/IsolatingDeviceGenerator.js';
+import { DampingDeviceGenerator } from './geometry/DampingDeviceGenerator.js';
 import { PileGenerator } from './geometry/PileGenerator.js';
 import { FootingGenerator } from './geometry/FootingGenerator.js';
 import { extractAllSections } from '../common-stb/import/extractor/sectionExtractor.js';
@@ -115,7 +117,9 @@ export async function regenerateElementGeometry(elementType, elementId, modelSou
     }
 
     const doc =
-      modelSource === 'modelA' ? getState('models.documentA') : getState('models.documentB');
+      modelSource === 'modelA'
+        ? getViewerState('models.documentA')
+        : getViewerState('models.documentB');
     if (!doc) {
       logger.error(`Document not found: ${modelSource}`);
       return false;
@@ -195,6 +199,12 @@ async function generateMeshForElement(elementType, elementNode, nodeMap, section
 
       case 'Brace':
         return generateBraceMesh(elementData, nodeMap, sections);
+
+      case 'IsolatingDevice':
+        return generateIsolatingDeviceMesh(elementData, nodeMap, sections);
+
+      case 'DampingDevice':
+        return generateDampingDeviceMesh(elementData, nodeMap, sections);
 
       case 'Pile':
         return generatePileMesh(elementData, nodeMap, sections);
@@ -292,6 +302,38 @@ function generateBraceMesh(braceData, nodeMap, sections) {
     sections.braceSections,
     sections.steelSections,
     'Brace',
+    false,
+  );
+
+  return meshes.length > 0 ? meshes[0] : null;
+}
+
+/**
+ * 免震装置メッシュを生成
+ */
+function generateIsolatingDeviceMesh(deviceData, nodeMap, sections) {
+  const meshes = IsolatingDeviceGenerator.createIsolatingDeviceMeshes(
+    [deviceData],
+    nodeMap,
+    sections.isolatingDeviceSections || sections.isolatingdeviceSections || new Map(),
+    sections.steelSections,
+    'IsolatingDevice',
+    false,
+  );
+
+  return meshes.length > 0 ? meshes[0] : null;
+}
+
+/**
+ * 制振装置メッシュを生成
+ */
+function generateDampingDeviceMesh(deviceData, nodeMap, sections) {
+  const meshes = DampingDeviceGenerator.createDampingDeviceMeshes(
+    [deviceData],
+    nodeMap,
+    sections.dampingDeviceSections || sections.dampingdeviceSections || new Map(),
+    sections.steelSections,
+    'DampingDevice',
     false,
   );
 

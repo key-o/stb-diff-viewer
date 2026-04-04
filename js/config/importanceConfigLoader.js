@@ -3,33 +3,46 @@
  */
 
 import { IMPORTANCE_LEVELS } from '../constants/importanceLevels.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('config:importanceConfigLoader');
 
 /**
  * 利用可能な設定ファイル一覧
+ * mvd-s2.json / mvd-s4.json は新フォーマット（要素名→属性リスト）
  */
 export const AVAILABLE_CONFIGS = [
   {
     id: 'mvd-combined',
     name: 'MVD 統合',
-    path: '../config/importance-mvd-combined.json',
+    path: '../../config/importance-mvd-combined.json',
     description: 'S2/S4 の統合設定',
   },
   {
     id: 's2',
     name: 'MVD S2 (必須)',
-    path: '../config/importance-s2.json',
-    description: 'S2対応項目を必須対象として設定',
+    path: '../../config/mvd-s2.json',
+    description: 'MVD S2 - 通り芯上での配置・大体の部材サイズ確認',
   },
   {
     id: 's4',
     name: 'MVD S4 (任意)',
-    path: '../config/importance-s4.json',
-    description: 'S4対応項目を対象として設定',
+    path: '../../config/mvd-s4.json',
+    description: 'MVD S4 - 入力可能な決定項目',
   },
 ];
 
 /**
  * 外部JSONファイルから重要度設定を読み込む
+ *
+ * 新フォーマット（version: "1.0"）:
+ *   { elements: { StbColumn: { required: ["id", "guid", ...] } } }
+ *   → settings に XPath 形式へ変換して返す
+ *
+ * 旧フォーマット:
+ *   { settings: { "//ST_BRIDGE/.../@attr": "required" } }
+ *   → そのまま返す
+ *
  * @param {string} configPath - 設定ファイルのパス
  * @returns {Promise<Object>} 設定オブジェクト
  */
@@ -41,43 +54,88 @@ export async function loadImportanceConfig(configPath) {
     }
     const config = await response.json();
 
-    // 設定を正規化（文字列からIMPORTANCE_LEVELSの値に変換）
-    const normalizedSettings = {};
-    for (const [path, level] of Object.entries(config.settings || {})) {
-      normalizedSettings[path] = normalizeImportanceLevel(level);
+    // 新フォーマット判定
+    if (config.version === '1.0' && config.elements) {
+      return loadNewFormatConfig(config);
     }
 
-    // パターン設定を正規化
-    const normalizedPatterns = [];
-    if (config.patterns) {
-      for (const [pattern, level] of Object.entries(config.patterns)) {
-        normalizedPatterns.push({
-          contains: pattern,
-          level: normalizeImportanceLevel(level),
-        });
-      }
-    }
-
-    // S2パラメータチェック設定（JSON拡張）
-    const normalizedParameterChecks = {};
-    if (config.parameterChecks && typeof config.parameterChecks === 'object') {
-      for (const [path, options] of Object.entries(config.parameterChecks)) {
-        normalizedParameterChecks[path] = normalizeParameterCheckOptions(options);
-      }
-    }
-
-    return {
-      name: config.name || 'カスタム設定',
-      description: config.description || '',
-      defaultLevel: normalizeImportanceLevel(config.defaultLevel || 'optional'),
-      patterns: normalizedPatterns,
-      settings: normalizedSettings,
-      parameterChecks: normalizedParameterChecks,
-    };
+    // 旧フォーマット（後方互換）
+    return loadLegacyFormatConfig(config);
   } catch (error) {
-    console.error('[ImportanceConfigLoader] 設定ファイルの読み込みエラー:', error);
+    log.error('[ImportanceConfigLoader] 設定ファイルの読み込みエラー:', error);
     throw error;
   }
+}
+
+/**
+ * 新フォーマット設定を読み込む
+ * elements: { StbColumn: { required: ["id", "guid"] } } → settings Map
+ * @param {Object} config
+ * @returns {Object}
+ */
+function loadNewFormatConfig(config) {
+  // elements から XPath 形式の settings を生成
+  // キー: "//ST_BRIDGE/{ElementName}/@{attrName}"
+  // 値: IMPORTANCE_LEVELS.REQUIRED
+  const settings = {};
+  for (const [elementName, elementDef] of Object.entries(config.elements || {})) {
+    const targetAttrs = [...(elementDef.required || []), ...(elementDef.conditional || [])];
+    for (const attrName of targetAttrs) {
+      const path = `//ST_BRIDGE/${elementName}/@${attrName}`;
+      settings[path] = IMPORTANCE_LEVELS.REQUIRED;
+    }
+  }
+
+  return {
+    name: config.description || `MVD ${config.mvdLevel?.toUpperCase() || ''}`,
+    description: config.description || '',
+    defaultLevel: IMPORTANCE_LEVELS.OPTIONAL,
+    patterns: [],
+    settings,
+    parameterChecks: {},
+    // 新フォーマット固有のデータも保持（将来の拡張用）
+    elements: config.elements,
+    mvdLevel: config.mvdLevel,
+    schemaVersion: config.schemaVersion,
+  };
+}
+
+/**
+ * 旧フォーマット設定を読み込む（後方互換）
+ * @param {Object} config
+ * @returns {Object}
+ */
+function loadLegacyFormatConfig(config) {
+  const normalizedSettings = {};
+  for (const [path, level] of Object.entries(config.settings || {})) {
+    normalizedSettings[path] = normalizeImportanceLevel(level);
+  }
+
+  const normalizedPatterns = [];
+  if (config.patterns) {
+    for (const [pattern, level] of Object.entries(config.patterns)) {
+      normalizedPatterns.push({
+        contains: pattern,
+        level: normalizeImportanceLevel(level),
+      });
+    }
+  }
+
+  const normalizedParameterChecks = {};
+  if (config.parameterChecks && typeof config.parameterChecks === 'object') {
+    for (const [path, options] of Object.entries(config.parameterChecks)) {
+      normalizedParameterChecks[path] = normalizeParameterCheckOptions(options);
+    }
+  }
+
+  return {
+    name: config.name || 'カスタム設定',
+    description: config.description || '',
+    defaultLevel: normalizeImportanceLevel(config.defaultLevel || 'optional'),
+    patterns: normalizedPatterns,
+    settings: normalizedSettings,
+    parameterChecks: normalizedParameterChecks,
+  };
 }
 
 /**
@@ -131,9 +189,9 @@ export async function loadConfigById(configId) {
     throw new Error(`不明な設定ID: ${configId}`);
   }
 
-  // パスをベースURLから計算
-  const basePath = import.meta.url.replace(/\/[^/]+$/, '');
-  const fullPath = new URL(configInfo.path, basePath).href;
+  // import.meta.url（このファイル自身）を基準に相対パスを解決する
+  // 末尾スラッシュの有無に依存せず、../.. の解決を安定化する
+  const fullPath = new URL(configInfo.path, import.meta.url).href;
 
   const config = await loadImportanceConfig(fullPath);
 

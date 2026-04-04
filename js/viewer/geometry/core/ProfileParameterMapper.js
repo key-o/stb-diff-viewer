@@ -248,7 +248,12 @@ function getDefaultParams(sectionType) {
       return { overallDepth: 200.0, flangeWidth: 150.0, webThickness: 8.0, flangeThickness: 12.0 };
 
     case 'CROSS_H':
-      return { overallDepthX: 400.0, overallWidthX: 200.0, overallDepthY: 400.0, overallWidthY: 200.0 };
+      return {
+        overallDepthX: 400.0,
+        overallWidthX: 200.0,
+        overallDepthY: 400.0,
+        overallWidthY: 200.0,
+      };
 
     default:
       return { width: 400.0, height: 400.0 };

@@ -7,13 +7,16 @@
  * - 視覚的な差分概要の提供
  */
 
-import { eventBus, ComparisonEvents } from '../../app/events/index.js';
+import { eventBus, ComparisonEvents } from '../../data/events/index.js';
 import { ELEMENT_LABELS } from '../../config/elementLabels.js';
 import {
   getCurrentVersionInfo,
   shouldShowVersionSpecificDifferences,
   setShowVersionSpecificDifferences,
 } from './versionPanel.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:panels:diffSummary');
 
 // 差分一覧ボタンのハンドラ参照（重複登録防止用）
 let diffListBtnHandler = null;
@@ -60,7 +63,7 @@ function updateDiffSummary(comparisonResults) {
   if (versionFilterCheckbox) {
     versionFilterCheckbox.addEventListener('change', (e) => {
       setShowVersionSpecificDifferences(e.target.checked);
-      console.log('[DiffSummary] バージョン差分フィルタ変更:', e.target.checked);
+      log.info('[DiffSummary] バージョン差分フィルタ変更:', e.target.checked);
     });
   }
 }
@@ -227,5 +230,5 @@ export function setupDiffSummaryEventListeners() {
     }
   });
 
-  console.log('Diff summary event listeners set up');
+  log.info('Diff summary event listeners set up');
 }

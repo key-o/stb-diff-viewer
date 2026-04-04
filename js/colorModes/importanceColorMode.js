@@ -8,10 +8,65 @@
 
 import { getState } from '../app/globalState.js';
 import { UI_TIMING } from '../config/uiTimingConfig.js';
-import { eventBus, ImportanceEvents, ComparisonEvents } from '../app/events/index.js';
+import { IMPORTANCE_LEVELS } from '../constants/importanceLevels.js';
+import { eventBus, ImportanceEvents, ComparisonEvents } from '../data/events/index.js';
 import { colorManager, applyImportanceColorMode } from '../viewer/index.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
 import { elementGroups as viewerElementGroups } from '../viewer/index.js';
+import { createLogger } from '../utils/logger.js';
+import { getEffectiveImportanceLevelForObject } from '../viewer/rendering/materials.js';
+
+const log = createLogger('colorModes:importanceColorMode');
+const IMPORTANCE_DISPLAY_FILTERS = {
+  violation: true,
+  notApplicable: true,
+};
+
+function getImportanceCategoryForObject(object) {
+  const effectiveLevel = getEffectiveImportanceLevelForObject(object);
+  return effectiveLevel === IMPORTANCE_LEVELS.REQUIRED ? 'violation' : 'notApplicable';
+}
+
+function shouldImportanceCategoryBeVisible(category) {
+  return category === 'violation'
+    ? IMPORTANCE_DISPLAY_FILTERS.violation
+    : IMPORTANCE_DISPLAY_FILTERS.notApplicable;
+}
+
+function updateImportanceVisibilitySummary(total, visible) {
+  const visibleCount = document.getElementById('importance-visible-count');
+  const totalCount = document.getElementById('importance-total-count');
+  if (visibleCount) visibleCount.textContent = visible;
+  if (totalCount) totalCount.textContent = total;
+}
+
+export function applyImportanceVisibilityFilterToAll() {
+  const elementGroups = getState('elementGroups') || viewerElementGroups;
+  if (!elementGroups || typeof elementGroups !== 'object') {
+    return;
+  }
+
+  let totalElements = 0;
+  let visibleElements = 0;
+  const groups = Array.isArray(elementGroups) ? elementGroups : Object.values(elementGroups);
+
+  groups.forEach((group) => {
+    if (!group?.traverse) return;
+    group.traverse((object) => {
+      if (!object.isMesh) return;
+      totalElements++;
+      const category = getImportanceCategoryForObject(object);
+      const shouldBeVisible = shouldImportanceCategoryBeVisible(category);
+      object.visible = shouldBeVisible;
+      if (shouldBeVisible) {
+        visibleElements++;
+      }
+    });
+  });
+
+  updateImportanceVisibilitySummary(totalElements, visibleElements);
+  scheduleRender();
+}
 
 /**
  * 重要度色設定UIを初期化
@@ -23,13 +78,11 @@ export function initializeImportanceColorControls() {
   // 重要度設定をインポートして色設定コントロールを生成
   Promise.all([
     import('../app/importanceManager.js'),
-    import('../constants/importanceLevels.js'),
     import('../config/importanceConfigLoader.js'),
     import('../config/colorConfig.js'),
   ]).then(
     ([
       { getImportanceManager },
-      { IMPORTANCE_LEVELS },
       { AVAILABLE_CONFIGS },
       { IMPORTANCE_COLORS: _IMPORTANCE_COLORS },
     ]) => {
@@ -108,10 +161,18 @@ export function initializeImportanceColorControls() {
 
       colorCategories.forEach(({ id, name, level, linkedLevels }) => {
         const color = colorManager.getImportanceColor(level);
+        const filterKey = id === 'violation' ? 'violation' : 'notApplicable';
 
         const item = document.createElement('div');
-        item.className = 'legend-item';
+        item.className = 'legend-item diff-filter-item';
         item.innerHTML = `
+          <input
+            type="checkbox"
+            id="importance-filter-${id}"
+            class="diff-filter-checkbox"
+            ${IMPORTANCE_DISPLAY_FILTERS[filterKey] ? 'checked' : ''}
+            title="${name}を表示"
+          />
           <input
             type="color"
             id="importance-${id}-color"
@@ -125,6 +186,7 @@ export function initializeImportanceColorControls() {
         container.appendChild(item);
 
         const colorInput = item.querySelector(`#importance-${id}-color`);
+        const visibilityCheckbox = item.querySelector(`#importance-filter-${id}`);
 
         // 色変更時、リンクされた全レベルを一括更新
         const handleColorChange = (e) => {
@@ -134,6 +196,22 @@ export function initializeImportanceColorControls() {
 
         colorInput.addEventListener('change', handleColorChange);
         colorInput.addEventListener('input', handleColorChange);
+
+        visibilityCheckbox?.addEventListener('change', (e) => {
+          IMPORTANCE_DISPLAY_FILTERS[filterKey] = e.target.checked;
+          import('./index.js').then(({ getCurrentColorMode, COLOR_MODES }) => {
+            if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
+              applyImportanceVisibilityFilterToAll();
+            }
+          });
+        });
+
+        item.addEventListener('click', (e) => {
+          if (e.target.type === 'checkbox' || e.target.type === 'color') return;
+          if (!visibilityCheckbox) return;
+          visibilityCheckbox.checked = !visibilityCheckbox.checked;
+          visibilityCheckbox.dispatchEvent(new Event('change'));
+        });
       });
 
       // リセットボタンを追加
@@ -147,6 +225,21 @@ export function initializeImportanceColorControls() {
       resetButton.style.width = '100%';
       resetButton.addEventListener('click', () => resetImportanceColors());
       container.appendChild(resetButton);
+
+      const summary = document.createElement('div');
+      summary.className = 'diff-filter-summary';
+      summary.style.marginTop = '10px';
+      summary.innerHTML =
+        '表示中: <strong id="importance-visible-count">0</strong> / <span id="importance-total-count">0</span>';
+      container.appendChild(summary);
+
+      import('./index.js').then(({ getCurrentColorMode, COLOR_MODES }) => {
+        if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
+          applyImportanceVisibilityFilterToAll();
+        } else {
+          updateImportanceVisibilitySummary(0, 0);
+        }
+      });
     },
   );
 }
@@ -258,7 +351,7 @@ export function setupImportanceChangeListeners() {
 export function applyImportanceColorModeToAll() {
   const elementGroups = getState('elementGroups') || viewerElementGroups;
   if (!elementGroups || typeof elementGroups !== 'object') {
-    console.warn('[ImportanceColorMode] elementGroups not found in global state');
+    log.warn('[ImportanceColorMode] elementGroups not found in global state');
     return;
   }
 
@@ -268,7 +361,7 @@ export function applyImportanceColorModeToAll() {
 
   // グループが空の場合は警告を出して終了
   if (groups.length === 0 || groups.every((g) => !g || (g.children && g.children.length === 0))) {
-    console.warn(
+    log.warn(
       '[ImportanceColorMode] No element groups or empty groups - model may not be loaded yet',
     );
     return;
@@ -288,13 +381,13 @@ export function applyImportanceColorModeToAll() {
   const objectCount = allObjects.length;
 
   if (objectCount === 0) {
-    console.warn(
+    log.warn(
       '[ImportanceColorMode] No meshes found in elementGroups - model may not be loaded yet',
     );
     return;
   }
 
-  console.log(`[ImportanceColorMode] Applying importance colors to ${objectCount} objects`);
+  log.info(`[ImportanceColorMode] Applying importance colors to ${objectCount} objects`);
   const useBatchProcessing = objectCount > 200;
 
   if (useBatchProcessing) {
@@ -305,6 +398,7 @@ export function applyImportanceColorModeToAll() {
         delay: 5,
       };
 
+      applyImportanceVisibilityFilterToAll();
       applyImportanceColorModeBatch(allObjects, batchOptions);
     });
   } else {
@@ -313,8 +407,7 @@ export function applyImportanceColorModeToAll() {
       applyImportanceColorMode(object);
     });
 
-    // 再描画をリクエスト
-    scheduleRender();
+    applyImportanceVisibilityFilterToAll();
   }
 }
 

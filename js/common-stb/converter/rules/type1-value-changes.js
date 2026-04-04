@@ -5,7 +5,7 @@
 
 import logger from '../utils/converter-logger.js';
 
-// Root element names (both forms are valid)
+// The schema uses ST_BRIDGE. We also tolerate legacy/non-standard ST-Bridge input.
 const ROOT_ELEMENT_NAMES = ['ST-Bridge', 'ST_BRIDGE'];
 
 /**
@@ -24,7 +24,7 @@ export function getRootElement(stbRoot) {
 
 /**
  * Update version attribute from 2.0.2 to 2.1.0
- * Also ensures app_version attribute exists in StbCommon
+ * Also backfills missing metadata for non-conforming legacy input
  * @param {object} stbRoot - ST-Bridge root element
  */
 export function updateVersionTo210(stbRoot) {
@@ -36,15 +36,13 @@ export function updateVersionTo210(stbRoot) {
     logger.info(`Version updated: ${currentVersion} -> 2.1.0`);
   }
 
-  // Ensure required attributes exist in StbCommon (required in 2.1.0)
+  // Both v2.0.2 and v2.1.0 require these attributes, but some legacy files omit them.
   const stbCommon = rootData?.['StbCommon']?.[0];
   if (stbCommon?.['$']) {
-    // app_version is required in 2.1.0
     if (!stbCommon['$']['app_version']) {
       stbCommon['$']['app_version'] = '1.0.0';
       logger.info('Added app_version attribute to StbCommon');
     }
-    // project_name is required in 2.1.0
     if (!stbCommon['$']['project_name']) {
       stbCommon['$']['project_name'] = 'Untitled Project';
       logger.info('Added project_name attribute to StbCommon');

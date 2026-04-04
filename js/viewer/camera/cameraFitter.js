@@ -21,11 +21,11 @@ let _interactionModule = null;
 /**
  * app/interaction モジュールを遅延取得する。
  * 初回呼び出し時にdynamic importを発火し、以降はキャッシュを返す。
- * 呼び出し時点では app/interaction.js は既にロード済みのため即座に解決される。
+ * 呼び出し時点では app/controllers/interactionController.js は既にロード済みのため即座に解決される。
  */
 async function _getInteractionModule() {
   if (!_interactionModule) {
-    _interactionModule = await import('../../app/interaction.js');
+    _interactionModule = await import('../../app/controllers/interactionController.js');
   }
   return _interactionModule;
 }

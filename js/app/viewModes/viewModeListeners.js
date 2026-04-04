@@ -23,7 +23,7 @@ import {
 } from './elementRedrawer.js';
 import { updateLabelVisibility } from '../../ui/viewer3d/unifiedLabelManager.js';
 import { updateStbExportStatus } from '../dxfLoader.js';
-import { getState, setState } from '../globalState.js';
+import { getState } from '../globalState.js';
 import {
   isVisibleByStructuralFilter,
   setStructuralSystemVisible,
@@ -97,6 +97,33 @@ export function setBeamViewMode(mode, scheduleRender) {
  */
 export function setBraceViewMode(mode, scheduleRender) {
   setElementViewMode('Brace', mode, scheduleRender);
+}
+
+/**
+ * 免震装置の表示モードを設定
+ * @param {string} mode - "line" または "solid"
+ * @param {Function} scheduleRender - 再描画要求関数
+ */
+export function setIsolatingDeviceViewMode(mode, scheduleRender) {
+  setElementViewMode('IsolatingDevice', mode, scheduleRender);
+}
+
+/**
+ * ダンパーの表示モードを設定
+ * @param {string} mode - "line" または "solid"
+ * @param {Function} scheduleRender - 再描画要求関数
+ */
+export function setDampingDeviceViewMode(mode, scheduleRender) {
+  setElementViewMode('DampingDevice', mode, scheduleRender);
+}
+
+/**
+ * 制振装置フレームの表示モードを設定
+ * @param {string} mode - "line" または "solid"
+ * @param {Function} scheduleRender - 再描画要求関数
+ */
+export function setFrameDampingDeviceViewMode(mode, scheduleRender) {
+  setElementViewMode('FrameDampingDevice', mode, scheduleRender);
 }
 
 /**
@@ -357,6 +384,24 @@ export function setupViewModeListeners(scheduleRender) {
   // その他の要素タイプの表示切替リスナー（立体表示チェックボックスと連動）
   const elementToggleIds = [
     { id: 'toggleBraceView', type: 'Brace', name: 'ブレース', solidViewId: 'toggleBrace3DView' },
+    {
+      id: 'toggleIsolatingDeviceView',
+      type: 'IsolatingDevice',
+      name: '免震装置',
+      solidViewId: 'toggleIsolatingDevice3DView',
+    },
+    {
+      id: 'toggleDampingDeviceView',
+      type: 'DampingDevice',
+      name: 'ダンパー',
+      solidViewId: 'toggleDampingDevice3DView',
+    },
+    {
+      id: 'toggleFrameDampingDeviceView',
+      type: 'FrameDampingDevice',
+      name: '制振装置フレーム',
+      solidViewId: 'toggleFrameDampingDevice3DView',
+    },
     { id: 'togglePileView', type: 'Pile', name: '杭', solidViewId: 'togglePile3DView' },
     { id: 'toggleFootingView', type: 'Footing', name: '基礎' },
     { id: 'toggleFoundationColumnView', type: 'FoundationColumn', name: '基礎柱' },

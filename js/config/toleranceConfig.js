@@ -27,6 +27,9 @@ export const DEFAULT_TOLERANCE_CONFIG = {
     z: 5.0,
   },
 
+  // 属性値の数値比較しきい値（rotate, offset_X 等の数値属性に適用）
+  attributeNumericTolerance: 0.001,
+
   // 許容差機能の有効/無効
   enabled: true,
 
@@ -38,7 +41,11 @@ export const DEFAULT_TOLERANCE_CONFIG = {
  * 現在の許容差設定を保持
  * @type {Object}
  */
-let currentToleranceConfig = { ...DEFAULT_TOLERANCE_CONFIG };
+let currentToleranceConfig = {
+  ...DEFAULT_TOLERANCE_CONFIG,
+  basePoint: { ...DEFAULT_TOLERANCE_CONFIG.basePoint },
+  offset: { ...DEFAULT_TOLERANCE_CONFIG.offset },
+};
 
 /**
  * 許容差設定を取得
@@ -78,6 +85,10 @@ export function setToleranceConfig(config) {
   if (typeof config.strictMode === 'boolean') {
     currentToleranceConfig.strictMode = config.strictMode;
   }
+
+  if (typeof config.attributeNumericTolerance === 'number') {
+    currentToleranceConfig.attributeNumericTolerance = config.attributeNumericTolerance;
+  }
 }
 
 /**
@@ -89,6 +100,7 @@ export function resetToleranceConfig() {
     offset: { ...DEFAULT_TOLERANCE_CONFIG.offset },
     enabled: DEFAULT_TOLERANCE_CONFIG.enabled,
     strictMode: DEFAULT_TOLERANCE_CONFIG.strictMode,
+    attributeNumericTolerance: DEFAULT_TOLERANCE_CONFIG.attributeNumericTolerance,
   };
 }
 
@@ -123,6 +135,16 @@ export function validateToleranceConfig(config) {
     }
     if (typeof config.offset.z !== 'number' || config.offset.z < 0) {
       errors.push('offset.z must be a non-negative number');
+    }
+  }
+
+  // 属性値しきい値の検証
+  if (config.attributeNumericTolerance !== undefined) {
+    if (
+      typeof config.attributeNumericTolerance !== 'number' ||
+      config.attributeNumericTolerance < 0
+    ) {
+      errors.push('attributeNumericTolerance must be a non-negative number');
     }
   }
 

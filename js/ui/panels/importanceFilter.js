@@ -14,7 +14,7 @@
 
 import { IMPORTANCE_LEVELS } from '../../constants/importanceLevels.js';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
-import { eventBus, ImportanceEvents, ComparisonEvents } from '../../app/events/index.js';
+import { eventBus, ImportanceEvents, ComparisonEvents } from '../../data/events/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { BaseFilter } from './BaseFilter.js';
 
@@ -76,17 +76,17 @@ export class ImportanceFilter extends BaseFilter {
    * イベントリスナーを設定
    */
   setupEventListeners() {
-    eventBus.on(ImportanceEvents.FILTER_CHANGED, (data) => {
-      this.handleFilterChange(data);
+    eventBus.on(ImportanceEvents.FILTER_CHANGED, (_data) => {
+      this.handleFilterChange(_data);
     });
 
-    eventBus.on(ImportanceEvents.SETTINGS_CHANGED, (data) => {
+    eventBus.on(ImportanceEvents.SETTINGS_CHANGED, (_data) => {
       if (this.isEnabled) {
         this.applyFilter();
       }
     });
 
-    eventBus.on(ComparisonEvents.UPDATE_STATISTICS, (data) => {
+    eventBus.on(ComparisonEvents.UPDATE_STATISTICS, (_data) => {
       if (this.isEnabled) {
         setTimeout(() => this.applyFilter(), UI_TIMING.FILTER_APPLY_DELAY_MS);
       }
@@ -278,7 +278,7 @@ export class FilterStatusIndicator {
     }
   }
 
-  updateDisplay(details = {}) {
+  updateDisplay(_details = {}) {
     if (!this.filter) return;
 
     const stats = this.filter.getStats();

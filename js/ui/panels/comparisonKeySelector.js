@@ -15,6 +15,9 @@ import {
 import comparisonKeyManager from '../../app/comparisonKeyManager.js';
 import { COMPARISON_KEY_EVENTS } from '../../constants/eventTypes.js';
 import { showError } from '../common/toast.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:panels:comparisonKeySelector');
 
 /**
  * 比較キー選択UIを初期化する
@@ -24,7 +27,7 @@ import { showError } from '../common/toast.js';
 export function initializeComparisonKeySelector(containerSelector, onKeyTypeChanged) {
   const container = document.querySelector(containerSelector);
   if (!container) {
-    console.warn(`[ComparisonKeySelector] Container not found: ${containerSelector}`);
+    log.warn(`[ComparisonKeySelector] Container not found: ${containerSelector}`);
     return;
   }
 
@@ -52,7 +55,7 @@ function createSelectorHTML(currentKeyType) {
       </div>
       <div class="selector-options">
         ${Object.entries(COMPARISON_KEY_TYPE)
-          .map(([key, value]) => {
+          .map(([_key, value]) => {
             const isChecked = value === currentKeyType ? 'checked' : '';
             const label = COMPARISON_KEY_TYPE_LABELS[value];
             const description = COMPARISON_KEY_TYPE_DESCRIPTIONS[value];
@@ -113,7 +116,7 @@ function setupEventListeners(container, onKeyTypeChanged) {
  */
 async function handleKeyTypeChange(newKeyType, onKeyTypeChanged) {
   try {
-    console.info(`[ComparisonKeySelector] requested key type change: ${newKeyType}`);
+    log.info(`[ComparisonKeySelector] requested key type change: ${newKeyType}`);
 
     // ComparisonKeyManagerに設定を保存（これによりイベントが発火される）
     const success = comparisonKeyManager.setKeyType(newKeyType);
@@ -126,10 +129,10 @@ async function handleKeyTypeChange(newKeyType, onKeyTypeChanged) {
     if (typeof onKeyTypeChanged === 'function') {
       await onKeyTypeChanged(newKeyType);
     } else {
-      console.warn('[ComparisonKeySelector] No callback provided for key type change');
+      log.warn('[ComparisonKeySelector] No callback provided for key type change');
     }
   } catch (error) {
-    console.error('[ComparisonKeySelector] Failed to change key type:', error);
+    log.error('[ComparisonKeySelector] Failed to change key type:', error);
     showError('比較キータイプの変更に失敗しました。詳細はコンソールを確認してください。');
   }
 }

@@ -112,6 +112,7 @@ export class IFCWallExporter extends IFCExporterBase {
       height,
       thickness,
       predefinedType,
+      kindStructure: wallElement.kind_structure || 'RC',
       openings,
     });
   }
@@ -151,7 +152,7 @@ export class IFCWallExporter extends IFCExporterBase {
       }
     } else {
       // STB 2.1.0の場合: id_memberを使用して壁と開口を関連付け
-      for (const [_openId, opening] of openingElements) {
+      for (const [, opening] of openingElements) {
         if (
           opening.kind_member === 'WALL' &&
           String(opening.id_member) === String(wallElement.id)

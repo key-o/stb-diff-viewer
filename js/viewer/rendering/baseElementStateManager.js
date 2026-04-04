@@ -107,11 +107,11 @@ class BaseElementStateManager {
 
   /**
    * 状態の妥当性をチェック（サブクラスでオーバーライド可能）
-   * @param {*} state - チェックする状態値
+   * @param {*} _state - チェックする状態値
    * @returns {boolean} 妥当ならtrue
    * @protected
    */
-  _validateState(state) {
+  _validateState(_state) {
     // デフォルトでは常にtrue（サブクラスでオーバーライドして使用）
     return true;
   }

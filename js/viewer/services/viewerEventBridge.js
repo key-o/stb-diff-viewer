@@ -7,11 +7,15 @@
  * @module viewer/services/viewerEventBridge
  */
 
-import { eventBus, AxisEvents, RenderEvents } from '../../app/events/index.js';
+import { eventBus } from '../../data/events/eventBus.js';
+import { AxisEvents, RenderEvents } from '../../constants/eventTypes.js';
 import { drawAxes, elementGroups } from '../index.js';
 import { getCameraMode } from '../camera/cameraManagerImpl.js';
 import { CAMERA_MODES } from '../../constants/displayModes.js';
 import { scheduleRender } from '../../utils/renderScheduler.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('viewer:services:viewerEventBridge');
 
 /**
  * ViewerEventBridge - UI層とViewer層の間のイベントブリッジ
@@ -26,7 +30,7 @@ class ViewerEventBridge {
    */
   initialize() {
     if (this.initialized) {
-      console.warn('[ViewerEventBridge] Already initialized');
+      log.warn('[ViewerEventBridge] Already initialized');
       return;
     }
 
@@ -63,7 +67,7 @@ class ViewerEventBridge {
   }) {
     const axisGroup = elementGroups['Axis'];
     if (!axisGroup) {
-      console.warn('[ViewerEventBridge] Axis group not found');
+      log.warn('[ViewerEventBridge] Axis group not found');
       return;
     }
 

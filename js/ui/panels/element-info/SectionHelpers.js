@@ -6,6 +6,19 @@
  */
 
 import { getState } from '../../../app/globalState.js';
+import { SECTION_CONFIG } from '../../../common-stb/section/sectionConfig.js';
+
+const SECTION_LOOKUP_ALIASES = {
+  FrameDampingDevice: 'DampingDevice',
+};
+
+function getLookupElementType(elementType) {
+  if (!elementType) {
+    return null;
+  }
+
+  return SECTION_LOOKUP_ALIASES[elementType] || elementType;
+}
 
 /**
  * 指定されたドキュメントの StbSections 内から、指定IDを持つ断面要素を検索する。
@@ -13,12 +26,30 @@ import { getState } from '../../../app/globalState.js';
  * @param {string} sectionId - 検索する断面ID。
  * @returns {Element | null} 見つかった断面要素、または null。
  */
-export function findSectionNode(doc, sectionId) {
+export function findSectionNode(doc, sectionId, elementType = null) {
   if (!doc || !sectionId) {
     return null;
   }
-  // StbSections 内のすべての直接の子要素から ID で検索
-  return doc.querySelector(`StbSections > *[id="${sectionId}"]`);
+
+  const sectionsRoot = doc.querySelector('StbSections');
+  if (!sectionsRoot) {
+    return null;
+  }
+
+  const sectionElements = Array.from(sectionsRoot.children || []);
+  const lookupElementType = getLookupElementType(elementType);
+  const selectors = lookupElementType ? SECTION_CONFIG[lookupElementType]?.selectors : null;
+
+  if (selectors?.length) {
+    const matchedSection = sectionElements.find(
+      (element) => selectors.includes(element.tagName) && element.getAttribute('id') === sectionId,
+    );
+    if (matchedSection) {
+      return matchedSection;
+    }
+  }
+
+  return sectionElements.find((element) => element.getAttribute('id') === sectionId) || null;
 }
 
 /**
@@ -215,7 +246,7 @@ export function buildElementDataForLabels(elementType, elementNode, doc) {
 
   const sectionId = elementNode.getAttribute('id_section');
   if (doc && sectionId) {
-    const sectionNode = findSectionNode(doc, sectionId);
+    const sectionNode = findSectionNode(doc, sectionId, elementType);
     if (sectionNode) {
       data.sectionData = extractSectionData(sectionNode);
     }

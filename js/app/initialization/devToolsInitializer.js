@@ -3,6 +3,8 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
+import { getState } from '../globalState.js';
+import { getLoadDisplayManager } from '../../viewer/index.js';
 
 const log = createLogger('devToolsInitializer');
 
@@ -69,12 +71,12 @@ export function setupDevelopmentTools() {
     const loadManager = getLoadDisplayManager();
 
     console.group('🔍 荷重データ診断');
-    console.log('models.calDataA:', calDataA);
-    console.log('models.calDataB:', calDataB);
-    console.log('LoadDisplayManager:', loadManager);
+    log.info('models.calDataA:', calDataA);
+    log.info('models.calDataB:', calDataB);
+    log.info('LoadDisplayManager:', loadManager);
 
     if (calDataA) {
-      console.log('モデルA荷重統計:', {
+      log.info('モデルA荷重統計:', {
         荷重ケース数: calDataA.loadCases?.length,
         部材荷重数: calDataA.memberLoads?.length,
         荷重配置: {

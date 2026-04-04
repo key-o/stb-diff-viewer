@@ -100,13 +100,14 @@ export class RcColumnVisualRenderer {
 
     const coverScaled = cover * scale;
 
-    // 帯筋描画
+    // 帯筋描画（外周フープ + 多脚中間フープ）
     if (hoop && hoop.dia) {
       const hoopLeft = rectX + coverScaled - 3;
       const hoopRight = rectX + rectW - coverScaled + 3;
       const hoopTop = rectY + coverScaled - 3;
       const hoopBottom = rectY + rectH - coverScaled + 3;
 
+      // 外周フープ
       svg.appendChild(
         createSvgElement('rect', {
           x: hoopLeft,
@@ -118,6 +119,48 @@ export class RcColumnVisualRenderer {
           'stroke-width': 1.5,
         }),
       );
+
+      // 多脚フープ（中間フープ線）
+      const bandCountX = hoop.countX || 0;
+      const bandCountY = hoop.countY || 0;
+
+      // X方向の帯筋が3本以上 → 外周矩形(2本)を除いた中間フープ線を描画
+      if (bandCountX > 2) {
+        const innerLegs = bandCountX - 2;
+        for (let i = 1; i <= innerLegs; i++) {
+          const y = hoopTop + ((hoopBottom - hoopTop) * i) / (innerLegs + 1);
+          svg.appendChild(
+            createSvgElement('line', {
+              x1: hoopLeft,
+              y1: y,
+              x2: hoopRight,
+              y2: y,
+              stroke: '#999',
+              'stroke-width': 1,
+              'stroke-dasharray': '3,2',
+            }),
+          );
+        }
+      }
+
+      // Y方向の帯筋が3本以上 → 外周矩形(2本)を除いた中間フープ線を描画
+      if (bandCountY > 2) {
+        const innerLegs = bandCountY - 2;
+        for (let i = 1; i <= innerLegs; i++) {
+          const x = hoopLeft + ((hoopRight - hoopLeft) * i) / (innerLegs + 1);
+          svg.appendChild(
+            createSvgElement('line', {
+              x1: x,
+              y1: hoopTop,
+              x2: x,
+              y2: hoopBottom,
+              stroke: '#999',
+              'stroke-width': 1,
+              'stroke-dasharray': '3,2',
+            }),
+          );
+        }
+      }
     }
 
     // 主筋配置
@@ -267,36 +310,39 @@ export class RcColumnVisualRenderer {
     const countX = coreBar.countX || 0;
     const countY = coreBar.countY || 0;
     const dia = coreBar.dia || 'D25';
-    const barRadius = this.settings.barRadius;
 
-    // 芯鉄筋の位置（主筋の内側）
-    const coreOffset = coreBar.position || coverScaled + barRadius * 3;
+    // 芯鉄筋の位置（主筋の内側、フープの内側に配置）
+    const br = this.settings.barRadius;
+    const xLeft = rectX + coverScaled + br;
+    const xRight = rectX + rectW - coverScaled - br;
+    const yTop = rectY + coverScaled + br;
+    const yBottom = rectY + rectH - coverScaled - br;
 
-    const xLeft = rectX + coreOffset;
-    const xRight = rectX + rectW - coreOffset;
-    const yTop = rectY + coreOffset;
-    const yBottom = rectY + rectH - coreOffset;
+    const coreScale = this.settings.barScale * 0.9;
 
-    const centerX = rectX + rectW / 2;
-    const centerY = rectY + rectH / 2;
-
-    // X方向芯筋（縦方向に配置）
+    // countX: X方向の芯筋 → 左辺・右辺に半分ずつ縦方向に配置
     if (countX > 0) {
-      const spacingY = (yBottom - yTop) / (countX + 1);
-      for (let i = 1; i <= countX; i++) {
+      const perSide = Math.ceil(countX / 2);
+      const spacingY = (yBottom - yTop) / (perSide + 1);
+      for (let i = 1; i <= perSide; i++) {
         const y = yTop + spacingY * i;
-        placeBarSymbol(svg, dia, centerX, y, this.settings.barScale * 0.9);
+        placeBarSymbol(svg, dia, xLeft, y, coreScale);
+        // 残り本数がある限り右辺にも配置
+        if (i + perSide <= countX) {
+          placeBarSymbol(svg, dia, xRight, y, coreScale);
+        }
       }
     }
 
-    // Y方向芯筋（横方向に配置）
+    // countY: Y方向の芯筋 → 上辺・下辺に半分ずつ横方向に配置
     if (countY > 0) {
-      const spacingX = (xRight - xLeft) / (countY + 1);
-      for (let i = 1; i <= countY; i++) {
+      const perSide = Math.ceil(countY / 2);
+      const spacingX = (xRight - xLeft) / (perSide + 1);
+      for (let i = 1; i <= perSide; i++) {
         const x = xLeft + spacingX * i;
-        // X方向と重複しないように中央は避ける
-        if (countX === 0 || Math.abs(x - centerX) > barRadius * 2) {
-          placeBarSymbol(svg, dia, x, centerY, this.settings.barScale * 0.9);
+        placeBarSymbol(svg, dia, x, yTop, coreScale);
+        if (i + perSide <= countY) {
+          placeBarSymbol(svg, dia, x, yBottom, coreScale);
         }
       }
     }

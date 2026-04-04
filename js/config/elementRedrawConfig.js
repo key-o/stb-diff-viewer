@@ -106,6 +106,46 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     },
   ],
 
+  // 免震装置（2ノード: start-end）
+  [
+    'IsolatingDevice',
+    {
+      elementType: 'IsolatingDevice',
+      stbTagName: 'StbIsolatingDevice',
+      nodeStartAttr: 'id_node_start',
+      nodeEndAttr: 'id_node_end',
+      elementsKey: 'isolatingDeviceElements',
+      sectionsKey: 'isolatingDeviceSections',
+    },
+  ],
+
+  // 制振装置（2ノード: start-end）
+  [
+    'DampingDevice',
+    {
+      elementType: 'DampingDevice',
+      stbTagName: 'StbDampingDevice',
+      nodeStartAttr: 'id_node_start',
+      nodeEndAttr: 'id_node_end',
+      elementsKey: 'dampingDeviceElements',
+      sectionsKey: 'dampingDeviceSections',
+    },
+  ],
+
+  // 制振装置（フレーム）（4ノード面要素）
+  [
+    'FrameDampingDevice',
+    {
+      elementType: 'FrameDampingDevice',
+      stbTagName: 'StbFrameDampingDevice',
+      nodeStartAttr: 'node_ids',
+      nodeEndAttr: null,
+      elementsKey: 'frameDampingDeviceElements',
+      sectionsKey: 'dampingDeviceSections',
+      supportsLineMode: true,
+    },
+  ],
+
   // 杭（2ノード: bottom-top）
   [
     'Pile',

@@ -10,35 +10,111 @@ import logger from '../utils/converter-logger.js';
 import { getStbRoot } from '../utils/xml-helper.js';
 
 /**
- * Old v2.0.2 element names in StbApplyConditionsList that don't exist in v2.1.0
- * These are restructured to StbApplyConditionList_RC/StbApplyConditionList_S in v2.1.0
+ * Legacy v2.0.2 apply-condition elements and their v2.1.0 destinations.
+ * Some legacy attributes such as set_default have no direct v2.1.0 equivalent.
  */
-const V202_APPLY_CONDITIONS_ELEMENTS = [
-  'StbColumn_RC_RebarPositionApply',
-  'StbColumn_RC_BarSpacingApply',
-  'StbColumn_SRC_RebarPositionApply',
-  'StbColumn_SRC_BarSpacingApply',
-  'StbBeam_RC_RebarPositionApply',
-  'StbBeam_RC_BarWebApply',
-  'StbBeam_RC_BarSpacingApply',
-  'StbBeam_SRC_RebarPositionApply',
-  'StbBeam_SRC_BarWebApply',
-  'StbBeam_SRC_BarSpacingApply',
-  'StbSlab_RC_BarPositionApply',
-  'StbWall_RC_BarPositionApply',
-  'StbFoundation_RC_BarPositionApply',
-  'StbPile_RC_BarPositionApply',
-  'StbParapet_RC_BarPositionApply',
-];
+const LEGACY_APPLY_CONDITION_MAPPING = {
+  StbColumn_RC_RebarPositionApply: { list: 'RC', target: 'StbApply_RC_Column' },
+  StbColumn_RC_BarSpacingApply: { list: 'RC', target: 'StbApply_RC_Column' },
+  StbColumn_SRC_RebarPositionApply: { list: 'RC', target: 'StbApply_RC_Column' },
+  StbColumn_SRC_BarSpacingApply: { list: 'RC', target: 'StbApply_RC_Column' },
+  StbBeam_RC_RebarPositionApply: { list: 'RC', target: 'StbApply_RC_Beam' },
+  StbBeam_RC_BarWebApply: { list: 'RC', target: 'StbApply_RC_Beam' },
+  StbBeam_RC_BarSpacingApply: { list: 'RC', target: 'StbApply_RC_Beam' },
+  StbBeam_SRC_RebarPositionApply: { list: 'RC', target: 'StbApply_RC_Beam' },
+  StbBeam_SRC_BarWebApply: { list: 'RC', target: 'StbApply_RC_Beam' },
+  StbBeam_SRC_BarSpacingApply: { list: 'RC', target: 'StbApply_RC_Beam' },
+  StbSlab_RC_BarPositionApply: { list: 'RC', target: 'StbApply_RC_Slab' },
+  StbWall_RC_BarPositionApply: { list: 'RC', target: 'StbApply_RC_Wall' },
+  StbFoundation_RC_BarPositionApply: { list: 'RC', target: 'StbApply_RC_Foundation' },
+  StbPile_RC_BarPositionApply: { list: 'RC', target: 'StbApply_RC_Pile' },
+  StbParapet_RC_BarPositionApply: { list: 'RC', target: 'StbApply_RC_General' },
+};
 
-/**
- * v2.0.2 bar beam elements that need conversion to v2.1.0 format
- */
-const V202_BAR_BEAM_ELEMENTS = [
-  'StbSecBarBeam_RC_Same',
-  'StbSecBarBeam_RC_ThreeTypes',
-  'StbSecBarBeam_RC_StartEnd',
-];
+function getLegacyApplyConditionsAttrs(element) {
+  return { ...(element?.['$'] || {}) };
+}
+
+function appendComment(target, message) {
+  if (!message) return;
+  if (target.comment) {
+    target.comment = `${target.comment}; ${message}`;
+  } else {
+    target.comment = message;
+  }
+}
+
+function mergeLegacyApplyAttrs(target, attrs, { preserveAsComment = false, label = null } = {}) {
+  const remaining = { ...attrs };
+  delete remaining.set_default;
+
+  if (preserveAsComment) {
+    const serialized = Object.entries(remaining)
+      .map(([key, value]) => `${key}=${value}`)
+      .join(', ');
+    const prefix = label || 'legacy apply condition';
+    appendComment(target, serialized ? `${prefix}: ${serialized}` : prefix);
+    return;
+  }
+
+  Object.assign(target, remaining);
+}
+
+function restructureApplyConditionsTo210(applyConditionsList) {
+  const rcList = {};
+  const sList = {};
+  let convertedCount = 0;
+  let dataLossCount = 0;
+
+  for (const [oldName, mapping] of Object.entries(LEGACY_APPLY_CONDITION_MAPPING)) {
+    const legacyElement = applyConditionsList[oldName]?.[0];
+    if (!legacyElement) continue;
+
+    const attrs = getLegacyApplyConditionsAttrs(legacyElement);
+    const targetList = mapping.list === 'S' ? sList : rcList;
+    const targetName = mapping.target;
+    const targetAttrs = targetList[targetName]?.[0]?.['$'] || {};
+
+    if (oldName === 'StbFoundation_RC_BarPositionApply') {
+      mergeLegacyApplyAttrs(targetAttrs, attrs, {
+        preserveAsComment: true,
+        label: 'legacy foundation bar position apply',
+      });
+      dataLossCount++;
+    } else if (oldName === 'StbPile_RC_BarPositionApply') {
+      mergeLegacyApplyAttrs(targetAttrs, attrs, {
+        preserveAsComment: true,
+        label: 'legacy pile bar position apply',
+      });
+      dataLossCount++;
+    } else if (oldName === 'StbParapet_RC_BarPositionApply') {
+      mergeLegacyApplyAttrs(targetAttrs, attrs, {
+        preserveAsComment: true,
+        label: 'legacy parapet bar position apply',
+      });
+      dataLossCount++;
+    } else {
+      mergeLegacyApplyAttrs(targetAttrs, attrs);
+      if (attrs.set_default !== undefined) {
+        dataLossCount++;
+      }
+    }
+
+    targetList[targetName] = [{ $: targetAttrs }];
+    delete applyConditionsList[oldName];
+    convertedCount++;
+  }
+
+  if (Object.keys(rcList).length > 0) {
+    applyConditionsList['StbApplyConditionList_RC'] = [rcList];
+  }
+
+  if (Object.keys(sList).length > 0) {
+    applyConditionsList['StbApplyConditionList_S'] = [sList];
+  }
+
+  return { convertedCount, dataLossCount };
+}
 
 /**
  * Convert StbSecBarBeam_RC_Same to StbSecBarBeamSimple format
@@ -127,25 +203,24 @@ export function handleNewElementsTo210(stbRoot) {
   const stbCommon = rootData?.['StbCommon']?.[0];
   const applyConditionsList = stbCommon?.['StbApplyConditionsList']?.[0];
   if (applyConditionsList) {
-    let removedCount = 0;
-    V202_APPLY_CONDITIONS_ELEMENTS.forEach((elemName) => {
-      if (applyConditionsList[elemName]) {
-        delete applyConditionsList[elemName];
-        removedCount++;
-      }
-    });
+    const { convertedCount, dataLossCount } = restructureApplyConditionsTo210(applyConditionsList);
 
-    if (removedCount > 0) {
+    if (convertedCount > 0) {
       logger.info(
-        `Removed ${removedCount} v2.0.2 StbApplyConditionsList child elements (restructured in v2.1.0)`,
+        `Restructured ${convertedCount} v2.0.2 StbApplyConditionsList child elements into v2.1.0 format`,
       );
+    }
 
-      // If no children left, remove the empty StbApplyConditionsList
-      const remainingChildren = Object.keys(applyConditionsList).filter((k) => k !== '$');
-      if (remainingChildren.length === 0) {
-        delete stbCommon['StbApplyConditionsList'];
-        logger.info('Removed empty StbApplyConditionsList element');
-      }
+    if (dataLossCount > 0) {
+      logger.warn(
+        `${dataLossCount} legacy apply-condition entries lost unsupported attributes such as set_default during v2.1.0 restructuring`,
+      );
+    }
+
+    const remainingChildren = Object.keys(applyConditionsList).filter((k) => k !== '$');
+    if (remainingChildren.length === 0) {
+      delete stbCommon['StbApplyConditionsList'];
+      logger.info('Removed empty StbApplyConditionsList element');
     }
   }
 
@@ -230,7 +305,6 @@ export function removeNewElementsTo202(stbRoot) {
   const model = root?.[0]?.['StbModel']?.[0];
   if (!model) return;
 
-  const members = model['StbMembers']?.[0];
   let removedCount = 0;
 
   // Note: StbJointArrangements are now converted in type7-joint-elements.js
@@ -264,7 +338,8 @@ function removeV210SpecificAttributes(stbRoot) {
   // List of elements and their v2.1.0-only attributes
   const v210Attributes = {
     StbStory: ['level_name', 'kind', 'strength_concrete'],
-    StbSlab: ['kind_structure', 'kind_slab', 'direction_load', 'isFoundation'],
+    // StbSlab の主要属性は 2.0.1/2.0.2 系の既存データでも使われるため保持する。
+    StbSlab: [],
     StbWall: ['kind_structure'],
     StbFoundation: ['kind_structure'],
   };

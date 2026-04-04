@@ -7,6 +7,9 @@
 import { StepWriter, generateIfcGuid } from './StepWriter.js';
 import { resolveProfileType } from '../../constants/profileTypeAliases.js';
 import { downloadBlob } from '../../utils/downloadHelper.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('export:ifc:IFCExporterBase');
 
 /**
  * IFCエクスポーターの基底クラス
@@ -561,7 +564,7 @@ export class IFCExporterBase {
       }
 
       case 'CIRCLE': {
-        const circleParams = { diameter: p.diameter || p.D || 60 };
+        const circleParams = { diameter: p.diameter || p.D || (p.radius ? p.radius * 2 : 60) };
         return this.createCircleProfile(circleParams, opts);
       }
 
@@ -767,11 +770,12 @@ export class IFCExporterBase {
       height = 3000,
       thickness = 200,
       predefinedType = 'STANDARD',
+      kindStructure = 'RC',
       openings = [],
     } = wallData;
 
     if (!startPoint || !endPoint) {
-      console.warn(`[IFC Export] 壁 "${name}" をスキップ: 始点・終点が不足`);
+      log.warn(`[IFC Export] 壁 "${name}" をスキップ: 始点・終点が不足`);
       return null;
     }
 
@@ -780,7 +784,7 @@ export class IFCExporterBase {
     const wallLength = Math.sqrt(dx * dx + dy * dy);
 
     if (wallLength < 1 || height <= 0 || thickness <= 0) {
-      console.warn(`[IFC Export] 壁 "${name}" をスキップ: 寸法が不正`);
+      log.warn(`[IFC Export] 壁 "${name}" をスキップ: 寸法が不正`);
       return null;
     }
 
@@ -841,7 +845,7 @@ export class IFCExporterBase {
       null,
       name,
       null,
-      null,
+      kindStructure, // ObjectType: kind_structure (RC/S/SRC)
       `#${wallLocalPlacement}`,
       `#${productShape}`,
       null,
@@ -877,7 +881,7 @@ export class IFCExporterBase {
       const openingHeight = opening.height;
 
       if (!openingWidth || openingWidth <= 0 || !openingHeight || openingHeight <= 0) {
-        console.warn(`[IFC Export] 開口 "${opening.id}" をスキップ: サイズが不正です`);
+        log.warn(`[IFC Export] 開口 "${opening.id}" をスキップ: サイズが不正です`);
         continue;
       }
 

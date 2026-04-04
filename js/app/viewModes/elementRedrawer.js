@@ -48,6 +48,9 @@ import { getMaterialForElementWithMode } from '../../viewer/rendering/materials.
 // ロガー
 const log = createLogger('elementRedrawer');
 
+// 壁・開口の最小寸法（mm）— ゼロ除算および縮退ジオメトリを防ぐ下限値
+const MIN_ELEMENT_SIZE_MM = 1;
+
 // ============================================================================
 // ソリッドモード ヘルパー関数
 // ============================================================================
@@ -79,12 +82,17 @@ function createSolidModeMeshes(
   const openingElementsA = elementType === 'Wall' ? stbDataA.openingElements : null;
   const openingElementsB = elementType === 'Wall' ? stbDataB.openingElements : null;
 
-  // EXACT要素（位置完全一致 + 属性一致）のメッシュを生成
-  const exactItems = comparisonResult[COMPARISON_CATEGORY.EXACT] || [];
-  if (exactItems.length > 0) {
-    const exactElements = exactItems.map((m) => m.dataA.element);
-    const exactMeshes = generator[generatorMethod](
-      exactElements,
+  /**
+   * 指定カテゴリのマッチ済みアイテムからメッシュを生成してグループに追加する
+   * @param {string} category - COMPARISON_CATEGORY の値
+   * @param {string} attributeState - 'matched' または 'mismatch'
+   */
+  function addMatchedMeshes(category, attributeState) {
+    const items = comparisonResult[category] || [];
+    if (items.length === 0) return;
+    const elements = items.map((m) => m.dataA.element);
+    const meshes = generator[generatorMethod](
+      elements,
       stbDataA.nodes,
       stbDataA[sectionsKey],
       stbDataA.steelSections,
@@ -92,19 +100,14 @@ function createSolidModeMeshes(
       false,
       openingElementsA,
     );
-
-    const exactPairs = new Map();
-    exactItems.forEach((pair) => {
-      exactPairs.set(pair.dataA.element.id, pair.dataB.element.id);
-    });
-
-    exactMeshes.forEach((mesh) => {
+    const pairs = new Map(items.map((pair) => [pair.dataA.element.id, pair.dataB.element.id]));
+    meshes.forEach((mesh) => {
       mesh.userData.modelSource = 'matched';
-      mesh.userData.category = COMPARISON_CATEGORY.EXACT;
+      mesh.userData.category = category;
       mesh.userData.positionState = 'exact';
-      mesh.userData.attributeState = 'matched';
+      mesh.userData.attributeState = attributeState;
       const elementIdA = mesh.userData.elementId;
-      const elementIdB = exactPairs.get(elementIdA);
+      const elementIdB = pairs.get(elementIdA);
       if (elementIdB) {
         mesh.userData.elementIdA = elementIdA;
         mesh.userData.elementIdB = elementIdB;
@@ -112,76 +115,41 @@ function createSolidModeMeshes(
       group.add(mesh);
     });
   }
+
+  /**
+   * 片方モデルのみの要素からメッシュを生成してグループに追加する
+   * @param {'A'|'B'} modelSource - モデルの識別子
+   * @param {Object} stbData - 対応するモデルのパース済みデータ
+   * @param {Array|null} openingElements - 開口要素（Wall用）
+   */
+  function addOnlyModelMeshes(modelSource, stbData, openingElements) {
+    const onlyItems = comparisonResult[`only${modelSource}`];
+    if (!onlyItems || onlyItems.length === 0) return;
+    const elements = onlyItems.map((d) => d.element);
+    const meshes = generator[generatorMethod](
+      elements,
+      stbData.nodes,
+      stbData[sectionsKey],
+      stbData.steelSections,
+      elementType,
+      false,
+      openingElements,
+    );
+    meshes.forEach((mesh) => {
+      mesh.userData.modelSource = modelSource;
+      group.add(mesh);
+    });
+  }
+
+  // EXACT要素（位置完全一致 + 属性一致）のメッシュを生成
+  addMatchedMeshes(COMPARISON_CATEGORY.EXACT, 'matched');
 
   // ATTRIBUTE_MISMATCH要素（位置一致、属性が異なる）のメッシュを生成
-  const mismatchItems = comparisonResult[COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH] || [];
-  if (mismatchItems.length > 0) {
-    const mismatchElements = mismatchItems.map((m) => m.dataA.element);
-    const mismatchMeshes = generator[generatorMethod](
-      mismatchElements,
-      stbDataA.nodes,
-      stbDataA[sectionsKey],
-      stbDataA.steelSections,
-      elementType,
-      false,
-      openingElementsA,
-    );
+  addMatchedMeshes(COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH, 'mismatch');
 
-    const mismatchPairs = new Map();
-    mismatchItems.forEach((pair) => {
-      mismatchPairs.set(pair.dataA.element.id, pair.dataB.element.id);
-    });
-
-    mismatchMeshes.forEach((mesh) => {
-      mesh.userData.modelSource = 'matched';
-      mesh.userData.category = COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH;
-      mesh.userData.positionState = 'exact';
-      mesh.userData.attributeState = 'mismatch';
-      const elementIdA = mesh.userData.elementId;
-      const elementIdB = mismatchPairs.get(elementIdA);
-      if (elementIdB) {
-        mesh.userData.elementIdA = elementIdA;
-        mesh.userData.elementIdB = elementIdB;
-      }
-      group.add(mesh);
-    });
-  }
-
-  // モデルAのみの要素のメッシュを生成
-  if (comparisonResult.onlyA.length > 0) {
-    const onlyAElements = comparisonResult.onlyA.map((d) => d.element);
-    const onlyAMeshes = generator[generatorMethod](
-      onlyAElements,
-      stbDataA.nodes,
-      stbDataA[sectionsKey],
-      stbDataA.steelSections,
-      elementType,
-      false,
-      openingElementsA,
-    );
-    onlyAMeshes.forEach((mesh) => {
-      mesh.userData.modelSource = 'A';
-      group.add(mesh);
-    });
-  }
-
-  // モデルBのみの要素のメッシュを生成
-  if (comparisonResult.onlyB.length > 0) {
-    const onlyBElements = comparisonResult.onlyB.map((d) => d.element);
-    const onlyBMeshes = generator[generatorMethod](
-      onlyBElements,
-      stbDataB.nodes,
-      stbDataB[sectionsKey],
-      stbDataB.steelSections,
-      elementType,
-      false,
-      openingElementsB,
-    );
-    onlyBMeshes.forEach((mesh) => {
-      mesh.userData.modelSource = 'B';
-      group.add(mesh);
-    });
-  }
+  // モデルAのみ / モデルBのみの要素のメッシュを生成
+  addOnlyModelMeshes('A', stbDataA, openingElementsA);
+  addOnlyModelMeshes('B', stbDataB, openingElementsB);
 }
 
 /**
@@ -303,7 +271,7 @@ function applyColorModeToSolidMeshes() {
       updateElementsForColorMode();
     })
     .catch((err) => {
-      console.error('Failed to update colors for solid mode:', err);
+      log.error('Failed to update colors for solid mode:', err);
     });
 }
 
@@ -441,7 +409,7 @@ function runSolidModeComparison(config, stbDataA, stbDataB, elementType, element
 
   // 要素タイプに応じたキー抽出関数を選択し、元のJSオブジェクトを保持するラッパーで包む
   let baseExtractor;
-  if (elementType === 'Slab' || elementType === 'Wall') {
+  if (elementType === 'Slab' || elementType === 'Wall' || elementType === 'FrameDampingDevice') {
     baseExtractor = (el, nm) =>
       polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType);
   } else {
@@ -641,6 +609,9 @@ function createRedrawFunction(elementType) {
 export const redrawColumnsForViewMode = createRedrawFunction('Column');
 export const redrawPostsForViewMode = createRedrawFunction('Post');
 export const redrawBracesForViewMode = createRedrawFunction('Brace');
+export const redrawIsolatingDevicesForViewMode = createRedrawFunction('IsolatingDevice');
+export const redrawDampingDevicesForViewMode = createRedrawFunction('DampingDevice');
+export const redrawFrameDampingDevicesForViewMode = createRedrawFunction('FrameDampingDevice');
 export const redrawPilesForViewMode = createRedrawFunction('Pile');
 export const redrawFootingsForViewMode = createRedrawFunction('Footing');
 export const redrawFoundationColumnsForViewMode = createRedrawFunction('FoundationColumn');
@@ -685,7 +656,7 @@ function computeWallFrame(vertexCoordsList) {
   const sortedByZ = [...vertices].sort((a, b) => a.z - b.z);
   const minZ = sortedByZ[0].z;
   const maxZ = sortedByZ[sortedByZ.length - 1].z;
-  const wallHeight = Math.max(maxZ - minZ, 1);
+  const wallHeight = Math.max(maxZ - minZ, MIN_ELEMENT_SIZE_MM);
 
   const tolerance = 10;
   const bottomPoints = sortedByZ.filter((v) => Math.abs(v.z - minZ) < tolerance);
@@ -746,7 +717,7 @@ function computeWallFrame(vertexCoordsList) {
     if (distT > maxT) maxT = distT;
   }
 
-  const wallWidth = Math.max(maxL - minL, 1);
+  const wallWidth = Math.max(maxL - minL, MIN_ELEMENT_SIZE_MM);
   const centerL = (minL + maxL) / 2;
   const centerT = (minT + maxT) / 2;
   const centerZ = minZ + wallHeight / 2;
@@ -910,10 +881,10 @@ function drawWallOpeningOutlines(
       const openingRight = openingLeft + width;
       const openingTop = openingBottom + height;
 
-      const clampedLeft = Math.max(openingLeft, -halfWidth + 1);
-      const clampedRight = Math.min(openingRight, halfWidth - 1);
-      const clampedBottom = Math.max(openingBottom, -halfHeight + 1);
-      const clampedTop = Math.min(openingTop, halfHeight - 1);
+      const clampedLeft = Math.max(openingLeft, -halfWidth + MIN_ELEMENT_SIZE_MM);
+      const clampedRight = Math.min(openingRight, halfWidth - MIN_ELEMENT_SIZE_MM);
+      const clampedBottom = Math.max(openingBottom, -halfHeight + MIN_ELEMENT_SIZE_MM);
+      const clampedTop = Math.min(openingTop, halfHeight - MIN_ELEMENT_SIZE_MM);
 
       if (
         clampedRight - clampedLeft < minOpeningSize ||
@@ -996,7 +967,12 @@ function createLabelsForSolidElementsWithSource(elements, nodes, elementType, mo
       if (startNode && endNode) {
         centerPosition = new THREE.Vector3().addVectors(startNode, endNode).multiplyScalar(0.5);
       }
-    } else if (elementType === 'Brace' || elementType === 'Pile') {
+    } else if (
+      elementType === 'Brace' ||
+      elementType === 'Pile' ||
+      elementType === 'IsolatingDevice' ||
+      elementType === 'DampingDevice'
+    ) {
       startNode = nodes.get(element.id_node_start || element.id_node_bottom);
       endNode = nodes.get(element.id_node_end || element.id_node_top);
       labelText = generateLabelText(element, elementType);
@@ -1008,12 +984,16 @@ function createLabelsForSolidElementsWithSource(elements, nodes, elementType, mo
       const node = nodes.get(element.id_node);
       labelText = generateLabelText(element, elementType);
       if (node) {
-        // level_bottom を考慮してラベル位置を調整
+        // level_bottom はノードZからの相対オフセット
         const levelBottom = element.level_bottom || 0;
-        centerPosition = new THREE.Vector3(node.x, node.y, levelBottom);
+        centerPosition = new THREE.Vector3(node.x, node.y, node.z + levelBottom);
       }
-    } else if (elementType === 'Slab' || elementType === 'Wall') {
-      // 床・壁は複数ノード要素 - ノード位置の中心を使用
+    } else if (
+      elementType === 'Slab' ||
+      elementType === 'Wall' ||
+      elementType === 'FrameDampingDevice'
+    ) {
+      // 面要素は複数ノード要素 - ノード位置の中心を使用
       const nodeIds = element.node_ids || [];
       if (nodeIds.length > 0) {
         centerPosition = new THREE.Vector3();
@@ -1205,7 +1185,7 @@ export function redrawJointsForViewMode(scheduleRender) {
       updateElementsForColorMode();
     })
     .catch((err) => {
-      console.error('Failed to update colors for joint mode:', err);
+      log.error('Failed to update colors for joint mode:', err);
     });
 
   if (scheduleRender) scheduleRender();
@@ -1347,7 +1327,7 @@ export function redrawUndefinedElementsForViewMode(scheduleRender) {
       updateElementsForColorMode();
     })
     .catch((err) => {
-      console.error('Failed to update colors for undefined elements:', err);
+      log.error('Failed to update colors for undefined elements:', err);
     });
 
   if (scheduleRender) scheduleRender();

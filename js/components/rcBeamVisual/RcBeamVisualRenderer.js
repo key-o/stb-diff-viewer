@@ -13,6 +13,9 @@ import {
   placeBarSymbol as placeBarSymbolBase,
   createSvgElement,
 } from '../rcColumnVisual/rebarSymbolDefs.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('components:rcBeamVisual:RcBeamVisualRenderer');
 
 const BEAM_BAR_PREFIX = 'beam-bar';
 
@@ -65,11 +68,11 @@ export class RcBeamVisualRenderer {
    */
   renderToElement(beamData, renderOptions = {}) {
     if (!beamData) {
-      console.warn('[RcBeamVisualRenderer] beamData is null or undefined');
+      log.warn('[RcBeamVisualRenderer] beamData is null or undefined');
       return null;
     }
     if (!beamData.width || !beamData.depth) {
-      console.warn('[RcBeamVisualRenderer] Invalid dimensions:', {
+      log.warn('[RcBeamVisualRenderer] Invalid dimensions:', {
         width: beamData.width,
         depth: beamData.depth,
         beamData,
@@ -181,7 +184,7 @@ export class RcBeamVisualRenderer {
   }
 
   /**
-   * 上端筋を描画（水平配置、複数本の場合は等間隔）
+   * 上端筋を描画（水平配置、2段筋対応）
    * @private
    */
   drawTopRebars(svg, topBar, rectX, rectY, rectW, cover, scale) {
@@ -191,23 +194,49 @@ export class RcBeamVisualRenderer {
     const coverLeft = (cover.left || cover.top || 40) * scale;
     const coverRight = (cover.right || cover.top || 40) * scale;
     const dia = topBar.dia || 'D25';
-    const { xPositions, barHalf, symbolScale } = this.computeBarLayout(
-      topBar.count,
-      dia,
-      rectX,
-      rectW,
-      coverLeft,
-      coverRight,
-      scale,
-    );
-    const y = rectY + coverTop + barHalf;
-    xPositions.forEach((x) => {
-      placeBarSymbol(svg, dia, x, y, symbolScale);
-    });
+
+    // 1段目/2段目の本数を取得
+    const count1st = topBar.count1st || topBar.count || 0;
+    const count2nd = topBar.count2nd || 0;
+
+    // 1段目
+    if (count1st > 0) {
+      const { xPositions, barHalf, symbolScale } = this.computeBarLayout(
+        count1st,
+        dia,
+        rectX,
+        rectW,
+        coverLeft,
+        coverRight,
+        scale,
+      );
+      const y = rectY + coverTop + barHalf;
+      xPositions.forEach((x) => {
+        placeBarSymbol(svg, dia, x, y, symbolScale);
+      });
+
+      // 2段目（1段目の下に段筋間隔を空けて配置）
+      if (count2nd > 0) {
+        const layerSpacing = barHalf * 4;
+        const { xPositions: xPositions2nd, symbolScale: symbolScale2nd } = this.computeBarLayout(
+          count2nd,
+          dia,
+          rectX,
+          rectW,
+          coverLeft,
+          coverRight,
+          scale,
+        );
+        const y2nd = y + layerSpacing;
+        xPositions2nd.forEach((x) => {
+          placeBarSymbol(svg, dia, x, y2nd, symbolScale2nd);
+        });
+      }
+    }
   }
 
   /**
-   * 下端筋を描画（水平配置、複数本の場合は等間隔）
+   * 下端筋を描画（水平配置、2段筋対応）
    * @private
    */
   drawBottomRebars(svg, bottomBar, rectX, rectY, rectW, rectH, cover, scale) {
@@ -217,19 +246,45 @@ export class RcBeamVisualRenderer {
     const coverLeft = (cover.left || cover.top || 40) * scale;
     const coverRight = (cover.right || cover.top || 40) * scale;
     const dia = bottomBar.dia || 'D25';
-    const { xPositions, barHalf, symbolScale } = this.computeBarLayout(
-      bottomBar.count,
-      dia,
-      rectX,
-      rectW,
-      coverLeft,
-      coverRight,
-      scale,
-    );
-    const y = rectY + rectH - coverBottom - barHalf;
-    xPositions.forEach((x) => {
-      placeBarSymbol(svg, dia, x, y, symbolScale);
-    });
+
+    // 1段目/2段目の本数を取得
+    const count1st = bottomBar.count1st || bottomBar.count || 0;
+    const count2nd = bottomBar.count2nd || 0;
+
+    // 1段目（最下段）
+    if (count1st > 0) {
+      const { xPositions, barHalf, symbolScale } = this.computeBarLayout(
+        count1st,
+        dia,
+        rectX,
+        rectW,
+        coverLeft,
+        coverRight,
+        scale,
+      );
+      const y = rectY + rectH - coverBottom - barHalf;
+      xPositions.forEach((x) => {
+        placeBarSymbol(svg, dia, x, y, symbolScale);
+      });
+
+      // 2段目（1段目の上に段筋間隔を空けて配置）
+      if (count2nd > 0) {
+        const layerSpacing = barHalf * 4;
+        const { xPositions: xPositions2nd, symbolScale: symbolScale2nd } = this.computeBarLayout(
+          count2nd,
+          dia,
+          rectX,
+          rectW,
+          coverLeft,
+          coverRight,
+          scale,
+        );
+        const y2nd = y - layerSpacing;
+        xPositions2nd.forEach((x) => {
+          placeBarSymbol(svg, dia, x, y2nd, symbolScale2nd);
+        });
+      }
+    }
   }
 
   /**

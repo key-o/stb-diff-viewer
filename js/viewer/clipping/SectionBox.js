@@ -187,6 +187,19 @@ export class SectionBox {
     return this._clipPlanes;
   }
 
+  /**
+   * 指定した軸のハンドルの可視性を設定する
+   * @param {string} axis - 軸名 ('x', 'y', 'z')
+   * @param {boolean} visible - 表示する場合 true
+   */
+  setHandleVisibilityByAxis(axis, visible) {
+    for (const handle of this._handles) {
+      if (handle.userData.axis === axis) {
+        handle.visible = visible;
+      }
+    }
+  }
+
   // ============================================
   // ビジュアル構築
   // ============================================

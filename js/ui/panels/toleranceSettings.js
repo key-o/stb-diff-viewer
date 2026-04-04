@@ -7,6 +7,7 @@ import {
   getToleranceConfig,
   setToleranceConfig,
   resetToleranceConfig,
+  DEFAULT_TOLERANCE_CONFIG,
 } from '../../config/toleranceConfig.js';
 import { createLogger } from '../../utils/logger.js';
 import { storageHelper } from '../../utils/storageHelper.js';
@@ -43,19 +44,19 @@ function createToleranceSettingsHTML() {
           <div class="tolerance-axis-item">
             <label for="tolerance-basepoint-x">X軸:</label>
             <input type="number" id="tolerance-basepoint-x" class="tolerance-input" 
-                   min="0" max="1000" step="0.1" value="10" />
+                   min="0" max="1000" step="0.1" value="${DEFAULT_TOLERANCE_CONFIG.basePoint.x}" />
             <span class="tolerance-unit">mm</span>
           </div>
           <div class="tolerance-axis-item">
             <label for="tolerance-basepoint-y">Y軸:</label>
             <input type="number" id="tolerance-basepoint-y" class="tolerance-input" 
-                   min="0" max="1000" step="0.1" value="10" />
+                   min="0" max="1000" step="0.1" value="${DEFAULT_TOLERANCE_CONFIG.basePoint.y}" />
             <span class="tolerance-unit">mm</span>
           </div>
           <div class="tolerance-axis-item">
             <label for="tolerance-basepoint-z">Z軸:</label>
             <input type="number" id="tolerance-basepoint-z" class="tolerance-input" 
-                   min="0" max="1000" step="0.1" value="10" />
+                   min="0" max="1000" step="0.1" value="${DEFAULT_TOLERANCE_CONFIG.basePoint.z}" />
             <span class="tolerance-unit">mm</span>
           </div>
         </div>
@@ -67,21 +68,37 @@ function createToleranceSettingsHTML() {
         <div class="tolerance-axis-group">
           <div class="tolerance-axis-item">
             <label for="tolerance-offset-x">X軸:</label>
-            <input type="number" id="tolerance-offset-x" class="tolerance-input" 
-                   min="0" max="1000" step="0.1" value="5" />
+            <input type="number" id="tolerance-offset-x" class="tolerance-input"
+                   min="0" max="1000" step="0.1" value="${DEFAULT_TOLERANCE_CONFIG.offset.x}" />
             <span class="tolerance-unit">mm</span>
           </div>
           <div class="tolerance-axis-item">
             <label for="tolerance-offset-y">Y軸:</label>
-            <input type="number" id="tolerance-offset-y" class="tolerance-input" 
-                   min="0" max="1000" step="0.1" value="5" />
+            <input type="number" id="tolerance-offset-y" class="tolerance-input"
+                   min="0" max="1000" step="0.1" value="${DEFAULT_TOLERANCE_CONFIG.offset.y}" />
             <span class="tolerance-unit">mm</span>
           </div>
           <div class="tolerance-axis-item">
             <label for="tolerance-offset-z">Z軸:</label>
-            <input type="number" id="tolerance-offset-z" class="tolerance-input" 
-                   min="0" max="1000" step="0.1" value="5" />
+            <input type="number" id="tolerance-offset-z" class="tolerance-input"
+                   min="0" max="1000" step="0.1" value="${DEFAULT_TOLERANCE_CONFIG.offset.z}" />
             <span class="tolerance-unit">mm</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 属性値数値しきい値 -->
+      <div class="tolerance-section">
+        <h5 class="tolerance-subsection-title">🔢 属性値の数値しきい値</h5>
+        <p class="tolerance-description">
+          rotate・offset 等の数値属性比較で許容する誤差。この値以下の差異は一致とみなします（例: "0" と "0.0" の不一致を防止）。
+        </p>
+        <div class="tolerance-axis-group">
+          <div class="tolerance-axis-item">
+            <label for="tolerance-attribute-numeric">しきい値:</label>
+            <input type="number" id="tolerance-attribute-numeric" class="tolerance-input"
+                   min="0" max="1" step="0.0001" value="${DEFAULT_TOLERANCE_CONFIG.attributeNumericTolerance}" />
+            <span class="tolerance-unit"></span>
           </div>
         </div>
       </div>
@@ -290,6 +307,9 @@ function loadSettingsToUI() {
   document.getElementById('tolerance-offset-y').value = config.offset.y;
   document.getElementById('tolerance-offset-z').value = config.offset.z;
 
+  // 属性値数値しきい値
+  document.getElementById('tolerance-attribute-numeric').value = config.attributeNumericTolerance;
+
   // 厳密モード
   document.getElementById('tolerance-strict-mode').checked = config.strictMode;
 
@@ -319,6 +339,9 @@ function applySettingsFromUI() {
       y: parseFloat(document.getElementById('tolerance-offset-y').value),
       z: parseFloat(document.getElementById('tolerance-offset-z').value),
     },
+    attributeNumericTolerance: parseFloat(
+      document.getElementById('tolerance-attribute-numeric').value,
+    ),
   };
 
   // 設定を適用
@@ -372,6 +395,7 @@ function updateInputStates() {
     'tolerance-offset-x',
     'tolerance-offset-y',
     'tolerance-offset-z',
+    'tolerance-attribute-numeric',
   ];
 
   inputs.forEach((id) => {
@@ -431,7 +455,7 @@ function showNotification(message, type = 'info') {
   if (window.showNotification) {
     window.showNotification(message, type);
   } else {
-    console.log(`[${type.toUpperCase()}] ${message}`);
+    logger.info(`[${type.toUpperCase()}] ${message}`);
   }
 }
 

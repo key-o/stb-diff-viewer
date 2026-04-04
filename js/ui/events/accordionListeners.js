@@ -44,11 +44,13 @@ function handleAccordionToggle(event) {
   if (isCollapsed) {
     // Expand
     content.classList.remove('collapsed');
+    content.removeAttribute('inert');
     header.classList.remove('collapsed');
     logger.info(`${LogCategory.EVENT} アコーディオン展開: ${targetId}`);
   } else {
     // Collapse
     content.classList.add('collapsed');
+    content.setAttribute('inert', '');
     header.classList.add('collapsed');
     logger.info(`${LogCategory.EVENT} アコーディオン折畳: ${targetId}`);
   }
@@ -64,7 +66,7 @@ function initializeAccordionStates() {
   const defaultOpenSections = ['file-loading', 'display-settings', 'element-settings'];
   const accordionSections = document.querySelectorAll('.accordion-section');
 
-  accordionSections.forEach((section, index) => {
+  accordionSections.forEach((section, _index) => {
     const header = section.querySelector('.accordion-header');
     const content = section.querySelector('.accordion-content');
 
@@ -76,9 +78,11 @@ function initializeAccordionStates() {
 
     if (shouldBeOpen) {
       content.classList.remove('collapsed');
+      content.removeAttribute('inert');
       header.classList.remove('collapsed');
     } else {
       content.classList.add('collapsed');
+      content.setAttribute('inert', '');
       header.classList.add('collapsed');
     }
   });
@@ -112,7 +116,10 @@ export function expandAllAccordions() {
   const contents = document.querySelectorAll('.accordion-content');
   const headers = document.querySelectorAll('.accordion-header');
 
-  contents.forEach((content) => content.classList.remove('collapsed'));
+  contents.forEach((content) => {
+    content.classList.remove('collapsed');
+    content.removeAttribute('inert');
+  });
   headers.forEach((header) => header.classList.remove('collapsed'));
 
   // Save states
@@ -131,7 +138,10 @@ export function collapseAllAccordions() {
   const contents = document.querySelectorAll('.accordion-content');
   const headers = document.querySelectorAll('.accordion-header');
 
-  contents.forEach((content) => content.classList.add('collapsed'));
+  contents.forEach((content) => {
+    content.classList.add('collapsed');
+    content.setAttribute('inert', '');
+  });
   headers.forEach((header) => header.classList.add('collapsed'));
 
   // Save states

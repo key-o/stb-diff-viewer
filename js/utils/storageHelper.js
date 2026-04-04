@@ -11,6 +11,10 @@
  * ストレージキーのプレフィックス
  * @constant {string}
  */
+
+import { createLogger } from './logger.js';
+
+const log = createLogger('utils:storageHelper');
 const STORAGE_PREFIX = 'stb:';
 
 /**
@@ -67,7 +71,7 @@ export const storageHelper = {
       localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
       return true;
     } catch (e) {
-      console.warn(`[storageHelper] Failed to save: ${key}`, e);
+      log.warn(`[storageHelper] Failed to save: ${key}`, e);
       return false;
     }
   },
@@ -87,7 +91,7 @@ export const storageHelper = {
       localStorage.removeItem(STORAGE_PREFIX + key);
       return true;
     } catch (e) {
-      console.warn(`[storageHelper] Failed to remove: ${key}`, e);
+      log.warn(`[storageHelper] Failed to remove: ${key}`, e);
       return false;
     }
   },

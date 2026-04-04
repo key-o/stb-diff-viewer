@@ -1,6 +1,7 @@
 /**
  * @fileoverview アプリケーションコアの初期化
  */
+/* global PointerEvent */
 
 import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
@@ -15,8 +16,16 @@ import {
   createOrUpdateGridHelper,
   getActiveCamera,
 } from '../../viewer/index.js';
-import { setupInteractionListeners, getSelectedCenter } from '../interaction.js';
-import { setupViewModeListeners, setupCameraModeListeners } from '../viewModes/index.js';
+import {
+  setupInteractionListeners,
+  getSelectedCenter,
+} from '../controllers/interactionController.js';
+import {
+  setupViewModeListeners,
+  setupCameraModeListeners,
+  initViewModes,
+  updateModelVisibility,
+} from '../viewModes/index.js';
 import { setupColorModeListeners, setFloatingWindowManager } from '../../colorModes/index.js';
 import { floatingWindowManager } from '../../ui/panels/floatingWindowManager.js';
 import {
@@ -29,18 +38,20 @@ import { initDepth2DClippingUI } from '../../ui/viewer3d/clipping2DImpl.js';
 import { displayElementInfo } from '../../ui/panels/element-info/index.js';
 import { regenerateAllLabels } from '../../ui/viewer3d/labelRegeneration.js';
 import { clearClippingPlanes } from '../../viewer/index.js';
-import { setState, registerGlobalFunction } from '../globalState.js';
+import { getState, setState, registerGlobalFunction } from '../globalState.js';
 import { viewerEventBridge } from '../../viewer/services/viewerEventBridge.js';
-import { initializeSettingsManager } from '../settingsManager.js';
 import { initializeGlobalMessenger } from '../moduleMessaging.js';
 import { IFCConverter, IFCConverterUI } from '../../export/api/ifcConverter.js';
-import { initializeImportanceManager } from '../importanceManager.js';
+import { initializeImportanceManager, getImportanceManager } from '../importanceManager.js';
+import { notify } from '../controllers/notificationController.js';
+import { normalizeSectionData } from '../sectionEquivalenceEngine.js';
 import { setupDiffSummaryEventListeners } from '../../ui/panels/diffSummary.js';
 import { setRenderFunction } from '../../utils/renderScheduler.js';
 import { initKeyboardShortcuts } from '../../viewer/interaction/keyboard-shortcuts.js';
 import { initializeViewCube } from '../../ui/viewer3d/viewCube/ViewCube.js';
 import { CAMERA_ORTHOGRAPHIC } from '../../config/renderingConstants.js';
 import { renderElementSettingsRows } from '../../ui/panels/elementSettingsTable.js';
+import { setModelLoaderDependencies } from '../../modelLoader/loaderDependencies.js';
 
 const log = createLogger('appInitializer');
 
@@ -183,12 +194,23 @@ export function initializeApp(scheduleRender, rendererInitialized) {
   setState('elementGroups', elementGroups);
 
   // 高度な機能の初期化
-  initializeSettingsManager();
   initializeGlobalMessenger();
 
   // ViewerEventBridgeの初期化（UI層とViewer層の通信ブリッジ）
   viewerEventBridge.initialize();
   log.info('ViewerEventBridgeを初期化しました');
+
+  // modelLoader層への依存性注入（同期実行・競合防止）
+  setModelLoaderDependencies({
+    getState,
+    setState,
+    notify,
+    getImportanceManager,
+    normalizeSectionData,
+    initViewModes,
+    updateModelVisibility,
+  });
+  log.info('modelLoader依存関係が注入されました');
 
   // 重要度管理システムの初期化
   initializeImportanceManager()

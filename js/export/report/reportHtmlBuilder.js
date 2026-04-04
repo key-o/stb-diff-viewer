@@ -17,8 +17,15 @@ import { escapeHtml } from '../../utils/htmlUtils.js';
  * @returns {string} 完全なHTML文字列
  */
 export function buildReportHtml(reportData, screenshots = []) {
-  const { meta, summary, elementTypeStats, onlyAElements, onlyBElements, mismatchElements } =
-    reportData;
+  const {
+    meta,
+    summary,
+    elementTypeStats,
+    onlyAElements,
+    onlyBElements,
+    mismatchElements,
+    sectionComparison,
+  } = reportData;
 
   return `<!DOCTYPE html>
 <html lang="ja">
@@ -37,6 +44,7 @@ export function buildReportHtml(reportData, screenshots = []) {
   ${buildCrossVersionNotice(meta)}
   ${buildElementTypeTable(elementTypeStats)}
   ${buildDiffBarChart(elementTypeStats)}
+  ${buildSectionComparisonTable(sectionComparison)}
   ${buildOnlyATable(onlyAElements)}
   ${buildOnlyBTable(onlyBElements)}
   ${buildMismatchTable(mismatchElements)}
@@ -212,6 +220,94 @@ function buildDiffBarChart(elementTypeStats) {
     <span style="color:${STATUS_COLORS.onlyA}; margin-left:12px;">■</span> Aのみ
     <span style="color:${STATUS_COLORS.onlyB}; margin-left:12px;">■</span> Bのみ
   </div>`;
+}
+
+function buildSectionComparisonTable(sectionComparison) {
+  if (!sectionComparison || sectionComparison.summary.total === 0) {
+    return '';
+  }
+
+  const summary = sectionComparison.summary;
+  const typeRows = sectionComparison.byType
+    .map(
+      (stats) => `
+    <tr>
+      <td>${escapeHtml(stats.sectionType)}</td>
+      <td class="num">${stats.total.toLocaleString()}</td>
+      <td class="num">${stats.matched.toLocaleString()}</td>
+      <td class="num">${stats.onlyA.toLocaleString()}</td>
+      <td class="num">${stats.onlyB.toLocaleString()}</td>
+      <td class="num">${stats.mismatch.toLocaleString()}</td>
+    </tr>`,
+    )
+    .join('');
+
+  const mismatchRows = sectionComparison.mismatches
+    .slice(0, 50)
+    .map(
+      (item) => `
+    <tr>
+      <td>${escapeHtml(item.sectionType)}</td>
+      <td>${escapeHtml(item.sectionId)}</td>
+      <td>${escapeHtml(item.nameA || '-')}</td>
+      <td>${escapeHtml(item.nameB || '-')}</td>
+      <td>${escapeHtml(item.diffPaths.join(', '))}</td>
+    </tr>`,
+    )
+    .join('');
+
+  const mismatchTable =
+    sectionComparison.mismatches.length > 0
+      ? `
+  <h3 style="margin: 10px 0 8px; font-size: 1em;">断面不一致（上位50件）</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>断面タイプ</th>
+        <th>ID</th>
+        <th>A側 名前</th>
+        <th>B側 名前</th>
+        <th>差分属性パス</th>
+      </tr>
+    </thead>
+    <tbody>${mismatchRows}</tbody>
+  </table>`
+      : '';
+
+  return `
+  <h2>参照断面比較（StbSec*）</h2>
+  <div class="summary-cards">
+    <div class="summary-card card-total">
+      <span class="value">${summary.total.toLocaleString()}</span>
+      <span class="label">参照断面総数</span>
+    </div>
+    <div class="summary-card card-matched">
+      <span class="value">${summary.matched.toLocaleString()}</span>
+      <span class="label">一致</span>
+    </div>
+    <div class="summary-card card-onlyA">
+      <span class="value">${summary.onlyA.toLocaleString()}</span>
+      <span class="label">Aのみ</span>
+    </div>
+    <div class="summary-card card-onlyB">
+      <span class="value">${summary.onlyB.toLocaleString()}</span>
+      <span class="label">Bのみ</span>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>断面タイプ</th>
+        <th>合計</th>
+        <th>一致</th>
+        <th>Aのみ</th>
+        <th>Bのみ</th>
+        <th>不一致</th>
+      </tr>
+    </thead>
+    <tbody>${typeRows}</tbody>
+  </table>
+  ${mismatchTable}`;
 }
 
 /**
@@ -420,4 +516,3 @@ function buildFooter(meta) {
     STB Diff Viewer - 比較レポート | 生成日時: ${date}
   </div>`;
 }
-

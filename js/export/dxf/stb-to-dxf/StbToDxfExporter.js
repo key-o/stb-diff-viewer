@@ -23,7 +23,7 @@ import {
   collectLevelLines,
 } from './DxfGeometryCollector.js';
 import { generateDxfContent, downloadDxf } from './DxfFormatWriter.js';
-import { eventBus, ToastEvents } from '../../../app/events/index.js';
+import { eventBus, ToastEvents } from '../../../data/events/index.js';
 
 const log = createLogger('StbToDxfExporter');
 

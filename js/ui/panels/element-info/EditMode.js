@@ -19,18 +19,14 @@ import {
   generateModificationReport,
 } from '../../../export/stb/stbExporter.js';
 import { regenerateElementGeometry } from '../../../viewer/index.js';
-import { eventBus, EditEvents, RenderEvents } from '../../../app/events/index.js';
+import { eventBus, EditEvents, RenderEvents } from '../../../data/events/index.js';
 import { scheduleRender } from '../../../utils/renderScheduler.js';
 import {
   getParameterEditor,
   getSuggestionEngine,
   updateLabelsForElement,
 } from './ElementInfoProviders.js';
-import {
-  buildElementDataForLabels,
-  findSectionNode,
-  extractSectionData,
-} from './SectionHelpers.js';
+import { buildElementDataForLabels } from './SectionHelpers.js';
 import { showSuccess, showError, showWarning } from '../../common/toast.js';
 import { getState } from '../../../app/globalState.js';
 
@@ -142,7 +138,7 @@ export function exportModifications() {
         showSuccess(`STBファイルが正常にエクスポートされました。ファイル名: ${filename}`);
 
         // 修正レポートも生成
-        const report = generateModificationReport(modifications);
+        generateModificationReport(modifications);
       } else {
         showError('エクスポートに失敗しました。コンソールでエラーを確認してください。');
       }

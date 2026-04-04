@@ -16,7 +16,7 @@
 
 import { getState } from '../../app/globalState.js';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
-import { eventBus, DiffStatusEvents, ComparisonEvents } from '../../app/events/index.js';
+import { eventBus, DiffStatusEvents, ComparisonEvents } from '../../data/events/index.js';
 import { sceneController } from '../../app/controllers/sceneController.js';
 import { createLogger } from '../../utils/logger.js';
 import { BaseFilter } from './BaseFilter.js';

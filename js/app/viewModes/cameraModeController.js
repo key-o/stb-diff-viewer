@@ -11,14 +11,35 @@
 
 import { CAMERA_MODES } from '../../constants/displayModes.js';
 import { setCameraMode, setView } from '../../viewer/index.js';
-import { updateDepth2DClippingVisibility } from '../../ui/viewer3d/clipping2DImpl.js';
 import { setStbExportPanelVisibility } from '../dxfLoader.js';
-import { redrawAxesAtStory } from '../../ui/events/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { getModelContext } from './displayModeController.js';
+import { eventBus } from '../../data/events/eventBus.js';
+import { ViewEvents, AxisEvents } from '../../constants/eventTypes.js';
+import { getState } from '../globalState.js';
 
 // ロガー
 const log = createLogger('cameraModeController');
+
+/**
+ * 通り芯の再描画を eventBus 経由でリクエスト
+ * @param {string} targetStoryId - 対象フロアID（'all' で全フロア）
+ */
+function emitAxisRedraw(targetStoryId) {
+  const stories = getState('models.stories') || [];
+  const axesData = getState('models.axesData') || { xAxes: [], yAxes: [] };
+  const modelBounds = getState('models.modelBounds') || null;
+  if (!axesData.xAxes?.length && !axesData.yAxes?.length) return;
+  const labelCheckbox = document.getElementById('toggleLabel-Axis');
+  const labelToggle = labelCheckbox ? labelCheckbox.checked : true;
+  eventBus.emit(AxisEvents.REDRAW_REQUESTED, {
+    axesData,
+    stories,
+    modelBounds,
+    labelToggle,
+    targetStoryId,
+  });
+}
 
 /**
  * 正投影ビューの種類
@@ -112,7 +133,6 @@ export function setupCameraModeListeners(scheduleRender) {
   // カメラモード切り替え
   const cameraPerspective = document.getElementById('cameraPerspective');
   const cameraOrthographic = document.getElementById('cameraOrthographic');
-  const viewDirectionPanel = document.getElementById('viewDirectionPanel');
 
   // ボタン形式のカメラモード切り替え（フローティングウィンドウ内）
   const cameraPerspectiveBtn = document.getElementById('cameraPerspectiveBtn');
@@ -143,11 +163,11 @@ export function setupCameraModeListeners(scheduleRender) {
     setCameraMode(CAMERA_MODES.PERSPECTIVE);
     setOrthographicView(ORTHOGRAPHIC_VIEWS.ISOMETRIC);
     // 2Dクリッピングコントロールを非表示
-    updateDepth2DClippingVisibility(CAMERA_MODES.PERSPECTIVE);
+    eventBus.emit(ViewEvents.CAMERA_MODE_CHANGED, { mode: CAMERA_MODES.PERSPECTIVE });
     // STBエクスポートパネルを非表示（3Dモードでは使用不可）
     setStbExportPanelVisibility(false);
     // 通り芯を3Dモード用に再描画
-    redrawAxesAtStory('all');
+    emitAxisRedraw('all');
     scheduleRender();
   }
 
@@ -162,11 +182,11 @@ export function setupCameraModeListeners(scheduleRender) {
     setOrthographicView(ORTHOGRAPHIC_VIEWS.PLAN);
     syncViewDirectionButtons('top');
     // 2Dクリッピングコントロールを表示
-    updateDepth2DClippingVisibility(CAMERA_MODES.ORTHOGRAPHIC);
+    eventBus.emit(ViewEvents.CAMERA_MODE_CHANGED, { mode: CAMERA_MODES.ORTHOGRAPHIC });
     // STBエクスポートパネルを表示（2Dモードで使用可能）
     setStbExportPanelVisibility(true);
     // 通り芯を2Dモード用に再描画
-    redrawAxesAtStory('all');
+    emitAxisRedraw('all');
     scheduleRender();
   }
 

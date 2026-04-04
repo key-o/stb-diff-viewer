@@ -207,7 +207,12 @@ export function extractBaseSymbol(name, options = {}) {
   // column モード（デフォルト）
   if (!name) return fallbackSymbol;
 
-  const match = name.match(/([A-Za-z]+\d+[a-zA-Z]*)/);
+  // 先頭の階プレフィックス（例: "B1", "1", "14"）を除去
+  // 「B1C1」→「C1」、「14C1」→「C1」、「C1」→そのまま
+  const stripped = name.replace(/^B?\d+/, '');
+  const nameToProcess = stripped.length > 0 ? stripped : name;
+
+  const match = nameToProcess.match(/([A-Za-z]+\d+[a-zA-Z]*)/);
   if (match) {
     const symbol = match[1];
     const parts = symbol.match(/^([A-Za-z]+)(\d+)([a-zA-Z]*)$/);
@@ -218,7 +223,7 @@ export function extractBaseSymbol(name, options = {}) {
     return symbol.replace(/^[A-Za-z]+\d+/i, (m) => m.toUpperCase());
   }
 
-  return name.replace(/^\d+/, '').toUpperCase() || fallbackSymbol;
+  return nameToProcess.replace(/^\d+/, '').toUpperCase() || fallbackSymbol;
 }
 
 /**

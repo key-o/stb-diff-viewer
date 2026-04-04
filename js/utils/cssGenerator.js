@@ -10,6 +10,9 @@
 
 import { DIFF_CATEGORIES } from '../config/diffFilterConfig.js';
 import { DIFF_COLORS } from '../config/colorConfig.js';
+import { createLogger } from './logger.js';
+
+const log = createLogger('utils:cssGenerator');
 
 /**
  * 差分凡例用CSSを生成
@@ -88,7 +91,7 @@ function removeStyleSheet(id = 'dynamic-diff-legend-styles') {
 export function initializeDiffLegendCSS(categories = DIFF_CATEGORIES) {
   const css = generateDiffLegendCSS(categories);
   const styleEl = injectStyleSheet(css);
-  console.log('[Event] 差分凡例CSSを動的生成しました');
+  log.info('[Event] 差分凡例CSSを動的生成しました');
   return styleEl;
 }
 
@@ -98,7 +101,9 @@ export function initializeDiffLegendCSS(categories = DIFF_CATEGORIES) {
  * @returns {string} CSS変数定義
  */
 function generateDiffColorVariables(categories = DIFF_CATEGORIES) {
-  const variables = categories.map((cat) => `  --diff-color-${cat.id}: ${DIFF_COLORS[cat.colorKey]};`).join('\n');
+  const variables = categories
+    .map((cat) => `  --diff-color-${cat.id}: ${DIFF_COLORS[cat.colorKey]};`)
+    .join('\n');
 
   return `
 :root {

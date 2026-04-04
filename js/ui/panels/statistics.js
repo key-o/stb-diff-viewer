@@ -23,7 +23,7 @@ import {
   ImportanceEvents,
   ComparisonEvents,
   EditEvents,
-} from '../../app/events/index.js';
+} from '../../data/events/index.js';
 import { showError, showWarning } from '../common/toast.js';
 import { createLogger } from '../../utils/logger.js';
 import { downloadBlob } from '../../utils/downloadHelper.js';
@@ -280,7 +280,7 @@ export class ImportanceStatistics {
     });
 
     // 要素タイプ詳細表示切り替え
-    document.getElementById('toggle-type-view').addEventListener('click', (e) => {
+    document.getElementById('toggle-type-view').addEventListener('click', (_e) => {
       this.toggleTypeDetailView();
     });
 
@@ -442,7 +442,6 @@ export class ImportanceStatistics {
    */
   updateStatisticsTable() {
     const tbody = document.getElementById('statistics-table-body');
-    const viewMode = document.getElementById('statistics-view-mode').value;
 
     tbody.innerHTML = '';
 

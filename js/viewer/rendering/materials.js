@@ -22,6 +22,9 @@ import { IMPORTANCE_LEVELS } from '../../constants/importanceLevels.js';
 import { SRC_COMPONENT_COLORS } from '../../config/colorConfig.js';
 import { colorManager } from './colorManager.js';
 import { scheduleRender } from '../../utils/renderScheduler.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('viewer:rendering:materials');
 
 // --- パフォーマンス最適化: 片面/両面マテリアル設定 ---
 // 閉じたジオメトリ（柱、梁、ブレース等）は片面レンダリングで描画ポリゴン数を削減
@@ -38,6 +41,9 @@ export const ELEMENT_MATERIAL_SIDE = {
   Girder: THREE.FrontSide,
   Beam: THREE.FrontSide,
   Brace: THREE.FrontSide,
+  IsolatingDevice: THREE.FrontSide,
+  DampingDevice: THREE.FrontSide,
+  FrameDampingDevice: THREE.DoubleSide,
   Pile: THREE.FrontSide,
   Footing: THREE.FrontSide,
   FoundationColumn: THREE.FrontSide,
@@ -181,7 +187,9 @@ export function getMaterialForElementWithMode(
     case COLOR_MODES.SCHEMA: {
       materialMode = 'schema';
       const modelSource = extraOptions?.modelSource || null;
-      const errorInfo = _elementId ? getSchemaError(_elementId, modelSource) : { status: 'valid' };
+      const errorInfo = _elementId
+        ? getSchemaError(_elementId, modelSource, elementType)
+        : { status: 'valid' };
       materialParams.status = errorInfo.status;
       break;
     }
@@ -359,6 +367,21 @@ function hasSectionValidationError(sectionId) {
 }
 
 /**
+ * オブジェクトの有効重要度レベルを取得
+ * REQUIRED（違反）/ NOT_APPLICABLE（対象外）の2値で返す
+ * @param {THREE.Object3D} object - 対象オブジェクト
+ * @returns {string} IMPORTANCE_LEVELS.REQUIRED または IMPORTANCE_LEVELS.NOT_APPLICABLE
+ */
+export function getEffectiveImportanceLevelForObject(object) {
+  const importance = object?.userData?.importance;
+  const hasValidationError = hasSectionValidationError(object?.userData?.sectionId);
+
+  return importance === IMPORTANCE_LEVELS.REQUIRED || hasValidationError
+    ? IMPORTANCE_LEVELS.REQUIRED
+    : IMPORTANCE_LEVELS.NOT_APPLICABLE;
+}
+
+/**
  * オブジェクトに重要度マテリアルを適用
  * userData.importance（ImportanceManagerがJSON設定に基づき算出済み）を参照し、
  * REQUIRED（違反あり）のみ違反色、それ以外は対象外色にする。
@@ -369,16 +392,9 @@ function hasSectionValidationError(sectionId) {
 export function applyImportanceColorMode(object, options = {}) {
   try {
     const elementType = object.userData.elementType;
-    const importance = object.userData.importance;
 
     if (object.isMesh) {
-      // JSON重要度設定 or 断面バリデーションエラーで違反判定
-      // REQUIRED = 違反あり、それ以外 = 対象外
-      const hasValidationError = hasSectionValidationError(object.userData.sectionId);
-      const effectiveLevel =
-        importance === IMPORTANCE_LEVELS.REQUIRED || hasValidationError
-          ? IMPORTANCE_LEVELS.REQUIRED
-          : IMPORTANCE_LEVELS.NOT_APPLICABLE;
+      const effectiveLevel = getEffectiveImportanceLevelForObject(object);
 
       const materialOptions = {
         ...options,
@@ -392,7 +408,7 @@ export function applyImportanceColorMode(object, options = {}) {
       }
     }
   } catch (error) {
-    console.warn(`Failed to apply importance color mode to object:`, error);
+    log.warn(`Failed to apply importance color mode to object:`, error);
   }
 }
 

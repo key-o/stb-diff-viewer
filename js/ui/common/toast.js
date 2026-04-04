@@ -254,15 +254,6 @@ function hideToast(toastId) {
 }
 
 /**
- * すべてのトーストを非表示
- */
-function hideAllToasts() {
-  for (const toastId of activeToasts.keys()) {
-    hideToast(toastId);
-  }
-}
-
-/**
  * 成功トーストを表示（ショートカット）
  * @param {string} message - メッセージ
  * @param {Object} [options] - 追加オプション
@@ -299,7 +290,7 @@ export function showInfo(message, options = {}) {
 }
 
 // イベントバスのインポート
-import { eventBus, ToastEvents } from '../../app/events/index.js';
+import { eventBus, ToastEvents } from '../../data/events/index.js';
 
 /**
  * イベントバス経由でトースト通知を表示

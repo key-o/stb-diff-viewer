@@ -109,7 +109,7 @@ function applyInitialDisplayModes(scheduleRender) {
   log.debug('[applyInitialDisplayModes] Applying initial display modes');
 
   // オーケストレーターで常にスキップされる要素タイプ（モードに関係なく再描画）
-  const alwaysRedrawTypes = new Set(['Slab', 'Wall']);
+  const alwaysRedrawTypes = new Set(['Slab', 'Wall', 'FrameDampingDevice']);
 
   // VIEW_MODE_CHECKBOX_IDSから再描画が必要な要素タイプを動的に判定
   const typesToRedraw = Object.keys(VIEW_MODE_CHECKBOX_IDS).filter(

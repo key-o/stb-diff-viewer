@@ -29,6 +29,9 @@ export const SUPPORTED_ELEMENTS = [
   'Footing',
   'StripFooting',
   'FoundationColumn',
+  'IsolatingDevice',
+  'DampingDevice',
+  'FrameDampingDevice',
   'Undefined', // StbSecUndefined断面を参照する要素（常にラインのみ表示）
 ];
 
@@ -49,6 +52,9 @@ export const DISPLAY_MODE_ELEMENTS = [
   'Parapet',
   'Pile',
   'StripFooting',
+  'IsolatingDevice',
+  'DampingDevice',
+  'FrameDampingDevice',
 ];
 
 /**
@@ -84,6 +90,9 @@ export const COLOR_ELEMENTS = [
   'Footing',
   'StripFooting',
   'FoundationColumn',
+  'IsolatingDevice',
+  'DampingDevice',
+  'FrameDampingDevice',
   'Undefined',
 ];
 
@@ -93,6 +102,7 @@ export const COLOR_ELEMENTS = [
  */
 export const ELEMENT_CATEGORIES = {
   STRUCTURAL: ['Column', 'Post', 'Girder', 'Beam', 'Brace', 'Joint'],
+  SEISMIC: ['IsolatingDevice', 'DampingDevice', 'FrameDampingDevice'],
   SURFACE: ['Slab', 'Wall', 'Parapet'],
   FOUNDATION: ['Pile', 'Footing', 'StripFooting', 'FoundationColumn'],
   REFERENCE: ['Node', 'Axis', 'Story'],

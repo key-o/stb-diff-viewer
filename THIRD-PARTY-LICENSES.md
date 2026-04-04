@@ -17,8 +17,16 @@
   - CDN: https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/
   - npm: https://www.npmjs.com/package/dxf-parser
 
+- web-ifc / web-ifc.wasm (v0.0.74)
+  - ライセンス: MPL-2.0
+  - CDN (API): https://cdn.jsdelivr.net/npm/web-ifc@0.0.74/web-ifc-api.js
+  - npm: https://www.npmjs.com/package/web-ifc
+  - リポジトリ: https://github.com/ThatOpen/engine_web-ifc
+
 注意:
-- この一覧は `stb-diff-viewer` フォルダのランタイム依存に限定しており、開発にのみ使用する devDependencies（例: `playwright`, `jsdom` 等）は含めていません。devDependencies を含めた完全なライセンス一覧が必要な場合は、リポジトリルートで `npm install` を行った後、`npx license-checker` 等を利用して生成してください。
+- この一覧は `stb-diff-viewer` フォルダのランタイム依存に限定しており、開発にのみ使用する devDependencies（例: `playwright`, `jsdom` 等）は含めていません。
+- ただし、`web-ifc` は `devDependencies` に定義されていても、`web-ifc-api.js` / `web-ifc.wasm` をブラウザ実行時に使用するため、本一覧に含めています。
+- devDependencies を含めた完全なライセンス一覧が必要な場合は、リポジトリルートで `npm install` を行った後、`npx license-checker` 等を利用して生成してください。
 
 自動生成コマンド例（ローカル環境）:
 
@@ -31,7 +39,7 @@ npx license-checker --production --json > third-party-licenses.json
 
 ## ライセンス原文
 
-以下のライブラリはすべて MIT ライセンスの下で公開されています。配布物に同梱する場合は、必ず MIT ライセンス本文（下記）を添付してください。
+以下のライブラリは MIT または MPL-2.0 ライセンスの下で公開されています。配布物に同梱する場合は、該当ライセンス本文を添付してください。
 
 
 ### ライセンス全文（MIT）
@@ -63,6 +71,16 @@ SOFTWARE.
 
 --------------------------------------------------------------------
 
+### ライセンス全文（MPL-2.0）
+
+`web-ifc / web-ifc.wasm` は Mozilla Public License 2.0 の下で公開されています。
+MPL-2.0 の原文は以下を参照してください。
+
+- https://www.mozilla.org/en-US/MPL/2.0/
+- https://github.com/ThatOpen/engine_web-ifc/blob/main/LICENSE.md
+
+--------------------------------------------------------------------
+
 個別ライセンス原文および正確な著作権表示は以下を参照してください。
 
 - **Three.js** (r160) - https://github.com/mrdoob/three.js/blob/master/LICENSE
@@ -73,6 +91,9 @@ SOFTWARE.
 
 - **dxf-parser** (v1.1.2) - https://github.com/gdsestimating/dxf-parser/blob/master/LICENSE
   - 著作権表記（リファレンス）: Copyright (c) Ben Zuill-Smith / GDS Storefront Estimating
+
+- **web-ifc / web-ifc.wasm** (v0.0.74) - https://github.com/ThatOpen/engine_web-ifc/blob/main/LICENSE.md
+  - 著作権表記（リファレンス）: Copyright (c) That Open Company and contributors
 
 注意: ここで示す著作権表記は公開リポジトリのLICENSEによる参考表記です。正確な著作権年度や名前はリポジトリの LICENSE 原文を参照して下さい。
 

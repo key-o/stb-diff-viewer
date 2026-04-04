@@ -123,12 +123,12 @@ export class BaseElementGenerator {
    * 単一要素からメッシュを作成
    * サブクラスでオーバーライドする必須メソッド
    *
-   * @param {Object} element - 要素データ
-   * @param {Object} context - コンテキスト（nodes, sections, steelSections, elementType, isJsonInput, log）
+   * @param {Object} _element - 要素データ
+   * @param {Object} _context - コンテキスト（nodes, sections, steelSections, elementType, isJsonInput, log）
    * @returns {THREE.Mesh|null} 生成されたメッシュ、またはnull
    * @abstract
    */
-  static _createSingleMesh(element, context) {
+  static _createSingleMesh(_element, _context) {
     throw new Error(`${this.name}._createSingleMesh() must be implemented by subclass`);
   }
 
@@ -289,5 +289,3 @@ export class BaseElementGenerator {
 }
 
 export default BaseElementGenerator;
-
-

@@ -10,7 +10,10 @@
 import * as THREE from 'three';
 import { CAMERA_MODES } from '../../constants/displayModes.js';
 import { applyClipPlanes, clearClippingPlanes, getCameraMode } from '../../viewer/index.js';
-import { eventBus, ModelEvents, ViewEvents } from '../../app/events/index.js';
+import { eventBus, ModelEvents, ViewEvents } from '../../data/events/index.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:viewer3d:clipping2DImpl');
 
 // 2D奥行きクリッピングの現在の状態
 let current2DClippingState = {
@@ -27,7 +30,7 @@ export function updateDepth2DClippingVisibility(mode) {
   const depth2DClippingGroup = document.getElementById('depth2DClippingGroup');
 
   if (!depth2DClippingGroup) {
-    console.warn('[Clipping2D] depth2DClippingGroup element not found');
+    log.warn('[Clipping2D] depth2DClippingGroup element not found');
     return;
   }
 
@@ -53,7 +56,7 @@ export function applyDepth2DClipping(centerZ, range) {
   // カメラモードが2Dでない場合は警告
   const currentMode = getCameraMode();
   if (currentMode !== CAMERA_MODES.ORTHOGRAPHIC) {
-    console.warn('[Clipping2D] Cannot apply 2D depth clipping in 3D mode');
+    log.warn('[Clipping2D] Cannot apply 2D depth clipping in 3D mode');
     return;
   }
 
@@ -222,7 +225,7 @@ export function initDepth2DClippingUI() {
  */
 export function adjustDepth2DClippingRangeFromModel(modelBounds) {
   if (!modelBounds || modelBounds.isEmpty()) {
-    console.warn('[Clipping2D] Invalid model bounds provided');
+    log.warn('[Clipping2D] Invalid model bounds provided');
     return;
   }
 
@@ -267,8 +270,8 @@ export function adjustDepth2DClippingRangeFromModel(modelBounds) {
  */
 export function initClipping2DEventListeners() {
   // カメラモード変更時に2Dクリッピングコントロールの表示を更新
-  eventBus.on(ViewEvents.CAMERA_MODE_CHANGED, ({ is2DMode }) => {
-    updateDepth2DClippingVisibility(is2DMode);
+  eventBus.on(ViewEvents.CAMERA_MODE_CHANGED, ({ mode }) => {
+    updateDepth2DClippingVisibility(mode);
   });
 
   // modelLoader層からのモデルバウンド更新イベントをリスン

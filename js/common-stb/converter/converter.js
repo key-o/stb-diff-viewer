@@ -2,7 +2,7 @@
  * Main STB Version Converter
  */
 
-import { parseXml, buildXml } from './utils/xml-helper.js';
+import { parseXml, buildXml, deepClone } from './utils/xml-helper.js';
 import logger from './utils/converter-logger.js';
 import { getVersion, getRootElement } from './rules/type1-value-changes.js';
 import convert202to210 from './v202-to-v210.js';
@@ -11,7 +11,7 @@ import convert210to202 from './v210-to-v202.js';
 /**
  * Convert STB XML content to a different version
  * @param {string} xmlContent - STB XML content
- * @param {string} targetVersion - Target version ('2.0.2' or '2.1.0')
+ * @param {string} targetVersion - Target version ('2.0.2', '2.1.0', or '2.1.1')
  * @param {object} options - Conversion options
  * @returns {Promise<object>} Conversion result
  */
@@ -37,8 +37,8 @@ export async function convert(xmlContent, targetVersion, options = {}) {
 
   // Validate target version
   const normalizedTarget = normalizeVersion(targetVersion);
-  if (!['2.0.2', '2.1.0'].includes(normalizedTarget)) {
-    throw new Error(`Unsupported target version: ${targetVersion}. Supported: 2.0.2, 2.1.0`);
+  if (!['2.0.2', '2.1.0', '2.1.1'].includes(normalizedTarget)) {
+    throw new Error(`Unsupported target version: ${targetVersion}. Supported: 2.0.2, 2.1.0, 2.1.1`);
   }
 
   // Check if conversion is needed
@@ -54,8 +54,12 @@ export async function convert(xmlContent, targetVersion, options = {}) {
 
   // Perform conversion
   let convertedRoot;
-  if (normalizedTarget === '2.1.0') {
+  if (is21xVersion(normalizedCurrent) && is21xVersion(normalizedTarget)) {
+    convertedRoot = deepClone(stbRoot);
+    setVersion(convertedRoot, normalizedTarget);
+  } else if (normalizedTarget === '2.1.0' || normalizedTarget === '2.1.1') {
     convertedRoot = convert202to210(stbRoot, options);
+    setVersion(convertedRoot, normalizedTarget);
   } else {
     convertedRoot = convert210to202(stbRoot, options);
   }
@@ -84,11 +88,44 @@ function normalizeVersion(version) {
   if (v === '202' || v === '2.0' || v.startsWith('2.0.')) {
     return '2.0.2';
   }
+  if (v === '211' || v === '2.1.1') {
+    return '2.1.1';
+  }
   if (v === '210' || v === '2.1' || v.startsWith('2.1.')) {
     return '2.1.0';
   }
 
   return v;
+}
+
+/**
+ * Check whether the normalized version is STB 2.1.x
+ * @param {string} version - Normalized version string
+ * @returns {boolean} True for 2.1.0 or 2.1.1
+ */
+function is21xVersion(version) {
+  return version === '2.1.0' || version === '2.1.1';
+}
+
+/**
+ * Update the root version attribute without applying schema changes.
+ * Used for 2.1.0 <-> 2.1.1 where only the minor version label changes.
+ * @param {object} stbRoot - Parsed STB XML object
+ * @param {string} version - Target version
+ */
+function setVersion(stbRoot, version) {
+  const root = getRootElement(stbRoot);
+  const rootData = Array.isArray(root?.element) ? root.element[0] : root?.element;
+  if (!rootData) return;
+
+  const attrs = rootData.$ || {};
+  const currentVersion = attrs.version ?? null;
+  attrs.version = version;
+  rootData.$ = attrs;
+
+  if (currentVersion !== version) {
+    logger.info(`Version updated: ${currentVersion} -> ${version}`);
+  }
 }
 
 /**
@@ -129,7 +166,7 @@ export async function validate(xmlContent) {
     const version = getVersion(stbRoot);
     if (!version) {
       warnings.push('Missing version attribute');
-    } else if (!['2.0.2', '2.1.0'].includes(normalizeVersion(version))) {
+    } else if (!['2.0.2', '2.1.0', '2.1.1'].includes(normalizeVersion(version))) {
       warnings.push(`Unsupported version: ${version}`);
     }
 

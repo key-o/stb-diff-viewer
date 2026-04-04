@@ -218,7 +218,7 @@ export class PileGenerator extends BaseElementGenerator {
       const topNodePos = {
         x: topNode.x + (pile.offset_X || 0),
         y: topNode.y + (pile.offset_Y || 0),
-        z: pile.level_top,
+        z: topNode.z + (pile.level_top || 0),
       };
 
       const bottomNode = {
@@ -418,6 +418,3 @@ if (typeof window !== 'undefined') {
 }
 
 export default PileGenerator;
-
-
-

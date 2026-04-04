@@ -58,7 +58,7 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
   const storyFontSize = LABEL_SETTINGS.STORY_FONT_SIZE;
 
   try {
-    let canvas, ctx, texture, baseScaleX, baseScaleY;
+    let canvas, ctx, baseScaleX, baseScaleY;
 
     if (isAxisLabel) {
       // 通り芯ラベル: 丸い背景（バルーン）付き
@@ -163,7 +163,7 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
       baseScaleY = labelBaseScaleY;
     }
 
-    texture = new THREE.CanvasTexture(canvas);
+    const texture = new THREE.CanvasTexture(canvas);
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.LinearMipmapLinearFilter;
 
@@ -210,8 +210,6 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
       const elementType = this.userData.elementType;
       const meta = this.userData.meta || {};
 
-      let currentPos;
-
       // 全要素でカメラ方向に基づいた動的オフセットを適用
       const cameraDirection = new THREE.Vector3();
       cameraInstance.getWorldDirection(cameraDirection);
@@ -219,7 +217,7 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
 
       // カメラの方向に50mmオフセット
       const dynamicOffset = cameraDirection.clone().multiplyScalar(-50);
-      currentPos = originalPos.clone().add(dynamicOffset);
+      const currentPos = originalPos.clone().add(dynamicOffset);
 
       // --- Axis label specific: 通り芯の端（レベル面の端）に固定配置 ---
       if (elementType === 'Axis' && meta && meta.axisType && meta.modelBounds) {

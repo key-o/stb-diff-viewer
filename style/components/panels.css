@@ -14,7 +14,8 @@
   min-width: 300px;
   min-height: 100px;
   width: 30vw;
-  max-width: 70vw;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 20px);
   overflow: hidden;
   resize: none;
   padding: 0;
@@ -261,31 +262,3 @@
   width: 100%;
 }
 
-.stb-convert-status {
-  margin-top: 8px;
-  padding: 8px;
-  border-radius: var(--border-radius);
-  font-size: var(--font-size-sm);
-}
-
-.stb-convert-status.hidden {
-  display: none;
-}
-
-.stb-convert-status.info {
-  background: var(--info-bg, #e7f3ff);
-  color: var(--info-color, #0066cc);
-  border: 1px solid var(--info-border, #b3d9ff);
-}
-
-.stb-convert-status.success {
-  background: var(--success-bg, #e7ffe7);
-  color: var(--success-color, #006600);
-  border: 1px solid var(--success-border, #b3ffb3);
-}
-
-.stb-convert-status.error {
-  background: var(--error-bg, #ffe7e7);
-  color: var(--error-color, #cc0000);
-  border: 1px solid var(--error-border, #ffb3b3);
-}

@@ -245,8 +245,12 @@ export class BeamSectionListPanel {
         });
       } catch (error) {
         log.error('Error rendering beam section grid:', error);
-        console.error('[BeamSectionListPanel] Stack trace:', error.stack);
-        container.innerHTML = `<div class="section-list-error">エラー: ${error.message}</div>`;
+        log.error('[BeamSectionListPanel] Stack trace:', error.stack);
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'section-list-error';
+        errorDiv.textContent = `エラー: ${error.message}`;
+        container.innerHTML = '';
+        container.appendChild(errorDiv);
       }
     }, 10);
   }

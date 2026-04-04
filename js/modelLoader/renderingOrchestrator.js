@@ -170,6 +170,8 @@ function renderElementType(elementType, comparisonResult, modelBounds, _globalDa
     case 'Footing':
     case 'FoundationColumn':
     case 'StripFooting':
+    case 'IsolatingDevice':
+    case 'DampingDevice':
       // solidモードの場合は線分描画をスキップ（applyInitialDisplayModesで立体描画される）
       if (displayModeManager.isSolidMode(elementType)) break;
       result.labels = drawLineElements(
@@ -183,6 +185,7 @@ function renderElementType(elementType, comparisonResult, modelBounds, _globalDa
 
     case 'Slab':
     case 'Wall':
+    case 'FrameDampingDevice':
     case 'Joint':
     case 'Undefined':
       // applyInitialDisplayModesで適切なモードで描画される

@@ -112,58 +112,11 @@ function addDefaultAttributes(stbRoot, elementType, targetVersion) {
 }
 
 /**
- * Remove v2.1.0-specific attributes when converting to v2.0.2
- * @param {object} stbRoot - ST-Bridge root element
- * @param {string} elementType - Element type name
- * @returns {number} Number of attributes removed
- */
-function removeNewAttributesFor202(stbRoot, elementType) {
-  const elementConfig = ADDED_IN_210[elementType];
-  if (!elementConfig) return 0;
-
-  const root = getStbRoot(stbRoot);
-  if (!root) return 0;
-
-  const elements = navigateXmlPath(root, elementConfig.path);
-  if (!elements) return 0;
-
-  let count = 0;
-  elements.forEach((element) => {
-    const attrs = element['$'];
-    if (!attrs) return;
-
-    // Remove all attributes that were added in v2.1.0
-    Object.keys(elementConfig.defaults || {}).forEach((key) => {
-      if (attrs[key] !== undefined) {
-        delete attrs[key];
-        count++;
-      }
-    });
-
-    // Handle special attributes
-    if (elementConfig.specialHandling) {
-      elementConfig.specialHandling.forEach((key) => {
-        if (attrs[key] !== undefined) {
-          delete attrs[key];
-          count++;
-        }
-      });
-    }
-  });
-
-  if (count > 0) {
-    logger.info(`${elementType}: Removed ${count} v2.1.0 attributes`);
-  }
-
-  return count;
-}
-
-/**
  * Convert StbStory attributes from v2.0.2 to v2.1.0
  * Note: This requires special handling for level_name generation
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertStoryAttributesTo210(stbRoot) {
+function convertStoryAttributesTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   const stories = root?.[0]?.['StbModel']?.[0]?.['StbStories']?.[0]?.['StbStory'];
   if (!stories) return;
@@ -195,7 +148,7 @@ export function convertStoryAttributesTo210(stbRoot) {
  * Convert StbStory attributes from v2.1.0 to v2.0.2
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertStoryAttributesTo202(stbRoot) {
+function convertStoryAttributesTo202(stbRoot) {
   const root = getStbRoot(stbRoot);
   const stories = root?.[0]?.['StbModel']?.[0]?.['StbStories']?.[0]?.['StbStory'];
   if (!stories) return;
@@ -207,7 +160,7 @@ export function convertStoryAttributesTo202(stbRoot) {
 
     // Remove v2.1.0 specific attributes
     ['level_name', 'kind', 'strength_concrete'].forEach((key) => {
-      if (attrs[key]) {
+      if (attrs[key] !== undefined) {
         delete attrs[key];
         count++;
       }
@@ -226,7 +179,7 @@ export function convertStoryAttributesTo202(stbRoot) {
  * Remove guid attribute from elements that don't allow it in v2.1.0
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function removeGuidFromRestrictedElements(stbRoot) {
+function removeGuidFromRestrictedElements(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -238,7 +191,7 @@ export function removeGuidFromRestrictedElements(stbRoot) {
   if (axes) {
     const parallelAxesList = axes['StbParallelAxes'] || [];
     parallelAxesList.forEach((parallelAxes) => {
-      if (parallelAxes['$']?.guid) {
+      if (parallelAxes['$']?.guid !== undefined) {
         delete parallelAxes['$'].guid;
         count++;
       }
@@ -249,7 +202,7 @@ export function removeGuidFromRestrictedElements(stbRoot) {
   const stories = rootData?.['StbModel']?.[0]?.['StbStories']?.[0]?.['StbStory'];
   if (stories) {
     stories.forEach((story) => {
-      if (story['$']?.guid) {
+      if (story['$']?.guid !== undefined) {
         delete story['$'].guid;
         count++;
       }
@@ -263,7 +216,7 @@ export function removeGuidFromRestrictedElements(stbRoot) {
       if (elementName.startsWith('StbSec') && sections[elementName]) {
         const elements = sections[elementName];
         elements.forEach((element) => {
-          if (element['$']?.guid) {
+          if (element['$']?.guid !== undefined) {
             delete element['$'].guid;
             count++;
           }
@@ -281,7 +234,7 @@ export function removeGuidFromRestrictedElements(stbRoot) {
  * Remove deprecated attributes from RC section figure elements in v2.1.0
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function removeRCSectionAttributesTo210(stbRoot) {
+function removeRCSectionAttributesTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -359,7 +312,7 @@ export function removeRCSectionAttributesTo210(stbRoot) {
  * Remove deprecated attributes from bar arrangement parent elements in v2.1.0
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function removeBarArrangementParentAttrsTo210(stbRoot) {
+function removeBarArrangementParentAttrsTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -428,7 +381,7 @@ export function removeBarArrangementParentAttrsTo210(stbRoot) {
  * Remove deprecated attributes from S beam section elements in v2.1.0
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function removeSSectionAttributesTo210(stbRoot) {
+function removeSSectionAttributesTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -536,7 +489,7 @@ export function removeSSectionAttributesTo210(stbRoot) {
  * Add missing required attributes (type, r) to steel section elements
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function addMissingSteelAttributesTo210(stbRoot) {
+function addMissingSteelAttributesTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -613,7 +566,7 @@ export function addMissingSteelAttributesTo210(stbRoot) {
  * Remove 'type' attribute from StbSecRoll-C and StbSecRoll-L (not allowed in v2.1.0)
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function removeRollCTypeAttributeTo210(stbRoot) {
+function removeRollCTypeAttributeTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -644,20 +597,10 @@ export function removeRollCTypeAttributeTo210(stbRoot) {
 }
 
 /**
- * Keep StbJointArrangements generated by Type7 conversion.
- * Type7 now generates v2.1.0-compliant attributes:
- * id_section, starting_point, distance.
- * @param {object} stbRoot - ST-Bridge root element
- */
-export function removeJointArrangementAttrsTo210(stbRoot) {
-  void stbRoot;
-}
-
-/**
  * Remove 'isPress' attribute from StbWall (not allowed in v2.1.0)
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function removeWallIsPressTo210(stbRoot) {
+function removeWallIsPressTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -680,7 +623,7 @@ export function removeWallIsPressTo210(stbRoot) {
  * Remove 'type_haunch' attribute from StbSlab (not allowed in v2.1.0)
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function removeSlabTypeHaunchTo210(stbRoot) {
+function removeSlabTypeHaunchTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -704,7 +647,7 @@ export function removeSlabTypeHaunchTo210(stbRoot) {
  * Elements like StbSecPipe with D='0' violate minExclusive constraint
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function fixZeroLengthAttrsTo210(stbRoot) {
+function fixZeroLengthAttrsTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -747,7 +690,7 @@ export function fixZeroLengthAttrsTo210(stbRoot) {
  * Remove 'pos' attribute from StbSecSlab_RC_ConventionalTaper (not allowed in v2.1.0)
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function removeSlabTaperPosTo210(stbRoot) {
+function removeSlabTaperPosTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -785,7 +728,7 @@ export function removeSlabTaperPosTo210(stbRoot) {
  * Remove StbSS7ModelExtension (not expected in v2.1.0 standard schema)
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function removeSS7ExtensionTo210(stbRoot) {
+function removeSS7ExtensionTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -812,7 +755,7 @@ export function removeSS7ExtensionTo210(stbRoot) {
  * Fix StbPile length attributes with value 0.0 (must be > 0)
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function fixPileLengthsTo210(stbRoot) {
+function fixPileLengthsTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -841,7 +784,7 @@ export function fixPileLengthsTo210(stbRoot) {
  * Remove invalid SRC beam steel elements (Joint, FiveTypes - not expected in v2.1.0)
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function removeSrcBeamInvalidElementsTo210(stbRoot) {
+function removeSrcBeamInvalidElementsTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -887,7 +830,7 @@ export function removeSrcBeamInvalidElementsTo210(stbRoot) {
  * Fix N_X, N_Y, N_hoop_X, N_hoop_Y values of '0' to '1' (must be positive integer)
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function fixZeroBarCountsTo210(stbRoot) {
+function fixZeroBarCountsTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -949,7 +892,7 @@ export function fixZeroBarCountsTo210(stbRoot) {
  * v2.1.0: single element with start_width, end_width, start_depth, end_depth
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertBeamTaperTo210(stbRoot) {
+function convertBeamTaperTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -1039,7 +982,7 @@ export function convertBeamTaperTo210(stbRoot) {
  * v2.1.0: single element with base_depth, tip_depth
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function convertSlabTaperTo210(stbRoot) {
+function convertSlabTaperTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -1107,7 +1050,7 @@ export function convertSlabTaperTo210(stbRoot) {
  * v2.1.0 monolist_id type requires 3+ space-separated values
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function removeInvalidNodeIdOrderTo210(stbRoot) {
+function removeInvalidNodeIdOrderTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -1199,7 +1142,7 @@ export function removeInvalidNodeIdOrderTo210(stbRoot) {
  * Remove empty StbNodeIdList elements (missing child elements)
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function removeEmptyNodeIdListTo210(stbRoot) {
+function removeEmptyNodeIdListTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -1281,7 +1224,7 @@ export function removeEmptyNodeIdListTo210(stbRoot) {
  * v2.1.0 requires pitch > 0 (minExclusive constraint)
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function fixZeroPitchAttrsTo210(stbRoot) {
+function fixZeroPitchAttrsTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -1350,7 +1293,7 @@ export function fixZeroPitchAttrsTo210(stbRoot) {
  * Rename SRC column ThreeTypes shape elements to v2.1.0 format
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function renameSrcColumnThreeTypesShapeTo210(stbRoot) {
+function renameSrcColumnThreeTypesShapeTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -1401,7 +1344,7 @@ export function renameSrcColumnThreeTypesShapeTo210(stbRoot) {
  * Rename StbSecBarSlab_RC_Standard to StbSecBarSlab_RC_ConventionalStandard
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function renameSlabBarStandardTo210(stbRoot) {
+function renameSlabBarStandardTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -1446,7 +1389,7 @@ export function renameSlabBarStandardTo210(stbRoot) {
  * Remove StbOpens when directly under StbModel (should be in StbArrangements)
  * @param {object} stbRoot - ST-Bridge root element
  */
-export function removeStbOpensDirectTo210(stbRoot) {
+function removeStbOpensDirectTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -1499,7 +1442,7 @@ export function removeStbOpensDirectTo210(stbRoot) {
 /**
  * Remove StbSecPipe elements with invalid (negative or zero) D attribute
  */
-export function removeInvalidSecPipeTo210(stbRoot) {
+function removeInvalidSecPipeTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -1535,135 +1478,9 @@ export function removeInvalidSecPipeTo210(stbRoot) {
 }
 
 /**
- * Rename StbSecBaseConventional_S to StbSecBaseConventional
- */
-export function renameSecBaseConventionalTo210(stbRoot) {
-  const root = getStbRoot(stbRoot);
-  if (!root) return;
-  const rootData = Array.isArray(root) ? root[0] : root;
-  const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
-  if (!sections) return;
-
-  let count = 0;
-
-  // Check StbSecColumn_S elements
-  const secColumns = sections['StbSecColumn_S'];
-  if (secColumns && Array.isArray(secColumns)) {
-    secColumns.forEach((column) => {
-      // StbSecBaseConventional_S is directly under StbSecColumn_S
-      if (column['StbSecBaseConventional_S']) {
-        // In v2.1.0, this element needs to be restructured
-        // For now, just remove it since the structure changed significantly
-        delete column['StbSecBaseConventional_S'];
-        count++;
-      }
-    });
-  }
-
-  // Also check StbSecBase_S (standalone base sections)
-  const secBases = sections['StbSecBase_S'];
-  if (secBases && Array.isArray(secBases)) {
-    secBases.forEach((base) => {
-      if (base['StbSecBaseConventional_S']) {
-        delete base['StbSecBaseConventional_S'];
-        count++;
-      }
-    });
-  }
-
-  if (count > 0) {
-    logger.info(`Removed ${count} StbSecBaseConventional_S elements (structure changed in v2.1.0)`);
-  }
-}
-
-/**
- * Remove StbSecPile_RC strength_concrete attribute (not allowed in v2.1.0)
- */
-export function removePileStrengthConcreteTo210(stbRoot) {
-  const root = getStbRoot(stbRoot);
-  if (!root) return;
-  const rootData = Array.isArray(root) ? root[0] : root;
-  const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
-  if (!sections) return;
-
-  let count = 0;
-
-  // Check StbSecPile_RC elements
-  const piles = sections['StbSecPile_RC'];
-  if (piles && Array.isArray(piles)) {
-    piles.forEach((pile) => {
-      if (pile['$'] && pile['$']['strength_concrete']) {
-        delete pile['$']['strength_concrete'];
-        count++;
-      }
-    });
-  }
-
-  if (count > 0) {
-    logger.info(`Removed ${count} strength_concrete attributes from StbSecPile_RC`);
-  }
-}
-
-/**
- * Remove StbSecBarArrangementPile_RC elements (need wrapper in v2.1.0, remove for simplicity)
- */
-export function removeBarArrangementPileTo210(stbRoot) {
-  const root = getStbRoot(stbRoot);
-  if (!root) return;
-  const rootData = Array.isArray(root) ? root[0] : root;
-  const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
-  if (!sections) return;
-
-  let count = 0;
-
-  // Check StbSecPile_RC elements
-  const piles = sections['StbSecPile_RC'];
-  if (piles && Array.isArray(piles)) {
-    piles.forEach((pile) => {
-      if (pile['StbSecBarArrangementPile_RC']) {
-        delete pile['StbSecBarArrangementPile_RC'];
-        count++;
-      }
-    });
-  }
-
-  if (count > 0) {
-    logger.info(`Removed ${count} StbSecBarArrangementPile_RC elements (not supported in v2.1.0)`);
-  }
-}
-
-/**
- * Remove StbSecFigurePile_S elements (need wrapper in v2.1.0, remove for simplicity)
- */
-export function removeFigurePileSTo210(stbRoot) {
-  const root = getStbRoot(stbRoot);
-  if (!root) return;
-  const rootData = Array.isArray(root) ? root[0] : root;
-  const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
-  if (!sections) return;
-
-  let count = 0;
-
-  // Check StbSecPile_S elements
-  const piles = sections['StbSecPile_S'];
-  if (piles && Array.isArray(piles)) {
-    piles.forEach((pile) => {
-      if (pile['StbSecFigurePile_S']) {
-        delete pile['StbSecFigurePile_S'];
-        count++;
-      }
-    });
-  }
-
-  if (count > 0) {
-    logger.info(`Removed ${count} StbSecFigurePile_S elements (need wrapper in v2.1.0)`);
-  }
-}
-
-/**
  * Remove StbSecBarArrangementFoundation_RC empty elements
  */
-export function removeEmptyBarArrangementFoundationTo210(stbRoot) {
+function removeEmptyBarArrangementFoundationTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -1713,139 +1530,9 @@ export function removeEmptyBarArrangementFoundationTo210(stbRoot) {
 }
 
 /**
- * Remove/fix invalid StbJointShapeH* elements
- * In v2.1.0, the structure changed significantly - remove for simplicity
- */
-export function removeInvalidJointShapesTo210(stbRoot) {
-  const root = getStbRoot(stbRoot);
-  if (!root) return;
-  const rootData = Array.isArray(root) ? root[0] : root;
-  const model = rootData?.['StbModel']?.[0];
-  if (!model) return;
-
-  let count = 0;
-
-  // Process StbJoints container
-  const joints = model['StbJoints']?.[0];
-  if (!joints) return;
-
-  // Joint types that contain StbJointShapeH
-  const jointTypes = ['StbJointBeamShapeH', 'StbJointColumnShapeH'];
-
-  jointTypes.forEach((jointType) => {
-    if (!joints[jointType] || !Array.isArray(joints[jointType])) return;
-
-    joints[jointType].forEach((joint) => {
-      // Check for StbJointShapeH elements
-      if (joint['StbJointShapeH'] && Array.isArray(joint['StbJointShapeH'])) {
-        joint['StbJointShapeH'].forEach((shape) => {
-          const attrs = shape?.['$'];
-          if (attrs) {
-            // Remove strength_plate (not allowed in v2.1.0)
-            if (attrs['strength_plate']) {
-              delete attrs['strength_plate'];
-              count++;
-            }
-            // Add required strength_plate_flange if missing
-            if (!attrs['strength_plate_flange']) {
-              attrs['strength_plate_flange'] = 'SS400';
-              count++;
-            }
-          }
-        });
-      }
-      // Fix StbJointShapeHFlange
-      if (joint['StbJointShapeHFlange'] && Array.isArray(joint['StbJointShapeHFlange'])) {
-        joint['StbJointShapeHFlange'].forEach((flange) => {
-          const flangeAttrs = flange?.['$'];
-          if (flangeAttrs) {
-            // Remove nf, mf (not allowed in v2.1.0)
-            if (flangeAttrs['nf']) {
-              delete flangeAttrs['nf'];
-              count++;
-            }
-            if (flangeAttrs['mf']) {
-              delete flangeAttrs['mf'];
-              count++;
-            }
-          }
-          // Add StbJointShapeHFlangeBolt if missing
-          if (!flange['StbJointShapeHFlangeBolt']) {
-            flange['StbJointShapeHFlangeBolt'] = [
-              {
-                $: {
-                  count: '1',
-                  kind_bolt: 'HTB',
-                  name_bolt: 'M16',
-                  strength_bolt: 'F10T',
-                },
-              },
-            ];
-            count++;
-          }
-        });
-      }
-      // Fix StbJointShapeHWeb
-      if (joint['StbJointShapeHWeb'] && Array.isArray(joint['StbJointShapeHWeb'])) {
-        joint['StbJointShapeHWeb'].forEach((web) => {
-          const webAttrs = web?.['$'];
-          if (webAttrs) {
-            // Remove nw, mw (not allowed in v2.1.0)
-            if (webAttrs['nw']) {
-              delete webAttrs['nw'];
-              count++;
-            }
-            if (webAttrs['mw']) {
-              delete webAttrs['mw'];
-              count++;
-            }
-          }
-          // Add StbJointShapeHWebBolt if missing
-          if (!web['StbJointShapeHWebBolt']) {
-            web['StbJointShapeHWebBolt'] = [
-              {
-                $: {
-                  count: '1',
-                  kind_bolt: 'HTB',
-                  name_bolt: 'M16',
-                  strength_bolt: 'F10T',
-                },
-              },
-            ];
-            count++;
-          }
-        });
-      }
-    });
-  });
-
-  if (count > 0) {
-    logger.info(`Fixed ${count} StbJointShapeH* attributes/elements for v2.1.0`);
-  }
-}
-
-/**
- * Remove StbSecPileProduct elements (not allowed in v2.1.0 position)
- */
-export function removeInvalidSecPileProductTo210(stbRoot) {
-  const root = getStbRoot(stbRoot);
-  if (!root) return;
-  const rootData = Array.isArray(root) ? root[0] : root;
-  const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
-  if (!sections) return;
-
-  // StbSecPileProduct should not be in certain positions
-  // Check if it's directly under StbSections where it shouldn't be
-  if (sections['StbSecPileProduct']) {
-    delete sections['StbSecPileProduct'];
-    logger.info('Removed misplaced StbSecPileProduct elements');
-  }
-}
-
-/**
  * Remove StbSecOpen_RC elements that are missing required attributes
  */
-export function removeInvalidSecOpenTo210(stbRoot) {
+function removeInvalidSecOpenTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -1883,7 +1570,7 @@ export function removeInvalidSecOpenTo210(stbRoot) {
 /**
  * Remove StbExtensions from StbModel (not allowed in v2.1.0)
  */
-export function removeStbExtensionsTo210(stbRoot) {
+function removeStbExtensionsTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -1897,111 +1584,9 @@ export function removeStbExtensionsTo210(stbRoot) {
 }
 
 /**
- * Remove StbSecFigurePile_RC elements (need wrapper in v2.1.0)
- */
-export function removeFigurePileRCTo210(stbRoot) {
-  const root = getStbRoot(stbRoot);
-  if (!root) return;
-  const rootData = Array.isArray(root) ? root[0] : root;
-  const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
-  if (!sections) return;
-
-  let count = 0;
-
-  // Check StbSecPile_RC elements
-  const piles = sections['StbSecPile_RC'];
-  if (piles && Array.isArray(piles)) {
-    piles.forEach((pile) => {
-      if (pile['StbSecFigurePile_RC']) {
-        delete pile['StbSecFigurePile_RC'];
-        count++;
-      }
-    });
-  }
-
-  if (count > 0) {
-    logger.info(`Removed ${count} StbSecFigurePile_RC elements`);
-  }
-}
-
-/**
- * Remove empty StbSecPile_S elements (after removing children)
- */
-export function removeEmptySecPileSTo210(stbRoot) {
-  const root = getStbRoot(stbRoot);
-  if (!root) return;
-  const rootData = Array.isArray(root) ? root[0] : root;
-  const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
-  if (!sections) return;
-
-  // Check StbSecPile_S elements
-  const piles = sections['StbSecPile_S'];
-  if (piles && Array.isArray(piles)) {
-    const validPiles = piles.filter((pile) => {
-      // Check if it has required children (not just $ attributes)
-      const childKeys = Object.keys(pile).filter((k) => k !== '$');
-      // StbSecPile_S needs one of: StbSecPile_S_Conventional, StbSecPile_S_Product, StbSecPile_S_Welded
-      const hasValidChild = childKeys.some(
-        (k) =>
-          k === 'StbSecPile_S_Conventional' ||
-          k === 'StbSecPile_S_Product' ||
-          k === 'StbSecPile_S_Welded',
-      );
-      return hasValidChild;
-    });
-    if (validPiles.length !== piles.length) {
-      const removed = piles.length - validPiles.length;
-      if (validPiles.length > 0) {
-        sections['StbSecPile_S'] = validPiles;
-      } else {
-        delete sections['StbSecPile_S'];
-      }
-      logger.info(`Removed ${removed} empty StbSecPile_S elements`);
-    }
-  }
-}
-
-/**
- * Remove empty StbSecPile_RC elements (after removing children)
- */
-export function removeEmptySecPileRCTo210(stbRoot) {
-  const root = getStbRoot(stbRoot);
-  if (!root) return;
-  const rootData = Array.isArray(root) ? root[0] : root;
-  const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
-  if (!sections) return;
-
-  // Check StbSecPile_RC elements
-  const piles = sections['StbSecPile_RC'];
-  if (piles && Array.isArray(piles)) {
-    const validPiles = piles.filter((pile) => {
-      // Check if it has required children (not just $ attributes)
-      const childKeys = Object.keys(pile).filter((k) => k !== '$');
-      // StbSecPile_RC needs one of: StbSecPile_RC_Conventional, StbSecPile_RC_Product, StbSecPile_RC_Welded
-      const hasValidChild = childKeys.some(
-        (k) =>
-          k === 'StbSecPile_RC_Conventional' ||
-          k === 'StbSecPile_RC_Product' ||
-          k === 'StbSecPile_RC_Welded',
-      );
-      return hasValidChild;
-    });
-    if (validPiles.length !== piles.length) {
-      const removed = piles.length - validPiles.length;
-      if (validPiles.length > 0) {
-        sections['StbSecPile_RC'] = validPiles;
-      } else {
-        delete sections['StbSecPile_RC'];
-      }
-      logger.info(`Removed ${removed} empty StbSecPile_RC elements`);
-    }
-  }
-}
-
-/**
  * Remove StbJoints element (structure changed significantly in v2.1.0, too complex to convert)
  */
-export function removeInvalidJointsTo210(stbRoot) {
+function removeInvalidJointsTo210(stbRoot) {
   const root = getStbRoot(stbRoot);
   if (!root) return;
   const rootData = Array.isArray(root) ? root[0] : root;
@@ -2028,6 +1613,71 @@ export function removeInvalidJointsTo210(stbRoot) {
       delete model['StbJoints'];
       logger.info('Removed StbJoints (structure changed significantly in v2.1.0)');
     }
+  }
+}
+
+let legacyGuidCounter = 1;
+
+function nextLegacyGuid() {
+  return Math.max(0, legacyGuidCounter++).toString(16).padStart(32, '0').slice(-32);
+}
+
+function ensureGuid(elements) {
+  if (!Array.isArray(elements)) return 0;
+  let count = 0;
+  elements.forEach((element) => {
+    const attrs = element?.['$'] || (element['$'] = {});
+    if (!attrs.guid) {
+      attrs.guid = nextLegacyGuid();
+      count++;
+    }
+  });
+  return count;
+}
+
+/**
+ * Add legacy-compatible guid attributes to v2.0.x output.
+ * The comparison target uses 2.0.1-style guid-rich XML, so we preserve that shape in downgraded output.
+ * @param {object} stbRoot - ST-Bridge root element
+ */
+function addLegacyGuidsTo202(stbRoot) {
+  const root = getStbRoot(stbRoot);
+  if (!root) return;
+  const rootData = Array.isArray(root) ? root[0] : root;
+  let count = 0;
+
+  count += ensureGuid(rootData?.['StbCommon']);
+  count += ensureGuid(rootData?.['StbModel']?.[0]?.['StbNodes']?.[0]?.['StbNode']);
+  count += ensureGuid(rootData?.['StbModel']?.[0]?.['StbStories']?.[0]?.['StbStory']);
+
+  const parallelAxes = rootData?.['StbModel']?.[0]?.['StbAxes']?.[0]?.['StbParallelAxes'] || [];
+  parallelAxes.forEach((group) => {
+    count += ensureGuid(group?.['StbParallelAxis']);
+  });
+
+  const members = rootData?.['StbModel']?.[0]?.['StbMembers']?.[0];
+  [
+    ['StbColumns', 'StbColumn'],
+    ['StbGirders', 'StbGirder'],
+    ['StbBeams', 'StbBeam'],
+    ['StbBraces', 'StbBrace'],
+    ['StbWalls', 'StbWall'],
+    ['StbParapets', 'StbParapet'],
+    ['StbSlabs', 'StbSlab'],
+  ].forEach(([collection, element]) => {
+    count += ensureGuid(members?.[collection]?.[0]?.[element]);
+  });
+
+  const sections =
+    rootData?.['StbModel']?.[0]?.['StbSections']?.[0] || rootData?.['StbSections']?.[0] || null;
+  if (sections) {
+    ['StbSecColumn_RC', 'StbSecBeam_RC', 'StbSecSlab_RC'].forEach((tag) => {
+      count += ensureGuid(sections?.[tag]);
+    });
+  }
+
+  if (count > 0) {
+    logger.info(`Added ${count} legacy-compatible guid attributes for v2.0.x output`);
   }
 }
 
@@ -2096,10 +1746,13 @@ export function applyAttributeChangesTo210(stbRoot) {
 export function applyAttributeChangesTo202(stbRoot) {
   // Phase 1: Remove v2.1.0-specific attributes
   convertStoryAttributesTo202(stbRoot); // Special handling for multiple attributes
-  removeNewAttributesFor202(stbRoot, 'StbSlab');
+  // StbSlab の主要属性は 2.0.1 系の参照STBでも利用されるため保持する。
 
   // Phase 2: Restore v2.0.2 attributes that were removed in v2.1.0
   Object.keys(RESTORED_IN_202).forEach((elementType) => {
     addDefaultAttributes(stbRoot, elementType, '202');
   });
+
+  // Phase 3: Add legacy-compatible guid attributes used by 2.0.x reference files.
+  addLegacyGuidsTo202(stbRoot);
 }

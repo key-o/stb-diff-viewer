@@ -7,8 +7,11 @@
  */
 
 import { showError, showWarning, showSuccess } from '../../common/toast.js';
-import { eventBus, ComparisonEvents } from '../../../app/events/index.js';
+import { eventBus, ComparisonEvents } from '../../../data/events/index.js';
 import { getState } from '../../../app/globalState.js';
+import { createLogger } from '../../../utils/logger.js';
+
+const log = createLogger('ui:events:exportHandlers:reportExportHandler');
 
 /** 最新の比較結果を保持 */
 let latestComparisonResults = null;
@@ -79,7 +82,7 @@ async function handleReportExport() {
     await generateReport(results, { multiView });
     showSuccess('比較レポートをダウンロードしました');
   } catch (error) {
-    console.error('[Report] レポート生成エラー:', error);
+    log.error('[Report] レポート生成エラー:', error);
     showError(`レポートの生成に失敗しました: ${error.message}`);
   } finally {
     if (reportBtn) {

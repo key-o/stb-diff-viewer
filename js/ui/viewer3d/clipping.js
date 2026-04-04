@@ -19,6 +19,10 @@ import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('clipping');
 
+// デフォルトクリッピング範囲（mm） - 定義の一元化
+export const DEFAULT_STORY_CLIP_RANGE = 1000; // 階クリッピング: デフォルト1m
+export const DEFAULT_AXIS_CLIP_RANGE = 2000; // 軸クリッピング: デフォルト2m
+
 // Current clipping state
 let currentClippingState = {
   type: null, // 'story', 'xAxis', 'yAxis'
@@ -28,18 +32,35 @@ let currentClippingState = {
 };
 
 // Camera state for restoration
-let previousCameraState = {
+const previousCameraState = {
   position: null,
   target: null,
   saved: false,
 };
 
 /**
+ * Save current camera state before applying clipping
+ * Captures camera position and controls target for later restoration.
+ */
+async function saveCameraState() {
+  try {
+    const { camera, controls } = await import('../../viewer/index.js');
+    if (camera && controls) {
+      previousCameraState.position = camera.position.clone();
+      previousCameraState.target = controls.target.clone();
+      previousCameraState.saved = true;
+    }
+  } catch (error) {
+    log.warn('Could not save camera state:', error);
+  }
+}
+
+/**
  * Apply story-based clipping plane
  * @param {string} storyId - Story ID to clip to (optional)
  * @param {number} customRange - Custom range in mm (optional)
  */
-export function applyStoryClip(storyId = null, customRange = null) {
+export async function applyStoryClip(storyId = null, customRange = null) {
   if (!storyId || storyId === 'all') {
     clearCurrentClipping();
     return;
@@ -53,8 +74,13 @@ export function applyStoryClip(storyId = null, customRange = null) {
     return;
   }
 
+  // Save camera state before first clipping
+  if (!currentClippingState.type) {
+    await saveCameraState();
+  }
+
   // Use custom range or default
-  const range = customRange || 1000; // Default 1m
+  const range = customRange || DEFAULT_STORY_CLIP_RANGE;
 
   // Calculate clipping bounds for the story with custom range
   const storyBounds = calculateStoryBoundsWithRange(selectedStory, stories, range);
@@ -84,7 +110,7 @@ export function applyStoryClip(storyId = null, customRange = null) {
  * @param {string} axisId - Axis ID to clip to (optional)
  * @param {number} customRange - Custom range in mm (optional)
  */
-export function applyAxisClip(axisType, axisId = null, customRange = null) {
+export async function applyAxisClip(axisType, axisId = null, customRange = null) {
   // First, check what's in the dropdown selector
   const selectorId = axisType === 'X' ? 'xAxisSelector' : 'yAxisSelector';
   const selector = document.getElementById(selectorId);
@@ -117,8 +143,13 @@ export function applyAxisClip(axisType, axisId = null, customRange = null) {
     return;
   }
 
+  // Save camera state before first clipping
+  if (!currentClippingState.type) {
+    await saveCameraState();
+  }
+
   // Use custom range or default
-  const range = customRange || 2000; // Default 2m for axes
+  const range = customRange || DEFAULT_AXIS_CLIP_RANGE;
 
   // Calculate clipping bounds for the axis with custom range
   const axisBounds = calculateAxisBoundsWithRange(selectedAxis, axisType, axes, range);
@@ -145,102 +176,6 @@ export function applyAxisClip(axisType, axisId = null, customRange = null) {
     }
   } else {
     log.error(`Failed to calculate axis bounds for ${axisType}-axis`);
-  }
-}
-
-/**
- * Calculate bounds for story clipping
- * @param {Object} selectedStory - Selected story data
- * @param {Array} allStories - All story data for context
- * @returns {Object|null} Story bounds or null
- */
-function calculateStoryBounds(selectedStory, allStories) {
-  try {
-    const storyHeight = selectedStory.height;
-
-    // Find adjacent stories to determine bounds
-    const sortedStories = [...allStories].sort((a, b) => a.height - b.height);
-    const currentIndex = sortedStories.findIndex((story) => story.id === selectedStory.id);
-
-    let lowerBound, upperBound;
-
-    if (currentIndex > 0) {
-      // Use height of story below as lower bound
-      lowerBound = sortedStories[currentIndex - 1].height;
-    } else {
-      // First story - use some offset below current height
-      lowerBound = storyHeight - 3000; // 3m below
-    }
-
-    if (currentIndex < sortedStories.length - 1) {
-      // Use height of story above as upper bound
-      upperBound = sortedStories[currentIndex + 1].height;
-    } else {
-      // Last story - use some offset above current height
-      upperBound = storyHeight + 3000; // 3m above
-    }
-
-    return {
-      type: 'story',
-      storyId: selectedStory.id,
-      storyName: selectedStory.name,
-      height: storyHeight,
-      lowerBound,
-      upperBound,
-    };
-  } catch (error) {
-    log.error('Error calculating story bounds:', error);
-    return null;
-  }
-}
-
-/**
- * Calculate bounds for axis clipping
- * @param {Object} selectedAxis - Selected axis data
- * @param {string} axisType - "X" or "Y"
- * @param {Array} allAxes - All axes of this type for context
- * @returns {Object|null} Axis bounds or null
- */
-function calculateAxisBounds(selectedAxis, axisType, allAxes) {
-  try {
-    const axisDistance = selectedAxis.distance;
-
-    // Find adjacent axes to determine bounds
-    const sortedAxes = [...allAxes].sort((a, b) => a.distance - b.distance);
-    const currentIndex = sortedAxes.findIndex((axis) => axis.id === selectedAxis.id);
-
-    let lowerBound, upperBound;
-
-    if (currentIndex > 0) {
-      // Use distance of previous axis as lower bound
-      const prevDistance = sortedAxes[currentIndex - 1].distance;
-      lowerBound = (prevDistance + axisDistance) / 2;
-    } else {
-      // First axis - use some offset
-      lowerBound = axisDistance - 1000; // 1m before
-    }
-
-    if (currentIndex < sortedAxes.length - 1) {
-      // Use distance of next axis as upper bound
-      const nextDistance = sortedAxes[currentIndex + 1].distance;
-      upperBound = (axisDistance + nextDistance) / 2;
-    } else {
-      // Last axis - use some offset
-      upperBound = axisDistance + 1000; // 1m after
-    }
-
-    return {
-      type: 'axis',
-      axisType,
-      axisId: selectedAxis.id,
-      axisName: selectedAxis.name,
-      distance: axisDistance,
-      lowerBound,
-      upperBound,
-    };
-  } catch (error) {
-    log.error('Error calculating axis bounds:', error);
-    return null;
   }
 }
 
@@ -607,21 +542,6 @@ export async function restoreCameraView() {
 // === CAMERA ADJUSTMENT FUNCTIONS ===
 
 /**
- * Save current camera state for later restoration
- * @param {THREE.Camera} camera - Camera to save state from
- * @param {OrbitControls} controls - Controls to save target from
- */
-function saveCameraState(camera, controls) {
-  if (camera && controls) {
-    previousCameraState = {
-      position: camera.position.clone(),
-      target: controls.target.clone(),
-      saved: true,
-    };
-  }
-}
-
-/**
  * Restore previously saved camera state
  * @param {THREE.Camera} camera - Camera to restore state to
  * @param {OrbitControls} controls - Controls to restore target to
@@ -646,119 +566,6 @@ function restoreCameraState(camera, controls, animate = true) {
 }
 
 /**
- * Set optimal camera view for clipping type
- * @param {string} clippingType - Type of clipping ('story', 'xAxis', 'yAxis')
- * @param {Object} clippingBounds - Bounds of the clipping area
- * @param {THREE.Camera} camera - Camera to adjust
- * @param {OrbitControls} controls - Camera controls
- */
-function setOptimalClippingView(clippingType, clippingBounds, camera, controls) {
-  if (!camera || !controls || !clippingBounds) {
-    log.warn('Cannot set optimal view: missing camera, controls, or bounds');
-    return;
-  }
-
-  // Save current state before changing
-  saveCameraState(camera, controls);
-
-  const { position, target, up } = calculateOptimalCameraPosition(clippingType, clippingBounds);
-
-  // Animate to new position
-  animateCameraTo(camera, controls, { position, target, up });
-}
-
-/**
- * Calculate optimal camera position for clipping type
- * @param {string} clippingType - Type of clipping
- * @param {Object} bounds - Clipping bounds
- * @returns {Object} Camera position, target, and up vector
- */
-async function calculateOptimalCameraPosition(clippingType, bounds) {
-  // Get model center from the viewer
-  const modelCenter = new THREE.Vector3(0, 0, 0);
-  try {
-    const { getModelBounds } = await import('../../viewer/index.js');
-    if (getModelBounds) {
-      const modelBounds = getModelBounds();
-      if (modelBounds) {
-        modelBounds.getCenter(modelCenter);
-      }
-    }
-  } catch (error) {
-    log.warn('Could not get model bounds, using origin:', error);
-  }
-
-  const distance = 15000; // 15m away from the clipping plane
-  let position, target, up;
-
-  switch (clippingType) {
-    case 'story':
-      // Top-down view for story clipping (平面図)
-      target = new THREE.Vector3(modelCenter.x, modelCenter.y, bounds.height || modelCenter.z);
-      position = new THREE.Vector3(
-        modelCenter.x,
-        modelCenter.y,
-        (bounds.height || modelCenter.z) + distance,
-      );
-      up = new THREE.Vector3(0, 1, 0); // Y is up in plan view
-      break;
-
-    case 'xAxis':
-      // Side view looking along X-axis (YZ平面図)
-      target = new THREE.Vector3(bounds.distance || modelCenter.x, modelCenter.y, modelCenter.z);
-      position = new THREE.Vector3(
-        (bounds.distance || modelCenter.x) + distance,
-        modelCenter.y,
-        modelCenter.z,
-      );
-      up = new THREE.Vector3(0, 0, 1); // Z is up in elevation view
-      break;
-
-    case 'yAxis':
-      // Side view looking along Y-axis (XZ平面図)
-      target = new THREE.Vector3(modelCenter.x, bounds.distance || modelCenter.y, modelCenter.z);
-      position = new THREE.Vector3(
-        modelCenter.x,
-        (bounds.distance || modelCenter.y) + distance,
-        modelCenter.z,
-      );
-      up = new THREE.Vector3(0, 0, 1); // Z is up in elevation view
-      break;
-
-    default:
-      log.warn('Unknown clipping type:', clippingType);
-      return null;
-  }
-
-  return { position, target, up };
-}
-
-/**
- * Set camera for clipping mode with fallback handling
- * @param {string} clippingType - Type of clipping
- * @param {Object} bounds - Clipping bounds
- */
-async function setCameraForClipping(clippingType, bounds) {
-  try {
-    const { camera, controls } = await import('../../viewer/index.js');
-    if (camera && controls) {
-      const cameraSettings = await calculateOptimalCameraPosition(clippingType, bounds);
-      if (cameraSettings) {
-        // Save current state before changing
-        saveCameraState(camera, controls);
-
-        // Animate to new position
-        animateCameraTo(camera, controls, cameraSettings);
-      }
-    } else {
-      log.warn('Camera or controls not available for optimal view adjustment');
-    }
-  } catch (error) {
-    log.warn('Could not set optimal camera view:', error);
-  }
-}
-
-/**
  * Restore previous camera view with fallback handling
  */
 async function restorePreviousCameraView() {
@@ -771,6 +578,9 @@ async function restorePreviousCameraView() {
     }
   } catch (error) {
     log.warn('Could not restore camera view:', error);
+  } finally {
+    // Reset saved flag after restoration attempt
+    previousCameraState.saved = false;
   }
 }
 

@@ -177,9 +177,18 @@ export class JointGenerator extends BaseElementGenerator {
       }
     }
 
-    // 継手位置を計算
-    const startPos = new THREE.Vector3(startNode.x, startNode.y, startNode.z);
-    const endPos = new THREE.Vector3(endNode.x, endNode.y, endNode.z);
+    // 継手位置を計算（梁のオフセットを適用）
+    const offsets = ElementGeometryUtils.getHorizontalElementOffsets(element);
+    const startPos = new THREE.Vector3(
+      startNode.x + offsets.startOffset.x,
+      startNode.y + offsets.startOffset.y,
+      startNode.z + offsets.startOffset.z,
+    );
+    const endPos = new THREE.Vector3(
+      endNode.x + offsets.endOffset.x,
+      endNode.y + offsets.endOffset.y,
+      endNode.z + offsets.endOffset.z,
+    );
     const direction = new THREE.Vector3().subVectors(endPos, startPos).normalize();
     const elementLength = startPos.distanceTo(endPos);
 

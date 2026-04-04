@@ -622,4 +622,3 @@ export function highlightSearchMatch(text, searchPattern) {
     return escapeHtml(text);
   }
 }
-

@@ -1,0 +1,623 @@
+{
+  "version": "1.0",
+  "mvdLevel": "s2",
+  "schemaVersion": "2.0.2",
+  "description": "MVD S2 - 通り芯上での配置・大体の部材サイズが確認できる粒度（配筋・オフセット等は除外）",
+  "elements": {
+    "ST_BRIDGE": {
+      "required": [
+        "version"
+      ]
+    },
+    "StbExtension": {
+      "required": [
+        "identifier"
+      ]
+    },
+    "StbExtObject": {
+      "required": [
+        "object_name",
+        "id_object"
+      ]
+    },
+    "StbExtProperty": {
+      "required": [
+        "key",
+        "type",
+        "value"
+      ]
+    },
+    "StbExtElement": {
+      "required": [
+        "object_name"
+      ]
+    },
+    "StbExtPropertyDef": {
+      "required": [
+        "key",
+        "type"
+      ]
+    },
+    "StbCommon": {
+      "required": [
+        "guid",
+        "project_name",
+        "app_name",
+        "app_version"
+      ]
+    },
+    "StbNode": {
+      "required": [
+        "id",
+        "guid",
+        "X",
+        "Y",
+        "Z",
+        "kind"
+      ]
+    },
+    "StbAxes": {
+      "required": []
+    },
+    "StbParallelAxes": {
+      "required": [
+        "group_name",
+        "X",
+        "Y",
+        "angle"
+      ]
+    },
+    "StbParallelAxis": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "distance"
+      ]
+    },
+    "StbArcAxes": {
+      "required": [
+        "group_name",
+        "X",
+        "Y",
+        "start_angle",
+        "end_angle"
+      ]
+    },
+    "StbArcAxis": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "radius"
+      ]
+    },
+    "StbRadialAxes": {
+      "required": [
+        "a",
+        "X",
+        "Y"
+      ]
+    },
+    "StbRadialAxis": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "angle"
+      ]
+    },
+    "StbNodeIdList": {
+      "required": []
+    },
+    "StbNodeId": {
+      "required": [
+        "id"
+      ]
+    },
+    "StbStory": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "height",
+        "kind"
+      ]
+    },
+    "StbColumn": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_bottom",
+        "id_node_top",
+        "id_section",
+        "kind_structure"
+      ],
+      "conditional": [
+        "rotate",
+        "offset_bottom_X",
+        "offset_bottom_Y",
+        "offset_bottom_Z",
+        "offset_top_X",
+        "offset_top_Y",
+        "offset_top_Z",
+        "condition_bottom",
+        "condition_top"
+      ]
+    },
+    "StbMemberOffSetList": {
+      "required": [
+        "id_node",
+        "offset_X",
+        "offset_Y",
+        "offset_Z"
+      ]
+    },
+    "StbPost": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_bottom",
+        "id_node_top",
+        "id_section",
+        "kind_structure"
+      ],
+      "conditional": [
+        "rotate",
+        "offset_bottom_X",
+        "offset_bottom_Y",
+        "offset_bottom_Z",
+        "offset_top_X",
+        "offset_top_Y",
+        "offset_top_Z",
+        "condition_bottom",
+        "condition_top"
+      ]
+    },
+    "StbGirder": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_start",
+        "id_node_end",
+        "id_section",
+        "kind_structure",
+        "isFoundation"
+      ],
+      "conditional": [
+        "rotate",
+        "condition_start",
+        "condition_end"
+      ]
+    },
+    "StbNodeIdOrder": {
+      "required": []
+    },
+    "StbBeam": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_start",
+        "id_node_end",
+        "id_section",
+        "kind_structure",
+        "isFoundation"
+      ],
+      "conditional": [
+        "rotate",
+        "condition_start",
+        "condition_end"
+      ]
+    },
+    "StbBrace": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_start",
+        "id_node_end",
+        "id_section",
+        "kind_structure"
+      ],
+      "conditional": [
+        "rotate"
+      ]
+    },
+    "StbSlab": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_section",
+        "kind_structure",
+        "kind_slab",
+        "isFoundation"
+      ]
+    },
+    "StbOpenId": {
+      "required": [
+        "id"
+      ]
+    },
+    "StbWall": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_section",
+        "kind_structure",
+        "kind_layout"
+      ]
+    },
+    "StbFooting": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node",
+        "id_section"
+      ]
+    },
+    "StbStripFooting": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_start",
+        "id_node_end",
+        "id_section",
+        "kind_structure"
+      ]
+    },
+    "StbPile": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node",
+        "id_section",
+        "kind_structure",
+        "level_top"
+      ],
+      "conditional": [
+        "length_all"
+      ]
+    },
+    "StbFoundationColumn": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node",
+        "kind_structure"
+      ],
+      "conditional": [
+        "offset_Z",
+        "id_section_FD",
+        "length_FD",
+        "id_section_WR",
+        "length_WR"
+      ]
+    },
+    "StbParapet": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_start",
+        "id_node_end",
+        "id_section",
+        "kind_structure",
+        "kind_layout"
+      ]
+    },
+    "StbOpen": {
+      "required": [
+        "id",
+        "guid",
+        "id_section",
+        "position_X",
+        "position_Y",
+        "length_X",
+        "length_Y",
+        "rotate"
+      ]
+    },
+    "StbSecUndefined": {
+      "required": [
+        "id",
+        "guid",
+        "name"
+      ]
+    },
+    "StbSecColumn_RC": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "kind_column"
+      ],
+      "conditional": [
+        "floor"
+      ]
+    },
+    "StbSecFigureColumn_RC": {
+      "required": []
+    },
+    "StbSecColumn_RC_Rect": {
+      "required": [
+        "width_X",
+        "width_Y"
+      ]
+    },
+    "StbSecColumn_RC_Circle": {
+      "required": [
+        "D"
+      ]
+    },
+    "StbSecColumn_S": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "kind_column"
+      ],
+      "conditional": [
+        "floor",
+        "isReferenceDirection"
+      ]
+    },
+    "StbSecSteelColumn_S_Same": {
+      "required": [
+        "shape"
+      ]
+    },
+    "StbSecSteelColumn_S_NotSame": {
+      "required": [
+        "pos",
+        "shape"
+      ]
+    },
+    "StbSecSteelColumn_S_ThreeTypes": {
+      "required": [
+        "pos",
+        "shape"
+      ]
+    },
+    "StbSecbaseProduct_S": {
+      "required": [
+        "product_code",
+        "direction_type",
+        "height_mortar"
+      ]
+    },
+    "StbSecbaseConventional_S": {
+      "required": [
+        "height_mortar"
+      ]
+    },
+    "StbSecbaseConventional_S_Plate": {
+      "required": [
+        "B_X",
+        "B_Y",
+        "t",
+        "D_bolthole"
+      ]
+    },
+    "StbSecColumn_SRC": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "kind_column"
+      ],
+      "conditional": [
+        "floor"
+      ]
+    },
+    "StbSecColumn_SRC_Rect": {
+      "required": [
+        "width_X",
+        "width_Y"
+      ]
+    },
+    "StbSecColumn_SRC_Circle": {
+      "required": [
+        "D"
+      ]
+    },
+    "StbSecColumn_SRC_SameshapeH": {
+      "required": [
+        "direction",
+        "shape",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_SameshapeBox": {
+      "required": [
+        "shape",
+        "encaSe_type",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_SameshapePipe": {
+      "required": [
+        "shape",
+        "encaSe_type",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_SameshapeCross": {
+      "required": [
+        "Shape_X",
+        "Shape_Y",
+        "offset_XX",
+        "offset_XY",
+        "offset_YX",
+        "offset_YY"
+      ]
+    },
+    "StbSecColumn_SRC_SameshapeT": {
+      "required": [
+        "direction_type",
+        "Shape_H",
+        "Shape_T",
+        "offset_HX",
+        "offset_HY",
+        "offset_T"
+      ]
+    },
+    "StbSecColumn_SRC_NotSameshapeH": {
+      "required": [
+        "direction",
+        "shape",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_NotSameshapeBox": {
+      "required": [
+        "shape",
+        "encaSe_type",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_NotSameshapePipe": {
+      "required": [
+        "shape",
+        "encaSe_type",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_NotSameshapeCross": {
+      "required": [
+        "Shape_X",
+        "Shape_Y",
+        "offset_XX",
+        "offset_XY",
+        "offset_YX",
+        "offset_YY"
+      ]
+    },
+    "StbSecColumn_SRC_NotSameshapeT": {
+      "required": [
+        "direction_type",
+        "Shape_H",
+        "Shape_T",
+        "offset_HX",
+        "offset_HY",
+        "offset_T"
+      ]
+    },
+    "StbSecColumn_SRC_ThreeTypesShapeH": {
+      "required": [
+        "direction",
+        "shape",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_ThreeTypesShapeBox": {
+      "required": [
+        "shape",
+        "encaSe_type",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_ThreeTypesShapePipe": {
+      "required": [
+        "shape",
+        "encaSe_type",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_ThreeTypesShapeCross": {
+      "required": [
+        "Shape_X",
+        "Shape_Y",
+        "strength_main_X",
+        "offset_XX",
+        "offset_XY",
+        "offset_YX",
+        "offset_YY"
+      ]
+    },
+    "StbSecColumn_SRC_ThreeTypesShapeT": {
+      "required": [
+        "direction_type",
+        "Shape_H",
+        "Shape_T",
+        "offset_HX",
+        "offset_HY",
+        "offset_T"
+      ]
+    },
+    "StbSecbaseProduct_SRC": {
+      "required": [
+        "product_code",
+        "direction_type",
+        "height_mortar"
+      ]
+    },
+    "StbSecbaseConventional_SRC": {
+      "required": [
+        "height_mortar"
+      ]
+    },
+    "StbSecbaseConventional_SRC_Plate": {
+      "required": [
+        "B_X",
+        "B_Y",
+        "C1_X",
+        "C1_Y",
+        "C2_X",
+        "C2_Y",
+        "C3_X",
+        "C3_Y",
+        "C4_X",
+        "C4_Y",
+        "t",
+        "D_bolthole",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecbaseConventional_SRC_AnchorBolt": {
+      "required": [
+        "name_bolt",
+        "length_bolt",
+        "arrangement_bolt",
+        "D1_X",
+        "D2_X",
+        "D1_Y",
+        "D2_Y",
+        "N_X",
+        "N_Y"
+      ]
+    },
+    "StbSecbaseConventional_SRC_RibPlate": {
+      "required": [
+        "A1",
+        "A2",
+        "B1",
+        "B2",
+        "t",
+        "N_X",
+        "N_Y",
+        "length_e_X",
+        "length_e_Y"
+      ]
+    }
+  }
+}

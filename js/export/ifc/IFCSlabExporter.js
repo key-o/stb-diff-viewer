@@ -5,6 +5,9 @@
  */
 
 import { IFCExporterBase, generateIfcGuid } from './IFCExporterBase.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('export:ifc:IFCSlabExporter');
 
 /**
  * 床要素をIFCファイルとしてエクスポートするクラス
@@ -96,13 +99,13 @@ export class IFCSlabExporter extends IFCExporterBase {
 
     // 必須パラメータチェック
     if (!vertices || vertices.length < 3) {
-      console.warn(`[IFC Export] 床 "${name}" をスキップ: 頂点が3点未満です`);
+      log.warn(`[IFC Export] 床 "${name}" をスキップ: 頂点が3点未満です`);
       return null;
     }
 
     // 厚さチェック
     if (thickness <= 0) {
-      console.warn(`[IFC Export] 床 "${name}" をスキップ: 厚さが0以下です`);
+      log.warn(`[IFC Export] 床 "${name}" をスキップ: 厚さが0以下です`);
       return null;
     }
 
@@ -280,7 +283,7 @@ export class IFCSlabExporter extends IFCExporterBase {
   addSlabFromSTB(slabElement, nodes, slabSections) {
     const nodeIds = slabElement.node_ids;
     if (!nodeIds || nodeIds.length < 3) {
-      console.warn(`[IFC Export] 床 "${slabElement.id}" をスキップ: ノードが不足しています`);
+      log.warn(`[IFC Export] 床 "${slabElement.id}" をスキップ: ノードが不足しています`);
       return null;
     }
 
@@ -291,7 +294,7 @@ export class IFCSlabExporter extends IFCExporterBase {
     for (const nodeId of nodeIds) {
       const node = nodes.get(nodeId);
       if (!node) {
-        console.warn(
+        log.warn(
           `[IFC Export] 床 "${slabElement.id}" をスキップ: ノード ${nodeId} が見つかりません`,
         );
         return null;

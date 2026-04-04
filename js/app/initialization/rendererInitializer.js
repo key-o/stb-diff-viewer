@@ -2,7 +2,6 @@
  * @fileoverview 3Dレンダラーと関連システムの初期化
  */
 
-import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
 import {
   scene,

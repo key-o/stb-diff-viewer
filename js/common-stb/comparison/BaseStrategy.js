@@ -28,6 +28,10 @@
  * 比較戦略の基底クラス
  * @abstract
  */
+
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('common-stb:comparison:BaseStrategy');
 export class BaseStrategy {
   /**
    * 戦略名を取得
@@ -121,7 +125,7 @@ export class BasicStrategy extends BaseStrategy {
     }
 
     if (nullKeyCountA > 0 || nullKeyCountB > 0) {
-      console.warn(
+      log.warn(
         `[Data] 比較キー未生成の要素: A=${nullKeyCountA}件, B=${nullKeyCountB}件` +
           (classifyNullKeysAsOnly ? ' (onlyA/onlyBに分類)' : ' (除外)'),
       );

@@ -10,14 +10,18 @@
  * - 修復/検証のユーティリティ
  */
 
-/* global XMLSerializer, Blob, URL, document */
+/* global XMLSerializer, Blob */
 
 import { loadStbXmlAutoEncoding } from '../import/loader/stbXmlLoader.js';
 import { validateStbDocument, formatValidationReport, SEVERITY, CATEGORY } from './stbValidator.js';
+import { initializeMvdData } from './mvdValidator.js';
 import { formatRepairReport, autoRepairDocument } from '../repair/stbRepairEngine.js';
 import { setSchemaError, clearSchemaErrors } from './schemaErrorStore.js';
 import { escapeHtml } from '../../utils/htmlUtils.js';
 import { downloadBlob } from '../../utils/downloadHelper.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('common-stb:validation:validationManager');
 
 /**
  * ワークフローステップ
@@ -143,6 +147,139 @@ function pushUniqueSuggestion(suggestions, suggestion) {
 }
 
 /**
+ * 要素/断面タイプ名を比較用に正規化
+ * @param {string} typeName
+ * @returns {string}
+ */
+function normalizeValidationTypeName(typeName) {
+  if (typeof typeName !== 'string') return '';
+  const noPrefix = typeName.includes(':') ? typeName.split(':').pop() : typeName;
+  return noPrefix ? noPrefix.toLowerCase() : '';
+}
+
+/**
+ * バリデーションマップのキーを生成
+ * @param {string} id
+ * @param {string} typeName
+ * @returns {string}
+ */
+function buildValidationEntryKey(id, typeName) {
+  const normalizedType = normalizeValidationTypeName(typeName);
+  return `${normalizedType || '*'}|${String(id)}`;
+}
+
+/**
+ * 複数エントリを1つに統合
+ * @param {Array<Object>} entries
+ * @param {{elementId?: string, elementType?: string, sectionId?: string, sectionType?: string}} [seed]
+ * @returns {Object|null}
+ */
+function mergeValidationEntries(entries, seed = {}) {
+  if (!Array.isArray(entries) || entries.length === 0) {
+    return null;
+  }
+
+  if (entries.length === 1) {
+    return entries[0];
+  }
+
+  const merged = {
+    elementId: seed.elementId || entries[0].elementId || '',
+    elementType: seed.elementType || entries[0].elementType || '',
+    sectionId: seed.sectionId || entries[0].sectionId || '',
+    sectionType: seed.sectionType || entries[0].sectionType || '',
+    errors: [],
+    warnings: [],
+    suggestions: [],
+  };
+
+  for (const entry of entries) {
+    for (const issue of entry.errors || []) {
+      pushUniqueIssue(merged.errors, issue);
+    }
+    for (const issue of entry.warnings || []) {
+      pushUniqueIssue(merged.warnings, issue);
+    }
+    for (const suggestion of entry.suggestions || []) {
+      pushUniqueSuggestion(merged.suggestions, suggestion);
+    }
+  }
+
+  return merged;
+}
+
+/**
+ * issue が指定した断面コンテキスト（タグ名+id）に属するか判定
+ * @param {Object} issue
+ * @param {string} contextTagName
+ * @param {string} contextId
+ * @returns {boolean}
+ */
+function issueMatchesContext(issue, contextTagName, contextId) {
+  if (!issue || typeof issue !== 'object' || !contextTagName || !contextId) {
+    return false;
+  }
+
+  const normalizedTag = normalizeValidationTypeName(contextTagName);
+  if (!normalizedTag) {
+    return false;
+  }
+
+  const xpath = String(issue.idXPath || issue.xpath || '');
+  if (!xpath) {
+    return false;
+  }
+
+  // 例: .../StbSecBeam_RC[@id="76"]/...
+  // 例: .../stb:StbSecBeam_RC[@id='76']/...
+  const escapedId = String(contextId).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const tagPattern = normalizedTag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`${tagPattern}\\s*\\[@id\\s*=\\s*['"]?${escapedId}['"]?\\]`, 'i');
+  return re.test(xpath);
+}
+
+/**
+ * issue配列を断面コンテキストで絞り込んだ新規エントリを作る
+ * @param {Object} entry
+ * @param {string} contextTagName
+ * @param {string} contextId
+ * @returns {Object|null}
+ */
+function filterValidationEntryByContext(entry, contextTagName, contextId) {
+  if (!entry) return null;
+
+  const filteredErrors = (entry.errors || []).filter((issue) =>
+    issueMatchesContext(issue, contextTagName, contextId),
+  );
+  const filteredWarnings = (entry.warnings || []).filter((issue) =>
+    issueMatchesContext(issue, contextTagName, contextId),
+  );
+  const relatedMessages = new Set(
+    [...filteredErrors, ...filteredWarnings].map((issue) => issue?.message).filter(Boolean),
+  );
+
+  const filtered = {
+    ...entry,
+    errors: filteredErrors,
+    warnings: filteredWarnings,
+    suggestions: (entry.suggestions || []).filter((suggestion) => {
+      const msg = suggestion?.message || '';
+      return msg && relatedMessages.has(msg);
+    }),
+  };
+
+  if (
+    filtered.errors.length === 0 &&
+    filtered.warnings.length === 0 &&
+    filtered.suggestions.length === 0
+  ) {
+    return null;
+  }
+
+  return filtered;
+}
+
+/**
  * バリデーション・修復マネージャークラス
  */
 export class ValidationManager {
@@ -167,7 +304,9 @@ export class ValidationManager {
 
     // 要素ごとのバリデーション結果キャッシュ
     this.elementValidationMap = new Map();
+    this.elementValidationIndex = new Map();
     this.sectionValidationMap = new Map();
+    this.sectionValidationIndex = new Map();
 
     this.listeners = [];
   }
@@ -196,7 +335,7 @@ export class ValidationManager {
       try {
         listener({ ...this.state });
       } catch (e) {
-        console.error('Listener error:', e);
+        log.error('Listener error:', e);
       }
     }
   }
@@ -241,7 +380,9 @@ export class ValidationManager {
   clearIntegration() {
     clearSchemaErrors();
     this.elementValidationMap.clear();
+    this.elementValidationIndex.clear();
     this.sectionValidationMap.clear();
+    this.sectionValidationIndex.clear();
   }
 
   /**
@@ -263,6 +404,10 @@ export class ValidationManager {
       this.updateState({
         originalDocument: xmlDoc,
       });
+
+      if (options.mvdLevel) {
+        await initializeMvdData();
+      }
 
       return this.validateDocument(xmlDoc, options);
     } catch (e) {
@@ -294,6 +439,7 @@ export class ValidationManager {
         validateReferences: options.validateReferences !== false,
         validateGeometry: options.validateGeometry !== false,
         includeInfo: options.includeInfo || false,
+        mvdLevel: options.mvdLevel || null,
       });
 
       // UI統合処理（旧 validationIntegration.js の機能）
@@ -345,6 +491,50 @@ export class ValidationManager {
   }
 
   /**
+   * id/type からキャッシュキーを作成
+   * @param {string} id
+   * @param {string} typeName
+   * @returns {string}
+   */
+  buildValidationKey(id, typeName) {
+    return buildValidationEntryKey(id, typeName);
+  }
+
+  /**
+   * id -> key の索引にキーを登録
+   * @param {Map<string, Set<string>>} indexMap
+   * @param {string} id
+   * @param {string} key
+   */
+  addValidationIndex(indexMap, id, key) {
+    if (!indexMap.has(id)) {
+      indexMap.set(id, new Set());
+    }
+    indexMap.get(id).add(key);
+  }
+
+  /**
+   * idに紐づくエントリを収集
+   * @param {Map<string, Object>} valueMap
+   * @param {Map<string, Set<string>>} indexMap
+   * @param {string} id
+   * @returns {Array<Object>}
+   */
+  collectValidationEntries(valueMap, indexMap, id) {
+    const keys = indexMap.get(id);
+    if (!keys || keys.size === 0) return [];
+
+    const entries = [];
+    for (const key of keys) {
+      const entry = valueMap.get(key);
+      if (entry) {
+        entries.push(entry);
+      }
+    }
+    return entries;
+  }
+
+  /**
    * バリデーション結果をUIシステムに統合
    * @param {Object} result - バリデーション結果
    * @param {string} [modelSource] - モデルソース ('A', 'B') A/B混線防止用
@@ -367,15 +557,18 @@ export class ValidationManager {
     for (const issue of result.issues) {
       const resolvedElementId = this.resolveIssueElementId(issue);
       if (resolvedElementId) {
-        if (!this.elementValidationMap.has(resolvedElementId)) {
-          this.elementValidationMap.set(resolvedElementId, {
+        const elementKey = this.buildValidationKey(resolvedElementId, issue.elementType);
+        if (!this.elementValidationMap.has(elementKey)) {
+          this.elementValidationMap.set(elementKey, {
+            elementId: resolvedElementId,
             elementType: issue.elementType,
             errors: [],
             warnings: [],
             suggestions: [],
           });
+          this.addValidationIndex(this.elementValidationIndex, resolvedElementId, elementKey);
         }
-        const elementData = this.elementValidationMap.get(resolvedElementId);
+        const elementData = this.elementValidationMap.get(elementKey);
         const suggestion = this.createSuggestion(issue);
 
         if (issue.severity === SEVERITY.ERROR) {
@@ -388,15 +581,19 @@ export class ValidationManager {
       }
 
       if (issue.sectionId) {
-        if (!this.sectionValidationMap.has(issue.sectionId)) {
-          this.sectionValidationMap.set(issue.sectionId, {
+        const normalizedSectionId = String(issue.sectionId);
+        const sectionKey = this.buildValidationKey(normalizedSectionId, issue.sectionType);
+        if (!this.sectionValidationMap.has(sectionKey)) {
+          this.sectionValidationMap.set(sectionKey, {
+            sectionId: normalizedSectionId,
             sectionType: issue.sectionType,
             errors: [],
             warnings: [],
             suggestions: [],
           });
+          this.addValidationIndex(this.sectionValidationIndex, normalizedSectionId, sectionKey);
         }
-        const sectionData = this.sectionValidationMap.get(issue.sectionId);
+        const sectionData = this.sectionValidationMap.get(sectionKey);
         const suggestion = this.createSuggestion(issue);
 
         if (issue.severity === SEVERITY.ERROR) {
@@ -410,7 +607,7 @@ export class ValidationManager {
     }
 
     // スキーマエラー表示システムに連携
-    for (const [elementId, data] of this.elementValidationMap) {
+    for (const [, data] of this.elementValidationMap) {
       let status = 'valid';
       if (data.errors.length > 0) {
         status = 'error';
@@ -428,7 +625,7 @@ export class ValidationManager {
         ...data.errors.map((e) => e.message),
         ...data.warnings.map((w) => w.message),
       ];
-      setSchemaError(elementId, status, messages, modelSource);
+      setSchemaError(data.elementId, status, messages, modelSource, data.elementType);
     }
 
     // 状態更新用の統計情報を保存
@@ -601,10 +798,69 @@ export class ValidationManager {
   /**
    * 特定の要素のバリデーション結果を取得
    * @param {string} elementId
+   * @param {{targetElementName?: string, elementType?: string}} [options]
    * @returns {Object|null}
    */
-  getElementValidation(elementId) {
-    return this.elementValidationMap.get(elementId) || null;
+  getElementValidation(elementId, options = {}) {
+    if (!elementId) return null;
+
+    const normalizedElementId = String(elementId);
+    const requestedType = options.targetElementName || options.elementType || '';
+    const contextTagName = options.contextTagName || '';
+    const contextId = options.contextId ? String(options.contextId) : '';
+
+    if (requestedType) {
+      const typedKey = this.buildValidationKey(normalizedElementId, requestedType);
+      const typedEntry = this.elementValidationMap.get(typedKey) || null;
+      if (!typedEntry) return null;
+      if (!contextTagName || !contextId) return typedEntry;
+      return filterValidationEntryByContext(typedEntry, contextTagName, contextId);
+    }
+
+    const entries = this.collectValidationEntries(
+      this.elementValidationMap,
+      this.elementValidationIndex,
+      normalizedElementId,
+    );
+
+    if (entries.length === 0) return null;
+
+    const merged =
+      entries.length === 1
+        ? entries[0]
+        : mergeValidationEntries(entries, { elementId: normalizedElementId });
+    if (!merged) return null;
+    if (!contextTagName || !contextId) return merged;
+    return filterValidationEntryByContext(merged, contextTagName, contextId);
+  }
+
+  /**
+   * 特定の断面のバリデーション結果を取得
+   * @param {string} sectionId
+   * @param {{targetSectionType?: string, sectionType?: string}} [options]
+   * @returns {Object|null}
+   */
+  getSectionValidation(sectionId, options = {}) {
+    if (!sectionId) return null;
+
+    const normalizedSectionId = String(sectionId);
+    const requestedType = options.targetSectionType || options.sectionType || '';
+
+    if (requestedType) {
+      const typedKey = this.buildValidationKey(normalizedSectionId, requestedType);
+      return this.sectionValidationMap.get(typedKey) || null;
+    }
+
+    const entries = this.collectValidationEntries(
+      this.sectionValidationMap,
+      this.sectionValidationIndex,
+      normalizedSectionId,
+    );
+
+    if (entries.length === 0) return null;
+    if (entries.length === 1) return entries[0];
+
+    return mergeValidationEntries(entries, { sectionId: normalizedSectionId });
   }
 
   /**
@@ -783,19 +1039,21 @@ export function validateAndIntegrate(xmlDoc, modelSource = null) {
 /**
  * 要素のバリデーション情報を取得
  * @param {string} elementId - 要素ID
+ * @param {{targetElementName?: string, elementType?: string}} [options] - 要素種別フィルタ
  * @returns {Object|null} バリデーション情報
  */
-export function getElementValidation(elementId) {
-  return sharedManager.getElementValidation(elementId);
+export function getElementValidation(elementId, options = {}) {
+  return sharedManager.getElementValidation(elementId, options);
 }
 
 /**
  * 断面のバリデーション情報を取得
  * @param {string} sectionId - 断面ID
+ * @param {{targetSectionType?: string, sectionType?: string}} [options] - 断面種別フィルタ
  * @returns {Object|null} バリデーション情報
  */
-export function getSectionValidation(sectionId) {
-  return sharedManager.sectionValidationMap.get(sectionId) || null;
+export function getSectionValidation(sectionId, options = {}) {
+  return sharedManager.getSectionValidation(sectionId, options);
 }
 
 /**
@@ -852,10 +1110,11 @@ export function generateValidationSummaryHtml() {
 /**
  * 要素情報パネル用のエラー表示HTMLを生成
  * @param {string} elementId - 要素ID
+ * @param {{targetElementName?: string, elementType?: string}} [options] - 要素種別フィルタ
  * @returns {string} HTML文字列
  */
-export function generateValidationInfoHtml(elementId) {
-  const validation = getElementValidation(elementId);
+export function generateValidationInfoHtml(elementId, options = {}) {
+  const validation = getElementValidation(elementId, options);
 
   if (!validation) {
     return '';
@@ -1141,7 +1400,8 @@ export function getValidationStats() {
  */
 export function getElementsByStatus(status) {
   const result = [];
-  for (const [elementId, data] of sharedManager.elementValidationMap.entries()) {
+  for (const [, data] of sharedManager.elementValidationMap.entries()) {
+    const elementId = data.elementId || '';
     if (status === 'error' && data.errors.length > 0) {
       result.push({
         elementId,

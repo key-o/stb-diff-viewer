@@ -15,6 +15,9 @@ import * as THREE from 'three';
 import { createLabelSprite } from './labels.js';
 import { colorManager } from '../rendering/colorManager.js';
 import { AXIS_LINE_PATTERN } from '../../config/renderingConstants.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('viewer:annotations:layout');
 
 /**
  * レイアウト要素（通り芯・レベル面）の共通延長量を計算
@@ -154,7 +157,7 @@ export function drawAxes(
       !Number.isFinite(p2.y) ||
       !Number.isFinite(p2.z)
     ) {
-      console.warn('Invalid axis line points:', p1, p2);
+      log.warn('Invalid axis line points:', p1, p2);
       return;
     }
 
@@ -351,7 +354,7 @@ export function drawStories(storiesData, group, modelBounds, labelToggle) {
   const storyMaterial = colorManager.getMaterial('layout', { layoutType: 'story', isLine: false });
 
   if (modelBounds.isEmpty()) {
-    console.warn('Cannot draw stories accurately without model bounds.');
+    log.warn('Cannot draw stories accurately without model bounds.');
     return createdLabels;
   }
 
@@ -388,7 +391,7 @@ export function drawStories(storiesData, group, modelBounds, labelToggle) {
       !Number.isFinite(plane.position.y) ||
       !Number.isFinite(plane.position.z)
     ) {
-      console.error(`Invalid position calculated for Story Plane '${story.name}'. Skipping.`);
+      log.error(`Invalid position calculated for Story Plane '${story.name}'. Skipping.`);
       return;
     }
 

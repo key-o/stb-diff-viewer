@@ -44,7 +44,10 @@ import {
 // 比較戦略をインポート
 import { BasicStrategy } from './BaseStrategy.js';
 import { ToleranceStrategy } from './ToleranceStrategy.js';
-import { VersionAwareStrategy, DIFF_TYPE } from './VersionAwareStrategy.js';
+import { DIFF_TYPE } from './VersionAwareStrategy.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('common-stb:comparison:comparator');
 
 // --- 定数 ---
 const STB_NAMESPACE = 'https://www.building-smart.or.jp/dl'; // ST-Bridge 名前空間 (stbParserと重複するが、独立性のため保持)
@@ -52,7 +55,6 @@ const STB_NAMESPACE = 'https://www.building-smart.or.jp/dl'; // ST-Bridge 名前
 // 戦略インスタンス
 const basicStrategy = new BasicStrategy();
 const toleranceStrategy = new ToleranceStrategy();
-const versionAwareStrategy = new VersionAwareStrategy();
 
 // --- 要素比較ロジック ---
 /**
@@ -121,18 +123,19 @@ export function lineElementKeyExtractor(
       // Default pile length for line display (actual length from section data used in 3D)
       const defaultPileLength = DEFAULT_PILE_LENGTH;
 
-      // Calculate top node position (id_node + offsets + level_top for Z)
+      // Calculate top node position (level_top はノードZからの相対オフセット)
+      const topZ = topNode.z + levelTopValue;
       endCoords = {
         x: topNode.x + offsetX,
         y: topNode.y + offsetY,
-        z: levelTopValue, // level_top is the top Z coordinate
+        z: topZ, // ノードZ + level_top が杭天端Z座標
       };
 
       // Calculate bottom node (top - default pile length)
       startCoords = {
         x: endCoords.x,
         y: endCoords.y,
-        z: levelTopValue - defaultPileLength, // Bottom is below top
+        z: topZ - defaultPileLength,
       };
 
       // Use synthetic IDs for 1-node format
@@ -146,18 +149,18 @@ export function lineElementKeyExtractor(
       const offsetY = parseFloat(getAttr(element, 'offset_Y')) || 0;
       const levelBottomValue = parseFloat(levelBottom) || 0;
 
-      // Calculate bottom position (level_bottom)
+      // Calculate bottom position (level_bottom はノードZからの相対オフセット)
       startCoords = {
         x: refNode.x + offsetX,
         y: refNode.y + offsetY,
-        z: levelBottomValue, // level_bottom is the bottom Z coordinate
+        z: refNode.z + levelBottomValue, // ノードZ + level_bottom が下端Z座標
       };
 
-      // Calculate top position (reference node Z or bottom + default height)
+      // Calculate top position (reference node Z)
       endCoords = {
         x: refNode.x + offsetX,
         y: refNode.y + offsetY,
-        z: refNode.z, // Use the reference node's Z as top
+        z: refNode.z, // ノードZが上端Z座標
       };
 
       // Use synthetic IDs for 1-node format
@@ -216,9 +219,7 @@ export function lineElementKeyExtractor(
       },
     };
   }
-  console.warn(
-    `[Data] 線分要素: ノード座標が不足 (Start=${startId}, End=${endId}, id=${elementId})`,
-  );
+  log.warn(`[Data] 線分要素: ノード座標が不足 (Start=${startId}, End=${endId}, id=${elementId})`);
   return { key: null, data: null };
 }
 
@@ -290,12 +291,12 @@ export function polyElementKeyExtractor(
         },
       };
     } else {
-      console.warn(
+      log.warn(
         `[Data] 面要素: ノード座標または頂点が不足 (id=${elementId}, nodes=${nodeIds.length}, found=${vertexCoordsList.length})`,
       );
     }
   } else {
-    console.warn(`[Data] 面要素: ノード順序タグが不足 (id=${elementId}, tag=${nodeOrderTag})`);
+    log.warn(`[Data] 面要素: ノード順序タグが不足 (id=${elementId}, tag=${nodeOrderTag})`);
   }
   return { key: null, data: null };
 }
@@ -440,9 +441,10 @@ export function compareElementsWithImportance(
           element = item.element || null;
         }
 
-        const importance = (element && typeof importanceLookup === 'function')
-          ? importanceLookup(element, elementType)
-          : IMPORTANCE_LEVELS.OPTIONAL;
+        const importance =
+          element && typeof importanceLookup === 'function'
+            ? importanceLookup(element, elementType)
+            : IMPORTANCE_LEVELS.OPTIONAL;
 
         return {
           ...item,
@@ -573,6 +575,24 @@ export function generateImportanceSummary(comparisonResults) {
   });
 
   return summary;
+}
+
+/**
+ * 要素の重要度を取得するヘルパー
+ * @param {Element} element - 要素
+ * @param {string} elementType - 要素タイプ
+ * @param {Function} importanceLookup - 重要度判定関数
+ * @returns {number} 重要度レベル
+ */
+function getElementImportance(element, elementType, importanceLookup) {
+  if (!element || typeof importanceLookup !== 'function') {
+    return IMPORTANCE_LEVELS.OPTIONAL;
+  }
+  try {
+    return importanceLookup(element, elementType) ?? IMPORTANCE_LEVELS.OPTIONAL;
+  } catch {
+    return IMPORTANCE_LEVELS.OPTIONAL;
+  }
 }
 
 /**

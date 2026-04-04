@@ -22,13 +22,17 @@
 
 .accordion-header {
   background: var(--sidebar-btn-bg);
+  border: none;
   border-bottom: var(--border-width) solid transparent;
   padding: 12px var(--spacing-md);
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font: inherit;
   font-weight: var(--font-weight-medium);
+  text-align: left;
+  width: 100%;
   color: var(--sidebar-btn-text);
   transition: all var(--transition-fast);
   user-select: none;
@@ -36,6 +40,15 @@
 
 .accordion-header:hover {
   background: var(--sidebar-btn-hover-bg);
+}
+
+.accordion-header:focus:not(:focus-visible) {
+  outline: none;
+}
+
+.accordion-header:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 /* 展開時のヘッダー */
@@ -158,6 +171,7 @@
   color: var(--text-primary);
 }
 
+
 /* ========================================
    モデルヘッダー（ラベル+バージョン）
    ======================================== */
@@ -192,4 +206,12 @@
 
 .version-badge-inline.version-unknown {
   color: var(--text-muted);
+}
+
+.version-badge-inline.version-ss7 {
+  border-left: 2px solid #f59e0b;
+}
+
+.version-badge-inline.version-ifc {
+  border-left: 2px solid #06b6d4;
 }

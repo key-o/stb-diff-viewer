@@ -27,13 +27,17 @@ import {
 // --- 定数 ---
 const STB_NAMESPACE = 'https://www.building-smart.or.jp/dl';
 
+import { createLogger } from '../../../utils/logger.js';
+
+const _log = createLogger('common-stb:parser:stbXmlParser');
+
 // --- ロガー設定 ---
-// デフォルトはconsole、外部から差し替え可能
+// デフォルトはcreateLogger、外部から差し替え可能
 let logger = {
-  log: (...args) => {},
-  warn: (...args) => console.warn(...args),
-  debug: (..._args) => {},
-  error: (...args) => console.error(...args),
+  log: (...args) => _log.info(...args),
+  warn: (...args) => _log.warn(...args),
+  debug: (...args) => _log.debug(...args),
+  error: (...args) => _log.error(...args),
 };
 
 /**
@@ -578,6 +582,7 @@ export function extractColumnElements(xmlDoc) {
     const name = colEl.getAttribute('name');
     const guid = colEl.getAttribute('guid');
     const rotate = colEl.getAttribute('rotate');
+    const kindStructure = colEl.getAttribute('kind_structure');
 
     const offset_bottom_X = colEl.getAttribute('offset_bottom_X');
     const offset_bottom_Y = colEl.getAttribute('offset_bottom_Y');
@@ -592,6 +597,7 @@ export function extractColumnElements(xmlDoc) {
         id_section: idSection,
         name: name,
         guid: guid || undefined,
+        kind_structure: kindStructure || 'S',
         rotate: rotate ? parseFloat(rotate) : 0,
         offset_bottom_X: offset_bottom_X ? parseFloat(offset_bottom_X) : 0,
         offset_bottom_Y: offset_bottom_Y ? parseFloat(offset_bottom_Y) : 0,
@@ -625,6 +631,7 @@ function extractBeamLikeElements(xmlDoc, elementType) {
     const idSection = el.getAttribute('id_section');
     const name = el.getAttribute('name');
     const guid = el.getAttribute('guid');
+    const typeShape = el.getAttribute('type_shape');
 
     const offset_start_X = el.getAttribute('offset_start_X');
     const offset_start_Y = el.getAttribute('offset_start_Y');
@@ -633,18 +640,20 @@ function extractBeamLikeElements(xmlDoc, elementType) {
     const offset_end_Y = el.getAttribute('offset_end_Y');
     const offset_end_Z = el.getAttribute('offset_end_Z');
 
-    const haunch_start = el.getAttribute('haunch_start');
-    const haunch_end = el.getAttribute('haunch_end');
-    const kind_haunch_start = el.getAttribute('kind_haunch_start');
-    const kind_haunch_end = el.getAttribute('kind_haunch_end');
-    const joint_start = el.getAttribute('joint_start');
-    const joint_end = el.getAttribute('joint_end');
+    // STB XML属性名に由来する変数（camelcase警告を抑制）
+    const haunch_start = el.getAttribute('haunch_start'); // eslint-disable-line camelcase
+    const haunch_end = el.getAttribute('haunch_end'); // eslint-disable-line camelcase
+    const kind_haunch_start = el.getAttribute('kind_haunch_start'); // eslint-disable-line camelcase
+    const kind_haunch_end = el.getAttribute('kind_haunch_end'); // eslint-disable-line camelcase
+    const joint_start = el.getAttribute('joint_start'); // eslint-disable-line camelcase
+    const joint_end = el.getAttribute('joint_end'); // eslint-disable-line camelcase
     // 継手ID（部材要素に直接記述される場合）
-    const joint_id_start = el.getAttribute('joint_id_start');
-    const joint_id_end = el.getAttribute('joint_id_end');
+    const joint_id_start = el.getAttribute('joint_id_start'); // eslint-disable-line camelcase
+    const joint_id_end = el.getAttribute('joint_id_end'); // eslint-disable-line camelcase
 
     // rotate属性を取得（大梁・小梁は梁天端中心、ブレースはジオメトリ中心を回転軸とする）
     const rotate = el.getAttribute('rotate');
+    const kindStructure = el.getAttribute('kind_structure'); // eslint-disable-line camelcase
 
     if (id && idNodeStart && idNodeEnd && idSection) {
       const data = {
@@ -654,7 +663,12 @@ function extractBeamLikeElements(xmlDoc, elementType) {
         id_section: idSection,
         name: name,
         guid: guid || undefined,
+        kind_structure: kindStructure || 'S', // eslint-disable-line camelcase
       };
+
+      if (typeShape !== null) {
+        data.type_shape = typeShape;
+      }
 
       if (
         offset_start_X !== null ||
@@ -672,25 +686,29 @@ function extractBeamLikeElements(xmlDoc, elementType) {
         data.offset_end_Z = offset_end_Z ? parseFloat(offset_end_Z) : 0;
       }
 
+      // eslint-disable-next-line camelcase
       if (haunch_start !== null || haunch_end !== null) {
-        data.haunch_start = haunch_start ? parseFloat(haunch_start) : 0;
-        data.haunch_end = haunch_end ? parseFloat(haunch_end) : 0;
+        data.haunch_start = haunch_start ? parseFloat(haunch_start) : 0; // eslint-disable-line camelcase
+        data.haunch_end = haunch_end ? parseFloat(haunch_end) : 0; // eslint-disable-line camelcase
         // XSDデフォルト値: SLOPE
-        data.kind_haunch_start = kind_haunch_start || 'SLOPE';
-        data.kind_haunch_end = kind_haunch_end || 'SLOPE';
+        data.kind_haunch_start = kind_haunch_start || 'SLOPE'; // eslint-disable-line camelcase
+        data.kind_haunch_end = kind_haunch_end || 'SLOPE'; // eslint-disable-line camelcase
       }
 
+      // eslint-disable-next-line camelcase
       if (joint_start !== null || joint_end !== null) {
-        data.joint_start = joint_start ? parseFloat(joint_start) : 0;
-        data.joint_end = joint_end ? parseFloat(joint_end) : 0;
+        data.joint_start = joint_start ? parseFloat(joint_start) : 0; // eslint-disable-line camelcase
+        data.joint_end = joint_end ? parseFloat(joint_end) : 0; // eslint-disable-line camelcase
       }
 
       // 継手ID（部材要素に直接記述される場合）
+      // eslint-disable-next-line camelcase
       if (joint_id_start !== null) {
-        data.joint_id_start = joint_id_start;
+        data.joint_id_start = joint_id_start; // eslint-disable-line camelcase
       }
+      // eslint-disable-next-line camelcase
       if (joint_id_end !== null) {
-        data.joint_id_end = joint_id_end;
+        data.joint_id_end = joint_id_end; // eslint-disable-line camelcase
       }
 
       // rotate属性がある場合は追加
@@ -733,6 +751,129 @@ export function extractGirderElements(xmlDoc) {
  */
 export function extractBraceElements(xmlDoc) {
   return extractBeamLikeElements(xmlDoc, 'StbBrace');
+}
+
+/**
+ * 免震装置要素データを抽出する
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} 免震装置要素データの配列
+ */
+export function extractIsolatingDeviceElements(xmlDoc) {
+  return extractBeamLikeElements(xmlDoc, 'StbIsolatingDevice');
+}
+
+/**
+ * 制振装置要素データを抽出する
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} 制振装置要素データの配列
+ */
+export function extractDampingDeviceElements(xmlDoc) {
+  return extractBeamLikeElements(xmlDoc, 'StbDampingDevice');
+}
+
+/**
+ * 制振装置（フレーム）要素データを抽出する
+ * @param {Document} xmlDoc - パース済みのXMLドキュメント
+ * @return {Array} 制振装置（フレーム）要素データの配列
+ */
+export function extractFrameDampingDeviceElements(xmlDoc) {
+  const frameDampingDeviceElementsData = [];
+  const frameDampingDeviceElements = parseElements(xmlDoc, 'StbFrameDampingDevice');
+
+  for (const deviceEl of frameDampingDeviceElements) {
+    const id = deviceEl.getAttribute('id');
+    const idSection = deviceEl.getAttribute('id_section');
+    const name = deviceEl.getAttribute('name');
+    const guid = deviceEl.getAttribute('guid');
+    const typeShape = deviceEl.getAttribute('type_shape');
+    const minorTypeShape = deviceEl.getAttribute('minor_type_shape');
+
+    const nodeIdOrderEl = deviceEl.getElementsByTagName('StbNodeIdOrder')[0];
+    const nodeIdText = nodeIdOrderEl
+      ? nodeIdOrderEl.textContent || nodeIdOrderEl.innerText || ''
+      : '';
+    const nodeIds = nodeIdText.trim().split(/\s+/).filter(Boolean);
+
+    const offsets = new Map();
+    const offsetList = deviceEl.getElementsByTagName('StbFrameDampingDeviceOffsetList')[0];
+    if (offsetList) {
+      const offsetElements = Array.from(
+        offsetList.getElementsByTagName('StbFrameDampingDeviceOffset'),
+      );
+      for (const offsetEl of offsetElements) {
+        const nodeId = offsetEl.getAttribute('id_node');
+        if (nodeId) {
+          offsets.set(nodeId, {
+            offset_X: parseFloat(offsetEl.getAttribute('offset_X')) || 0,
+            offset_Y: parseFloat(offsetEl.getAttribute('offset_Y')) || 0,
+            offset_Z: parseFloat(offsetEl.getAttribute('offset_Z')) || 0,
+          });
+        }
+      }
+    }
+
+    const configuration = {
+      members: [],
+      connections: [],
+    };
+    const configurationEl = deviceEl.getElementsByTagName('StbFrameDampingDeviceConfiguration')[0];
+    if (configurationEl) {
+      const memberElements = Array.from(
+        configurationEl.getElementsByTagName('StbFrameDampingDeviceMember'),
+      );
+      for (const memberEl of memberElements) {
+        configuration.members.push({
+          id_node_start: memberEl.getAttribute('id_node_start'),
+          id_node_end: memberEl.getAttribute('id_node_end'),
+          offset_start_X: parseFloat(memberEl.getAttribute('offset_start_X')) || 0,
+          offset_start_Y: parseFloat(memberEl.getAttribute('offset_start_Y')) || 0,
+          offset_start_Z: parseFloat(memberEl.getAttribute('offset_start_Z')) || 0,
+          offset_end_X: parseFloat(memberEl.getAttribute('offset_end_X')) || 0,
+          offset_end_Y: parseFloat(memberEl.getAttribute('offset_end_Y')) || 0,
+          offset_end_Z: parseFloat(memberEl.getAttribute('offset_end_Z')) || 0,
+        });
+      }
+
+      const connectionElements = Array.from(
+        configurationEl.getElementsByTagName('StbFrameDampingDeviceConnection'),
+      );
+      for (const connectionEl of connectionElements) {
+        configuration.connections.push({
+          kind: connectionEl.getAttribute('kind'),
+          id_member: connectionEl.getAttribute('id_member'),
+          id_node_start: connectionEl.getAttribute('id_node_start'),
+          id_node_end: connectionEl.getAttribute('id_node_end'),
+          offset_start_X: parseFloat(connectionEl.getAttribute('offset_start_X')) || 0,
+          offset_start_Y: parseFloat(connectionEl.getAttribute('offset_start_Y')) || 0,
+          offset_start_Z: parseFloat(connectionEl.getAttribute('offset_start_Z')) || 0,
+          offset_end_X: parseFloat(connectionEl.getAttribute('offset_end_X')) || 0,
+          offset_end_Y: parseFloat(connectionEl.getAttribute('offset_end_Y')) || 0,
+          offset_end_Z: parseFloat(connectionEl.getAttribute('offset_end_Z')) || 0,
+        });
+      }
+    }
+
+    if (id && idSection && nodeIds.length >= 3) {
+      frameDampingDeviceElementsData.push({
+        id,
+        id_section: idSection,
+        name,
+        guid: guid || undefined,
+        type_shape: typeShape,
+        minor_type_shape: minorTypeShape || undefined,
+        node_ids: nodeIds,
+        offsets,
+        configuration,
+      });
+    } else {
+      logger.warn(
+        `[Data] 制振装置（フレーム）: 必須属性またはノードが不足 (id=${id}, nodes=${nodeIds.length})`,
+      );
+    }
+  }
+
+  logger.log(`[Load] 制振装置（フレーム）要素読込完了: ${frameDampingDeviceElementsData.length}基`);
+  return frameDampingDeviceElementsData;
 }
 
 /**
@@ -920,31 +1061,57 @@ export function extractFoundationColumnElements(xmlDoc) {
 
   for (const fcEl of foundationColumnElements) {
     const id = fcEl.getAttribute('id');
-    const idNodeBottom = fcEl.getAttribute('id_node_bottom');
-    const idNodeTop = fcEl.getAttribute('id_node_top');
-    const idSection = fcEl.getAttribute('id_section');
+    const idNode = fcEl.getAttribute('id_node');
     const name = fcEl.getAttribute('name');
     const guid = fcEl.getAttribute('guid');
 
-    const offset_bottom_X = fcEl.getAttribute('offset_bottom_X');
-    const offset_bottom_Y = fcEl.getAttribute('offset_bottom_Y');
-    const offset_top_X = fcEl.getAttribute('offset_top_X');
-    const offset_top_Y = fcEl.getAttribute('offset_top_Y');
-    const rotate = fcEl.getAttribute('rotate');
+    const idSectionFD = fcEl.getAttribute('id_section_FD');
+    const lengthFD = fcEl.getAttribute('length_FD');
+    const offsetFdX = fcEl.getAttribute('offset_FD_X');
+    const offsetFdY = fcEl.getAttribute('offset_FD_Y');
+    const thicknessAddFDStartX = fcEl.getAttribute('thickness_add_FD_start_X');
+    const thicknessAddFDEndX = fcEl.getAttribute('thickness_add_FD_end_X');
+    const thicknessAddFDStartY = fcEl.getAttribute('thickness_add_FD_start_Y');
+    const thicknessAddFDEndY = fcEl.getAttribute('thickness_add_FD_end_Y');
 
-    if (id && idNodeBottom && idNodeTop && idSection) {
+    const idSectionWR = fcEl.getAttribute('id_section_WR');
+    const lengthWR = fcEl.getAttribute('length_WR');
+    const offsetWrX = fcEl.getAttribute('offset_WR_X');
+    const offsetWrY = fcEl.getAttribute('offset_WR_Y');
+    const thicknessAddWRStartX = fcEl.getAttribute('thickness_add_WR_start_X');
+    const thicknessAddWREndX = fcEl.getAttribute('thickness_add_WR_end_X');
+    const thicknessAddWRStartY = fcEl.getAttribute('thickness_add_WR_start_Y');
+    const thicknessAddWREndY = fcEl.getAttribute('thickness_add_WR_end_Y');
+
+    const rotate = fcEl.getAttribute('rotate');
+    const offsetZ = fcEl.getAttribute('offset_Z');
+    const kindStructure = fcEl.getAttribute('kind_structure');
+
+    if (id && idNode && name) {
       const elementData = {
         id: id,
-        id_node_bottom: idNodeBottom,
-        id_node_top: idNodeTop,
-        id_section: idSection,
+        id_node: idNode,
         name: name,
         guid: guid || undefined,
-        offset_bottom_X: offset_bottom_X ? parseFloat(offset_bottom_X) : 0,
-        offset_bottom_Y: offset_bottom_Y ? parseFloat(offset_bottom_Y) : 0,
-        offset_top_X: offset_top_X ? parseFloat(offset_top_X) : 0,
-        offset_top_Y: offset_top_Y ? parseFloat(offset_top_Y) : 0,
+        id_section_FD: idSectionFD || undefined,
+        length_FD: lengthFD ? parseFloat(lengthFD) : 0,
+        offset_FD_X: offsetFdX ? parseFloat(offsetFdX) : 0,
+        offset_FD_Y: offsetFdY ? parseFloat(offsetFdY) : 0,
+        thickness_add_FD_start_X: thicknessAddFDStartX ? parseFloat(thicknessAddFDStartX) : 0,
+        thickness_add_FD_end_X: thicknessAddFDEndX ? parseFloat(thicknessAddFDEndX) : 0,
+        thickness_add_FD_start_Y: thicknessAddFDStartY ? parseFloat(thicknessAddFDStartY) : 0,
+        thickness_add_FD_end_Y: thicknessAddFDEndY ? parseFloat(thicknessAddFDEndY) : 0,
+        id_section_WR: idSectionWR || undefined,
+        length_WR: lengthWR ? parseFloat(lengthWR) : 0,
+        offset_WR_X: offsetWrX ? parseFloat(offsetWrX) : 0,
+        offset_WR_Y: offsetWrY ? parseFloat(offsetWrY) : 0,
+        thickness_add_WR_start_X: thicknessAddWRStartX ? parseFloat(thicknessAddWRStartX) : 0,
+        thickness_add_WR_end_X: thicknessAddWREndX ? parseFloat(thicknessAddWREndX) : 0,
+        thickness_add_WR_start_Y: thicknessAddWRStartY ? parseFloat(thicknessAddWRStartY) : 0,
+        thickness_add_WR_end_Y: thicknessAddWREndY ? parseFloat(thicknessAddWREndY) : 0,
         rotate: rotate ? parseFloat(rotate) : 0,
+        offset_Z: offsetZ ? parseFloat(offsetZ) : 0,
+        kind_structure: kindStructure || 'RC',
       };
       foundationColumnElementsData.push(elementData);
     } else {
@@ -1154,11 +1321,11 @@ export function extractOpeningElements(xmlDoc) {
   const openingMap = new Map();
   const version = detectStbVersion(xmlDoc);
 
-  if (version === '2.1.0') {
+  if (version === '2.1.0' && parseElements(xmlDoc, 'StbOpenArrangement').length > 0) {
     // STB 2.1.0: StbOpenArrangement から開口情報を取得
     extractOpeningsFromArrangements(xmlDoc, openingMap);
   } else {
-    // STB 2.0.2: StbOpen から開口情報を取得
+    // STB 2.0.2 または 2.1.0で StbOpen を使用している場合
     extractOpeningsFromStbOpen(xmlDoc, openingMap);
   }
 

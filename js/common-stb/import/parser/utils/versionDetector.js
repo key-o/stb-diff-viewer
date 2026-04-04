@@ -12,6 +12,8 @@ export {
   findRootElement,
   getVersionInfo,
   isVersion210,
+  isVersion211,
+  isVersion21x,
   isVersion202,
   isSameVersion,
   ROOT_ELEMENT_NAMES,

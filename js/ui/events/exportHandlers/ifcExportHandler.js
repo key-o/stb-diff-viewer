@@ -17,6 +17,9 @@ import {
   collectFootingDataForExport,
   collectFoundationColumnDataForExport,
 } from './ifcDataCollector.js';
+import { createLogger } from '../../../utils/logger.js';
+
+const log = createLogger('ui:events:exportHandlers:ifcExportHandler');
 
 /**
  * Setup IFC export button listener
@@ -91,7 +94,7 @@ async function handleIfcExport() {
     // 階データを設定
     if (stories.length > 0) {
       exporter.setStories(stories);
-      console.log(`[IFC Export] ${stories.length}階のデータを設定`);
+      log.info(`[IFC Export] ${stories.length}階のデータを設定`);
     }
 
     // 梁を追加（マルチセクション梁とシングルセクション梁を区別）
@@ -106,7 +109,11 @@ async function handleIfcExport() {
 
     // 柱を追加
     for (const column of columnData) {
-      exporter.addColumn(column);
+      if (column.stbType === 'StbPost') {
+        exporter.addPost(column);
+      } else {
+        exporter.addColumn(column);
+      }
     }
 
     // ブレースを追加
@@ -161,11 +168,11 @@ async function handleIfcExport() {
     // ダウンロード
     exporter.download({ fileName });
 
-    console.log(
+    log.info(
       `[Process] IFC出力完了: 梁${beamData.length}本, 柱${columnData.length}本, ブレース${braceData.length}本, 床${slabData.length}枚, 壁${wallData.length}枚, 杭${pileData.length}本, 基礎${footingData.length}個, 基礎柱${foundationColumnData.length}本`,
     );
   } catch (error) {
-    console.error('IFC出力エラー:', error);
+    log.error('IFC出力エラー:', error);
     showError(`IFC出力に失敗しました: ${error.message}`);
   } finally {
     // ボタンを復元

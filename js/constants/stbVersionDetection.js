@@ -28,7 +28,7 @@ export function findRootElement(xmlDoc) {
 /**
  * Detect the STB version from an XML document
  * @param {Document} xmlDoc - Parsed XML document
- * @returns {string} Version string ('2.0.2', '2.1.0', or 'unknown')
+ * @returns {string} Version string ('2.0.2', '2.1.0', '2.1.1', or 'unknown')
  */
 export function detectStbVersion(xmlDoc) {
   const root = findRootElement(xmlDoc);
@@ -36,6 +36,7 @@ export function detectStbVersion(xmlDoc) {
   const version = root.getAttribute('version');
   if (!version) return 'unknown';
   if (version.startsWith('2.0')) return '2.0.2';
+  if (version.startsWith('2.1.1')) return '2.1.1';
   if (version.startsWith('2.1')) return '2.1.0';
   return 'unknown';
 }
@@ -47,6 +48,25 @@ export function detectStbVersion(xmlDoc) {
  */
 export function isVersion210(xmlDoc) {
   return detectStbVersion(xmlDoc) === '2.1.0';
+}
+
+/**
+ * Check if the version is STB 2.1.1
+ * @param {Document} xmlDoc - Parsed XML document
+ * @returns {boolean} True if version is 2.1.1
+ */
+export function isVersion211(xmlDoc) {
+  return detectStbVersion(xmlDoc) === '2.1.1';
+}
+
+/**
+ * Check if the version is STB 2.1.x (2.1.0 or 2.1.1)
+ * @param {Document} xmlDoc - Parsed XML document
+ * @returns {boolean} True if version is 2.1.x
+ */
+export function isVersion21x(xmlDoc) {
+  const v = detectStbVersion(xmlDoc);
+  return v === '2.1.0' || v === '2.1.1';
 }
 
 /**
@@ -81,7 +101,10 @@ export function getVersionInfo(xmlDoc) {
     normalizedVersion,
     rawVersion,
     rootElementName: root.tagName || root.localName,
-    isSupported: normalizedVersion === '2.0.2' || normalizedVersion === '2.1.0',
+    isSupported:
+      normalizedVersion === '2.0.2' ||
+      normalizedVersion === '2.1.0' ||
+      normalizedVersion === '2.1.1',
   };
 }
 
@@ -94,6 +117,7 @@ export function getVersionInfo(xmlDoc) {
 export function isSameVersion(versionA, versionB) {
   const normalizeVersion = (v) => {
     if (v?.startsWith('2.0')) return '2.0.2';
+    if (v?.startsWith('2.1.1')) return '2.1.1';
     if (v?.startsWith('2.1')) return '2.1.0';
     return v;
   };

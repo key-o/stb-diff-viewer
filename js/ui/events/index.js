@@ -51,11 +51,12 @@ import { toggleLegend, updateLegendContent, hasLegendPanel } from './legendListe
 
 import { setupKeyboardShortcuts, setupWindowResizeListener } from './keyboardListeners.js';
 
-import { setupStbConvertListeners } from './stbConvertHandler.js';
-
 import { setupMasterToggleListeners } from './masterToggleListeners.js';
 
 import { setupAppEventBridge } from './appEventBridge.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:events:index');
 
 // --- 統合リスナー設定関数 ---
 
@@ -77,10 +78,9 @@ export function setupUIEventListeners() {
     setupClippingButtonListeners();
     setupKeyboardShortcuts();
     setupWindowResizeListener();
-    setupStbConvertListeners();
     setupMasterToggleListeners();
   } catch (error) {
-    console.error('UIイベントリスナーの設定中にエラーが発生しました:', error);
+    log.error('UIイベントリスナーの設定中にエラーが発生しました:', error);
   }
 }
 

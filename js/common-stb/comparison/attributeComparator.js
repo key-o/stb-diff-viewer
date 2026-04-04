@@ -6,6 +6,7 @@
  */
 
 import { NUMERIC_TOLERANCE } from '../../config/geometryConfig.js';
+import { getToleranceConfig } from '../../config/toleranceConfig.js';
 
 /**
  * 要素からプロパティ値を取得する（XML DOM/JSオブジェクト両対応）
@@ -14,16 +15,22 @@ import { NUMERIC_TOLERANCE } from '../../config/geometryConfig.js';
  * @returns {*} 属性値
  */
 function getProperty(element, attrName) {
+  let val;
   if (element && typeof element.getAttribute === 'function') {
     // XML DOM要素
-    const val = element.getAttribute(attrName);
+    val = element.getAttribute(attrName);
     if (val === null) return undefined;
-    // 数値変換を試みる
+  } else {
+    // JSオブジェクト
+    val = element?.[attrName];
+    if (val === undefined) return undefined;
+  }
+  // 文字列の場合は数値変換を試みる（"0" と "0.0" が不一致にならないよう統一）
+  if (typeof val === 'string') {
     const num = Number(val);
     return isNaN(num) ? val : num;
   }
-  // JSオブジェクト
-  return element?.[attrName];
+  return val;
 }
 
 /**
@@ -54,9 +61,15 @@ const STRUCTURAL_ATTRIBUTES = [
  * 2つの要素の構造属性を比較する
  * @param {Element|Object} elementA - モデルAの要素
  * @param {Element|Object} elementB - モデルBの要素
+ * @param {number} [tolerance] - 数値属性の許容差（省略時は toleranceConfig から取得）
  * @returns {boolean} 属性が一致すればtrue
  */
-export function compareStructuralAttributes(elementA, elementB) {
+export function compareStructuralAttributes(elementA, elementB, tolerance) {
+  const numTolerance =
+    tolerance !== undefined
+      ? tolerance
+      : (getToleranceConfig().attributeNumericTolerance ?? NUMERIC_TOLERANCE);
+
   for (const attr of STRUCTURAL_ATTRIBUTES) {
     const valueA = getProperty(elementA, attr);
     const valueB = getProperty(elementB, attr);
@@ -71,9 +84,9 @@ export function compareStructuralAttributes(elementA, elementB) {
       return false;
     }
 
-    // 数値の場合は精度で比較
+    // 数値の場合はしきい値で比較
     if (typeof valueA === 'number' && typeof valueB === 'number') {
-      if (Math.abs(valueA - valueB) > NUMERIC_TOLERANCE) {
+      if (Math.abs(valueA - valueB) > numTolerance) {
         return false;
       }
     } else {

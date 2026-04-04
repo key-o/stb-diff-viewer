@@ -9,7 +9,7 @@
 import { collectReportData } from './reportDataCollector.js';
 import { captureCurrentView, captureMultipleViews } from './reportScreenshot.js';
 import { buildReportHtml } from './reportHtmlBuilder.js';
-import { eventBus, ExportEvents } from '../../app/events/index.js';
+import { eventBus, ExportEvents } from '../../data/events/index.js';
 import { downloadBlob } from '../../utils/downloadHelper.js';
 
 /**

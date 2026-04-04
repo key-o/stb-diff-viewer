@@ -14,7 +14,7 @@
  */
 
 import { parseElements } from '../import/parser/stbXmlParser.js';
-import { SEVERITY, CATEGORY, getRepairableIssues } from '../validation/stbValidator.js';
+import { CATEGORY, getRepairableIssues } from '../validation/stbValidator.js';
 
 // ========================================
 // 定数定義

@@ -41,6 +41,9 @@ import {
 } from './importanceColorMode.js';
 
 import { applyDiffColorModeToAll } from './diffColorMode.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('colorModes:colorModeManager');
 
 // 色モード変更のロック機構（非同期競合防止）
 let isColorModeChanging = false;
@@ -58,7 +61,7 @@ export function setColorMode(mode) {
   // ロック中の場合は待機キューに追加
   if (isColorModeChanging) {
     pendingColorMode = mode;
-    console.log('[ColorMode] Queued mode change:', mode);
+    log.info('[ColorMode] Queued mode change:', mode);
     return;
   }
 
@@ -68,7 +71,7 @@ export function setColorMode(mode) {
   updateColorModeUI();
 
   // モデルが読み込まれているかチェック
-  import('../app/modelLoader.js').then(({ isModelLoaded }) => {
+  import('../app/controllers/modelLoaderController.js').then(({ isModelLoaded }) => {
     const modelsLoaded = isModelLoaded();
 
     if (!modelsLoaded) {
@@ -91,7 +94,7 @@ export function setColorMode(mode) {
       // 変更成功メッセージを表示
       showColorModeStatus(`「${getModeDisplayName(mode)}」モードを適用しました。`, 3000);
     } catch (error) {
-      console.error('[ColorMode] Error updating elements for color mode:', error);
+      log.error('[ColorMode] Error updating elements for color mode:', error);
       // エラーメッセージを表示
       showColorModeStatus(`色付けモード変更でエラーが発生しました: ${error.message}`, 5000);
     }
@@ -116,7 +119,7 @@ function finishColorModeChange() {
   if (pendingColorMode !== null) {
     const nextMode = pendingColorMode;
     pendingColorMode = null;
-    console.log('[ColorMode] Processing queued mode:', nextMode);
+    log.info('[ColorMode] Processing queued mode:', nextMode);
     setColorMode(nextMode);
   }
 }
@@ -174,14 +177,14 @@ function updateColorModeUI() {
  * 色付けモードイベントリスナーを設定
  */
 export function setupColorModeListeners() {
-  console.log('[ColorModeManager] setupColorModeListeners() called');
+  log.info('[ColorModeManager] setupColorModeListeners() called');
   const selector = document.getElementById('colorModeSelector');
   if (selector) {
     selector.addEventListener('change', (e) => {
       setColorMode(e.target.value);
     });
   } else {
-    console.warn('[ColorModeManager] colorModeSelector not found');
+    log.warn('[ColorModeManager] colorModeSelector not found');
   }
 
   // 重要度設定変更時のイベントリスナーを追加
@@ -193,7 +196,7 @@ export function setupColorModeListeners() {
   initializeSchemaColorControls();
   initializeImportanceColorControls();
   updateColorModeUI();
-  console.log('[ColorModeManager] setupColorModeListeners() completed');
+  log.info('[ColorModeManager] setupColorModeListeners() completed');
 }
 
 /**
@@ -276,7 +279,7 @@ export function requestColorModeRedraw() {
 export function applyColorModeToAllObjects(modeName) {
   // elementGroupsは直接インポートしたものを使用
   if (!elementGroups || Object.keys(elementGroups).length === 0) {
-    console.warn(`[Render] ${modeName}: elementGroupsが未設定`);
+    log.warn(`[Render] ${modeName}: elementGroupsが未設定`);
     return;
   }
 
@@ -379,7 +382,9 @@ export function getMaterialForElement(
     case COLOR_MODES.SCHEMA: {
       // スキーマエラーチェック結果に基づく色付け
       // 注意: Storyは半透明の面として表示すべきなので、ワイヤーフレームにしない
-      const errorInfo = elementId ? getSchemaError(elementId, modelSource) : { status: 'valid' };
+      const errorInfo = elementId
+        ? getSchemaError(elementId, modelSource, elementType)
+        : { status: 'valid' };
 
       return colorManager.getMaterial('schema', {
         elementType,

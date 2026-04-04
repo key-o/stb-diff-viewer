@@ -27,6 +27,10 @@ export {
   extractGirderElements,
   extractBraceElements,
   extractPostElements,
+  // 免震・制振装置
+  extractIsolatingDeviceElements,
+  extractDampingDeviceElements,
+  extractFrameDampingDeviceElements,
   // 杭・基礎
   extractPileElements,
   extractFootingElements,

@@ -32,7 +32,7 @@ import {
 } from '../export/dxf/stb-to-dxf/index.js';
 import { DEFAULT_ELEMENT_COLORS } from '../config/colorConfig.js';
 import { ELEMENT_LABELS } from '../config/elementLabels.js';
-import { eventBus, ExportEvents, ModelEvents, ToastEvents } from './events/index.js';
+import { eventBus, ExportEvents, ModelEvents, ToastEvents } from '../data/events/index.js';
 
 const log = createLogger('DXFLoader');
 
@@ -106,41 +106,40 @@ function getDxfPlacementOptions() {
  * @returns {Object} オフセット値 {offsetX, offsetY, offsetZ}
  */
 function getPositionFromSelection(plane, position) {
-  let offsetX = 0;
-  let offsetY = 0;
-  let offsetZ = 0;
-
-  if (plane === 'xy') {
-    // XY平面 - 階への配置
-    const stories = getCurrentStories();
-    const story = stories.find((s) => s.id === position);
-    if (story) {
-      offsetZ = story.height; // 階の高さをZオフセットに
-      log.info(`階 "${story.name}" (高さ: ${story.height}mm) に配置`);
-    }
-  } else if (plane === 'xz') {
-    // XZ平面 - Y通りへの配置
-    const axesData = getCurrentAxesData();
-    if (axesData?.yAxes) {
-      const axis = axesData.yAxes.find((a) => a.id === position);
+  const planeHandlers = {
+    xy: () => {
+      // XY平面 - 階への配置
+      const story = getCurrentStories().find((s) => s.id === position);
+      if (story) {
+        log.info(`階 "${story.name}" (高さ: ${story.height}mm) に配置`);
+        return { offsetZ: story.height };
+      }
+      return {};
+    },
+    xz: () => {
+      // XZ平面 - Y通りへの配置
+      const axesData = getCurrentAxesData();
+      const axis = axesData?.yAxes?.find((a) => a.id === position);
       if (axis) {
-        offsetY = axis.distance;
         log.info(`Y通り "${axis.name}" (距離: ${axis.distance}mm) に配置`);
+        return { offsetY: axis.distance };
       }
-    }
-  } else if (plane === 'yz') {
-    // YZ平面 - X通りへの配置
-    const axesData = getCurrentAxesData();
-    if (axesData?.xAxes) {
-      const axis = axesData.xAxes.find((a) => a.id === position);
+      return {};
+    },
+    yz: () => {
+      // YZ平面 - X通りへの配置
+      const axesData = getCurrentAxesData();
+      const axis = axesData?.xAxes?.find((a) => a.id === position);
       if (axis) {
-        offsetX = axis.distance;
         log.info(`X通り "${axis.name}" (距離: ${axis.distance}mm) に配置`);
+        return { offsetX: axis.distance };
       }
-    }
-  }
+      return {};
+    },
+  };
 
-  return { offsetX, offsetY, offsetZ };
+  const offsets = planeHandlers[plane]?.() ?? {};
+  return { offsetX: 0, offsetY: 0, offsetZ: 0, ...offsets };
 }
 
 /**

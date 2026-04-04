@@ -16,10 +16,13 @@ import { getImportanceManager, STB_ELEMENT_TABS } from '../../app/importanceMana
 import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../../constants/importanceLevels.js';
 import { setState } from '../../app/globalState.js';
 import { floatingWindowManager } from './floatingWindowManager.js';
-import { eventBus, ImportanceEvents } from '../../app/events/index.js';
+import { eventBus, ImportanceEvents } from '../../data/events/index.js';
 import { storageHelper } from '../../utils/storageHelper.js';
 import { showSuccess, showError, showWarning, showInfo } from '../common/toast.js';
 import { downloadBlob } from '../../utils/downloadHelper.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:panels:bulkImportanceOperations');
 
 /**
  * 一括操作履歴エントリー
@@ -133,7 +136,7 @@ export class BulkImportanceOperations {
                 <select id="bulk-importance-level">
                   ${Object.entries(IMPORTANCE_LEVELS)
                     .map(
-                      ([key, value]) => `
+                      ([_key, value]) => `
                     <option value="${value}">${IMPORTANCE_LEVEL_NAMES[value]}</option>
                   `,
                     )
@@ -473,7 +476,6 @@ export class BulkImportanceOperations {
     const selectedTypes = Array.from(
       document.getElementById('bulk-element-type').selectedOptions,
     ).map((option) => option.value);
-    const importanceLevel = document.getElementById('bulk-importance-level').value;
     const usePattern = document.getElementById('bulk-filter-pattern').checked;
     const pattern = document.getElementById('bulk-pattern-text').value;
 
@@ -952,7 +954,7 @@ export class BulkImportanceOperations {
       const blob = new Blob([jsonContent], { type: 'application/json' });
       downloadBlob(blob, `operation_history_${new Date().toISOString().slice(0, 10)}.json`);
     } catch (error) {
-      console.error('Failed to export history:', error);
+      log.error('Failed to export history:', error);
       showError('履歴の出力に失敗しました。');
     }
   }
@@ -982,7 +984,7 @@ export class BulkImportanceOperations {
       const blob = new Blob([jsonContent], { type: 'application/json' });
       downloadBlob(blob, `bulk_operations_export_${new Date().toISOString().slice(0, 10)}.json`);
     } catch (error) {
-      console.error('Failed to export settings:', error);
+      log.error('Failed to export settings:', error);
       showError('設定の出力に失敗しました。');
     }
   }
@@ -1039,7 +1041,7 @@ export class BulkImportanceOperations {
 
       showSuccess(`設定をインポートしました。${importedCount}個の要素設定を更新しました。`);
     } catch (error) {
-      console.error('Failed to import settings:', error);
+      log.error('Failed to import settings:', error);
       showError('設定のインポートに失敗しました。ファイル形式を確認してください。');
     }
   }

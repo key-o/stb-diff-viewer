@@ -234,27 +234,26 @@ export function convertOpensTo202(stbRoot) {
     if (!attrs) return;
 
     const section = openSectionMap.get(attrs.id_section);
-    const length_X = section?.length_X ?? '0';
-    const length_Y = section?.length_Y ?? '0';
-    if (!section) {
+    if (!section || (!section.length_X && !section.length_Y)) {
       logger.warn(
-        `StbOpenArrangement ${attrs.id}: StbSecOpen_RC ${attrs.id_section} not found. length_X/Y set to 0.`,
+        `StbOpenArrangement ${attrs.id}: StbSecOpen_RC ${attrs.id_section} not found or missing length. Skipping (length_X/Y=0 violates schema minExclusive constraint).`,
       );
+      return;
     }
 
     // Create StbOpen element
-    opens.push({
-      $: {
-        id: attrs.id,
-        name: attrs.name,
-        id_section: attrs.id_section,
-        position_X: attrs.position_X ?? '0',
-        position_Y: attrs.position_Y ?? '0',
-        length_X,
-        length_Y,
-        rotate: attrs.rotate ?? '0',
-      },
-    });
+    const openAttrs = {
+      id: attrs.id,
+      name: attrs.name,
+      id_section: attrs.id_section,
+      position_X: attrs.position_X ?? '0',
+      position_Y: attrs.position_Y ?? '0',
+      rotate: attrs.rotate ?? '0',
+    };
+    if (section.length_X) openAttrs.length_X = section.length_X;
+    if (section.length_Y) openAttrs.length_Y = section.length_Y;
+
+    opens.push({ $: openAttrs });
 
     // Build member -> openIds mapping
     const key = `${attrs.kind_member}:${attrs.id_member}`;

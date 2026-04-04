@@ -8,6 +8,9 @@
 
 import { createSearchUI } from './treeSearch.js';
 import { initializeContextMenu } from '../common/contextMenu.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:panels:BaseTreeView');
 
 export class BaseTreeView {
   /**
@@ -43,7 +46,7 @@ export class BaseTreeView {
   initialize(containerId, onElementSelect, options = {}) {
     this.treeContainer = document.getElementById(containerId);
     if (!this.treeContainer) {
-      console.error(`ツリーコンテナーが見つかりません: ${containerId}`);
+      log.error(`ツリーコンテナーが見つかりません: ${containerId}`);
       return;
     }
     this.onElementSelectCallback = onElementSelect;

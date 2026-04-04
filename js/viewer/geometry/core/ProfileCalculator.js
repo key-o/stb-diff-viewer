@@ -8,6 +8,9 @@
  */
 
 import { resolveProfileType } from '../../../constants/profileTypeAliases.js';
+import { createLogger } from '../../../utils/logger.js';
+
+const log = createLogger('viewer:geometry:core:ProfileCalculator');
 
 /**
  * プロファイルデータ型定義
@@ -546,21 +549,21 @@ export function calculateFlatProfile(params = {}) {
  * @type {Record<string, Function>}
  */
 const CALCULATOR_MAP = {
-  'H': calculateHShapeProfile,
-  'BOX': calculateBoxProfile,
-  'PIPE': calculatePipeProfile,
-  'RECTANGLE': calculateRectangleProfile,
-  'CIRCLE': calculateCircleProfile,
-  'C': calculateChannelProfile,
-  'L': calculateLShapeProfile,
-  'T': calculateTShapeProfile,
+  H: calculateHShapeProfile,
+  BOX: calculateBoxProfile,
+  PIPE: calculatePipeProfile,
+  RECTANGLE: calculateRectangleProfile,
+  CIRCLE: calculateCircleProfile,
+  C: calculateChannelProfile,
+  L: calculateLShapeProfile,
+  T: calculateTShapeProfile,
   '2L-BB': calculate2LBackToBackProfile,
   '2L-FF': calculate2LFaceToFaceProfile,
   '2C-BB': calculate2CBackToBackProfile,
   '2C-FF': calculate2CFaceToFaceProfile,
-  'CROSS': calculateCrossProfile,
-  'CROSS_H': calculateCrossHProfile,
-  'FB': calculateFlatProfile,
+  CROSS: calculateCrossProfile,
+  CROSS_H: calculateCrossHProfile,
+  FB: calculateFlatProfile,
 };
 
 /**
@@ -575,7 +578,7 @@ export function calculateProfile(profileType, params) {
   const calculator = canonical ? CALCULATOR_MAP[canonical] : null;
 
   if (!calculator) {
-    console.warn(`Unsupported profile type: ${profileType}, using rectangle`);
+    log.warn(`Unsupported profile type: ${profileType}, using rectangle`);
     return calculateRectangleProfile(params);
   }
 

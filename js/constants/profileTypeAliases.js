@@ -20,52 +20,52 @@
  */
 export const PROFILE_TYPE_ALIASES = Object.freeze({
   // H形鋼
-  'H': 'H',
-  'I': 'H',
-  'IBEAM': 'H',
+  H: 'H',
+  I: 'H',
+  IBEAM: 'H',
   'H-SECTION': 'H',
 
   // 角形鋼管 (BOX)
-  'BOX': 'BOX',
+  BOX: 'BOX',
   'BOX-SECTION': 'BOX',
   'SQUARE-SECTION': 'BOX',
 
   // 円形鋼管 (PIPE)
-  'PIPE': 'PIPE',
+  PIPE: 'PIPE',
   'PIPE-SECTION': 'PIPE',
   'ROUND-SECTION': 'PIPE',
 
   // 矩形
-  'RECTANGLE': 'RECTANGLE',
-  'RECT': 'RECTANGLE',
+  RECTANGLE: 'RECTANGLE',
+  RECT: 'RECTANGLE',
   'RC-SECTION': 'RECTANGLE',
-  'RC': 'RECTANGLE',
+  RC: 'RECTANGLE',
 
   // 円形（中実）
-  'CIRCLE': 'CIRCLE',
+  CIRCLE: 'CIRCLE',
 
   // 溝形鋼 (C/U)
-  'C': 'C',
-  'CHANNEL': 'C',
+  C: 'C',
+  CHANNEL: 'C',
   'U-SHAPE': 'C',
-  'U': 'C',
+  U: 'C',
 
   // L形鋼
-  'L': 'L',
+  L: 'L',
   'L-SHAPE': 'L',
 
   // T形鋼
-  'T': 'T',
+  T: 'T',
   'T-SHAPE': 'T',
 
   // フラットバー
-  'FLAT': 'FB',
-  'FB': 'FB',
+  FLAT: 'FB',
+  FB: 'FB',
 
   // 複合タイプ
-  'SRC': 'SRC',
+  SRC: 'SRC',
   'STB-DIFF-VIEWER': 'SRC',
-  'CFT': 'CFT',
+  CFT: 'CFT',
 
   // 組合せ断面
   '2L-BB': '2L-BB',
@@ -78,9 +78,9 @@ export const PROFILE_TYPE_ALIASES = Object.freeze({
   '2C-FACETOFACE': '2C-FF',
 
   // クロス断面
-  'CROSS': 'CROSS',
+  CROSS: 'CROSS',
   '+': 'CROSS',
-  'CROSS_H': 'CROSS_H',
+  CROSS_H: 'CROSS_H',
 });
 
 /**

@@ -8,18 +8,19 @@
 
 import { ELEMENT_TYPE_COLORS } from './DxfProviders.js';
 import { downloadBlob } from '../../../utils/downloadHelper.js';
+import { createLogger } from '../../../utils/logger.js';
+
+const log = createLogger('export:dxf:stb-to-dxf:DxfFormatWriter');
 
 // ========================================
 // ハンドル生成システム
 // ========================================
 
-let handleCounter = 0x100;
-
 /**
- * ハンドルカウンタをリセット
+ * ハンドルカウンタをリセット（将来の拡張用）
  */
 function resetHandles() {
-  handleCounter = 0x100;
+  // 現在未使用（DXF R12形式ではハンドル不要）
 }
 
 // ========================================
@@ -422,7 +423,7 @@ export async function downloadDxf(content, filename, directoryHandle = null) {
       await writable.close();
       return true;
     } catch (error) {
-      console.error('[DxfFormatWriter] File System Access APIでの保存エラー:', error);
+      log.error('[DxfFormatWriter] File System Access APIでの保存エラー:', error);
       // フォールバック: 通常のダウンロード
     }
   }

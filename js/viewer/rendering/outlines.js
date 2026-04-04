@@ -12,8 +12,10 @@
  */
 
 import * as THREE from 'three';
-import { IMPORTANCE_LEVELS } from '../../constants/importanceLevels.js';
 import { IMPORTANCE_VISUAL_STYLES, createImportanceOutlineMaterial } from './materials.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('viewer:rendering:outlines');
 
 /**
  * アウトライン管理クラス
@@ -40,7 +42,7 @@ class OutlineManager {
 
     // パフォーマンス制限チェック
     if (this.outlineObjects.size > this.performanceThreshold) {
-      console.warn(`Outline limit reached: ${this.performanceThreshold}`);
+      log.warn(`Outline limit reached: ${this.performanceThreshold}`);
       return;
     }
 
@@ -54,7 +56,7 @@ class OutlineManager {
         this.syncTransform(originalObject, outlineObject);
       }
     } catch (error) {
-      console.error('Failed to create outline:', error);
+      log.error('Failed to create outline:', error);
     }
   }
 
@@ -81,7 +83,7 @@ class OutlineManager {
    * すべてのアウトラインをクリア
    */
   clearAllOutlines() {
-    for (const [originalObject, outlineObject] of this.outlineObjects.entries()) {
+    for (const [, outlineObject] of this.outlineObjects.entries()) {
       if (outlineObject.parent) {
         outlineObject.parent.remove(outlineObject);
       }
@@ -92,7 +94,7 @@ class OutlineManager {
 
   /**
    * 重要度変更時のアウトライン更新
-   * @param {THREE.Object3D} originalObject - オリジナル要素
+   * @param {THREE.Object3D} _originalObject - オリジナル要素
    * @param {string} newImportance - 新しい重要度レベル
    * @param {THREE.Group} parentGroup - 親グループ
    */
@@ -332,7 +334,7 @@ export function initializeOutlineSystem() {
     setInterval(() => {
       const stats = globalOutlineManager.getStats();
       if (stats.totalOutlines > stats.performanceThreshold * 0.8) {
-        console.warn('Outline system approaching performance limit:', stats);
+        log.warn('Outline system approaching performance limit:', stats);
       }
     }, 30000); // 30秒ごとにチェック
   }

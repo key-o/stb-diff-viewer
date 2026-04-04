@@ -12,17 +12,29 @@
  */
 
 import * as THREE from 'three';
-import { createLogger, WarnCategory } from '../utils/logger.js';
+import { createLogger, WarnCategory } from '../../utils/logger.js';
 
 const logger = createLogger('interaction');
-import { scene, camera, colorManager, controls, elementGroups } from '../viewer/index.js';
-import { getState } from './globalState.js';
-import { eventBus, SelectionEvents, InteractionEvents } from './events/index.js';
-import { CAMERA_CONTROLS } from '../config/renderingConstants.js';
+import {
+  scene,
+  camera,
+  renderer,
+  colorManager,
+  controls,
+  elementGroups,
+} from '../../viewer/index.js';
+import { getState } from '../globalState.js';
+import { eventBus, SelectionEvents, InteractionEvents } from '../../data/events/index.js';
+import { CAMERA_CONTROLS } from '../../config/renderingConstants.js';
 
 // レイキャスト用オブジェクト
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
+
+/** common/viewerモードが有効でアダプターが利用可能かを返す */
+function isCommonViewerReady() {
+  return getState('viewer.useCommonViewer') && !!getState('viewer.adapter');
+}
 
 // 選択オブジェクト参照（複数選択対応）
 /** @type {THREE.Object3D[]} */
@@ -32,6 +44,10 @@ const originalMaterials = new Map();
 
 // 選択数上限
 const MAX_SELECTION_COUNT = 100;
+
+// 回転中心ヘルパー球体のジオメトリパラメータ
+const ORBIT_CENTER_RADIUS_MM = 150;
+const ORBIT_SPHERE_SEGMENTS = { width: 16, height: 12 };
 
 // 回転中心表示用のヘルパーオブジェクト
 let orbitCenterHelper = null;
@@ -65,7 +81,11 @@ export function createOrUpdateOrbitCenterHelper(position) {
   }
 
   // 新しいヘルパーを作成（球体を大きくする）
-  const geometry = new THREE.SphereGeometry(150, 16, 12); // 150mm radius, より高解像度
+  const geometry = new THREE.SphereGeometry(
+    ORBIT_CENTER_RADIUS_MM,
+    ORBIT_SPHERE_SEGMENTS.width,
+    ORBIT_SPHERE_SEGMENTS.height,
+  );
   const material = new THREE.MeshBasicMaterial({
     color: 0xff4444,
     transparent: true,
@@ -156,11 +176,8 @@ function deselectSingleObject(obj) {
  */
 export function resetSelection() {
   // common/viewerモードの場合はアダプター経由で選択解除
-  const useCommonViewer = getState('viewer.useCommonViewer');
-  const adapter = getState('viewer.adapter');
-
-  if (useCommonViewer && adapter) {
-    adapter.clearSelection();
+  if (isCommonViewerReady()) {
+    getState('viewer.adapter').clearSelection();
   }
 
   // 従来の選択状態もクリア
@@ -244,10 +261,8 @@ export function selectElement3D(obj, scheduleRender) {
   // Axis と Story 以外の場合のみハイライト処理を実行
   if (elementType && elementType !== 'Axis' && elementType !== 'Story') {
     // common/viewerモードの場合はアダプター経由で選択
-    const useCommonViewer = getState('viewer.useCommonViewer');
-    const adapter = getState('viewer.adapter');
-
-    if (useCommonViewer && adapter) {
+    if (isCommonViewerReady()) {
+      const adapter = getState('viewer.adapter');
       // アダプター経由で選択
       const elementId = userData.elementId || userData.elementIdA || userData.elementIdB;
       const modelSource = userData.modelSource || 'A';
@@ -461,6 +476,21 @@ function performRaycast(event) {
 }
 
 /**
+ * 交差点がレンダラーのクリッピング平面によって切り取られているか判定する
+ * @param {THREE.Vector3} point - 交差点のワールド座標
+ * @returns {boolean} クリップされている（不可視）場合 true
+ */
+function isPointClipped(point) {
+  if (!renderer || !renderer.localClippingEnabled) return false;
+  const planes = renderer.clippingPlanes;
+  if (!planes || planes.length === 0) return false;
+  for (const plane of planes) {
+    if (plane.distanceToPoint(point) < 0) return true;
+  }
+  return false;
+}
+
+/**
  * 交差結果から優先度に基づいて最適なオブジェクトを選択
  * 優先順位: 線要素 > 面要素 > Axis/Story
  * @param {THREE.Intersection[]} intersects - レイキャストの交差結果
@@ -477,7 +507,7 @@ function findBestIntersection(intersects) {
       const elementType = obj.userData.elementType;
       const groupVisible = elementGroups[elementType] && elementGroups[elementType].visible;
 
-      if (groupVisible && obj.visible) {
+      if (groupVisible && obj.visible && !isPointClipped(intersect.point)) {
         if (obj instanceof THREE.Line && !lineObject) {
           lineObject = obj;
           break;

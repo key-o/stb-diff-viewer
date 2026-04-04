@@ -15,10 +15,14 @@ import {
   controls,
   getModelBounds,
   clearClippingPlanes,
+  getCameraMode,
 } from '../../viewer/index.js';
 import { scheduleRender } from '../../utils/renderScheduler.js';
 import { showWarning } from '../common/toast.js';
 import { createLogger } from '../../utils/logger.js';
+import { eventBus } from '../../data/events/eventBus.js';
+import { ViewEvents } from '../../constants/eventTypes.js';
+import { CAMERA_MODES } from '../../constants/displayModes.js';
 
 const log = createLogger('ui:sectionBox');
 
@@ -60,6 +64,7 @@ export function toggleSectionBox() {
     controls,
   );
   sectionBoxInstance.activate(expandedBox);
+  updateZHandleVisibility();
 
   updateToggleButtonState(true);
   updateHintVisibility(true);
@@ -139,6 +144,7 @@ export function activateSectionBoxForBounds(boundsData) {
     controls,
   );
   sectionBoxInstance.activate(box3);
+  updateZHandleVisibility();
 
   updateToggleButtonState(true);
   updateHintVisibility(true);
@@ -200,6 +206,7 @@ export function activateSectionBoxForBox(box3) {
     controls,
   );
   sectionBoxInstance.activate(expandedBox);
+  updateZHandleVisibility();
 
   updateToggleButtonState(true);
   updateHintVisibility(true);
@@ -246,4 +253,25 @@ function updateHintVisibility(visible) {
   } else {
     hint.classList.add('hidden');
   }
+}
+
+/**
+ * 正投影モード時に視線方向のハンドルを非表示にする
+ * @param {string} [mode] - CAMERA_MODES.PERSPECTIVE または CAMERA_MODES.ORTHOGRAPHIC（省略時は現在のモードを使用）
+ */
+function updateZHandleVisibility(mode) {
+  if (!sectionBoxInstance || !sectionBoxInstance.isActive()) return;
+  const currentMode = mode ?? getCameraMode();
+  const isOrthographic = currentMode === CAMERA_MODES.ORTHOGRAPHIC;
+  sectionBoxInstance.setHandleVisibilityByAxis('z', !isOrthographic);
+  scheduleRender();
+}
+
+/**
+ * セクションボックスのイベントリスナーを初期化する
+ */
+export function initSectionBoxEventListeners() {
+  eventBus.on(ViewEvents.CAMERA_MODE_CHANGED, ({ mode }) => {
+    updateZHandleVisibility(mode);
+  });
 }

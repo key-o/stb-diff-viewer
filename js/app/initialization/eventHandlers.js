@@ -3,13 +3,13 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { compareModels } from '../modelLoader.js';
+import { compareModels } from '../controllers/modelLoaderController.js';
 import { getState } from '../globalState.js';
 import { buildTree } from '../../ui/panels/elementTreeView.js';
 import { buildSectionTree } from '../../ui/panels/sectionTreeView.js';
 import { updateLabelVisibility } from '../../ui/viewer3d/unifiedLabelManager.js';
 import { displayElementInfo } from '../../ui/panels/element-info/index.js';
-import { selectElement3D, selectMultipleElements3D } from '../interaction.js';
+import { selectElement3D, selectMultipleElements3D } from '../controllers/interactionController.js';
 import { showError } from '../../ui/common/toast.js';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
 import { convertComparisonResultsForTree, find3DObjectByElement } from './initializationUtils.js';

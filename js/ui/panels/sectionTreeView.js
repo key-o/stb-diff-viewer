@@ -476,7 +476,7 @@ class SectionTreeView extends BaseTreeView {
           virtualManager = new VirtualScrollManager(elementsContainer, {
             threshold: VIRTUAL_SCROLL_THRESHOLD,
             itemHeight: VIRTUAL_ITEM_HEIGHT,
-            bufferSize: 10,
+            bufferSize: VIRTUAL_SCROLL_CONFIG.BUFFER_SIZE,
             renderItem: (elem) => this._createElementNode(elem, elementType),
           });
 
@@ -690,7 +690,7 @@ class SectionTreeView extends BaseTreeView {
       virtualManager = new VirtualScrollManager(elementsContainer, {
         threshold: VIRTUAL_SCROLL_THRESHOLD,
         itemHeight: VIRTUAL_ITEM_HEIGHT,
-        bufferSize: 10,
+        bufferSize: VIRTUAL_SCROLL_CONFIG.BUFFER_SIZE,
         renderItem: (elem) => this._createElementNode(elem, elementType),
       });
 

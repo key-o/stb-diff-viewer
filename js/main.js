@@ -14,8 +14,6 @@
  * 7. 開発ツールのセットアップ
  */
 
-/* global PointerEvent */
-
 import { createLogger } from './utils/logger.js';
 import {
   scene,

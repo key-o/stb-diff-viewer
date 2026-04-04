@@ -442,8 +442,8 @@ export class ElementGeometryUtils {
   /**
    * 1ノード要素の配置を計算（基礎用）
    *
-   * @param {THREE.Vector3} node - ノード位置（X, Y座標のみ使用、Z座標は使用しない）
-   * @param {number} levelBottom - 底面レベル（Z座標の絶対値、mm単位）
+   * @param {THREE.Vector3} node - ノード位置（X, Y, Z座標を使用）
+   * @param {number} levelBottom - ノードZからの下端オフセット（相対値、mm単位、通常は負の値）
    * @param {number} depth - 深さ（高さ、mm単位）
    * @param {Object} options - オフセット・回転角度など
    * @param {Object} [options.offset] - 水平オフセット {x, y} (mm)
@@ -451,7 +451,7 @@ export class ElementGeometryUtils {
    * @returns {Object} 配置情報 { position, rotation, bottomZ, topZ, ... }
    */
   static calculateSingleNodePlacement(node, levelBottom, depth, options = {}) {
-    // ノード位置からX, Y座標を取得（Z座標は使用しない）
+    // ノード位置からX, Y座標を取得
     const baseX = node.x;
     const baseY = node.y;
 
@@ -459,8 +459,9 @@ export class ElementGeometryUtils {
     const finalX = baseX + (options.offset?.x || 0);
     const finalY = baseY + (options.offset?.y || 0);
 
-    // STBでは、level_bottomが底面の絶対Z座標を指定する
-    const bottomZ = levelBottom;
+    // STBでは、level_bottomはノードZからの相対オフセット
+    // フーチング下端Z = ノードZ + level_bottom（level_bottomは通常負の値）
+    const bottomZ = node.z + levelBottom;
     const topZ = bottomZ + depth;
 
     // 基礎の中心位置（底面 + せいの半分）
@@ -702,4 +703,3 @@ if (typeof window !== 'undefined') {
 }
 
 export default ElementGeometryUtils;
-

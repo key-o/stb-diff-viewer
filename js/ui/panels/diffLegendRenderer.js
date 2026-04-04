@@ -17,6 +17,9 @@ import {
   getCategoryLabel,
   getPresetName,
 } from '../../config/diffFilterConfig.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:panels:diffLegendRenderer');
 
 /**
  * 差分フィルタ凡例レンダラークラス
@@ -146,7 +149,7 @@ class DiffLegendRenderer {
       parent.innerHTML = html;
       return true;
     }
-    console.warn(`[DiffLegendRenderer] Parent element not found: ${parentId}`);
+    log.warn(`[DiffLegendRenderer] Parent element not found: ${parentId}`);
     return false;
   }
 

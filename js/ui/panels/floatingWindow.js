@@ -13,6 +13,9 @@ import {
   getWindowTemplate,
   getRegisterConfig,
 } from '../../config/windowConfig.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:panels:floatingWindow');
 
 /**
  * onShowコールバックのマッピング
@@ -73,7 +76,7 @@ export function initializeFloatingWindow() {
     }
   }
 
-  console.log('フローティングウィンドウの初期化が完了しました');
+  log.info('フローティングウィンドウの初期化が完了しました');
 }
 
 /**

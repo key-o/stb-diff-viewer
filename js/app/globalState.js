@@ -14,6 +14,10 @@
 /**
  * アプリケーションの全体状態
  */
+
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('app:globalState');
 class ApplicationState {
   constructor() {
     this.state = {
@@ -41,6 +45,8 @@ class ApplicationState {
           girderSections: new Map(),
           beamSections: new Map(),
           braceSections: new Map(),
+          isolatingDeviceSections: new Map(),
+          dampingDeviceSections: new Map(),
         },
         // 鋼材断面データ（IFC変換で再利用）
         steelSections: new Map(),
@@ -50,6 +56,9 @@ class ApplicationState {
           girderElements: [],
           beamElements: [],
           braceElements: [],
+          isolatingDeviceElements: [],
+          dampingDeviceElements: [],
+          frameDampingDeviceElements: [],
         },
         modelsLoaded: false,
         // STBバージョン情報
@@ -206,7 +215,7 @@ class ApplicationState {
         try {
           listener(newValue, oldValue, path);
         } catch (error) {
-          console.error(`${path}の状態リスナーでエラーが発生しました:`, error);
+          log.error(`${path}の状態リスナーでエラーが発生しました:`, error);
         }
       });
     }
@@ -242,11 +251,6 @@ class ApplicationState {
   setDebugMode(enabled) {
     this.debug = enabled;
   }
-
-  /**
-   * 現在の状態をログ出力
-   */
-  logState() {}
 
   /**
    * ログ出力用に状態をシリアライズ（Map対応）
@@ -340,6 +344,8 @@ class ApplicationState {
           girderSections: new Map(),
           beamSections: new Map(),
           braceSections: new Map(),
+          isolatingDeviceSections: new Map(),
+          dampingDeviceSections: new Map(),
         },
         steelSections: new Map(),
         elementData: {
@@ -347,6 +353,9 @@ class ApplicationState {
           girderElements: [],
           beamElements: [],
           braceElements: [],
+          isolatingDeviceElements: [],
+          dampingDeviceElements: [],
+          frameDampingDeviceElements: [],
         },
         modelsLoaded: false,
       },

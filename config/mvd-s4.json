@@ -1,0 +1,1085 @@
+{
+  "version": "1.0",
+  "mvdLevel": "s4",
+  "schemaVersion": "2.0.2",
+  "description": "MVD S4 - 入力可能な決定項目（S2の内容に加え詳細属性を含む）",
+  "elements": {
+    "ST_BRIDGE": {
+      "required": [
+        "version"
+      ]
+    },
+    "StbExtension": {
+      "required": [
+        "identifier"
+      ]
+    },
+    "StbExtObject": {
+      "required": [
+        "object_name",
+        "id_object"
+      ]
+    },
+    "StbExtProperty": {
+      "required": [
+        "key",
+        "type",
+        "value"
+      ]
+    },
+    "StbExtElement": {
+      "required": [
+        "object_name"
+      ]
+    },
+    "StbExtPropertyDef": {
+      "required": [
+        "key",
+        "type"
+      ]
+    },
+    "StbCommon": {
+      "required": [
+        "guid",
+        "project_name",
+        "app_name",
+        "app_version"
+      ]
+    },
+    "StbReinforcementStrength": {
+      "required": [
+        "D",
+        "Strength"
+      ]
+    },
+    "StbColumn_RC_RebarpositionApply": {
+      "required": [
+        "Set_default"
+      ],
+      "conditional": [
+        "depth_cover",
+        "interval",
+        "center",
+        "length_to_center"
+      ]
+    },
+    "StbColumn_RC_BarSpacingApply": {
+      "required": [
+        "Set_default"
+      ],
+      "conditional": [
+        "D_bar_Spacing",
+        "pitch_bar_Spacing",
+        "N_bar_Spacing_X",
+        "N_bar_Spacing_Y"
+      ]
+    },
+    "StbColumn_SRC_RebarpositionApply": {
+      "required": [
+        "Set_default"
+      ],
+      "conditional": [
+        "depth_cover",
+        "interval",
+        "center",
+        "length_to_center"
+      ]
+    },
+    "StbColumn_SRC_BarSpacingApply": {
+      "required": [
+        "Set_default"
+      ],
+      "conditional": [
+        "D_bar_Spacing",
+        "pitch_bar_Spacing",
+        "N_bar_Spacing_X",
+        "N_bar_Spacing_Y"
+      ]
+    },
+    "StbBeam_RC_RebarpositionApply": {
+      "required": [
+        "Set_default"
+      ],
+      "conditional": [
+        "depth_cover_side",
+        "depth_cover_top_bottom",
+        "interval",
+        "center_side",
+        "center_top_bottom",
+        "length_to_center"
+      ]
+    },
+    "StbBeam_RC_BarWebApply": {
+      "required": [
+        "Set_default"
+      ],
+      "conditional": [
+        "D_web",
+        "N_web"
+      ]
+    },
+    "StbBeam_RC_BarSpacingApply": {
+      "required": [
+        "Set_default"
+      ],
+      "conditional": [
+        "D_bar_Spacing",
+        "pitch_bar_Spacing",
+        "N_bar_Spacing"
+      ]
+    },
+    "StbBeam_SRC_RebarpositionApply": {
+      "required": [
+        "Set_default"
+      ],
+      "conditional": [
+        "depth_cover_side",
+        "depth_cover_top_bottom",
+        "interval",
+        "center_side",
+        "center_top_bottom",
+        "length_to_center"
+      ]
+    },
+    "StbBeam_SRC_BarWebApply": {
+      "required": [
+        "Set_default"
+      ],
+      "conditional": [
+        "D_web",
+        "N_web"
+      ]
+    },
+    "StbBeam_SRC_BarSpacingApply": {
+      "required": [
+        "Set_default"
+      ],
+      "conditional": [
+        "D_bar_Spacing",
+        "pitch_bar_Spacing",
+        "N_bar_Spacing"
+      ]
+    },
+    "StbSlab_RC_BarpositionApply": {
+      "required": [
+        "a"
+      ]
+    },
+    "StbWall_RC_BarpositionApply": {
+      "required": [
+        "Set_default"
+      ]
+    },
+    "StbFoundation_RC_BarpositionApply": {
+      "required": [
+        "Set_default"
+      ]
+    },
+    "StbPile_RC_BarpositionApply": {
+      "required": [
+        "Set_default"
+      ]
+    },
+    "StbParapet_RC_BarpositionApply": {
+      "required": [
+        "Set_default"
+      ]
+    },
+    "StbNode": {
+      "required": [
+        "id",
+        "guid",
+        "X",
+        "Y",
+        "Z",
+        "kind"
+      ]
+    },
+    "StbAxes": {
+      "required": []
+    },
+    "StbParallelAxes": {
+      "required": [
+        "group_name",
+        "X",
+        "Y",
+        "angle"
+      ]
+    },
+    "StbParallelAxis": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "distance"
+      ]
+    },
+    "StbArcAxes": {
+      "required": [
+        "group_name",
+        "X",
+        "Y",
+        "start_angle",
+        "end_angle"
+      ]
+    },
+    "StbArcAxis": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "radius"
+      ]
+    },
+    "StbRadialAxes": {
+      "required": [
+        "a",
+        "X",
+        "Y"
+      ]
+    },
+    "StbRadialAxis": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "angle"
+      ]
+    },
+    "StbNodeIdList": {
+      "required": []
+    },
+    "StbNodeId": {
+      "required": [
+        "id"
+      ]
+    },
+    "StbStory": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "height",
+        "kind"
+      ]
+    },
+    "StbColumn": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_bottom",
+        "id_node_top",
+        "id_section",
+        "kind_structure",
+        "joint_top",
+        "joint_bottom",
+        "kind_joint_top",
+        "kind_joint_bottom",
+        "joint_id_top",
+        "joint_id_bottom"
+      ],
+      "conditional": [
+        "rotate",
+        "offset_bottom_X",
+        "offset_bottom_Y",
+        "offset_bottom_Z",
+        "offset_top_X",
+        "offset_top_Y",
+        "offset_top_Z"
+      ]
+    },
+    "StbMemberOffSetList": {
+      "required": [
+        "id_node",
+        "offset_X",
+        "offset_Y",
+        "offset_Z"
+      ]
+    },
+    "StbPost": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_bottom",
+        "id_node_top",
+        "id_section",
+        "kind_structure"
+      ],
+      "conditional": [
+        "rotate",
+        "offset_bottom_X",
+        "offset_bottom_Y",
+        "offset_bottom_Z",
+        "offset_top_X",
+        "offset_top_Y",
+        "offset_top_Z"
+      ]
+    },
+    "StbGirder": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_start",
+        "id_node_end",
+        "id_section",
+        "kind_structure",
+        "isFoundation"
+      ],
+      "conditional": [
+        "offset_start_X",
+        "offset_start_Y",
+        "offset_start_Z",
+        "offset_end_X",
+        "offset_end_Y",
+        "offset_end_Z",
+        "condition_start",
+        "condition_end",
+        "haunch_start",
+        "haunch_end",
+        "joint_start",
+        "joint_end",
+        "kind_haunch_start",
+        "kind_haunch_end",
+        "type_haunch_H",
+        "type_haunch_V",
+        "kind_joint_start",
+        "kind_joint_end",
+        "joint_id_start",
+        "joint_id_end"
+      ]
+    },
+    "StbNodeIdOrder": {
+      "required": []
+    },
+    "StbBeam": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_start",
+        "id_node_end",
+        "id_section",
+        "kind_structure",
+        "isFoundation"
+      ],
+      "conditional": [
+        "offset_start_X",
+        "offset_start_Y",
+        "offset_start_Z",
+        "offset_end_X",
+        "offset_end_Y",
+        "offset_end_Z",
+        "condition_start",
+        "condition_end",
+        "haunch_start",
+        "haunch_end",
+        "joint_start",
+        "joint_end",
+        "kind_haunch_start",
+        "kind_haunch_end",
+        "type_haunch_H",
+        "type_haunch_V",
+        "kind_joint_start",
+        "kind_joint_end",
+        "joint_id_start",
+        "joint_id_end"
+      ]
+    },
+    "StbBrace": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_start",
+        "id_node_end",
+        "id_section",
+        "kind_structure",
+        "feature_brace"
+      ],
+      "conditional": [
+        "rotate",
+        "offset_start_X",
+        "offset_start_Y",
+        "offset_start_Z",
+        "offset_end_X",
+        "offset_end_Y",
+        "offset_end_Z",
+        "condition_start",
+        "condition_end",
+        "joint_start",
+        "joint_end",
+        "kind_joint_start",
+        "kind_joint_end",
+        "joint_id_start",
+        "joint_id_end"
+      ]
+    },
+    "StbSlab": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_section",
+        "kind_structure",
+        "kind_slab",
+        "thickness_add_top",
+        "thickness_add_bottom",
+        "direction_load",
+        "angle_load",
+        "angle_main_bar_direction",
+        "isFoundation",
+        "type_haunch"
+      ]
+    },
+    "StbSlabOffSet": {
+      "required": [
+        "id_node",
+        "offset_X",
+        "offset_Y",
+        "offset_Z"
+      ]
+    },
+    "StbOpenId": {
+      "required": [
+        "id"
+      ]
+    },
+    "StbWall": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_section",
+        "kind_structure",
+        "kind_layout"
+      ]
+    },
+    "StbWallOffSet": {
+      "required": [
+        "id_node",
+        "offset_X",
+        "offset_Y",
+        "offset_Z"
+      ]
+    },
+    "StbFooting": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node",
+        "rotate",
+        "id_section",
+        "offset_X",
+        "offset_Y",
+        "level_bottom"
+      ]
+    },
+    "StbStripFooting": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_start",
+        "id_node_end",
+        "id_section",
+        "kind_structure",
+        "level"
+      ],
+      "conditional": [
+        "offset",
+        "length_ex_start",
+        "length_ex_end"
+      ]
+    },
+    "StbPile": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node",
+        "id_section",
+        "kind_structure",
+        "offset_X",
+        "offset_Y",
+        "level_top",
+        "length_all"
+      ],
+      "conditional": [
+        "length_head",
+        "length_foot"
+      ]
+    },
+    "StbFoundationColumn": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node",
+        "kind_structure"
+      ],
+      "conditional": [
+        "rotate",
+        "offset_Z",
+        "id_section_FD",
+        "length_FD",
+        "offset_FD_X",
+        "offset_FD_Y",
+        "id_section_WR",
+        "length_WR",
+        "offset_WR_X",
+        "offset_WR_Y"
+      ]
+    },
+    "StbParapet": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "id_node_start",
+        "id_node_end",
+        "id_section",
+        "kind_structure",
+        "kind_layout"
+      ]
+    },
+    "StbOpen": {
+      "required": [
+        "id",
+        "guid",
+        "id_section",
+        "position_X",
+        "position_Y",
+        "length_X",
+        "length_Y",
+        "rotate"
+      ]
+    },
+    "StbSecUndefined": {
+      "required": [
+        "id",
+        "guid",
+        "name"
+      ]
+    },
+    "StbSecColumn_RC": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "kind_column"
+      ],
+      "conditional": [
+        "floor"
+      ]
+    },
+    "StbSecFigureColumn_RC": {
+      "required": []
+    },
+    "StbSecColumn_RC_Rect": {
+      "required": [
+        "width_X",
+        "width_Y"
+      ]
+    },
+    "StbSecColumn_RC_Circle": {
+      "required": [
+        "D"
+      ]
+    },
+    "StbSecBarColumn_RC_RectSame": {
+      "required": [
+        "D_main",
+        "D_axial",
+        "D_band",
+        "N_main_X_1St",
+        "N_main_Y_1St",
+        "N_main_total",
+        "N_axial",
+        "pitch_band",
+        "N_band_direction_X",
+        "N_band_direction_Y"
+      ]
+    },
+    "StbSecBarColumn_RC_RectNotSame": {
+      "required": [
+        "pos",
+        "D_main",
+        "D_axial",
+        "D_band",
+        "N_main_X_1St",
+        "N_main_Y_1St",
+        "N_main_total",
+        "N_axial",
+        "pitch_band",
+        "N_band_direction_X",
+        "N_band_direction_Y"
+      ]
+    },
+    "StbSecBarColumn_RC_CircleSame": {
+      "required": [
+        "D_main",
+        "D_axial",
+        "D_band",
+        "D_bar_Spacing",
+        "N_main",
+        "N_axial",
+        "N_band",
+        "pitch_band"
+      ]
+    },
+    "StbSecBarColumn_RC_CircleNotSame": {
+      "required": [
+        "pos",
+        "D_main",
+        "D_axial",
+        "D_band",
+        "N_main",
+        "N_axial",
+        "N_band",
+        "pitch_band"
+      ]
+    },
+    "StbSecBarColumnXReinforced": {
+      "required": [
+        "N_main_X",
+        "N_main_Y",
+        "N_main_total"
+      ]
+    },
+    "StbSecColumn_S": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "kind_column"
+      ],
+      "conditional": [
+        "floor",
+        "isReferenceDirection"
+      ]
+    },
+    "StbSecSteelFigureColumn_S": {
+      "required": [
+        "base_type",
+        "joint_id_top",
+        "joint_id_bottom"
+      ]
+    },
+    "StbSecSteelColumn_S_Same": {
+      "required": [
+        "shape",
+        "strength_main",
+        "strength_web"
+      ]
+    },
+    "StbSecSteelColumn_S_NotSame": {
+      "required": [
+        "pos",
+        "shape",
+        "strength_main",
+        "strength_web"
+      ]
+    },
+    "StbSecSteelColumn_S_ThreeTypes": {
+      "required": [
+        "pos",
+        "shape",
+        "strength_main",
+        "strength_web"
+      ]
+    },
+    "StbSecbaseProduct_S": {
+      "required": [
+        "product_company",
+        "product_code",
+        "direction_type",
+        "height_mortar"
+      ]
+    },
+    "StbSecbaseConventional_S": {
+      "required": [
+        "height_mortar"
+      ]
+    },
+    "StbSecbaseConventional_S_Plate": {
+      "required": [
+        "B_X",
+        "B_Y",
+        "C1_X",
+        "C1_Y",
+        "C2_X",
+        "C2_Y",
+        "C3_X",
+        "C3_Y",
+        "C4_X",
+        "C4_Y",
+        "t",
+        "Strength",
+        "D_bolthole",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecbaseConventional_S_AnchorBolt": {
+      "required": [
+        "kind_bolt",
+        "name_bolt",
+        "length_bolt",
+        "strength_bolt",
+        "arrangement_bolt",
+        "D1_X",
+        "D2_X",
+        "D1_Y",
+        "D2_Y",
+        "N_X",
+        "N_Y"
+      ]
+    },
+    "StbSecbaseConventional_S_RibPlate": {
+      "required": [
+        "A1",
+        "A2",
+        "B1",
+        "B2",
+        "t",
+        "Strength",
+        "N_X",
+        "N_Y",
+        "length_e_X",
+        "length_e_Y"
+      ]
+    },
+    "StbSecColumn_SRC": {
+      "required": [
+        "id",
+        "guid",
+        "name",
+        "kind_column"
+      ],
+      "conditional": [
+        "floor"
+      ]
+    },
+    "StbSecColumn_SRC_Rect": {
+      "required": [
+        "width_X",
+        "width_Y"
+      ]
+    },
+    "StbSecColumn_SRC_Circle": {
+      "required": [
+        "D"
+      ]
+    },
+    "StbSecBarArrangementColumn_SRC": {
+      "required": [
+        "depth_cover_Start_X",
+        "depth_cover_end_X",
+        "depth_cover_Start_Y",
+        "depth_cover_end_Y",
+        "center_Start_X",
+        "center_end_X",
+        "center_Start_Y",
+        "center_end_Y"
+      ]
+    },
+    "StbSecBarColumn_SRC_RectSame": {
+      "required": [
+        "D_main",
+        "D_axial",
+        "D_band",
+        "N_main_X_1St",
+        "N_main_Y_1St",
+        "N_main_total",
+        "N_axial",
+        "pitch_band",
+        "N_band_direction_X",
+        "N_band_direction_Y"
+      ]
+    },
+    "StbSecBarColumn_SRC_RectNotSame": {
+      "required": [
+        "pos",
+        "D_main",
+        "D_axial",
+        "D_band",
+        "N_main_X_1St",
+        "N_main_Y_1St",
+        "N_2nd_main_X_1St",
+        "N_2nd_main_Y_1St",
+        "N_main_total",
+        "N_axial",
+        "pitch_band",
+        "N_band_direction_X",
+        "N_band_direction_Y"
+      ]
+    },
+    "StbSecBarColumn_SRC_CircleSame": {
+      "required": [
+        "D_main",
+        "D_axial",
+        "D_band",
+        "strength_main",
+        "strength_axial",
+        "strength_band",
+        "N_main",
+        "N_axial",
+        "N_band",
+        "pitch_band"
+      ]
+    },
+    "StbSecBarColumn_SRC_CircleNotSame": {
+      "required": [
+        "pos",
+        "D_main",
+        "D_axial",
+        "D_band",
+        "strength_main",
+        "strength_axial",
+        "strength_band",
+        "N_main",
+        "N_axial",
+        "N_band",
+        "pitch_band"
+      ]
+    },
+    "StbSecSteelFigureColumn_SRC": {
+      "required": [
+        "base_type",
+        "joint_id_top",
+        "joint_id_bottom",
+        "length_embedded"
+      ]
+    },
+    "StbSecColumn_SRC_SameshapeH": {
+      "required": [
+        "direction",
+        "shape",
+        "strength_main",
+        "strength_web",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_SameshapeBox": {
+      "required": [
+        "shape",
+        "encaSe_type",
+        "Strength",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_SameshapePipe": {
+      "required": [
+        "shape",
+        "encaSe_type",
+        "Strength",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_SameshapeCross": {
+      "required": [
+        "Shape_X",
+        "Shape_Y",
+        "strength_main_X",
+        "strength_web_X",
+        "strength_main_Y",
+        "strength_web_Y",
+        "offset_XX",
+        "offset_XY",
+        "offset_YX",
+        "offset_YY"
+      ]
+    },
+    "StbSecColumn_SRC_SameshapeT": {
+      "required": [
+        "direction_type",
+        "Shape_H",
+        "Shape_T",
+        "strength_main_H",
+        "strength_web_H",
+        "strength_main_T",
+        "strength_web_T",
+        "offset_HX",
+        "offset_HY",
+        "offset_T"
+      ]
+    },
+    "StbSecColumn_SRC_NotSameshapeH": {
+      "required": [
+        "direction",
+        "shape",
+        "strength_main",
+        "strength_web",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_NotSameshapeBox": {
+      "required": [
+        "shape",
+        "encaSe_type",
+        "Strength",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_NotSameshapePipe": {
+      "required": [
+        "shape",
+        "encaSe_type",
+        "Strength",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_NotSameshapeCross": {
+      "required": [
+        "Shape_X",
+        "Shape_Y",
+        "strength_main_X",
+        "strength_web_X",
+        "strength_main_Y",
+        "strength_web_Y",
+        "offset_XX",
+        "offset_XY",
+        "offset_YX",
+        "offset_YY"
+      ]
+    },
+    "StbSecColumn_SRC_NotSameshapeT": {
+      "required": [
+        "direction_type",
+        "Shape_H",
+        "Shape_T",
+        "strength_main_H",
+        "strength_web_H",
+        "strength_main_T",
+        "strength_web_T",
+        "offset_HX",
+        "offset_HY",
+        "offset_T"
+      ]
+    },
+    "StbSecColumn_SRC_ThreeTypesShapeH": {
+      "required": [
+        "direction",
+        "shape",
+        "strength_main",
+        "strength_web",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_ThreeTypesShapeBox": {
+      "required": [
+        "shape",
+        "encaSe_type",
+        "Strength",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_ThreeTypesShapePipe": {
+      "required": [
+        "shape",
+        "encaSe_type",
+        "Strength",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecColumn_SRC_ThreeTypesShapeCross": {
+      "required": [
+        "Shape_X",
+        "Shape_Y",
+        "strength_main_X",
+        "offset_XX",
+        "offset_XY",
+        "offset_YX",
+        "offset_YY"
+      ]
+    },
+    "StbSecColumn_SRC_ThreeTypesShapeT": {
+      "required": [
+        "direction_type",
+        "Shape_H",
+        "Shape_T",
+        "strength_main_H",
+        "strength_web_H",
+        "strength_main_T",
+        "strength_web_T",
+        "offset_HX",
+        "offset_HY",
+        "offset_T"
+      ]
+    },
+    "StbSecbaseProduct_SRC": {
+      "required": [
+        "product_company",
+        "product_code",
+        "direction_type",
+        "height_mortar"
+      ]
+    },
+    "StbSecbaseConventional_SRC": {
+      "required": [
+        "height_mortar"
+      ]
+    },
+    "StbSecbaseConventional_SRC_Plate": {
+      "required": [
+        "B_X",
+        "B_Y",
+        "C1_X",
+        "C1_Y",
+        "C2_X",
+        "C2_Y",
+        "C3_X",
+        "C3_Y",
+        "C4_X",
+        "C4_Y",
+        "t",
+        "Strength",
+        "D_bolthole",
+        "offset_X",
+        "offset_Y"
+      ]
+    },
+    "StbSecbaseConventional_SRC_AnchorBolt": {
+      "required": [
+        "kind_bolt",
+        "name_bolt",
+        "length_bolt",
+        "strength_bolt",
+        "arrangement_bolt",
+        "D1_X",
+        "D2_X",
+        "D1_Y",
+        "D2_Y",
+        "N_X",
+        "N_Y"
+      ]
+    },
+    "StbSecbaseConventional_SRC_RibPlate": {
+      "required": [
+        "A1",
+        "A2",
+        "B1",
+        "B2",
+        "t",
+        "Strength",
+        "N_X",
+        "N_Y",
+        "length_e_X",
+        "length_e_Y"
+      ]
+    }
+  }
+}

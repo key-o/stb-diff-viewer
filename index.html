@@ -40,7 +40,8 @@
           "dxf-parser": "https://esm.sh/dxf-parser@1.1.2",
           "html2canvas": "https://esm.sh/html2canvas@1.4.1",
           "jspdf": "https://esm.sh/jspdf@2.5.1",
-          "ajv": "https://esm.sh/ajv@8.17.1"
+          "ajv": "https://esm.sh/ajv@8.17.1",
+          "web-ifc": "https://cdn.jsdelivr.net/npm/web-ifc@0.0.74/web-ifc-api.js"
         }
       }
     </script>
@@ -96,17 +97,16 @@
 
       <!-- モデル読み込みと比較セクション -->
       <div class="accordion-section">
-        <div
+        <button
+          type="button"
           class="accordion-header"
           data-target="file-loading"
-          role="button"
-          tabindex="0"
           aria-controls="file-loading"
           aria-expanded="true"
         >
           <span>📊 モデル読み込み</span>
           <span class="accordion-arrow">▼</span>
-        </div>
+        </button>
         <div class="accordion-content" id="file-loading" aria-hidden="false">
           <div class="file-input-wrapper" id="wrapperA">
             <div class="model-header">
@@ -191,7 +191,7 @@
         aria-controls="importance-panel"
         aria-expanded="false"
       >
-        🏷️ 重要度設定
+        🏷️ バリデーション設定
       </button>
       <button
         type="button"
@@ -201,21 +201,28 @@
       >
         ✅ STBバリデーション
       </button>
+      <button
+        type="button"
+        id="toggle-xml-viewer-btn"
+        aria-controls="xml-viewer-float"
+        aria-expanded="false"
+      >
+        🔍 生XMLビュー
+      </button>
 
       <!-- 出力・変換セクション -->
       <div class="accordion-section">
-        <div
+        <button
+          type="button"
           class="accordion-header"
           data-target="other-settings"
-          role="button"
-          tabindex="0"
           aria-controls="other-settings"
           aria-expanded="false"
         >
           <span>📤 出力・変換</span>
           <span class="accordion-arrow">▼</span>
-        </div>
-        <div class="accordion-content collapsed" id="other-settings" aria-hidden="true">
+        </button>
+        <div class="accordion-content collapsed" id="other-settings" aria-hidden="true" inert>
           <div class="theme-settings">
             <span class="theme-settings-label">テーマ:</span>
             <div class="theme-button-group" id="theme-button-group">
@@ -255,28 +262,35 @@
             </button>
           </div>
 
-          <!-- STBバージョン変換セクション -->
+          <!-- STBファイル出力セクション（バージョン変換・SS7/IFC変換後モデルに対応） -->
           <div class="export-settings">
-            <label><strong>STBバージョン変換</strong></label>
+            <label><strong>STBファイル出力</strong></label>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+              <select id="stbExportTarget" class="form-select" title="出力対象モデル" style="flex: 0 0 auto;">
+                <option value="auto">自動選択</option>
+                <option value="A">モデルA</option>
+                <option value="B">モデルB</option>
+              </select>
+              <select id="stbExportVersion" class="form-select" title="出力STBバージョン" style="flex: 0 0 auto;">
+                <option value="2.1.0">STB 2.1.0</option>
+                <option value="2.0.2">STB 2.0.2</option>
+              </select>
+            </div>
+            <input
+              type="text"
+              id="stbExportFilename"
+              class="form-input"
+              placeholder="ファイル名（省略時は自動）"
+              style="width: 100%; box-sizing: border-box;"
+            />
             <button
               type="button"
-              id="convertTo210Btn"
+              id="exportStbBtn"
               class="btn btn-secondary"
-              disabled
-              title="モデルAを STB 2.1.0 形式でダウンロード"
+              title="読み込み済みモデル（SS7/IFCから変換されたものを含む）をSTBファイルとして出力"
             >
-              ⬆️ 2.1.0 に変換
+              📦 STBファイルを出力
             </button>
-            <button
-              type="button"
-              id="convertTo202Btn"
-              class="btn btn-secondary"
-              disabled
-              title="モデルAを STB 2.0.2 形式でダウンロード"
-            >
-              ⬇️ 2.0.2 に変換
-            </button>
-            <div id="stbConvertStatus" class="stb-convert-status hidden"></div>
           </div>
         </div>
       </div>
@@ -522,8 +536,8 @@
           <table class="element-settings-table">
             <thead>
               <tr>
-                <th>要素</th>
-                <th>
+                <th scope="col">要素</th>
+                <th scope="col">
                   表示
                   <input
                     type="checkbox"
@@ -532,7 +546,7 @@
                     checked
                   />
                 </th>
-                <th>
+                <th scope="col">
                   立体
                   <input
                     type="checkbox"
@@ -541,7 +555,7 @@
                     checked
                   />
                 </th>
-                <th>
+                <th scope="col">
                   ラベル
                   <input
                     type="checkbox"
@@ -549,7 +563,7 @@
                     title="全てのラベル表示を切替"
                   />
                 </th>
-                <th>色</th>
+                <th scope="col">色</th>
               </tr>
             </thead>
             <tbody id="element-settings-body">
@@ -699,6 +713,7 @@
                   value="#4CAF50"
                   class="legend-color-box"
                   title="正常要素の色を変更"
+                  data-js-init="colorConfig.DEFAULT_SCHEMA_COLORS.valid"
                 />
                 <span class="legend-label">正常要素</span>
                 <span id="schema-valid-count" class="legend-count badge badge-valid"></span>
@@ -710,10 +725,12 @@
                   value="#2196F3"
                   class="legend-color-box"
                   title="自動修復可能要素の色を変更"
+                  data-js-init="colorConfig.DEFAULT_SCHEMA_COLORS.info"
                 />
                 <span class="legend-label">自動修復</span>
                 <span id="schema-info-count" class="legend-count badge badge-info"></span>
                 <button
+                  type="button"
                   class="legend-list-btn"
                   id="schema-info-list-btn"
                   data-status="info"
@@ -729,10 +746,12 @@
                   value="#FF9800"
                   class="legend-color-box"
                   title="要確認要素の色を変更"
+                  data-js-init="colorConfig.DEFAULT_SCHEMA_COLORS.warning"
                 />
                 <span class="legend-label">要確認</span>
                 <span id="schema-warning-count" class="legend-count badge badge-warning"></span>
                 <button
+                  type="button"
                   class="legend-list-btn"
                   id="schema-warning-list-btn"
                   data-status="warning"
@@ -748,10 +767,12 @@
                   value="#F44336"
                   class="legend-color-box"
                   title="エラー要素の色を変更"
+                  data-js-init="colorConfig.DEFAULT_SCHEMA_COLORS.error"
                 />
                 <span class="legend-label">手動修正</span>
                 <span id="schema-error-count" class="legend-count badge badge-error"></span>
                 <button
+                  type="button"
                   class="legend-list-btn"
                   id="schema-error-list-btn"
                   data-status="error"
@@ -1007,6 +1028,47 @@
       </div>
       <div class="float-window-content">
         <div id="validation-panel-container"></div>
+      </div>
+    </div>
+
+    <!-- 生XMLデータビューパネル -->
+    <div id="xml-viewer-float" class="floating-window hidden">
+      <div class="float-window-header" id="xml-viewer-header">
+        <span class="float-window-title">🔍 生XMLビュー</span>
+        <div class="float-window-controls">
+          <button
+            type="button"
+            class="float-window-btn"
+            id="xml-viewer-copy-btn"
+            title="クリップボードにコピー"
+          >📋</button>
+          <button
+            type="button"
+            class="float-window-btn"
+            id="close-xml-viewer-btn"
+            aria-label="閉じる"
+          >✕</button>
+        </div>
+      </div>
+      <div class="float-window-content xml-viewer-content">
+        <div class="xml-viewer-tabs">
+          <button type="button" class="xml-tab-btn active" data-model="A">モデルA</button>
+          <button type="button" class="xml-tab-btn" data-model="B">モデルB</button>
+        </div>
+        <div class="xml-validation-bar">
+          <select id="xml-validation-type" class="xml-validation-select">
+            <option value="xsd">XSD スキーマ</option>
+            <option value="mvd-s2">MVD S2</option>
+            <option value="mvd-s4">MVD S4</option>
+            <option value="all" selected>すべて</option>
+          </select>
+          <button type="button" id="xml-run-validation-btn" class="xml-validation-btn">バリデーション実行</button>
+          <span id="xml-validation-status" class="xml-validation-status"></span>
+          <button type="button" id="xml-prev-error-btn" class="xml-validation-btn xml-nav-btn" title="前のエラーへ" disabled>◀</button>
+          <span id="xml-error-nav-label" class="xml-validation-status xml-nav-label"></span>
+          <button type="button" id="xml-next-error-btn" class="xml-validation-btn xml-nav-btn" title="次のエラーへ" disabled>▶</button>
+        </div>
+        <div id="xml-viewer-pre" class="xml-viewer-pre" role="code" aria-label="XML内容"></div>
       </div>
     </div>
 

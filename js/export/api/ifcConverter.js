@@ -8,7 +8,7 @@
 /* global FormData */
 
 import { getEnvironmentConfig } from '../../config/environment.js';
-import { eventBus, ToastEvents } from '../../app/events/index.js';
+import { eventBus, ToastEvents } from '../../data/events/index.js';
 import { createLogger } from '../../utils/logger.js';
 import { downloadBlob } from '../../utils/downloadHelper.js';
 
@@ -380,15 +380,6 @@ export class IFCConverterUI {
         return originalFileA;
       } else if (originalFileB) {
         return originalFileB;
-      }
-    }
-
-    // フォールバック: windowオブジェクトから取得
-    if (window.originalSTBFiles) {
-      if (window.originalSTBFiles.fileA) {
-        return window.originalSTBFiles.fileA;
-      } else if (window.originalSTBFiles.fileB) {
-        return window.originalSTBFiles.fileB;
       }
     }
 

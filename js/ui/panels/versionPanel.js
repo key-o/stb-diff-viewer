@@ -5,8 +5,8 @@
  * クロスバージョン比較時の差異情報を管理します。
  */
 
-import { eventBus } from '../../app/events/eventBus.js';
-import { EventTypes, VersionEvents } from '../../app/events/eventTypes.js';
+import { eventBus } from '../../data/events/eventBus.js';
+import { EventTypes, VersionEvents } from '../../constants/eventTypes.js';
 
 /**
  * バージョン情報の状態
@@ -29,6 +29,10 @@ let showVersionSpecificDifferences = true;
  * @param {Object} versionInfo - バージョン情報
  * @param {string} versionInfo.versionA - モデルAのバージョン
  * @param {string} versionInfo.versionB - モデルBのバージョン
+ * @param {string} [versionInfo.sourceTypeA] - モデルAのソース種別 ('stb'|'ifc'|'ss7csv')
+ * @param {string} [versionInfo.sourceTypeB] - モデルBのソース種別
+ * @param {string} [versionInfo.ifcSchemaA] - モデルAのIFCスキーマ (IFC2X3等)
+ * @param {string} [versionInfo.ifcSchemaB] - モデルBのIFCスキーマ
  */
 export function updateVersionPanel(versionInfo) {
   currentVersionInfo = {
@@ -40,29 +44,49 @@ export function updateVersionPanel(versionInfo) {
   };
 
   // インライン要素を更新
-  updateInlineVersionBadge('versionA-inline', versionInfo.versionA);
-  updateInlineVersionBadge('versionB-inline', versionInfo.versionB);
+  updateInlineVersionBadge(
+    'versionA-inline',
+    versionInfo.versionA,
+    versionInfo.sourceTypeA,
+    versionInfo.ifcSchemaA,
+  );
+  updateInlineVersionBadge(
+    'versionB-inline',
+    versionInfo.versionB,
+    versionInfo.sourceTypeB,
+    versionInfo.ifcSchemaB,
+  );
 }
 
 /**
  * インラインバージョンバッジを更新
  * @param {string} elementId - 更新する要素のID
  * @param {string} version - バージョン文字列
+ * @param {string} [sourceType] - ソース種別 ('stb'|'ifc'|'ss7csv')
+ * @param {string} [ifcSchema] - IFCスキーマ文字列
  */
-function updateInlineVersionBadge(elementId, version) {
+function updateInlineVersionBadge(elementId, version, sourceType, ifcSchema) {
   const el = document.getElementById(elementId);
   if (!el) return;
 
-  el.textContent = formatVersion(version);
-  el.className = 'version-badge-inline ' + getVersionClass(version);
+  el.textContent = formatSourceLabel(version, sourceType, ifcSchema);
+  el.className = 'version-badge-inline ' + getVersionClass(version, sourceType);
 }
 
 /**
- * バージョン番号をフォーマット
+ * ソース種別とバージョンからラベルをフォーマット
  * @param {string} version - バージョン文字列
- * @returns {string} フォーマットされたバージョン
+ * @param {string} [sourceType] - ソース種別
+ * @param {string} [ifcSchema] - IFCスキーマ文字列
+ * @returns {string} 表示ラベル
  */
-function formatVersion(version) {
+function formatSourceLabel(version, sourceType, ifcSchema) {
+  if (sourceType === 'ss7csv') {
+    return 'SS7入力CSV';
+  }
+  if (sourceType === 'ifc') {
+    return ifcSchema ? formatIfcSchema(ifcSchema) : 'IFC';
+  }
   if (!version || version === 'unknown') {
     return '不明';
   }
@@ -70,11 +94,33 @@ function formatVersion(version) {
 }
 
 /**
- * バージョンに対応するCSSクラスを取得
+ * IFCスキーマ文字列を表示用にフォーマット
+ * @param {string} schema - IFCスキーマ ('IFC2X3', 'IFC4', 'IFC4X3'等)
+ * @returns {string} フォーマットされたスキーマ名
+ */
+function formatIfcSchema(schema) {
+  const s = schema.toUpperCase();
+  if (s === 'IFC2X3' || s === 'IFC2X3TC1') return 'IFC 2x3';
+  if (s === 'IFC4' || s === 'IFC4X0') return 'IFC 4x0';
+  if (s === 'IFC4X1') return 'IFC 4x1';
+  if (s === 'IFC4X2') return 'IFC 4x2';
+  if (s === 'IFC4X3' || s.startsWith('IFC4X3')) return 'IFC 4x3';
+  return `IFC ${schema}`;
+}
+
+/**
+ * バージョンとソース種別に対応するCSSクラスを取得
  * @param {string} version - バージョン文字列
+ * @param {string} [sourceType] - ソース種別
  * @returns {string} CSSクラス名
  */
-function getVersionClass(version) {
+function getVersionClass(version, sourceType) {
+  if (sourceType === 'ss7csv') {
+    return 'version-ss7';
+  }
+  if (sourceType === 'ifc') {
+    return 'version-ifc';
+  }
   if (!version || version === 'unknown') {
     return 'version-unknown';
   }

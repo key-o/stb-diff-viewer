@@ -7,11 +7,7 @@
  * Layer 1 (data) - app/, services/, viewer/, ui/ からインポート可能
  */
 
-import {
-  COMPARISON_CATEGORY,
-  ALL_CATEGORIES,
-  MATCHED_CATEGORIES,
-} from '../constants/comparisonCategories.js';
+import { COMPARISON_CATEGORY, ALL_CATEGORIES } from '../constants/comparisonCategories.js';
 
 /**
  * 比較戦略の出力を正規5カテゴリ形式に変換する
@@ -139,13 +135,11 @@ function decorateMatchedItem(item, category) {
     return { ...item, category };
   }
 
-  const positionState = category === COMPARISON_CATEGORY.WITHIN_TOLERANCE
-    ? 'withinTolerance'
-    : 'exact';
+  const positionState =
+    category === COMPARISON_CATEGORY.WITHIN_TOLERANCE ? 'withinTolerance' : 'exact';
 
-  const attributeState = category === COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH
-    ? 'mismatch'
-    : 'matched';
+  const attributeState =
+    category === COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH ? 'mismatch' : 'matched';
 
   return {
     ...item,
@@ -194,8 +188,12 @@ function createEmptyNormalized() {
  */
 function copyExtraProperties(source, target) {
   const reservedKeys = new Set([
-    'matched', 'onlyA', 'onlyB',
-    'exact', 'withinTolerance', 'mismatch',
+    'matched',
+    'onlyA',
+    'onlyB',
+    'exact',
+    'withinTolerance',
+    'mismatch',
     ...ALL_CATEGORIES,
   ]);
 

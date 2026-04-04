@@ -10,6 +10,9 @@
  */
 
 import { validationController } from '../../app/controllers/validationController.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:panels:parameterEditor');
 
 /**
  * パラメータ編集モーダルクラス
@@ -57,7 +60,7 @@ export class ParameterEditor {
         this.setupEventListeners();
         this.focusInitialElement();
       } catch (error) {
-        console.error('Error showing parameter editor:', error);
+        log.error('Error showing parameter editor:', error);
         reject(error);
       }
     });

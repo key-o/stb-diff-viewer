@@ -9,6 +9,9 @@
 import { toggleLegend } from './legendListeners.js';
 import { toggleModelAVisibility, toggleModelBVisibility } from './modelVisibilityListeners.js';
 import { resetAllSelectors } from './selectorChangeListeners.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:events:keyboardListeners');
 
 /**
  * Setup keyboard shortcuts
@@ -67,13 +70,13 @@ function handleKeyboardShortcuts(event) {
 
 /**
  * Handle window resize
- * @param {Event} event - Resize event
+ * @param {Event} _event - Resize event
  */
-function handleWindowResize(event) {
+function handleWindowResize(_event) {
   // Debounce resize handling
   clearTimeout(window.resizeTimeout);
   window.resizeTimeout = setTimeout(() => {
-    console.log('[Event] ウィンドウリサイズ');
+    log.info('[Event] ウィンドウリサイズ');
     // Could trigger layout updates here if needed
   }, 250);
 }

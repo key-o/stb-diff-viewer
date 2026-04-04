@@ -7,12 +7,7 @@
  * @module common/stb/utils/barArrangementExtractor
  */
 
-import {
-  getAttributeValue,
-  getAttributeValueCascade,
-  getChildElements,
-  isElementTag,
-} from './domHelpers.js';
+import { getAttributeValueCascade } from './domHelpers.js';
 
 /**
  * 複数の属性候補から値を取得（3段階フォールバック）

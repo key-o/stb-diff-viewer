@@ -101,6 +101,7 @@ export async function exportToPdf(tableElement, filename = 'section-list.pdf') {
         : 'portrait';
 
     // PDFを作成
+    // eslint-disable-next-line new-cap
     const pdf = new jsPDF({
       orientation: orientation,
       unit: 'mm',

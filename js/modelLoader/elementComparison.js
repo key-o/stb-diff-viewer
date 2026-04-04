@@ -13,7 +13,6 @@
 import * as THREE from 'three';
 import { createLogger } from '../utils/logger.js';
 import { normalizeComparisonResult, getCategoryCounts } from '../data/normalizeComparisonResult.js';
-import { COMPARISON_CATEGORY } from '../constants/comparisonCategories.js';
 
 const logger = createLogger('modelLoader:comparison');
 import {
@@ -29,11 +28,11 @@ import {
   polyElementKeyExtractor,
   nodeElementKeyExtractor,
 } from '../common-stb/comparison/comparator.js';
-import { normalizeSectionData } from '../app/sectionEquivalenceEngine.js';
+import { createAttributeComparator } from '../common-stb/comparison/attributeComparator.js';
+import { getLoaderNormalizeSectionData, getLoaderImportanceManager } from './loaderDependencies.js';
 import { SUPPORTED_ELEMENTS } from '../constants/elementTypes.js';
 import { COMPARISON_KEY_TYPE } from '../config/comparisonKeyConfig.js';
 import { getToleranceConfig } from '../config/toleranceConfig.js';
-import { getImportanceManager } from '../app/importanceManager.js';
 
 const SECTION_MAP_KEY_BY_ELEMENT_TYPE = {
   Column: 'columnSections',
@@ -47,6 +46,9 @@ const SECTION_MAP_KEY_BY_ELEMENT_TYPE = {
   Pile: 'pileSections',
   Footing: 'footingSections',
   FoundationColumn: 'foundationcolumnSections',
+  IsolatingDevice: 'isolatingDeviceSections',
+  DampingDevice: 'dampingDeviceSections',
+  FrameDampingDevice: 'dampingDeviceSections',
 };
 
 function getElementAttribute(element, attributeName) {
@@ -109,6 +111,7 @@ function toStableComparableObject(value) {
 function buildSectionCompositionSignature(sectionData, elementType) {
   if (!sectionData || typeof sectionData !== 'object') return null;
 
+  const normalizeSectionData = getLoaderNormalizeSectionData();
   const normalizedSection = normalizeSectionData(sectionData, elementType);
   const signaturePayload = {
     normalizedSection,
@@ -283,7 +286,11 @@ function compareElementsByType(
   // Get tolerance configuration
   const toleranceConfig = getToleranceConfig();
   const useToleranceComparison = toleranceConfig.enabled && !toleranceConfig.strictMode;
+  const attributeComparator = createAttributeComparator(
+    (data) => data?.rawElement || data?.element || data,
+  );
   const compareOptions = {
+    attributeComparator,
     classifyNullKeysAsOnly:
       comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED ||
       comparisonKeyType === COMPARISON_KEY_TYPE.STORY_AXIS_BASED,
@@ -372,11 +379,12 @@ function compareElementsByType(
 
       // Use importance-based comparison
       if (useImportanceFiltering) {
-        const manager = getImportanceManager();
+        const manager = getLoaderImportanceManager();
         // マネージャーの依存性（isInitialized）を隠蔽して関数のみ渡す
-        const importanceLookup = manager.isInitialized
-          ? (element, elementType) => manager.getElementImportance(element, elementType)
-          : null;
+        const importanceLookup =
+          manager && manager.isInitialized
+            ? (element, elementType) => manager.getElementImportance(element, elementType)
+            : null;
 
         return compareElementsWithImportance(
           elementsA,
@@ -462,6 +470,7 @@ function compareElementsByType(
 
       case 'Slab':
       case 'Wall':
+      case 'FrameDampingDevice':
         comparisonResult = performComparison(createPolyExtractor('StbNodeIdOrder'));
         break;
 
@@ -486,6 +495,11 @@ function compareElementsByType(
         break;
 
       case 'StripFooting':
+        comparisonResult = performComparison(createLineExtractor('id_node_start', 'id_node_end'));
+        break;
+
+      case 'IsolatingDevice':
+      case 'DampingDevice':
         comparisonResult = performComparison(createLineExtractor('id_node_start', 'id_node_end'));
         break;
 

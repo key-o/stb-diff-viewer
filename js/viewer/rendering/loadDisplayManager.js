@@ -18,8 +18,6 @@ import { CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
 import {
   LOAD_TYPES,
   getLoadCaseColor,
-  getLoadTypeDescription,
-  getMemberLoads,
 } from '../../common-stb/import/extractor/StbCalDataExtractor.js';
 
 /**
@@ -65,6 +63,8 @@ export class LoadDisplayManager {
     this._nodeMap = null;
     this._memberData = null;
 
+    this._maxArrowLength = options.maxArrowLength || 500;
+    this._minArrowLength = options.minArrowLength || 0;
     this._isVisible = false;
     this._selectedLoadCase = null;
   }
@@ -80,7 +80,8 @@ export class LoadDisplayManager {
     this._nodeMap = nodeMap;
     this._memberData = memberData;
 
-    if (calData) {
+    if (calData && this._isVisible) {
+      this.updateDisplay();
     }
   }
 
@@ -186,6 +187,12 @@ export class LoadDisplayManager {
     if (maxLoad > 1e-6) {
       this._scale = targetArrowLength / maxLoad;
     }
+
+    // ヘッドサイズ・上限値・最小値をモデルサイズに連動
+    this._headLength = maxDim * 0.008;
+    this._headWidth = maxDim * 0.004;
+    this._maxArrowLength = maxDim * 0.15;
+    this._minArrowLength = maxDim * 0.02;
   }
 
   /**
@@ -203,6 +210,14 @@ export class LoadDisplayManager {
       return;
     }
 
+    // スケールが未計算（デフォルト値）の場合、シーンから自動計算を試みる
+    if (this._scale <= 1.0 && this._scene) {
+      const box = new THREE.Box3().setFromObject(this._scene);
+      if (!box.isEmpty()) {
+        this.computeAutoScale(box);
+      }
+    }
+
     // 柱の荷重を処理
     this._processColumnLoads();
 
@@ -211,11 +226,6 @@ export class LoadDisplayManager {
 
     // 小梁の荷重を処理
     this._processBeamLoads();
-
-    const showArrows =
-      this._displayMode === LOAD_DISPLAY_MODE.ARROW || this._displayMode === LOAD_DISPLAY_MODE.BOTH;
-    const showLabels =
-      this._displayMode === LOAD_DISPLAY_MODE.LABEL || this._displayMode === LOAD_DISPLAY_MODE.BOTH;
   }
 
   /**
@@ -336,8 +346,13 @@ export class LoadDisplayManager {
    * @param {string} memberType - 部材タイプ
    */
   _createLoadArrows(member, load, memberType) {
-    const startNodeId = member.getAttribute?.('id_node_start') || member.id_node_start;
-    const endNodeId = member.getAttribute?.('id_node_end') || member.id_node_end;
+    const isColumn = memberType === 'column';
+    const startNodeId = isColumn
+      ? member.getAttribute?.('id_node_bottom') || member.id_node_bottom
+      : member.getAttribute?.('id_node_start') || member.id_node_start;
+    const endNodeId = isColumn
+      ? member.getAttribute?.('id_node_top') || member.id_node_top
+      : member.getAttribute?.('id_node_end') || member.id_node_end;
 
     if (!startNodeId || !endNodeId) return;
 
@@ -366,6 +381,14 @@ export class LoadDisplayManager {
       if (arrows.length > 0) {
         this._arrowMap.set(load.id, arrows);
         for (const arrow of arrows) {
+          // 矢印を建物ジオメトリの上に描画（Z-fighting防止）
+          arrow.renderOrder = 999;
+          for (const child of arrow.children) {
+            child.renderOrder = 999;
+            if (child.material) {
+              child.material.depthTest = false;
+            }
+          }
           this._loadGroup.add(arrow);
         }
       }
@@ -399,31 +422,50 @@ export class LoadDisplayManager {
 
     switch (load.type) {
       case LOAD_TYPES.UNIFORM_LOAD: {
-        // 等分布荷重: 複数の矢印を等間隔に配置
+        // 等分布荷重: 矢印先端が部材に接し、根元を横線でつなぐ
         const numArrows = Math.max(5, Math.floor(memberLength / 1000));
-        const direction = this._getLoadDirection(load, start, end, memberType);
+        const loadDir = this._getLoadDirection(load, start, end, memberType);
+        // 矢印は荷重方向（loadDir）に向かって部材へ刺さる
+        const arrowDir = loadDir.clone();
         const arrowLength = Math.abs(load.P1) * this._scale;
+        const clampedLength = Math.max(
+          Math.min(arrowLength, this._maxArrowLength),
+          this._minArrowLength,
+        );
+        const hl = Math.min(this._headLength * 0.5, clampedLength * 0.3);
+        const hw = Math.min(this._headWidth * 0.5, hl);
+
+        // 根元（荷重線）の位置を収集して横線を引く
+        const basePoints = [];
 
         for (let i = 0; i <= numArrows; i++) {
           const t = i / numArrows;
-          const position = new THREE.Vector3().lerpVectors(start, end, t);
+          // 部材上の点（矢印の先端位置）
+          const tipPosition = new THREE.Vector3().lerpVectors(start, end, t);
+          // 矢印の根元 = 先端から loadDir の逆方向に clampedLength だけ離れた位置
+          const origin = tipPosition.clone().addScaledVector(loadDir, -clampedLength);
 
-          const arrow = new THREE.ArrowHelper(
-            direction,
-            position,
-            Math.min(arrowLength, 500),
-            color,
-            this._headLength * 0.5,
-            this._headWidth * 0.5,
-          );
+          const arrow = new THREE.ArrowHelper(arrowDir, origin, clampedLength, color, hl, hw);
           arrow.userData = { loadId: load.id, type: 'uniform' };
           arrows.push(arrow);
+          basePoints.push(origin);
+        }
+
+        // 根元を横線でつなぐ
+        if (basePoints.length >= 2) {
+          const lineGeometry = new THREE.BufferGeometry().setFromPoints(basePoints);
+          const lineMaterial = new THREE.LineBasicMaterial({ color });
+          const baseLine = new THREE.Line(lineGeometry, lineMaterial);
+          baseLine.userData = { loadId: load.id, type: 'uniform_baseline' };
+          baseLine.renderOrder = 999;
+          baseLine.material.depthTest = false;
+          arrows.push(baseLine);
         }
         break;
       }
 
       case LOAD_TYPES.POINT_LOADS: {
-        // 集中荷重: 指定位置に矢印
+        // 集中荷重: 指定位置に矢印（先端が部材に接し、荷重方向に向かう）
         const direction = this._getLoadDirection(load, start, end, memberType);
         const positions = [];
 
@@ -439,17 +481,18 @@ export class LoadDisplayManager {
         }
 
         for (const pos of positions) {
-          const position = new THREE.Vector3().lerpVectors(start, end, pos.t);
+          const tipPosition = new THREE.Vector3().lerpVectors(start, end, pos.t);
           const arrowLength = Math.abs(pos.value) * this._scale;
-
-          const arrow = new THREE.ArrowHelper(
-            direction,
-            position,
-            Math.min(arrowLength, 1000),
-            color,
-            this._headLength,
-            this._headWidth,
+          const clampedLen = Math.max(
+            Math.min(arrowLength, this._maxArrowLength),
+            this._minArrowLength,
           );
+          const hl = Math.min(this._headLength, clampedLen * 0.3);
+          const hw = Math.min(this._headWidth, hl);
+          // 根元 = 先端から荷重方向の逆に離れた位置
+          const origin = tipPosition.clone().addScaledVector(direction, -clampedLen);
+
+          const arrow = new THREE.ArrowHelper(direction, origin, clampedLen, color, hl, hw);
           arrow.userData = { loadId: load.id, type: 'point' };
           arrows.push(arrow);
         }
@@ -457,23 +500,24 @@ export class LoadDisplayManager {
       }
 
       case LOAD_TYPES.EQUAL_POINT_LOADS: {
-        // 等間隔集中荷重
+        // 等間隔集中荷重（先端が部材に接し、荷重方向に向かう）
         const numLoads = Math.max(1, Math.floor(load.P2 || 1));
         const direction = this._getLoadDirection(load, start, end, memberType);
         const arrowLength = Math.abs(load.P1) * this._scale;
+        const clampedLen = Math.max(
+          Math.min(arrowLength, this._maxArrowLength),
+          this._minArrowLength,
+        );
+        const hl = Math.min(this._headLength, clampedLen * 0.3);
+        const hw = Math.min(this._headWidth, hl);
 
         for (let i = 0; i < numLoads; i++) {
           const t = (i + 1) / (numLoads + 1);
-          const position = new THREE.Vector3().lerpVectors(start, end, t);
+          const tipPosition = new THREE.Vector3().lerpVectors(start, end, t);
+          // 根元 = 先端から荷重方向の逆に離れた位置
+          const origin = tipPosition.clone().addScaledVector(direction, -clampedLen);
 
-          const arrow = new THREE.ArrowHelper(
-            direction,
-            position,
-            Math.min(arrowLength, 1000),
-            color,
-            this._headLength,
-            this._headWidth,
-          );
+          const arrow = new THREE.ArrowHelper(direction, origin, clampedLen, color, hl, hw);
           arrow.userData = { loadId: load.id, type: 'equal_point' };
           arrows.push(arrow);
         }
@@ -482,69 +526,79 @@ export class LoadDisplayManager {
 
       case LOAD_TYPES.TRAPEZOIDAL_1:
       case LOAD_TYPES.TRAPEZOIDAL_2: {
-        // 台形分布荷重: 線形変化する矢印群
+        // 台形分布荷重: 矢印先端が部材に接し、根元を折れ線でつなぐ
         // P1 = w1 (始点荷重密度), P2 = w2 (終点荷重密度)
         // P3 = L1 (開始位置), P4 = L2 (終了位置)
         const numArrows = Math.max(5, Math.floor(memberLength / 1000));
-        const direction = this._getLoadDirection(load, start, end, memberType);
+        const loadDir = this._getLoadDirection(load, start, end, memberType);
+        const arrowDir = loadDir.clone();
 
-        const w1 = Math.abs(load.P1 || 0); // 始点荷重密度
-        const w2 = Math.abs(load.P2 || load.P1 || 0); // 終点荷重密度
-        const L1 = load.P3 || 0; // 開始位置
-        const L2 = load.P4 || memberLength; // 終了位置
+        const w1 = Math.abs(load.P1 || 0);
+        const w2 = Math.abs(load.P2 || load.P1 || 0);
+        const L1 = load.P3 || 0;
+        const L2 = load.P4 || memberLength;
 
-        // 台形分布荷重の適用範囲を計算
-        const t1 = L1 / memberLength; // 開始位置の相対座標
-        const t2 = Math.min(L2 / memberLength, 1.0); // 終了位置の相対座標
+        const t1 = L1 / memberLength;
+        const t2 = Math.min(L2 / memberLength, 1.0);
+
+        const basePoints = [];
 
         for (let i = 0; i <= numArrows; i++) {
-          // 台形分布範囲内でのパラメータ (0.0 ~ 1.0)
           const localT = i / numArrows;
-          // 部材全体でのパラメータ
           const globalT = t1 + localT * (t2 - t1);
 
           if (globalT < 0 || globalT > 1) continue;
 
-          const position = new THREE.Vector3().lerpVectors(start, end, globalT);
+          const tipPosition = new THREE.Vector3().lerpVectors(start, end, globalT);
 
-          // 線形補間で荷重密度を計算
           const w = w1 + (w2 - w1) * localT;
           const arrowLength = w * this._scale;
 
-          if (arrowLength < 1e-6) continue; // 荷重がほぼゼロの場合はスキップ
+          if (arrowLength < 1e-6) continue;
 
-          const arrow = new THREE.ArrowHelper(
-            direction,
-            position,
-            Math.min(arrowLength, 500),
-            color,
-            this._headLength * 0.5,
-            this._headWidth * 0.5,
+          const clampedLen = Math.max(
+            Math.min(arrowLength, this._maxArrowLength),
+            this._minArrowLength,
           );
-          arrow.userData = {
-            loadId: load.id,
-            type: 'trapezoidal',
-            loadValue: w,
-          };
+          const hl = Math.min(this._headLength * 0.5, clampedLen * 0.3);
+          const hw = Math.min(this._headWidth * 0.5, hl);
+
+          // 根元 = 先端から荷重方向の逆に離れた位置
+          const origin = tipPosition.clone().addScaledVector(loadDir, -clampedLen);
+
+          const arrow = new THREE.ArrowHelper(arrowDir, origin, clampedLen, color, hl, hw);
+          arrow.userData = { loadId: load.id, type: 'trapezoidal', loadValue: w };
           arrows.push(arrow);
+          basePoints.push(origin);
+        }
+
+        // 根元を折れ線でつなぐ（台形の上辺）
+        if (basePoints.length >= 2) {
+          const lineGeometry = new THREE.BufferGeometry().setFromPoints(basePoints);
+          const lineMaterial = new THREE.LineBasicMaterial({ color });
+          const baseLine = new THREE.Line(lineGeometry, lineMaterial);
+          baseLine.userData = { loadId: load.id, type: 'trapezoidal_baseline' };
+          baseLine.renderOrder = 999;
+          baseLine.material.depthTest = false;
+          arrows.push(baseLine);
         }
         break;
       }
 
       default: {
-        // その他のタイプ: 部材中央に代表矢印を表示
-        const midPoint = new THREE.Vector3().lerpVectors(start, end, 0.5);
+        // その他のタイプ: 部材中央に代表矢印を表示（先端が部材に接し、荷重方向に向かう）
+        const tipPoint = new THREE.Vector3().lerpVectors(start, end, 0.5);
         const direction = this._getLoadDirection(load, start, end, memberType);
         const arrowLength = Math.abs(load.P1) * this._scale;
-
-        const arrow = new THREE.ArrowHelper(
-          direction,
-          midPoint,
-          Math.min(arrowLength, 800),
-          color,
-          this._headLength,
-          this._headWidth,
+        const clampedLen = Math.max(
+          Math.min(arrowLength, this._maxArrowLength),
+          this._minArrowLength,
         );
+        const hl = Math.min(this._headLength, clampedLen * 0.3);
+        const hw = Math.min(this._headWidth, hl);
+        const origin = tipPoint.clone().addScaledVector(direction, -clampedLen);
+
+        const arrow = new THREE.ArrowHelper(direction, origin, clampedLen, color, hl, hw);
         arrow.userData = { loadId: load.id, type: 'other' };
         arrows.push(arrow);
       }
@@ -562,9 +616,6 @@ export class LoadDisplayManager {
    * @returns {THREE.Vector3}
    */
   _getLoadDirection(load, start, end, memberType) {
-    // 部材軸ベクトル
-    const memberAxis = new THREE.Vector3().subVectors(end, start).normalize();
-
     if (memberType === 'column') {
       // 柱の場合: 水平方向（X or Y軸）
       if (load.directionLoad === 'Y') {
@@ -730,9 +781,14 @@ export class LoadDisplayManager {
    */
   clearArrows() {
     for (const arrows of this._arrowMap.values()) {
-      for (const arrow of arrows) {
-        this._loadGroup.remove(arrow);
-        arrow.dispose?.();
+      for (const obj of arrows) {
+        this._loadGroup.remove(obj);
+        if (obj.isLine) {
+          obj.geometry?.dispose();
+          obj.material?.dispose();
+        } else {
+          obj.dispose?.();
+        }
       }
     }
     this._arrowMap.clear();

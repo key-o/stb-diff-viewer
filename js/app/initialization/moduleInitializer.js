@@ -9,9 +9,9 @@ import {
   setElementsLabelProvider,
   setElementInfoProviders,
   setClippingStateProvider,
+  setViewerStateProvider,
 } from '../../viewer/index.js';
 import { setDxfExporterProviders } from '../../export/index.js';
-import { getState } from '../globalState.js';
 import { getActiveCamera } from '../../viewer/index.js';
 
 const log = createLogger('moduleInitializer');
@@ -66,6 +66,12 @@ export async function initializeRequiredModules(elementGroups) {
   import('../globalState.js').then(({ getState }) => {
     setClippingStateProvider({ getState });
     log.info('clippingManager状態プロバイダーが注入されました');
+  });
+
+  // viewer層全体への状態プロバイダー注入（レイヤー依存違反解消）
+  import('../globalState.js').then(({ getState, setState }) => {
+    setViewerStateProvider({ getState, setState });
+    log.info('viewer状態プロバイダーが注入されました');
   });
 
   // elementInfoDisplayへの依存プロバイダー注入（逆依存解消）

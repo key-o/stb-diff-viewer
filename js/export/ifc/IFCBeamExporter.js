@@ -5,10 +5,7 @@
 
 import { IFCExporterBase, generateIfcGuid } from './IFCExporterBase.js';
 import { createLogger } from '../../utils/logger.js';
-import {
-  calculateBeamBasis,
-  rotateVectorAroundAxis,
-} from '../../data/geometry/vectorMath.js';
+import { calculateBeamBasis, rotateVectorAroundAxis } from '../../data/geometry/vectorMath.js';
 
 const log = createLogger('IFCBeamExporter');
 
@@ -57,6 +54,8 @@ export class IFCBeamExporter extends IFCExporterBase {
       sectionHeight = 0,
       isSRC = false,
       steelProfile = null,
+      kindStructure = 'S',
+      stbType = 'StbGirder',
     } = beamData;
 
     // Validate name
@@ -244,17 +243,17 @@ export class IFCBeamExporter extends IFCExporterBase {
       [`#${shapeRep}`], // Representations
     ]);
 
-    // 梁エンティティ
+    // 梁エンティティ（ObjectTypeにkind_structureを格納）
     const beamId = w.createEntity('IFCBEAM', [
       generateIfcGuid(), // GlobalId
       null, // OwnerHistory
       name, // Name
       null, // Description
-      null, // ObjectType
+      kindStructure, // ObjectType: kind_structure (S/RC/SRC)
       `#${beamLocalPlacement}`, // ObjectPlacement
       `#${productShape}`, // Representation
       null, // Tag
-      '.BEAM.', // PredefinedType
+      stbType === 'StbBeam' ? '.USERDEFINED.' : '.BEAM.', // PredefinedType: StbBeam=USERDEFINED, StbGirder=BEAM
     ]);
 
     // 梁を階に所属させる（天端基準配置調整後のZ座標で適切な階を決定）
@@ -281,14 +280,7 @@ export class IFCBeamExporter extends IFCExporterBase {
   addTaperedBeam(beamData) {
     this._ensureInitialized();
     const w = this.writer;
-    const {
-      name = 'TaperedBeam',
-      startPoint,
-      endPoint,
-      sections,
-      rotation = 0,
-      placementMode = 'center',
-    } = beamData;
+    const { name = 'TaperedBeam', startPoint, endPoint, sections, rotation = 0 } = beamData;
 
     // 必須パラメータのチェック
     if (!startPoint || !endPoint || !sections || sections.length < 2) {
@@ -357,24 +349,18 @@ export class IFCBeamExporter extends IFCExporterBase {
       localY = newY;
     }
 
-    const localXX = localX.x, localXY = localX.y, localXZ = localX.z;
-    const localYX = localY.x, localYY = localY.y, localYZ = localY.z;
-
     // 断面をposでソート
     const sortedSections = [...sections].sort((a, b) => a.pos - b.pos);
 
-    // 各断面の3D頂点を計算
+    // 各断面のローカル3D頂点を計算
+    // IFCLOCALPLACEMENT で始点・軸方向を与えるため、BRep 頂点はローカル座標で保持する。
     const sectionVertices3D = [];
     for (const section of sortedSections) {
       const zPos = section.pos * length;
       const vertices3D = [];
 
       for (const v of section.vertices) {
-        // ローカル座標 (v.x, v.y) をグローバル座標に変換
-        const gx = startPoint.x + localXX * v.x + localYX * v.y + dirX * zPos;
-        const gy = startPoint.y + localXY * v.x + localYY * v.y + dirY * zPos;
-        const gz = startPoint.z + localXZ * v.x + localYZ * v.y + dirZ * zPos;
-        vertices3D.push({ x: gx, y: gy, z: gz });
+        vertices3D.push({ x: v.x, y: v.y, z: zPos });
       }
 
       sectionVertices3D.push(vertices3D);
@@ -445,29 +431,56 @@ export class IFCBeamExporter extends IFCExporterBase {
     // IFCFACETEDBREPを作成
     const brepId = w.createEntity('IFCFACETEDBREP', [`#${shellId}`]);
 
-    // 配置点
-    const beamOrigin = w.createEntity('IFCCARTESIANPOINT', [[0, 0, 0]]);
-    const beamPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [`#${beamOrigin}`, null, null]);
-    // 梁のローカル配置（柱と同様にグローバル座標系を使用）
-    const beamLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [
-      null, // PlacementRelTo: グローバル配置
-      `#${beamPlacement3D}`,
+    // 梁の配置：始点と方向ベクトルを使用（ifc-to-stbがノード位置を正しく復元できるよう）
+    const beamAxisDir = w.createEntity('IFCDIRECTION', [[dirX, dirY, dirZ]]);
+    const beamRefDir = w.createEntity('IFCDIRECTION', [[localX.x, localX.y, localX.z]]);
+    const beamOriginPt = w.createEntity('IFCCARTESIANPOINT', [
+      [startPoint.x, startPoint.y, startPoint.z],
     ]);
+    const beamPlacement3D = w.createEntity('IFCAXIS2PLACEMENT3D', [
+      `#${beamOriginPt}`,
+      `#${beamAxisDir}`,
+      `#${beamRefDir}`,
+    ]);
+    const beamLocalPlacement = w.createEntity('IFCLOCALPLACEMENT', [null, `#${beamPlacement3D}`]);
 
-    // 形状表現
-    const shapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
+    // Brep形状表現（視覚表現）
+    const brepShapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
       `#${this._refs.bodyContext}`,
       'Body',
       'Brep',
       [`#${brepId}`],
     ]);
 
+    // SweptSolid補助表現（ProfileAnalyzerが梁長さを抽出できるよう IFCEXTRUDEDAREASOLID を追加）
+    const repIds = [`#${brepShapeRep}`];
+    const firstProfile = sections[0]?.profile;
+    const auxProfileId = firstProfile ? this._createProfileId(firstProfile, false) : null;
+    if (auxProfileId !== null) {
+      const extrudeOrigin = w.createEntity('IFCCARTESIANPOINT', [[0.0, 0.0, 0.0]]);
+      const extrudeDir = w.createEntity('IFCDIRECTION', [[0.0, 0.0, 1.0]]);
+      const extrudePlacement = w.createEntity('IFCAXIS2PLACEMENT3D', [
+        `#${extrudeOrigin}`,
+        null,
+        null,
+      ]);
+      const auxSolidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
+        `#${auxProfileId}`,
+        `#${extrudePlacement}`,
+        `#${extrudeDir}`,
+        length,
+      ]);
+      const auxShapeRep = w.createEntity('IFCSHAPEREPRESENTATION', [
+        `#${this._refs.bodyContext}`,
+        'Body',
+        'SweptSolid',
+        [`#${auxSolidId}`],
+      ]);
+      repIds.push(`#${auxShapeRep}`);
+    }
+
     // 製品定義形状
-    const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [
-      null,
-      null,
-      [`#${shapeRep}`],
-    ]);
+    const productShape = w.createEntity('IFCPRODUCTDEFINITIONSHAPE', [null, null, repIds]);
 
     // 梁エンティティ
     const beamId = w.createEntity('IFCBEAM', [
@@ -523,6 +536,7 @@ export class IFCBeamExporter extends IFCExporterBase {
       isReferenceDirection = true,
       isSRC = false,
       steelProfile = null,
+      kindStructure = 'S',
     } = columnData;
 
     // 必須パラメータのチェック
@@ -594,16 +608,11 @@ export class IFCBeamExporter extends IFCExporterBase {
       return null;
     }
 
-    // 柱の中心点を計算（Three.jsと同じ中心基準配置）
-    const centerX = (bottomPoint.x + topPoint.x) / 2;
-    const centerY = (bottomPoint.y + topPoint.y) / 2;
-    const centerZ = (bottomPoint.z + topPoint.z) / 2;
-
     // 押出方向（垂直: Z方向）
     const extrudeDir = w.createEntity('IFCDIRECTION', [[0.0, 0.0, 1.0]]);
 
-    // プロファイルの位置（中心基準にするため、-length/2 から開始）
-    const extrudeOrigin = w.createEntity('IFCCARTESIANPOINT', [[0.0, 0.0, -length / 2]]);
+    // プロファイルの位置（下端原点基準: 0 から length まで押出）
+    const extrudeOrigin = w.createEntity('IFCCARTESIANPOINT', [[0.0, 0.0, 0.0]]);
     const extrudePosition = w.createEntity('IFCAXIS2PLACEMENT3D', [
       `#${extrudeOrigin}`,
       null,
@@ -613,7 +622,7 @@ export class IFCBeamExporter extends IFCExporterBase {
     // 押出形状を作成 (mm)
     const solidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
       `#${profileId}`,
-      `#${extrudePosition}`, // Position: Z = -length/2 から開始（中心基準）
+      `#${extrudePosition}`, // Position: Z = 0 から開始（下端原点基準）
       `#${extrudeDir}`,
       length,
     ]);
@@ -635,8 +644,10 @@ export class IFCBeamExporter extends IFCExporterBase {
       }
     }
 
-    // 柱の配置点（中心）(mm) - Three.jsと同じ配置方法
-    const columnOrigin = w.createEntity('IFCCARTESIANPOINT', [[centerX, centerY, centerZ]]);
+    // 柱の配置点（下端）(mm) - IFC標準に従い下端を原点とする
+    const columnOrigin = w.createEntity('IFCCARTESIANPOINT', [
+      [bottomPoint.x, bottomPoint.y, bottomPoint.z],
+    ]);
 
     // 回転角度を計算（度 → ラジアン）
     // isReferenceDirection=false の場合は90度追加（H型配置）
@@ -682,17 +693,17 @@ export class IFCBeamExporter extends IFCExporterBase {
       [`#${shapeRep}`],
     ]);
 
-    // 柱エンティティ（PredefinedType は null でシンプルに）
+    // 柱エンティティ（ObjectTypeにkind_structureを格納）
     const columnId = w.createEntity('IFCCOLUMN', [
       generateIfcGuid(),
       null, // OwnerHistory
       name,
       null, // Description
-      null, // ObjectType
+      kindStructure, // ObjectType: kind_structure (S/RC/SRC/CFT)
       `#${columnLocalPlacement}`,
       `#${productShape}`,
       null, // Tag
-      null, // PredefinedType: null でシンプルに
+      null, // PredefinedType
     ]);
 
     // 柱を階に所属させる（底部Z座標で適切な階を決定）
@@ -724,6 +735,7 @@ export class IFCBeamExporter extends IFCExporterBase {
       profile,
       rotation = 0,
       isReferenceDirection = true,
+      kindStructure = 'S',
     } = postData;
 
     // 必須パラメータのチェック
@@ -754,16 +766,11 @@ export class IFCBeamExporter extends IFCExporterBase {
       return null;
     }
 
-    // 間柱の中心点を計算（Three.jsと同じ中心基準配置）
-    const centerX = (bottomPoint.x + topPoint.x) / 2;
-    const centerY = (bottomPoint.y + topPoint.y) / 2;
-    const centerZ = (bottomPoint.z + topPoint.z) / 2;
-
     // 押出方向（垂直: Z方向）
     const extrudeDir = w.createEntity('IFCDIRECTION', [[0.0, 0.0, 1.0]]);
 
-    // プロファイルの位置（中心基準にするため、-length/2 から開始）
-    const extrudeOrigin = w.createEntity('IFCCARTESIANPOINT', [[0.0, 0.0, -length / 2]]);
+    // プロファイルの位置（下端原点基準: 0 から length まで押出）
+    const extrudeOrigin = w.createEntity('IFCCARTESIANPOINT', [[0.0, 0.0, 0.0]]);
     const extrudePosition = w.createEntity('IFCAXIS2PLACEMENT3D', [
       `#${extrudeOrigin}`,
       null,
@@ -773,13 +780,15 @@ export class IFCBeamExporter extends IFCExporterBase {
     // 押出形状を作成 (mm)
     const solidId = w.createEntity('IFCEXTRUDEDAREASOLID', [
       `#${profileId}`,
-      `#${extrudePosition}`, // Position: Z = -length/2 から開始（中心基準）
+      `#${extrudePosition}`, // Position: Z = 0 から開始（下端原点基準）
       `#${extrudeDir}`,
       length,
     ]);
 
-    // 間柱の配置点（中心）(mm)
-    const postOrigin = w.createEntity('IFCCARTESIANPOINT', [[centerX, centerY, centerZ]]);
+    // 間柱の配置点（下端）(mm) - IFC標準に従い下端を原点とする
+    const postOrigin = w.createEntity('IFCCARTESIANPOINT', [
+      [bottomPoint.x, bottomPoint.y, bottomPoint.z],
+    ]);
 
     // 回転角度を計算（度 → ラジアン）
     // isReferenceDirection=false の場合は90度追加（H型配置）
@@ -830,12 +839,12 @@ export class IFCBeamExporter extends IFCExporterBase {
       generateIfcGuid(),
       null, // OwnerHistory
       name,
-      'Post', // Description: 間柱であることを示す
-      'Post', // ObjectType: 間柱であることを示す
+      null, // Description
+      kindStructure, // ObjectType: kind_structure (S/RC/SRC/CFT)
       `#${postLocalPlacement}`,
       `#${productShape}`,
       null, // Tag
-      null, // PredefinedType
+      '.USERDEFINED.', // PredefinedType: 間柱識別子
     ]);
 
     // 間柱を階に所属させる（底部Z座標で適切な階を決定）
@@ -866,7 +875,14 @@ export class IFCBeamExporter extends IFCExporterBase {
       return null;
     }
 
-    const { name = 'Brace', startPoint, endPoint, profile, rotation = 0 } = braceData;
+    const {
+      name = 'Brace',
+      startPoint,
+      endPoint,
+      profile,
+      rotation = 0,
+      kindStructure = 'S',
+    } = braceData;
 
     // 必須パラメータのチェック
     if (!startPoint || !endPoint || !profile) {
@@ -1004,13 +1020,13 @@ export class IFCBeamExporter extends IFCExporterBase {
       [`#${shapeRep}`],
     ]);
 
-    // ブレースエンティティ（IFCMEMBER）
+    // ブレースエンティティ（IFCMEMBER、ObjectTypeにkind_structureを格納）
     const braceId = w.createEntity('IFCMEMBER', [
       generateIfcGuid(),
       null, // OwnerHistory
       name,
       null, // Description
-      null, // ObjectType
+      kindStructure, // ObjectType: kind_structure (S)
       `#${braceLocalPlacement}`,
       `#${productShape}`,
       null, // Tag

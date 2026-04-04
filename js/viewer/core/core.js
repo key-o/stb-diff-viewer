@@ -47,15 +47,7 @@ if (typeof window !== 'undefined') {
 // --- 定数 ---
 // 要素タイプ定義は js/config/elementTypes.js で一元管理
 // three依存を持たないため、テスト環境でも安全にインポート可能
-import {
-  SUPPORTED_ELEMENTS,
-  DISPLAY_MODE_ELEMENTS,
-  LABEL_ELEMENTS,
-  COLOR_ELEMENTS,
-  ELEMENT_CATEGORIES,
-  SUPPORTED_ELEMENTS_SET,
-  isSupportedElement,
-} from '../../constants/elementTypes.js';
+import { SUPPORTED_ELEMENTS } from '../../constants/elementTypes.js';
 
 // --- Three.js シーン / カメラ / レンダラー ---
 // エクスポートは必ず行うが、Node (tests) 環境ではブラウザ用初期化を行わない
@@ -190,10 +182,15 @@ export async function initRenderer() {
       log.error("ID 'three-canvas'のキャンバス要素が見つかりません。");
       return false;
     }
-    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    renderer = new THREE.WebGLRenderer({
+      canvas: canvas,
+      antialias: true,
+      // HTMLレポート出力時にcanvas.toDataURL()で画像取得できるようにする
+      preserveDrawingBuffer: true,
+    });
     // 出力してWebGLコンテキストが取得できているか確認
     try {
-      const gl = renderer.getContext && renderer.getContext();
+      renderer.getContext && renderer.getContext();
     } catch (e) {
       log.warn('WebGL context check failed:', e);
     }
@@ -364,9 +361,9 @@ let _clock = new THREE.Clock();
 /**
  * ビューポートリサイズハンドラーを設定
  * PerspectiveCameraとOrthographicCameraの両方に対応
- * @param {THREE.Camera} defaultCamera - デフォルトカメラ（後方互換性のため）
+ * @param {THREE.Camera} _defaultCamera - デフォルトカメラ（後方互換性のため）
  */
-export function setupViewportResizeHandler(defaultCamera) {
+export function setupViewportResizeHandler(_defaultCamera) {
   window.addEventListener(
     'resize',
     () => {

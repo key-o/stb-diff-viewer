@@ -9,6 +9,9 @@ import { COMPARISON_KEY_TYPE, DEFAULT_COMPARISON_KEY_TYPE } from '../config/comp
 // UI層への依存を解消: constants/から直接インポート
 import { COMPARISON_KEY_EVENTS } from '../constants/eventTypes.js';
 import { storageHelper } from '../utils/storageHelper.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('app:comparisonKeyManager');
 
 // storageHelper用のキー
 const STORAGE_KEY = 'comparison-key-type';
@@ -64,7 +67,7 @@ class ComparisonKeyManager {
   setKeyType(keyType) {
     // 入力検証
     if (!Object.values(COMPARISON_KEY_TYPE).includes(keyType)) {
-      console.error(`[ComparisonKeyManager] Invalid key type: ${keyType}`);
+      log.error(`[ComparisonKeyManager] Invalid key type: ${keyType}`);
       return false;
     }
 
@@ -137,7 +140,7 @@ class ComparisonKeyManager {
       try {
         callback(newKeyType, oldKeyType);
       } catch (error) {
-        console.error('[ComparisonKeyManager] Error in change listener:', error);
+        log.error('[ComparisonKeyManager] Error in change listener:', error);
       }
     });
   }

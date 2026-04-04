@@ -1,28 +1,24 @@
 /**
- * @fileoverview イベントシステムの統一エクスポート
+ * @fileoverview イベントシステムの統一エクスポート（Layer 1: data層）
  *
- * EventBusとイベントタイプをまとめてエクスポートします。
+ * EventBus（data/events/eventBus.js）とイベントタイプ定数（constants/eventTypes.js）を
+ * まとめてエクスポートします。
  *
  * 使用例:
  * ```javascript
- * import { eventBus, ImportanceEvents } from '../app/events/index.js';
+ * import { eventBus, ImportanceEvents } from '../data/events/index.js';
  *
- * // イベントを購読
- * eventBus.on(ImportanceEvents.SETTINGS_CHANGED, (data) => {
- *   console.log('Settings changed:', data);
- * });
- *
- * // イベントを発行
+ * eventBus.on(ImportanceEvents.SETTINGS_CHANGED, (data) => { ... });
  * eventBus.emit(ImportanceEvents.SETTINGS_CHANGED, { level: 'high' });
  * ```
  *
- * @module app/events
+ * @module data/events
  */
 
-// EventBus
+// EventBus（data層）
 export { EventBus, eventBus, default } from './eventBus.js';
 
-// Event Types
+// Event Types（constants層から再エクスポート）
 export {
   EventTypes,
   ImportanceEvents,
@@ -47,4 +43,4 @@ export {
   LoadingIndicatorEvents,
   FinalizationEvents,
   isValidEventType,
-} from './eventTypes.js';
+} from '../../constants/eventTypes.js';

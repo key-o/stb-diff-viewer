@@ -250,7 +250,11 @@ function determineDiffStatus(dataA, dataB, matchType) {
   if (dataA && !dataB) {
     return createDiffStatus('removed');
   }
-  if (matchType === 'exact' || matchType === 'unchanged' || matchType === COMPARISON_CATEGORY.EXACT) {
+  if (
+    matchType === 'exact' ||
+    matchType === 'unchanged' ||
+    matchType === COMPARISON_CATEGORY.EXACT
+  ) {
     return createDiffStatus('unchanged');
   }
   if (matchType === 'withinTolerance' || matchType === COMPARISON_CATEGORY.WITHIN_TOLERANCE) {

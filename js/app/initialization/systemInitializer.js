@@ -14,11 +14,15 @@ import {
   globalDiffStatusFilter,
 } from '../../ui/panels/diffStatusFilter.js';
 import { initializeDiffStatusPanel } from '../../ui/panels/diffStatusPanel.js';
-import { eventBus } from '../events/eventBus.js';
-import { EventTypes } from '../events/eventTypes.js';
+import { eventBus } from '../../data/events/eventBus.js';
+import { EventTypes } from '../../constants/eventTypes.js';
 import { getState } from '../globalState.js';
 import { buildMemberDataFromDocument, updateLoadCaseSelector } from './initializationUtils.js';
-import { initializeOutlineSystem, getLoadDisplayManager } from '../../viewer/index.js';
+import {
+  initializeOutlineSystem,
+  getLoadDisplayManager,
+  getModelBounds,
+} from '../../viewer/index.js';
 
 const log = createLogger('systemInitializer');
 
@@ -127,12 +131,16 @@ function updateLoadDisplayData() {
     loadManager.setData(calData, nodeMap, memberData);
 
     // モデルバウンドからスケールを自動計算
-    import('../../viewer/utils/utils.js').then(({ getModelBounds }) => {
-      const bounds = getModelBounds();
-      if (bounds && !bounds.isEmpty()) {
-        loadManager.computeAutoScale(bounds);
+    const bounds = getModelBounds();
+    if (bounds && !bounds.isEmpty()) {
+      loadManager.computeAutoScale(bounds);
+      if (loadManager._isVisible) {
+        loadManager.updateDisplay();
+        if (typeof window.requestRender === 'function') {
+          window.requestRender();
+        }
       }
-    });
+    }
 
     // 荷重ケースセレクターを更新
     updateLoadCaseSelector(calData.loadCases || []);

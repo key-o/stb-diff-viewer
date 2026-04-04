@@ -22,6 +22,9 @@ import { VirtualScrollManager } from '../common/virtualScroll.js';
 import { ELEMENT_ICONS, ELEMENT_LABELS } from '../../config/elementLabels.js';
 import { VIRTUAL_SCROLL_CONFIG } from '../../config/virtualScrollConfig.js';
 import { BaseTreeView } from './BaseTreeView.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:panels:elementTreeView');
 
 // 仮想スクロール関連（SSOT: virtualScrollConfig.js）
 const VIRTUAL_SCROLL_THRESHOLD = VIRTUAL_SCROLL_CONFIG.THRESHOLD;
@@ -99,7 +102,7 @@ class ElementTreeView extends BaseTreeView {
    */
   buildTree(comparisonResult) {
     if (!this.treeContainer) {
-      console.error('ツリービューが初期化されていません');
+      log.error('ツリービューが初期化されていません');
       return;
     }
 
@@ -426,7 +429,7 @@ class ElementTreeView extends BaseTreeView {
       const virtualManager = new VirtualScrollManager(children, {
         threshold: 1, // 常に仮想スクロールを使用（閾値チェックは既に済んでいる）
         itemHeight: VIRTUAL_ITEM_HEIGHT,
-        bufferSize: 15,
+        bufferSize: VIRTUAL_SCROLL_CONFIG.BUFFER_SIZE,
         renderItem: (element, _index) => {
           return this._createLeafNode(element, elementType, searchPattern);
         },
@@ -857,7 +860,7 @@ class ElementTreeView extends BaseTreeView {
 
     // 選択数の上限チェック（100件）
     if (this.selectedElementKeys.size > 100) {
-      console.warn(
+      log.warn(
         '\u9078\u629E\u4E0A\u9650\uFF08100\u8981\u7D20\uFF09\u3092\u8D85\u3048\u307E\u3057\u305F\u3002\u6700\u521D\u306E100\u8981\u7D20\u306E\u307F\u9078\u629E\u3055\u308C\u307E\u3059\u3002',
       );
       const keysArray = Array.from(this.selectedElementKeys);
@@ -873,7 +876,7 @@ class ElementTreeView extends BaseTreeView {
       });
     }
 
-    console.log(
+    log.info(
       `${elementType}\u30BF\u30A4\u30D7\u306E\u8981\u7D20\u3092${Math.min(elementsOfType.length, 100)}\u500B\u9078\u629E\u3057\u307E\u3057\u305F`,
     );
   }
@@ -915,7 +918,7 @@ class ElementTreeView extends BaseTreeView {
     navigator.clipboard
       .writeText(text)
       .then(() => {
-        console.log(
+        log.info(
           '\u30D7\u30ED\u30D1\u30C6\u30A3\u3092\u30AF\u30EA\u30C3\u30D7\u30DC\u30FC\u30C9\u306B\u30B3\u30D4\u30FC\u3057\u307E\u3057\u305F',
         );
         // 簡易的なフィードバック（将来的にトースト通知に置き換え）
@@ -930,7 +933,7 @@ class ElementTreeView extends BaseTreeView {
         }
       })
       .catch((err) => {
-        console.error(
+        log.error(
           '\u30AF\u30EA\u30C3\u30D7\u30DC\u30FC\u30C9\u3078\u306E\u30B3\u30D4\u30FC\u306B\u5931\u6557\u3057\u307E\u3057\u305F:',
           err,
         );

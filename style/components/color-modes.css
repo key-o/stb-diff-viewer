@@ -54,6 +54,11 @@
   color: #333;
 }
 
+.legend-list-btn {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .legend-color {
   width: 12px;
   height: 12px;

@@ -76,9 +76,7 @@ export function normalizeSectionData(sectionData, elementType) {
   }
 
   return {
-    type: normalizeProfileTypeToken(
-      sectionData.type || sectionData.section_type,
-    ),
+    type: normalizeProfileTypeToken(sectionData.type || sectionData.section_type),
     material: (sectionData.material || sectionData.strength_name || '')
       ?.toString()
       .trim()
@@ -396,9 +394,7 @@ function extractDimensions(sectionData, _elementType) {
   const dims = sectionData.dimensions || sectionData;
 
   // 断面タイプに応じた寸法抽出
-  const type = normalizeProfileTypeToken(
-    sectionData.type || sectionData.section_type,
-  );
+  const type = normalizeProfileTypeToken(sectionData.type || sectionData.section_type);
   const result = {};
 
   switch (type) {
@@ -517,4 +513,3 @@ function estimateStrength(material) {
 
   return strengthMap[mat] || null;
 }
-

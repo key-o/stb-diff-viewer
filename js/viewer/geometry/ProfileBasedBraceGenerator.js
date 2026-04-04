@@ -189,5 +189,3 @@ export function createBraceMeshes(
     isJsonInput,
   );
 }
-
-

@@ -8,6 +8,9 @@
  */
 
 import { storageHelper } from '../../utils/storageHelper.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:common:theme');
 
 /** @type {'light' | 'dark' | 'system'} */
 let currentThemeSetting = 'system';
@@ -97,19 +100,11 @@ export function getThemeSetting() {
  */
 export function setThemeSetting(setting) {
   if (!['light', 'dark', 'system'].includes(setting)) {
-    console.warn(`Invalid theme setting: ${setting}`);
+    log.warn(`Invalid theme setting: ${setting}`);
     return;
   }
 
   currentThemeSetting = setting;
   storageHelper.set('theme-setting', setting);
   applyTheme();
-}
-
-/**
- * ライト/ダークのみをトグル
- */
-function toggleLightDark() {
-  const current = getEffectiveTheme();
-  setThemeSetting(current === 'light' ? 'dark' : 'light');
 }

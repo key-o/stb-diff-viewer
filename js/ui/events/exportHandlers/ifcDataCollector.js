@@ -10,7 +10,6 @@ import {
   getOrParseStructureData,
   extractProfileFromSection,
   getSectionHeight,
-  calculateProfileVertices,
   convertToMultiSectionData,
 } from './commonDataCollector.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -174,6 +173,7 @@ function convertElementToBeamData(element, nodeMap, sectionMap, steelSections, e
       // IFCエクスポートで天端基準配置を使用（単一断面・多断面両方）
       placementMode: 'top-aligned',
       sectionHeight: sectionHeight,
+      stbType: elementType === 'Beam' ? 'StbBeam' : 'StbGirder',
     };
 
     // SRC造の場合、鉄骨プロファイルを追加
@@ -286,6 +286,7 @@ function convertColumnToExportData(element, nodeMap, sectionMap, steelSections, 
       profile,
       rotation,
       isReferenceDirection,
+      stbType: elementType === 'Post' ? 'StbPost' : 'StbColumn',
     };
 
     // SRC造の場合、鉄骨プロファイルを追加
@@ -575,7 +576,7 @@ function convertWallToExportData(element, nodeMap, sectionMap, openingElements =
         }
       } else {
         // STB 2.1.0の場合: id_memberを使用して壁と開口を関連付け
-        for (const [_openId, opening] of openingElements) {
+        for (const opening of openingElements.values()) {
           if (opening.kind_member === 'WALL' && String(opening.id_member) === String(element.id)) {
             openings.push({
               id: opening.id,
@@ -598,6 +599,7 @@ function convertWallToExportData(element, nodeMap, sectionMap, openingElements =
       height,
       thickness,
       predefinedType,
+      kindStructure: element.kind_structure || 'RC',
       openings,
     };
   } catch (error) {
@@ -856,6 +858,7 @@ export function collectFoundationColumnDataForExport() {
 
 /**
  * 基礎柱要素をエクスポート用データに変換
+ * StbFoundationColumn は1節点（id_node）+ FD/WR二重断面構造
  * @param {Object} element - 基礎柱要素
  * @param {Map} nodeMap - ノードマップ
  * @param {Map} sectionMap - 断面マップ
@@ -864,41 +867,57 @@ export function collectFoundationColumnDataForExport() {
  */
 function convertFoundationColumnToExportData(element, nodeMap, sectionMap, steelSections) {
   try {
-    const bottomNode = nodeMap.get(element.id_node_bottom);
-    const topNode = nodeMap.get(element.id_node_top);
-
-    if (!bottomNode || !topNode) {
-      log.warn(`基礎柱 ${element.id}: ノードが見つかりません`);
+    const baseNode = nodeMap.get(element.id_node);
+    if (!baseNode) {
+      log.warn(`基礎柱 ${element.id}: ノード ${element.id_node} が見つかりません`);
       return null;
     }
 
-    // 断面情報を取得
-    const section = sectionMap.get(element.id_section);
-    const profile = extractProfileFromSection(section, steelSections);
+    const lengthFD = element.length_FD || 0;
+    const lengthWR = element.length_WR || 0;
+    const totalLength = lengthFD + lengthWR;
 
-    // 回転角度を取得
-    const rotation = element.rotate || 0;
+    if (totalLength <= 0) {
+      log.warn(`基礎柱 ${element.id}: 長さが0です`);
+      return null;
+    }
 
-    // オフセット情報を取得
-    const offsetBottomX = element.offset_bottom_X || 0;
-    const offsetBottomY = element.offset_bottom_Y || 0;
-    const offsetTopX = element.offset_top_X || 0;
-    const offsetTopY = element.offset_top_Y || 0;
+    // FD断面の取得
+    let profileFD = null;
+    if (element.id_section_FD && lengthFD > 0) {
+      const numericFDId = parseInt(element.id_section_FD, 10);
+      const sectionFDId = isNaN(numericFDId) ? element.id_section_FD : numericFDId;
+      const sectionFD = sectionMap.get(sectionFDId);
+      profileFD = sectionFD ? extractProfileFromSection(sectionFD, steelSections) : null;
+    }
+
+    // WR断面の取得
+    let profileWR = null;
+    if (element.id_section_WR && lengthWR > 0) {
+      const numericWRId = parseInt(element.id_section_WR, 10);
+      const sectionWRId = isNaN(numericWRId) ? element.id_section_WR : numericWRId;
+      const sectionWR = sectionMap.get(sectionWRId);
+      profileWR = sectionWR ? extractProfileFromSection(sectionWR, steelSections) : null;
+    }
+
+    if (!profileFD && !profileWR) {
+      log.warn(`基礎柱 ${element.id}: FD/WR断面が両方見つかりません`);
+      return null;
+    }
+
+    const baseX = baseNode.x + (element.offset_FD_X || 0);
+    const baseY = baseNode.y + (element.offset_FD_Y || 0);
+    const baseZ = baseNode.z + (element.offset_Z || 0);
 
     return {
       name: element.name || `FoundationColumn_${element.id}`,
-      bottomPoint: {
-        x: bottomNode.x + offsetBottomX,
-        y: bottomNode.y + offsetBottomY,
-        z: bottomNode.z,
-      },
-      topPoint: {
-        x: topNode.x + offsetTopX,
-        y: topNode.y + offsetTopY,
-        z: topNode.z,
-      },
-      profile,
-      rotation,
+      topPoint: { x: baseX, y: baseY, z: baseZ },
+      bottomPoint: { x: baseX, y: baseY, z: baseZ - totalLength },
+      lengthFD,
+      lengthWR,
+      profileFD,
+      profileWR,
+      rotation: element.rotate || 0,
     };
   } catch (error) {
     log.warn(`基礎柱変換エラー (${element.id}):`, error);

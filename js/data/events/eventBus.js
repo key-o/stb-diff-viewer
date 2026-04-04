@@ -4,16 +4,20 @@
  * レイヤー間の疎結合通信を実現するイベントバスの実装。
  * Pub/Subパターンに基づき、コンポーネント間の直接依存を排除します。
  *
+ * Layer 1 (data) に配置し、app/services/viewer/ui からimport可能です。
+ *
  * 特徴:
- * - 型安全なイベント名（eventTypesモジュールと連携）
+ * - 型安全なイベント名（constants/eventTypesモジュールと連携）
  * - レガシーイベントとの後方互換性
  * - 開発時のデバッグサポート
  * - イベント履歴の追跡（オプション）
  *
- * @module app/events/eventBus
+ * @module data/events/eventBus
  */
 
-// Event types validation is handled internally
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('data:events:eventBus');
 
 /**
  * @typedef {Object} EventListener
@@ -73,11 +77,8 @@ class EventBus {
     const listener = { callback, context, once: false };
     this._listeners.get(eventType).add(listener);
 
-    if (this._debug) {
-    }
-
-    // 解除関数を返す
-    return () => this.off(eventType, callback);
+    // 解除関数は登録した listener オブジェクトを直接削除する
+    return () => this._removeListener(eventType, listener);
   }
 
   /**
@@ -99,10 +100,22 @@ class EventBus {
     const listener = { callback, context, once: true };
     this._listeners.get(eventType).add(listener);
 
-    if (this._debug) {
-    }
+    return () => this._removeListener(eventType, listener);
+  }
 
-    return () => this.off(eventType, callback);
+  /**
+   * 特定の listener オブジェクトを削除
+   * @private
+   * @param {string} eventType
+   * @param {EventListener} listener
+   */
+  _removeListener(eventType, listener) {
+    const listeners = this._listeners.get(eventType);
+    if (!listeners) return;
+    listeners.delete(listener);
+    if (listeners.size === 0) {
+      this._listeners.delete(eventType);
+    }
   }
 
   /**
@@ -118,8 +131,6 @@ class EventBus {
     if (!callback) {
       // 全リスナーを解除
       this._listeners.delete(eventType);
-      if (this._debug) {
-      }
       return;
     }
 
@@ -127,8 +138,6 @@ class EventBus {
     for (const listener of listeners) {
       if (listener.callback === callback) {
         listeners.delete(listener);
-        if (this._debug) {
-        }
         break;
       }
     }
@@ -145,9 +154,6 @@ class EventBus {
    * @param {*} [data] - イベントデータ
    */
   emit(eventType, data = null) {
-    if (this._debug) {
-    }
-
     // 履歴を追跡
     if (this._trackHistory) {
       this._addToHistory(eventType, data);
@@ -171,7 +177,7 @@ class EventBus {
             toRemove.push(listener);
           }
         } catch (error) {
-          console.error(`[EventBus] Error in listener for ${eventType}:`, error);
+          log.error(`[EventBus] Error in listener for ${eventType}:`, error);
         }
       }
 
@@ -242,9 +248,6 @@ class EventBus {
    */
   removeAllListeners() {
     this._listeners.clear();
-
-    if (this._debug) {
-    }
   }
 
   /**

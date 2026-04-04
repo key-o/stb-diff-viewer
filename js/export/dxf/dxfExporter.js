@@ -5,7 +5,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { eventBus, ToastEvents } from '../../app/events/index.js';
+import { eventBus, ToastEvents } from '../../data/events/index.js';
 import { downloadBlob } from '../../utils/downloadHelper.js';
 
 const log = createLogger('DXFExporter');

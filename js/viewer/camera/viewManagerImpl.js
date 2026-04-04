@@ -9,6 +9,9 @@ import * as THREE from 'three';
 import { controls } from '../core/core.js';
 import { getActiveCamera } from '../core/core.js';
 import { reaffirmControlsForCurrentMode } from './cameraManagerImpl.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('viewer:camera:viewManagerImpl');
 
 /**
  * ビュー方向定数
@@ -69,7 +72,7 @@ export function getCurrentView() {
 export function setView(viewType, modelBounds = null, enableTransition = false) {
   const camera = getActiveCamera();
   if (!camera) {
-    console.warn('[ViewManager] No active camera');
+    log.warn('[ViewManager] No active camera');
     return false;
   }
 
@@ -88,7 +91,7 @@ export function setView(viewType, modelBounds = null, enableTransition = false) 
     const maxDimension = Math.max(size.x, size.y, size.z);
     distance = maxDimension * 1.5; // モデルサイズの1.5倍
   } else {
-    console.warn('[ViewManager] Model bounds not available, using defaults');
+    log.warn('[ViewManager] Model bounds not available, using defaults');
   }
 
   let position;
@@ -267,7 +270,7 @@ export function setView(viewType, modelBounds = null, enableTransition = false) 
     }
 
     default:
-      console.warn('[ViewManager] Unknown view type:', viewType);
+      log.warn('[ViewManager] Unknown view type:', viewType);
       return false;
   }
 

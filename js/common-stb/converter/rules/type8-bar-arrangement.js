@@ -39,24 +39,6 @@ const COLUMN_BAR_ATTR_MAP_202_TO_210 = {
 };
 
 /**
- * Attribute mapping from 2.0.2 to 2.1.0 for beam bar arrangement
- */
-const BEAM_BAR_ATTR_MAP_202_TO_210 = {
-  D_main: 'D_main',
-  D_stirrup: 'D_stirrup',
-  D_web: 'D_web',
-  D_bar_spacing: 'D_bar_spacing',
-  strength_main: 'strength_main',
-  strength_stirrup: 'strength_stirrup',
-  strength_web: 'strength_web',
-  strength_bar_spacing: 'strength_bar_spacing',
-  N_main_top_1st: 'N_top',
-  N_main_bottom_1st: 'N_bottom',
-  pitch_stirrup: 'pitch_stirrup',
-  N_stirrup: 'N_stirrup',
-};
-
-/**
  * Attributes that move from parent to child element
  */
 const PARENT_TO_CHILD_ATTRS = [
@@ -158,20 +140,6 @@ function removeZeroValueAttrs(attrs) {
     }
   }
 }
-
-/**
- * 2.1.0 Beam bar element names and their Simple/Complex child names
- */
-const BEAM_BAR_ELEMENTS_210 = {
-  StbSecBarBeamSimple: {
-    child: 'StbSecBarBeamSimpleMain',
-    requiredAttrs: ['D_main', 'N_top', 'N_bottom', 'D_stirrup', 'pitch_stirrup'],
-  },
-  StbSecBarBeamComplex: {
-    // Complex beam has different structure
-    children: ['StbSecBarBeamComplexMain', 'StbSecBarBeamComplexStirrup'],
-  },
-};
 
 /**
  * Convert column bar arrangement elements for a single section
@@ -330,19 +298,19 @@ function convertBeamBarArrangement(barArrangement) {
     // Extract main bar info for creating StbSecBarBeamSimpleMain elements
     const D_main = oldAttrs['D_main'] || 'D19';
     const strength_main = oldAttrs['strength_main'];
-    const N_top = oldAttrs['N_main_top_1st'] || oldAttrs['N_top'] || '2';
-    const N_bottom = oldAttrs['N_main_bottom_1st'] || oldAttrs['N_bottom'] || '2';
+    const N_top = oldAttrs['N_main_top_1st'] || oldAttrs['N_top'] || '2'; // eslint-disable-line camelcase
+    const N_bottom = oldAttrs['N_main_bottom_1st'] || oldAttrs['N_bottom'] || '2'; // eslint-disable-line camelcase
 
     // Create two StbSecBarBeamSimpleMain child elements (TOP and BOTTOM)
     const mainElements = [];
 
     // TOP bar
-    const topAttrs = { pos: 'TOP', step: '1', D: D_main, N: N_top };
+    const topAttrs = { pos: 'TOP', step: '1', D: D_main, N: N_top }; // eslint-disable-line camelcase
     if (strength_main) topAttrs['strength'] = strength_main;
     mainElements.push({ $: topAttrs });
 
     // BOTTOM bar
-    const bottomAttrs = { pos: 'BOTTOM', step: '1', D: D_main, N: N_bottom };
+    const bottomAttrs = { pos: 'BOTTOM', step: '1', D: D_main, N: N_bottom }; // eslint-disable-line camelcase
     if (strength_main) bottomAttrs['strength'] = strength_main;
     mainElements.push({ $: bottomAttrs });
 
@@ -379,8 +347,12 @@ function convertBeamBarArrangement(barArrangement) {
     ];
     delete barArrangement['StbSecBarBeamComplex'];
     if (complexElements.length > 1) {
+      const usedPos = representativeAttrs.pos || 'unknown';
+      const droppedPositions = complexElements
+        .filter((e) => e !== representative)
+        .map((e) => e?.['$']?.pos || 'unknown');
       logger.warn(
-        `Beam bar complex has ${complexElements.length} position variants. Collapsed to one StbSecBarBeamSimple using representative section.`,
+        `Beam bar complex: ${complexElements.length} positions collapsed to 1 StbSecBarBeamSimple (kept=${usedPos}, dropped=[${droppedPositions.join(', ')}]). Position-specific data lost.`,
       );
     }
   }

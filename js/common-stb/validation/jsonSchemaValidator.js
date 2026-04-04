@@ -175,11 +175,205 @@ function validateElement(element, version, ctx, issues) {
     }
   }
 
+  // 子要素の親子関係を検証
+  validateChildRelationships(element, elementName, elementId, version, issues);
+
   // 子要素を再帰的に検証
   for (let i = 0; i < element.childNodes.length; i++) {
     const child = element.childNodes[i];
     if (child.nodeType === 1) {
       validateElement(child, version, ctx, issues);
+    }
+  }
+}
+
+/**
+ * 親要素の子要素構造を検証（許可要素・個数・choiceGroup排他性）
+ */
+function validateChildRelationships(element, elementName, elementId, version, issues) {
+  const def = getElementDefinitionForVersion(version, elementName);
+  if (!def || !def.children) return;
+
+  const allowedChildren = def.children;
+  const allowedNameSet = new Set(allowedChildren.map((c) => c.name));
+
+  // 直接子要素の名前カウントを収集
+  const actualCounts = {};
+  for (let i = 0; i < element.childNodes.length; i++) {
+    const child = element.childNodes[i];
+    if (child.nodeType !== 1) continue;
+    const name = child.localName || child.nodeName.replace(/^.*:/, '');
+    actualCounts[name] = (actualCounts[name] || 0) + 1;
+  }
+
+  // 未許可の子要素を検出
+  for (const name of Object.keys(actualCounts)) {
+    if (!allowedNameSet.has(name)) {
+      issues.push({
+        severity: SEVERITY.ERROR,
+        category: CATEGORY.SCHEMA,
+        elementType: elementName,
+        elementId,
+        element,
+        message: `要素 '${elementName}' の子として '${name}' は許可されていません`,
+        ...buildIssueLocation(element, null),
+        repairable: false,
+      });
+    }
+  }
+
+  // choiceGroup の排他性・必須チェック
+  const choiceGroups = new Map(); // groupId -> childDef[]
+  for (const childDef of allowedChildren) {
+    if (!childDef.choiceGroup) continue;
+    if (!choiceGroups.has(childDef.choiceGroup)) choiceGroups.set(childDef.choiceGroup, []);
+    choiceGroups.get(childDef.choiceGroup).push(childDef);
+  }
+
+  for (const [, members] of choiceGroups) {
+    // sequenceGroup ごとにメンバーをグループ化（null = 直接の choice 枝）
+    const seqGroups = new Map(); // sequenceGroupId -> childDef[]
+    const directMembers = [];
+    for (const m of members) {
+      if (m.sequenceGroup) {
+        if (!seqGroups.has(m.sequenceGroup)) seqGroups.set(m.sequenceGroup, []);
+        seqGroups.get(m.sequenceGroup).push(m);
+      } else {
+        directMembers.push(m);
+      }
+    }
+
+    // どの choice 枝が「選択された」か判定
+    // sequenceGroup: グループ内の要素が1つでも存在すれば「選択済み」
+    const presentSeqGroups = [];
+    for (const [sgId, sgMembers] of seqGroups) {
+      const hasAny = sgMembers.some((m) => (actualCounts[m.name] || 0) > 0);
+      if (hasAny) presentSeqGroups.push({ sgId, sgMembers });
+    }
+    const presentDirectMembers = directMembers.filter((m) => (actualCounts[m.name] || 0) > 0);
+    const selectedBranchCount = presentSeqGroups.length + presentDirectMembers.length;
+
+    // 複数の choice 枝が選択されている → 排他性違反
+    if (selectedBranchCount > 1) {
+      const presentNames = [
+        ...presentSeqGroups.flatMap(({ sgMembers }) =>
+          sgMembers.map((m) => m.name).filter((n) => (actualCounts[n] || 0) > 0),
+        ),
+        ...presentDirectMembers.map((m) => m.name),
+      ];
+      issues.push({
+        severity: SEVERITY.ERROR,
+        category: CATEGORY.SCHEMA,
+        elementType: elementName,
+        elementId,
+        element,
+        message: `要素 '${elementName}' のchoiceグループ内で複数種類の子要素が混在しています: ${presentNames.join(', ')}（いずれか1種類のみ許可）`,
+        ...buildIssueLocation(element, null),
+        repairable: false,
+      });
+    }
+
+    // choiceGroup 全体として必須か（いずれかのメンバーが minOccurs > 0）
+    const groupRequired = members.some((m) => m.minOccurs > 0);
+    if (groupRequired && selectedBranchCount === 0) {
+      const choices = members.map((m) => m.name).join(' / ');
+      issues.push({
+        severity: SEVERITY.ERROR,
+        category: CATEGORY.SCHEMA,
+        elementType: elementName,
+        elementId,
+        element,
+        message: `要素 '${elementName}' には必須の子要素がありません。次のいずれかが必要です: ${choices}`,
+        ...buildIssueLocation(element, null),
+        repairable: false,
+      });
+    }
+
+    // 選択された枝の個数チェック
+    // sequenceGroup が選択された場合: グループ内の各要素の個数を検証
+    for (const { sgMembers } of presentSeqGroups) {
+      for (const m of sgMembers) {
+        const count = actualCounts[m.name] || 0;
+        if (m.minOccurs > 0 && count < m.minOccurs) {
+          issues.push({
+            severity: SEVERITY.ERROR,
+            category: CATEGORY.SCHEMA,
+            elementType: elementName,
+            elementId,
+            message: `要素 '${elementName}' の子 '${m.name}' が ${count} 個ですが、${m.minOccurs} 個以上必要です`,
+            ...buildIssueLocation(element, null),
+            repairable: false,
+          });
+        }
+        if (m.maxOccurs !== -1 && count > m.maxOccurs) {
+          issues.push({
+            severity: SEVERITY.ERROR,
+            category: CATEGORY.SCHEMA,
+            elementType: elementName,
+            elementId,
+            message: `要素 '${elementName}' の子 '${m.name}' が ${count} 個ありますが、最大 ${m.maxOccurs} 個までです`,
+            ...buildIssueLocation(element, null),
+            repairable: false,
+          });
+        }
+      }
+    }
+    // 直接の choice 枝が選択された場合: 従来通りの個数チェック
+    if (presentDirectMembers.length === 1) {
+      const m = presentDirectMembers[0];
+      const count = actualCounts[m.name] || 0;
+      if (m.minOccurs > 0 && count < m.minOccurs) {
+        issues.push({
+          severity: SEVERITY.ERROR,
+          category: CATEGORY.SCHEMA,
+          elementType: elementName,
+          elementId,
+          message: `要素 '${elementName}' の子 '${m.name}' が ${count} 個ですが、${m.minOccurs} 個以上必要です`,
+          ...buildIssueLocation(element, null),
+          repairable: false,
+        });
+      }
+      if (m.maxOccurs !== -1 && count > m.maxOccurs) {
+        issues.push({
+          severity: SEVERITY.ERROR,
+          category: CATEGORY.SCHEMA,
+          elementType: elementName,
+          elementId,
+          message: `要素 '${elementName}' の子 '${m.name}' が ${count} 個ありますが、最大 ${m.maxOccurs} 個までです`,
+          ...buildIssueLocation(element, null),
+          repairable: false,
+        });
+      }
+    }
+  }
+
+  // choiceGroup に属さない必須/個数制約チェック
+  for (const childDef of allowedChildren) {
+    if (childDef.choiceGroup) continue;
+    const count = actualCounts[childDef.name] || 0;
+    if (childDef.minOccurs > 0 && count < childDef.minOccurs) {
+      issues.push({
+        severity: SEVERITY.ERROR,
+        category: CATEGORY.SCHEMA,
+        elementType: elementName,
+        elementId,
+        element,
+        message: `要素 '${elementName}' に必須の子要素 '${childDef.name}' がありません（${childDef.minOccurs} 個以上必要、現在 ${count} 個）`,
+        ...buildIssueLocation(element, null),
+        repairable: false,
+      });
+    }
+    if (childDef.maxOccurs !== -1 && count > childDef.maxOccurs) {
+      issues.push({
+        severity: SEVERITY.ERROR,
+        category: CATEGORY.SCHEMA,
+        elementType: elementName,
+        elementId,
+        element,
+        message: `要素 '${elementName}' の子 '${childDef.name}' が ${count} 個ありますが、最大 ${childDef.maxOccurs} 個までです`,
+        ...buildIssueLocation(element, null),
+        repairable: false,
+      });
     }
   }
 }
@@ -222,6 +416,7 @@ function convertAjvError(err, elementName, elementId, attrs, element) {
       category: CATEGORY.SCHEMA,
       elementType: elementName,
       elementId,
+      element,
       ...buildIssueLocation(element, resolvedAttribute),
       ...overrides,
     };
@@ -350,12 +545,31 @@ function buildIssueLocation(element, attributeName) {
     if (!segments[i].id) continue;
 
     const head = `//${buildXPathSegment(segments[i])}`;
-    const tail = segments.slice(i + 1).map((s) => buildXPathSegment(s)).join('/');
+    const tail = segments
+      .slice(i + 1)
+      .map((s) => buildXPathSegment(s))
+      .join('/');
     const base = tail ? `${head}/${tail}` : head;
     idXPath = attributeName ? `${base}/@${attributeName}` : base;
     anchorElementType = segments[i].name;
     anchorElementId = segments[i].id;
     break;
+  }
+
+  // id属性を持つ祖先がない場合（StbSecSteel内の断面要素等）、
+  // 要素自身のname属性をアンカーIDとして使用することで検索可能にする
+  if (!anchorElementId && element.getAttribute) {
+    const nameValue = element.getAttribute('name');
+    if (nameValue) {
+      anchorElementId = nameValue;
+      const lastSeg = segments[segments.length - 1];
+      anchorElementType = lastSeg?.name;
+      if (lastSeg) {
+        const nameAnchor = `${lastSeg.name}[@name=${toXPathLiteral(nameValue)}]`;
+        const base = `//${nameAnchor}`;
+        idXPath = attributeName ? `${base}/@${attributeName}` : base;
+      }
+    }
   }
 
   return {

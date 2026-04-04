@@ -21,7 +21,7 @@ let isInitialized = false;
  */
 export async function setOrbitCenterToSelected() {
   const { getSelectedCenter, createOrUpdateOrbitCenterHelper } =
-    await import('../../app/interaction.js');
+    await import('../../app/controllers/interactionController.js');
   const center = getSelectedCenter();
 
   if (!center) {
@@ -49,7 +49,7 @@ export async function setOrbitCenterToSelected() {
  * 回転中心をリセット（ヘルパーを非表示に）
  */
 export async function resetOrbitCenter() {
-  const { hideOrbitCenterHelper } = await import('../../app/interaction.js');
+  const { hideOrbitCenterHelper } = await import('../../app/controllers/interactionController.js');
   hideOrbitCenterHelper();
 }
 
@@ -103,7 +103,7 @@ function handleKeyDown(event) {
 
     case 'escape':
       // Escape: 選択解除
-      import('../../app/interaction.js').then(({ resetSelection }) => {
+      import('../../app/controllers/interactionController.js').then(({ resetSelection }) => {
         resetSelection();
         log.debug('Selection cleared via Escape key');
       });

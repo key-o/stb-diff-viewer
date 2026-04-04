@@ -8,9 +8,13 @@
  * メッシュのジオメトリ情報を詳細にダンプ
  * @param {THREE.Mesh} mesh - 対象メッシュ
  */
+
+import { createLogger } from '../../../utils/logger.js';
+
+const log = createLogger('viewer:geometry:debug:GeometryDebugger');
 function dumpGeometryInfo(mesh) {
   if (!mesh || !mesh.geometry) {
-    console.error('Invalid mesh or missing geometry');
+    log.error('Invalid mesh or missing geometry');
     return null;
   }
 
@@ -18,7 +22,7 @@ function dumpGeometryInfo(mesh) {
   const position = geometry.attributes.position;
 
   if (!position) {
-    console.error('No position attribute found');
+    log.error('No position attribute found');
     return null;
   }
 
@@ -124,7 +128,7 @@ function getSectionHeightAtZ(geometry, zPosition, tolerance = 1) {
   }
 
   if (count === 0) {
-    console.warn(`No vertices found at z=${zPosition} ± ${tolerance}`);
+    log.warn(`No vertices found at z=${zPosition} ± ${tolerance}`);
     return null;
   }
 
@@ -140,7 +144,7 @@ function getSectionHeightAtZ(geometry, zPosition, tolerance = 1) {
  */
 function verifyTopEdgePlacement(mesh, length) {
   if (!mesh || !mesh.geometry) {
-    console.error('Invalid mesh');
+    log.error('Invalid mesh');
     return;
   }
 
@@ -172,7 +176,7 @@ function verifyTopEdgePlacement(mesh, length) {
     const deviation = maxTop - minTop;
 
     if (deviation >= 0.1) {
-      console.warn(`⚠️ 天端がずれています（許容値: 0.1mm）`);
+      log.warn(`⚠️ 天端がずれています（許容値: 0.1mm）`);
     }
   }
 

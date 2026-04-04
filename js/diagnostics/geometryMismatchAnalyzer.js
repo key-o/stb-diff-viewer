@@ -500,5 +500,5 @@ if (typeof window !== 'undefined') {
     panel: (report, options = {}) => showGeometryMismatchPanel(report, options),
     analyzeMesh: analyzeMeshGeometry,
   };
-  console.log('GeometryMismatchAnalyzer ready. Use window.GeometryMismatchAnalyzer.scan().');
+  log.info('GeometryMismatchAnalyzer ready. Use window.GeometryMismatchAnalyzer.scan().');
 }

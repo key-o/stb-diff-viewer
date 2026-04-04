@@ -13,6 +13,9 @@ import {
   getActiveCamera,
   getModelBounds,
 } from '../../../viewer/index.js';
+import { createLogger } from '../../../utils/logger.js';
+
+const log = createLogger('ui:viewer3d:viewCube:ViewCube');
 
 /**
  * ViewCube クラス
@@ -135,7 +138,7 @@ export class ViewCube {
 
     const viewDirection = viewMap[viewId];
     if (!viewDirection) {
-      console.warn('[ViewCube] Unknown view:', viewId);
+      log.warn('[ViewCube] Unknown view:', viewId);
       return;
     }
 
@@ -248,8 +251,8 @@ export class ViewCube {
 
     // カメラのquaternionを反転（カメラから見た世界 → 世界から見たカメラ）
     const invQuaternion = quaternion.clone().invert();
-    const R_three = new THREE.Matrix4().makeRotationFromQuaternion(invQuaternion);
-    const r = R_three.elements;
+    const R_three = new THREE.Matrix4().makeRotationFromQuaternion(invQuaternion); // eslint-disable-line camelcase
+    const r = R_three.elements; // eslint-disable-line camelcase
 
     // Three.js回転行列の要素 (列優先):
     // r[0] r[4] r[8]    Xx Yx Zx

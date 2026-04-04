@@ -4,269 +4,53 @@
  * StbDiffCheckerの重要度判定機能をJavaScriptに移植した中核システム。
  * ST-Bridge要素の重要度設定、管理、検証を提供します。
  *
- * 重要度レベル:
- * - required: 高重要度（必須）
- * - optional: 中重要度（任意）
- * - unnecessary: 低重要度（不要）
- * - notApplicable: 対象外
+ * 定数は constants/importanceConstants.js、
+ * パス正規化は data/importance/pathNormalizer.js、
+ * CSV入出力は app/importance/csvSerializer.js、
+ * 統計収集は app/importance/statisticsCollector.js に分離。
+ *
+ * @module app/importanceManager
  */
 
 import { validateImportanceSettings } from '../common-stb/validation/importanceValidation.js';
-import { getState, setState } from './globalState.js';
-import { eventBus, ImportanceEvents } from './events/index.js';
+import { setState } from './globalState.js';
+import { eventBus, ImportanceEvents } from '../data/events/index.js';
 import { FALLBACK_IMPORTANCE_SETTINGS } from '../config/importanceConfig.js';
 import { loadConfigById } from '../config/importanceConfigLoader.js';
-import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../constants/importanceLevels.js';
+import { IMPORTANCE_LEVELS } from '../constants/importanceLevels.js';
 import {
   initializeXsdSchemas,
   getElementDefinition,
   validateAttributeValue,
 } from '../common-stb/import/parser/xsdSchemaParser.js';
+import { createLogger } from '../utils/logger.js';
 
-const MVD_MODES = {
-  S2: 's2',
-  S4: 's4',
-  COMBINED: 'mvd-combined',
-};
+// 分離モジュールからインポート
+import {
+  MVD_MODES,
+  IMPORTANCE_PRIORITY,
+  STB_ELEMENT_TABS,
+  TAB_PARENT_PATHS,
+} from '../constants/importanceConstants.js';
+import {
+  normalizeImportancePath,
+  shouldSkipImportancePath,
+} from '../data/importance/pathNormalizer.js';
+import {
+  exportToCSV as csvExportToCSV,
+  importFromCSV as csvImportFromCSV,
+} from './importance/csvSerializer.js';
+import {
+  collectStatistics,
+  resetFallbackStats,
+  recordFallback,
+  recordCheck,
+} from './importance/statisticsCollector.js';
 
-const IMPORTANCE_PRIORITY = {
-  [IMPORTANCE_LEVELS.NOT_APPLICABLE]: 0,
-  [IMPORTANCE_LEVELS.UNNECESSARY]: 1,
-  [IMPORTANCE_LEVELS.OPTIONAL]: 2,
-  [IMPORTANCE_LEVELS.REQUIRED]: 3,
-};
+const log = createLogger('app:importanceManager');
 
-const MODEL_CONTAINER_PATHS = new Set([
-  '//ST_BRIDGE/StbModel/StbNodes',
-  '//ST_BRIDGE/StbModel/StbAxes',
-  '//ST_BRIDGE/StbModel/StbStories',
-  '//ST_BRIDGE/StbModel/StbMembers',
-  '//ST_BRIDGE/StbModel/StbSections',
-  '//ST_BRIDGE/StbModel/StbJoints',
-  '//ST_BRIDGE/StbModel/StbConnections',
-  '//ST_BRIDGE/StbModel/StbWeld',
-]);
-
-const MEMBER_COLLECTION_NAMES = [
-  'StbColumns',
-  'StbPosts',
-  'StbGirders',
-  'StbBeams',
-  'StbBraces',
-  'StbSlabs',
-  'StbWalls',
-  'StbFootings',
-  'StbStripFootings',
-  'StbPiles',
-  'StbFoundationColumns',
-  'StbParapets',
-  'StbOpens',
-];
-
-const COLLECTION_ID_ATTR_PATTERN = new RegExp(
-  `^//ST_BRIDGE/StbModel/(?:StbNodes|StbAxes|StbStories|StbMembers|StbSections|StbJoints|StbConnections|StbWeld|StbMembers/(?:${MEMBER_COLLECTION_NAMES.join('|')}))/@(?:id|guid|name)$`,
-);
-
-const MODEL_CONTAINER_ATTR_PATTERN = new RegExp(
-  '^//ST_BRIDGE/StbModel/(?:StbNodes|StbAxes|StbStories|StbMembers|StbSections|StbJoints|StbConnections|StbWeld)/@',
-);
-
-const MODEL_PREFIXED_ROOT_NAMES = [
-  'StbNodes',
-  'StbAxes',
-  'StbStories',
-  'StbMembers',
-  'StbSections',
-  'StbJoints',
-  'StbConnections',
-  'StbWeld',
-];
-
-const AXIS_COLLECTION_NAMES = ['StbParallelAxes', 'StbArcAxes', 'StbRadialAxes', 'StbDrawingAxes'];
-
-const SINGULAR_ELEMENT_PARENT_MAP = {
-  StbNode: 'StbNodes',
-  StbStory: 'StbStories',
-  StbParallelAxis: 'StbAxes/StbParallelAxes',
-  StbArcAxis: 'StbAxes/StbArcAxes',
-  StbRadialAxis: 'StbAxes/StbRadialAxes',
-  StbColumn: 'StbMembers/StbColumns',
-  StbPost: 'StbMembers/StbPosts',
-  StbGirder: 'StbMembers/StbGirders',
-  StbBeam: 'StbMembers/StbBeams',
-  StbBrace: 'StbMembers/StbBraces',
-  StbSlab: 'StbMembers/StbSlabs',
-  StbWall: 'StbMembers/StbWalls',
-  StbFooting: 'StbMembers/StbFootings',
-  StbStripFooting: 'StbMembers/StbStripFootings',
-  StbPile: 'StbMembers/StbPiles',
-  StbFoundationColumn: 'StbMembers/StbFoundationColumns',
-  StbParapet: 'StbMembers/StbParapets',
-  StbOpen: 'StbMembers/StbOpens',
-};
-
-/**
- * タブIDから正確な親XPathへのマッピング
- * ST-Bridgeスキーマの階層構造に基づく
- */
-const TAB_PARENT_PATHS = {
-  StbCommon: '//ST_BRIDGE',
-  StbNodes: '//ST_BRIDGE/StbModel/StbNodes',
-  StbParallelAxes: '//ST_BRIDGE/StbModel/StbAxes/StbParallelAxes',
-  StbArcAxes: '//ST_BRIDGE/StbModel/StbAxes/StbArcAxes',
-  StbRadialAxes: '//ST_BRIDGE/StbModel/StbAxes/StbRadialAxes',
-  StbDrawingLineAxis: '//ST_BRIDGE/StbModel/StbAxes/StbDrawingAxes',
-  StbDrawingArcAxis: '//ST_BRIDGE/StbModel/StbAxes/StbDrawingAxes',
-  StbStories: '//ST_BRIDGE/StbModel/StbStories',
-  StbColumns: '//ST_BRIDGE/StbModel/StbMembers/StbColumns',
-  StbPosts: '//ST_BRIDGE/StbModel/StbMembers/StbPosts',
-  StbGirders: '//ST_BRIDGE/StbModel/StbMembers/StbGirders',
-  StbBeams: '//ST_BRIDGE/StbModel/StbMembers/StbBeams',
-  StbBraces: '//ST_BRIDGE/StbModel/StbMembers/StbBraces',
-  StbSlabs: '//ST_BRIDGE/StbModel/StbMembers/StbSlabs',
-  StbWalls: '//ST_BRIDGE/StbModel/StbMembers/StbWalls',
-  StbFootings: '//ST_BRIDGE/StbModel/StbMembers/StbFootings',
-  StbStripFootings: '//ST_BRIDGE/StbModel/StbMembers/StbStripFootings',
-  StbPiles: '//ST_BRIDGE/StbModel/StbMembers/StbPiles',
-  StbFoundationColumns: '//ST_BRIDGE/StbModel/StbMembers/StbFoundationColumns',
-  StbParapets: '//ST_BRIDGE/StbModel/StbMembers/StbParapets',
-  StbOpens: '//ST_BRIDGE/StbModel/StbMembers/StbOpens',
-  StbSecColumn_RC: '//ST_BRIDGE/StbModel/StbSections/StbSecColumn_RC',
-  StbSecColumn_S: '//ST_BRIDGE/StbModel/StbSections/StbSecColumn_S',
-  StbSecColumn_SRC: '//ST_BRIDGE/StbModel/StbSections/StbSecColumn_SRC',
-  StbSecColumn_CFT: '//ST_BRIDGE/StbModel/StbSections/StbSecColumn_CFT',
-  StbSecBeam_RC: '//ST_BRIDGE/StbModel/StbSections/StbSecBeam_RC',
-  StbSecBeam_S: '//ST_BRIDGE/StbModel/StbSections/StbSecBeam_S',
-  StbSecBeam_SRC: '//ST_BRIDGE/StbModel/StbSections/StbSecBeam_SRC',
-  StbSecBrace_S: '//ST_BRIDGE/StbModel/StbSections/StbSecBrace_S',
-  StbSecSlab_RC: '//ST_BRIDGE/StbModel/StbSections/StbSecSlab_RC',
-  StbSecSlabDeck: '//ST_BRIDGE/StbModel/StbSections/StbSecSlabDeck',
-  StbSecSlabPrecast: '//ST_BRIDGE/StbModel/StbSections/StbSecSlabPrecast',
-  StbSecWall_RC: '//ST_BRIDGE/StbModel/StbSections/StbSecWall_RC',
-  StbSecFoundation_RC: '//ST_BRIDGE/StbModel/StbSections/StbSecFoundation_RC',
-  StbSecPile_RC: '//ST_BRIDGE/StbModel/StbSections/StbSecPile_RC',
-  StbSecPile_S: '//ST_BRIDGE/StbModel/StbSections/StbSecPile_S',
-  StbSecPileProduct: '//ST_BRIDGE/StbModel/StbSections/StbSecPileProduct',
-  StbSecParapet_RC: '//ST_BRIDGE/StbModel/StbSections/StbSecParapet_RC',
-  StbJoints: '//ST_BRIDGE/StbModel/StbJoints',
-};
-
-function normalizeImportancePath(rawPath) {
-  if (!rawPath || typeof rawPath !== 'string') return null;
-  let path = rawPath.trim();
-  if (!path) return null;
-
-  path = path.replace(/\/Stbposts\b/g, '/StbPosts').replace(/\/Stbpost\b/g, '/StbPost');
-  path = path.replace(/^\/\/ST_BRIDGE\/ST_BRIDGE\b/, '//ST_BRIDGE');
-  path = path.replace(
-    /^\/\/ST_BRIDGE\/StbMode\/(StbNodes|StbAxes|StbStories|StbMembers|StbSections|StbJoints|StbConnections|StbWeld)\b/,
-    '//ST_BRIDGE/StbModel/$1',
-  );
-
-  for (const name of MODEL_PREFIXED_ROOT_NAMES) {
-    path = path.replace(
-      new RegExp(`^//ST_BRIDGE/(?:StbModel/)?${name}\\b`),
-      `//ST_BRIDGE/StbModel/${name}`,
-    );
-  }
-
-  for (const name of MEMBER_COLLECTION_NAMES) {
-    path = path.replace(
-      new RegExp(`^//ST_BRIDGE/(?:StbModel/)?${name}\\b`),
-      `//ST_BRIDGE/StbModel/StbMembers/${name}`,
-    );
-  }
-
-  for (const name of AXIS_COLLECTION_NAMES) {
-    path = path.replace(
-      new RegExp(`^//ST_BRIDGE/(?:StbModel/)?${name}\\b`),
-      `//ST_BRIDGE/StbModel/StbAxes/${name}`,
-    );
-  }
-
-  for (const [name, parent] of Object.entries(SINGULAR_ELEMENT_PARENT_MAP)) {
-    path = path.replace(
-      new RegExp(`^//ST_BRIDGE/(?:StbModel/)?${name}\\b`),
-      `//ST_BRIDGE/StbModel/${parent}/${name}`,
-    );
-  }
-
-  path = path.replace(
-    /^\/\/ST_BRIDGE\/(?:StbModel\/)?StbSec(?!tions\b)/,
-    '//ST_BRIDGE/StbModel/StbSections/StbSec',
-  );
-  path = path.replace(
-    /^\/\/ST_BRIDGE\/(?:StbModel\/)?StbJoint(?!s\b)/,
-    '//ST_BRIDGE/StbModel/StbJoints/StbJoint',
-  );
-  path = path.replace(
-    /^\/\/ST_BRIDGE\/StbModel\/StbAxes\/StbParallelAxis\b/,
-    '//ST_BRIDGE/StbModel/StbAxes/StbParallelAxes/StbParallelAxis',
-  );
-  path = path.replace(
-    /^\/\/ST_BRIDGE\/StbModel\/StbAxes\/StbArcAxis\b/,
-    '//ST_BRIDGE/StbModel/StbAxes/StbArcAxes/StbArcAxis',
-  );
-  path = path.replace(
-    /^\/\/ST_BRIDGE\/StbModel\/StbAxes\/StbRadialAxis\b/,
-    '//ST_BRIDGE/StbModel/StbAxes/StbRadialAxes/StbRadialAxis',
-  );
-  path = path.replace('/StbModel/StbSections/StbSections', '/StbModel/StbSections');
-  path = path.replace('/StbModel/StbModel/', '/StbModel/');
-
-  return path;
-}
-
-function shouldSkipImportancePath(path) {
-  if (!path) return true;
-  if (MODEL_CONTAINER_PATHS.has(path)) return true;
-  if (COLLECTION_ID_ATTR_PATTERN.test(path)) return true;
-  if (MODEL_CONTAINER_ATTR_PATTERN.test(path)) return true;
-  return false;
-}
-
-// STB要素のタブ別グループ化定義（C#版ImportanceSetting.csと対応）
-export const STB_ELEMENT_TABS = [
-  { id: 'StbCommon', name: 'StbCommon', xsdElem: 'StbCommon' },
-  { id: 'StbNodes', name: 'StbNodes', xsdElem: 'StbNode' },
-  { id: 'StbParallelAxes', name: 'StbParallelAxes', xsdElem: 'StbParallelAxis' },
-  { id: 'StbArcAxes', name: 'StbArcAxes', xsdElem: 'StbArcAxis' },
-  { id: 'StbRadialAxes', name: 'StbRadialAxes', xsdElem: 'StbRadialAxis' },
-  { id: 'StbDrawingLineAxis', name: 'StbDrawingLineAxis', xsdElem: 'StbDrawingLineAxis' },
-  { id: 'StbDrawingArcAxis', name: 'StbDrawingArcAxis', xsdElem: 'StbDrawingArcAxis' },
-  { id: 'StbStories', name: 'StbStories', xsdElem: 'StbStory' },
-  { id: 'StbColumns', name: 'StbColumns', xsdElem: 'StbColumn' },
-  { id: 'StbPosts', name: 'StbPosts', xsdElem: 'StbPost' },
-  { id: 'StbGirders', name: 'StbGirders', xsdElem: 'StbGirder' },
-  { id: 'StbBeams', name: 'StbBeams', xsdElem: 'StbBeam' },
-  { id: 'StbBraces', name: 'StbBraces', xsdElem: 'StbBrace' },
-  { id: 'StbSlabs', name: 'StbSlabs', xsdElem: 'StbSlab' },
-  { id: 'StbWalls', name: 'StbWalls', xsdElem: 'StbWall' },
-  { id: 'StbFootings', name: 'StbFootings', xsdElem: 'StbFooting' },
-  { id: 'StbStripFootings', name: 'StbStripFootings', xsdElem: 'StbStripFooting' },
-  { id: 'StbPiles', name: 'StbPiles', xsdElem: 'StbPile' },
-  { id: 'StbFoundationColumns', name: 'StbFoundationColumns', xsdElem: 'StbFoundationColumn' },
-  { id: 'StbParapets', name: 'StbParapets', xsdElem: 'StbParapet' },
-  { id: 'StbOpens', name: 'StbOpens', xsdElem: 'StbOpen' },
-  { id: 'StbSecColumn_RC', name: 'StbSecColumn_RC' },
-  { id: 'StbSecColumn_S', name: 'StbSecColumn_S' },
-  { id: 'StbSecColumn_SRC', name: 'StbSecColumn_SRC' },
-  { id: 'StbSecColumn_CFT', name: 'StbSecColumn_CFT' },
-  { id: 'StbSecBeam_RC', name: 'StbSecBeam_RC' },
-  { id: 'StbSecBeam_S', name: 'StbSecBeam_S' },
-  { id: 'StbSecBeam_SRC', name: 'StbSecBeam_SRC' },
-  { id: 'StbSecBrace_S', name: 'StbSecBrace_S' },
-  { id: 'StbSecSlab_RC', name: 'StbSecSlab_RC' },
-  { id: 'StbSecSlabDeck', name: 'StbSecSlabDeck' },
-  { id: 'StbSecSlabPrecast', name: 'StbSecSlabPrecast' },
-  { id: 'StbSecWall_RC', name: 'StbSecWall_RC' },
-  { id: 'StbSecFoundation_RC', name: 'StbSecFoundation_RC' },
-  { id: 'StbSecPile_RC', name: 'StbSecPile_RC' },
-  { id: 'StbSecPile_S', name: 'StbSecPile_S' },
-  { id: 'StbSecPileProduct', name: 'StbSecPileProduct' },
-  { id: 'StbSecParapet_RC', name: 'StbSecParapet_RC' },
-  { id: 'StbJoints', name: 'StbJoints' },
-];
+// STB_ELEMENT_TABSを再エクスポート（外部利用者の互換性維持）
+export { STB_ELEMENT_TABS };
 
 /**
  * 重要度管理システムのメインクラス
@@ -317,6 +101,39 @@ class ImportanceManager {
   }
 
   /**
+   * 既存パス群に合わせて、大小文字違いの重複パスを正規化する
+   * @param {string} path
+   * @returns {string|null}
+   */
+  resolveCanonicalPath(path) {
+    const normalized = this.normalizePath(path);
+    if (!normalized) return null;
+
+    if (this.orderedElementPaths.includes(normalized)) {
+      return normalized;
+    }
+
+    const lower = normalized.toLowerCase();
+    const orderedMatch = this.orderedElementPaths.find((p) => p.toLowerCase() === lower);
+    if (orderedMatch) {
+      return orderedMatch;
+    }
+
+    for (const existingPath of this.mvdImportanceSettings[MVD_MODES.S2].keys()) {
+      if (existingPath.toLowerCase() === lower) {
+        return existingPath;
+      }
+    }
+    for (const existingPath of this.mvdImportanceSettings[MVD_MODES.S4].keys()) {
+      if (existingPath.toLowerCase() === lower) {
+        return existingPath;
+      }
+    }
+
+    return normalized;
+  }
+
+  /**
    * 重要度管理システムを初期化する
    * @param {string} _xsdContent - ST-Bridge XSDスキーマ内容
    * @returns {Promise<boolean>} 初期化成功フラグ
@@ -337,7 +154,7 @@ class ImportanceManager {
 
       return true;
     } catch (error) {
-      console.error('重要度マネージャーの初期化に失敗しました:', error);
+      log.error('重要度マネージャーの初期化に失敗しました:', error);
       return false;
     }
   }
@@ -355,105 +172,89 @@ class ImportanceManager {
         loadConfigById(MVD_MODES.S4),
       ]);
     } catch (error) {
-      console.warn(
-        '[ImportanceManager] MVD設定ファイルの読み込みに失敗したため既定値を使用します:',
-        error,
-      );
+      log.warn('[ImportanceManager] MVD設定ファイルの読み込みに失敗しました:', error);
     }
 
     this.s2ParameterChecks.clear();
-    const s2ParameterChecks = s2Config?.parameterChecks || {};
-    for (const [rawPath, options] of Object.entries(s2ParameterChecks)) {
-      const path = this.normalizePath(rawPath);
-      if (!path) continue;
-      this.s2ParameterChecks.set(path, {
-        checkRequired: options?.checkRequired !== false,
-        checkValue: options?.checkValue !== false,
-      });
+
+    // 設定ファイルが読めなかった場合は機能利用不可
+    if (!s2Config || !s4Config) {
+      log.error(
+        '[ImportanceManager] MVD設定ファイルが読み込めないため重要度設定を利用できません。',
+      );
+      this.mvdImportanceSettings[MVD_MODES.S2] = new Map();
+      this.mvdImportanceSettings[MVD_MODES.S4] = new Map();
+      this.rebuildEffectiveImportanceSettings();
+      return;
     }
 
+    // S2/S4 の REQUIRED パスセットを構築
+    const s2RequiredPaths = new Set();
+    for (const [rawPath, level] of Object.entries(s2Config.settings || {})) {
+      if (level !== IMPORTANCE_LEVELS.REQUIRED) continue;
+      const path = this.resolveCanonicalPath(rawPath);
+      if (path) s2RequiredPaths.add(path);
+    }
+
+    const s4RequiredPaths = new Set();
+    for (const [rawPath, level] of Object.entries(s4Config.settings || {})) {
+      if (level !== IMPORTANCE_LEVELS.REQUIRED) continue;
+      const path = this.resolveCanonicalPath(rawPath);
+      if (path) s4RequiredPaths.add(path);
+    }
+
+    // S4 は S2 を包含するため S2 の REQUIRED は S4 にも追加
+    for (const path of s2RequiredPaths) {
+      s4RequiredPaths.add(path);
+    }
+
+    // 全既知パスを収集（XSD由来 + S2/S4 JSON由来）
+    const allPaths = new Set([
+      ...this.orderedElementPaths.map((p) => this.normalizePath(p)).filter(Boolean),
+      ...s2RequiredPaths,
+      ...s4RequiredPaths,
+    ]);
+
+    // orderedElementPaths を更新（JSON由来の新規パスを追加）
+    for (const path of allPaths) {
+      if (!this.orderedElementPaths.includes(path)) {
+        this.orderedElementPaths.push(path);
+      }
+    }
+
+    // フラットパス（JSON由来）から「要素名/@属性名」の末尾キーセットを構築。
+    // XSD由来の階層パス（StbSecColumn_RC/StbSecFigureColumn_RC/StbSecColumn_RC_Rect/@width_X）
+    // とフラットパス（StbSecColumn_RC_Rect/@width_X）のマッチングに使用。
+    const buildTailKeySet = (requiredPaths) => {
+      const tails = new Set();
+      for (const p of requiredPaths) {
+        const atIdx = p.lastIndexOf('/@');
+        if (atIdx === -1) continue;
+        const slashBefore = p.lastIndexOf('/', atIdx - 1);
+        if (slashBefore === -1) continue;
+        tails.add(p.slice(slashBefore + 1)); // "ElementName/@attrName"
+      }
+      return tails;
+    };
+    const s2TailKeys = buildTailKeySet(s2RequiredPaths);
+    const s4TailKeys = buildTailKeySet(s4RequiredPaths);
+
+    const matchesTailKey = (path, tailKeys) => {
+      const atIdx = path.lastIndexOf('/@');
+      if (atIdx === -1) return false;
+      const slashBefore = path.lastIndexOf('/', atIdx - 1);
+      if (slashBefore === -1) return false;
+      return tailKeys.has(path.slice(slashBefore + 1));
+    };
+
+    // S2/S4 マップを構築：JSON の required リストに含まれる → REQUIRED、それ以外 → NOT_APPLICABLE
     const s2Map = new Map();
     const s4Map = new Map();
-
-    // 既知パスを最初に登録
-    for (const rawPath of this.orderedElementPaths) {
-      const path = this.normalizePath(rawPath);
-      if (!path) continue;
-      s2Map.set(path, IMPORTANCE_LEVELS.OPTIONAL);
-      s4Map.set(path, IMPORTANCE_LEVELS.OPTIONAL);
-    }
-
-    // S2パターンを適用（明示設定より低い優先度）
-    this.applyPatterns(s2Map, s2Config?.patterns);
-
-    // S2設定を反映（パターンを上書き）
-    const s2Settings = s2Config?.settings || {};
-    for (const [rawPath, level] of Object.entries(s2Settings)) {
-      const path = this.normalizePath(rawPath);
-      if (!path) continue;
-      if (!this.orderedElementPaths.includes(path)) {
-        this.orderedElementPaths.push(path);
-      }
-      s2Map.set(path, level);
-      if (!s4Map.has(path)) {
-        s4Map.set(path, IMPORTANCE_LEVELS.OPTIONAL);
-      }
-    }
-
-    // S4パターンを適用（明示設定より低い優先度）
-    this.applyPatterns(s4Map, s4Config?.patterns);
-
-    // S4設定を反映（パターンを上書き）
-    const s4Settings = s4Config?.settings || {};
-    for (const [rawPath, level] of Object.entries(s4Settings)) {
-      const path = this.normalizePath(rawPath);
-      if (!path) continue;
-      if (!this.orderedElementPaths.includes(path)) {
-        this.orderedElementPaths.push(path);
-      }
-      s4Map.set(path, level);
-      if (!s2Map.has(path)) {
-        s2Map.set(path, IMPORTANCE_LEVELS.OPTIONAL);
-      }
-    }
-
-    // S2/S4設定で追加されたパスにもパターンを適用
-    const s2ExplicitPaths = new Set(
-      Object.keys(s2Settings)
-        .map((p) => this.normalizePath(p))
-        .filter(Boolean),
-    );
-    const s4ExplicitPaths = new Set(
-      Object.keys(s4Settings)
-        .map((p) => this.normalizePath(p))
-        .filter(Boolean),
-    );
-    this.applyPatterns(s2Map, s2Config?.patterns, s2ExplicitPaths);
-    this.applyPatterns(s4Map, s4Config?.patterns, s4ExplicitPaths);
-
-    // S4 は S2 を包含するため、S4 が未指定・または弱い場合は S2 を継承
-    const allPaths = new Set([...s2Map.keys(), ...s4Map.keys(), ...this.orderedElementPaths]);
     for (const path of allPaths) {
-      if (!s2Map.has(path)) {
-        s2Map.set(path, IMPORTANCE_LEVELS.OPTIONAL);
-      }
-      const normalizedS4 = this.normalizeS4Level(path, s2Map.get(path), s4Map.get(path));
-      s4Map.set(path, normalizedS4);
-    }
-
-    // 設定ファイルが読めなかった場合のフォールバック
-    if (!s2Config && !s4Config) {
-      for (const [rawPath, level] of Object.entries(FALLBACK_IMPORTANCE_SETTINGS)) {
-        const path = this.normalizePath(rawPath);
-        if (!path) continue;
-        s4Map.set(path, level);
-        s2Map.set(
-          path,
-          level === IMPORTANCE_LEVELS.REQUIRED
-            ? IMPORTANCE_LEVELS.REQUIRED
-            : IMPORTANCE_LEVELS.OPTIONAL,
-        );
-      }
+      const isS2 = s2RequiredPaths.has(path) || matchesTailKey(path, s2TailKeys);
+      const isS4 = s4RequiredPaths.has(path) || matchesTailKey(path, s4TailKeys);
+      s2Map.set(path, isS2 ? IMPORTANCE_LEVELS.REQUIRED : IMPORTANCE_LEVELS.NOT_APPLICABLE);
+      s4Map.set(path, isS4 ? IMPORTANCE_LEVELS.REQUIRED : IMPORTANCE_LEVELS.NOT_APPLICABLE);
     }
 
     this.mvdImportanceSettings[MVD_MODES.S2] = s2Map;
@@ -514,20 +315,24 @@ class ImportanceManager {
    * @param {string} path
    */
   ensurePathExistsInMvdSettings(path) {
-    const normalizedPath = this.normalizePath(path);
+    const normalizedPath = this.resolveCanonicalPath(path);
     if (!normalizedPath) return null;
     if (!this.orderedElementPaths.includes(normalizedPath)) {
       this.orderedElementPaths.push(normalizedPath);
     }
+    // 未登録パスは対象外として追加
     if (!this.mvdImportanceSettings[MVD_MODES.S2].has(normalizedPath)) {
-      this.mvdImportanceSettings[MVD_MODES.S2].set(normalizedPath, IMPORTANCE_LEVELS.OPTIONAL);
+      this.mvdImportanceSettings[MVD_MODES.S2].set(
+        normalizedPath,
+        IMPORTANCE_LEVELS.NOT_APPLICABLE,
+      );
     }
-    const s2 = this.mvdImportanceSettings[MVD_MODES.S2].get(normalizedPath);
-    const s4 = this.mvdImportanceSettings[MVD_MODES.S4].get(normalizedPath);
-    this.mvdImportanceSettings[MVD_MODES.S4].set(
-      normalizedPath,
-      this.normalizeS4Level(normalizedPath, s2, s4),
-    );
+    if (!this.mvdImportanceSettings[MVD_MODES.S4].has(normalizedPath)) {
+      this.mvdImportanceSettings[MVD_MODES.S4].set(
+        normalizedPath,
+        IMPORTANCE_LEVELS.NOT_APPLICABLE,
+      );
+    }
     return normalizedPath;
   }
 
@@ -571,19 +376,14 @@ class ImportanceManager {
   getMvdImportanceLevel(elementPath, mvdMode) {
     const normalizedPath = this.ensurePathExistsInMvdSettings(elementPath);
     if (!normalizedPath) {
-      return IMPORTANCE_LEVELS.OPTIONAL;
+      return IMPORTANCE_LEVELS.NOT_APPLICABLE;
     }
 
-    if (mvdMode === MVD_MODES.S2) {
-      return (
-        this.mvdImportanceSettings[MVD_MODES.S2].get(normalizedPath) || IMPORTANCE_LEVELS.OPTIONAL
-      );
-    }
-
-    const s2Level =
-      this.mvdImportanceSettings[MVD_MODES.S2].get(normalizedPath) || IMPORTANCE_LEVELS.OPTIONAL;
-    const s4Level = this.mvdImportanceSettings[MVD_MODES.S4].get(normalizedPath);
-    return this.normalizeS4Level(normalizedPath, s2Level, s4Level);
+    const map =
+      mvdMode === MVD_MODES.S2
+        ? this.mvdImportanceSettings[MVD_MODES.S2]
+        : this.mvdImportanceSettings[MVD_MODES.S4];
+    return map.get(normalizedPath) ?? IMPORTANCE_LEVELS.NOT_APPLICABLE;
   }
 
   /**
@@ -631,11 +431,11 @@ class ImportanceManager {
   setMvdImportanceLevel(elementPath, mvdMode, importanceLevel, options = {}) {
     const { notify = true, rebuild = true } = options;
     if (!Object.values(IMPORTANCE_LEVELS).includes(importanceLevel)) {
-      console.error(`無効な重要度レベル: ${importanceLevel}`);
+      log.error(`無効な重要度レベル: ${importanceLevel}`);
       return false;
     }
     if (mvdMode !== MVD_MODES.S2 && mvdMode !== MVD_MODES.S4) {
-      console.error(`無効なMVDモード: ${mvdMode}`);
+      log.error(`無効なMVDモード: ${mvdMode}`);
       return false;
     }
 
@@ -700,7 +500,7 @@ class ImportanceManager {
     // 最大深度チェック（無限再帰防止）
     const MAX_DEPTH = 20;
     if (depth >= MAX_DEPTH) {
-      console.warn(`[ImportanceManager] Max depth ${MAX_DEPTH} reached at: ${currentPath}`);
+      log.warn(`[ImportanceManager] Max depth ${MAX_DEPTH} reached at: ${currentPath}`);
       return paths;
     }
 
@@ -760,7 +560,7 @@ class ImportanceManager {
       // XSDをロード
       const loaded = await initializeXsdSchemas();
       if (!loaded) {
-        console.warn('XSDのロードに失敗しました。補完をスキップします。');
+        log.warn('XSDのロードに失敗しました。補完をスキップします。');
       } else {
         // 各タブについて、XSDから階層的にパスを生成
         for (const tab of STB_ELEMENT_TABS) {
@@ -814,7 +614,7 @@ class ImportanceManager {
         }
       }
     } catch (error) {
-      console.error('XSD解析と設定生成中にエラーが発生しました:', error);
+      log.error('XSD解析と設定生成中にエラーが発生しました:', error);
     }
 
     await this.initializeMvdSettings();
@@ -943,25 +743,15 @@ class ImportanceManager {
 
     const importance = this.userImportanceSettings.get(normalizedPath);
 
-    // 統計収集
-    const stats = getState('importance.fallbackStats') || {
-      totalChecks: 0,
-      fallbackCount: 0,
-      undefinedPaths: new Set(),
-    };
-
-    stats.totalChecks++;
-
     if (!importance) {
-      // フォールバック発生
-      stats.fallbackCount++;
-      stats.undefinedPaths.add(normalizedPath);
-      setState('importance.fallbackStats', stats);
+      recordFallback(normalizedPath);
 
       // デバッグログ（開発時のみ）
       if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-        console.debug(`[Importance] Fallback to OPTIONAL: ${normalizedPath}`);
+        log.debug(`[Importance] Fallback to OPTIONAL: ${normalizedPath}`);
       }
+    } else {
+      recordCheck();
     }
 
     // 設定がない場合はOPTIONAL（MVDに記載されていない要素は任意扱い）
@@ -976,7 +766,7 @@ class ImportanceManager {
    */
   setImportanceLevel(elementPath, importanceLevel) {
     if (!Object.values(IMPORTANCE_LEVELS).includes(importanceLevel)) {
-      console.error(`無効な重要度レベル: ${importanceLevel}`);
+      log.error(`無効な重要度レベル: ${importanceLevel}`);
       return false;
     }
 
@@ -1165,18 +955,78 @@ class ImportanceManager {
    * @returns {string} CSV形式の文字列
    */
   exportToCSV() {
-    const lines = ['Element Path,S2 Level,S4 Level,Effective Level'];
+    return csvExportToCSV(
+      this.orderedElementPaths,
+      (path, mode) => this.getMvdImportanceLevel(path, mode),
+      (path) => this.getImportanceLevel(path),
+    );
+  }
 
-    for (const path of this.orderedElementPaths) {
-      const s2Level = this.getMvdImportanceLevel(path, MVD_MODES.S2);
-      const s4Level = this.getMvdImportanceLevel(path, MVD_MODES.S4);
-      const effectiveLevel = this.getImportanceLevel(path);
-      lines.push(
-        `"${path}","${IMPORTANCE_LEVEL_NAMES[s2Level]}","${IMPORTANCE_LEVEL_NAMES[s4Level]}","${IMPORTANCE_LEVEL_NAMES[effectiveLevel]}"`,
-      );
+  /**
+   * 重要度設定をJSON形式（mvd-s2.json互換フォーマット）でエクスポートする
+   * @param {string} mvdLevel - 's2' | 's4' | 'combined'
+   * @returns {string} JSON形式の文字列
+   */
+  exportToJSON(mvdLevel = 'combined') {
+    const elements = {};
+
+    if (mvdLevel === 'combined' || mvdLevel === 's2') {
+      for (const [path, level] of this.mvdImportanceSettings[MVD_MODES.S2].entries()) {
+        if (level !== IMPORTANCE_LEVELS.REQUIRED) continue;
+        // path例: //ST_BRIDGE/StbColumn/@id → elementName: StbColumn, attr: id
+        const match = path.match(/\/\/ST_BRIDGE\/([^/]+)\/@(.+)/);
+        if (!match) continue;
+        const [, elementName, attr] = match;
+        if (!elements[elementName]) elements[elementName] = { required: [] };
+        if (!elements[elementName].required.includes(attr)) {
+          elements[elementName].required.push(attr);
+        }
+      }
     }
 
-    return lines.join('\n');
+    const result = {
+      version: '1.0',
+      mvdLevel: mvdLevel === 'combined' ? 'combined' : mvdLevel,
+      schemaVersion: '2.0.2',
+      description: `MVD ${mvdLevel.toUpperCase()} - エクスポート設定`,
+      elements,
+    };
+    return JSON.stringify(result, null, 2);
+  }
+
+  /**
+   * JSON形式の重要度設定をインポートする（mvd-s2.json互換フォーマット）
+   * @param {string} jsonContent - JSON文字列
+   * @returns {boolean} インポート成功フラグ
+   */
+  importFromJSON(jsonContent) {
+    try {
+      const config = JSON.parse(jsonContent);
+      if (!config.elements || typeof config.elements !== 'object') {
+        return false;
+      }
+
+      const targetMvd = config.mvdLevel === 's4' ? [MVD_MODES.S4] : [MVD_MODES.S2, MVD_MODES.S4];
+
+      for (const [elementName, elementDef] of Object.entries(config.elements)) {
+        for (const attr of elementDef.required || []) {
+          const path = `//ST_BRIDGE/${elementName}/@${attr}`;
+          for (const mode of targetMvd) {
+            this.setMvdImportanceLevel(path, mode, IMPORTANCE_LEVELS.REQUIRED, {
+              notify: false,
+              rebuild: false,
+            });
+          }
+        }
+      }
+
+      this.rebuildEffectiveImportanceSettings();
+      this.notifySettingsChanged();
+      return true;
+    } catch (error) {
+      log.error('JSONのインポートに失敗しました:', error);
+      return false;
+    }
   }
 
   /**
@@ -1185,111 +1035,13 @@ class ImportanceManager {
    * @returns {boolean} インポート成功フラグ
    */
   importFromCSV(csvContent) {
-    try {
-      const lines = csvContent.split('\n').filter((line) => line.trim());
-      if (lines.length <= 1) {
-        return false;
-      }
-
-      // ヘッダー行をスキップ
-      const dataLines = lines.slice(1);
-      let updated = false;
-
-      for (const line of dataLines) {
-        const [pathStr, s2Name, s4Name, effectiveName] = this.parseCSVLine(line);
-        if (!pathStr) {
-          continue;
-        }
-
-        const s2Level = this.getImportanceLevelFromName(s2Name);
-        const s4Level = this.getImportanceLevelFromName(s4Name);
-        const effectiveLevel = this.getImportanceLevelFromName(effectiveName);
-
-        if (s2Level) {
-          this.setMvdImportanceLevel(pathStr, MVD_MODES.S2, s2Level, {
-            notify: false,
-            rebuild: false,
-          });
-          updated = true;
-        }
-
-        if (s4Level) {
-          this.setMvdImportanceLevel(pathStr, MVD_MODES.S4, s4Level, {
-            notify: false,
-            rebuild: false,
-          });
-          updated = true;
-        }
-
-        // 旧形式（Element Path,Importance Level）も受け入れる
-        if (!s2Level && !s4Level && effectiveLevel) {
-          this.setMvdImportanceLevel(pathStr, MVD_MODES.S2, effectiveLevel, {
-            notify: false,
-            rebuild: false,
-          });
-          this.setMvdImportanceLevel(pathStr, MVD_MODES.S4, effectiveLevel, {
-            notify: false,
-            rebuild: false,
-          });
-          updated = true;
-        }
-      }
-
-      if (!updated) {
-        return false;
-      }
-
-      this.rebuildEffectiveImportanceSettings();
-      this.notifySettingsChanged();
-      return true;
-    } catch (error) {
-      console.error('CSVのインポートに失敗しました:', error);
-      return false;
-    }
-  }
-
-  /**
-   * CSV行を解析する
-   * @param {string} line - CSV行
-   * @returns {[string, string, string, string]} パス/S2/S4/有効重要度
-   */
-  parseCSVLine(line) {
-    if (!line || typeof line !== 'string') {
-      return [null, null, null, null];
-    }
-
-    // "..." で囲まれたカラムを優先的に解析
-    const quoted = [...line.matchAll(/"([^"]*)"/g)].map((m) => m[1]);
-    if (quoted.length >= 4) {
-      return [quoted[0], quoted[1], quoted[2], quoted[3]];
-    }
-    if (quoted.length >= 2) {
-      return [quoted[0], quoted[1], null, null];
-    }
-
-    const parts = line.split(',').map((part) => part.trim());
-    if (parts.length >= 4) {
-      return [parts[0], parts[1], parts[2], parts[3]];
-    }
-    if (parts.length >= 2) {
-      return [parts[0], parts[1], null, null];
-    }
-
-    return [null, null, null, null];
-  }
-
-  /**
-   * 日本語名から重要度レベルを取得する
-   * @param {string} importanceName - 重要度の日本語名
-   * @returns {string|null} 重要度レベル
-   */
-  getImportanceLevelFromName(importanceName) {
-    for (const [level, name] of Object.entries(IMPORTANCE_LEVEL_NAMES)) {
-      if (name === importanceName) {
-        return level;
-      }
-    }
-    return null;
+    return csvImportFromCSV(
+      csvContent,
+      (path, mode, level, opts) => this.setMvdImportanceLevel(path, mode, level, opts),
+      () => this.rebuildEffectiveImportanceSettings(),
+      () => this.notifySettingsChanged(),
+      log,
+    );
   }
 
   /**
@@ -1360,7 +1112,7 @@ class ImportanceManager {
       this.notifySettingsChanged();
       return true;
     } catch (error) {
-      console.error('[ImportanceManager] 外部設定の読み込みに失敗:', error);
+      log.error('[ImportanceManager] 外部設定の読み込みに失敗:', error);
       return false;
     }
   }
@@ -1406,58 +1158,19 @@ class ImportanceManager {
    * @returns {Object} 統計情報
    */
   getStatistics() {
-    const stats = {
-      total: this.orderedElementPaths.length,
-      byLevel: {},
-      totalParameterCount: 0,
-      xsdRequiredCount: 0,
-      s2TargetCount: 0,
-      s4TargetCount: 0,
-    };
-
-    // レベル別の統計
-    for (const level of Object.values(IMPORTANCE_LEVELS)) {
-      stats.byLevel[level] = 0;
-    }
-
-    for (const importance of this.userImportanceSettings.values()) {
-      stats.byLevel[importance]++;
-    }
-
-    for (const path of this.orderedElementPaths) {
-      // 重要度設定画面では属性パラメータを対象とする
-      if (!path.includes('/@')) {
-        continue;
-      }
-      stats.totalParameterCount++;
-
-      if (this.getSchemaRequirement(path).required) {
-        stats.xsdRequiredCount++;
-      }
-
-      const s2Level = this.getMvdImportanceLevel(path, MVD_MODES.S2);
-      const s4Level = this.getMvdImportanceLevel(path, MVD_MODES.S4);
-
-      if (s2Level !== IMPORTANCE_LEVELS.NOT_APPLICABLE) {
-        stats.s2TargetCount++;
-      }
-      if (s4Level !== IMPORTANCE_LEVELS.NOT_APPLICABLE) {
-        stats.s4TargetCount++;
-      }
-    }
-
-    return stats;
+    return collectStatistics(
+      this.orderedElementPaths,
+      this.userImportanceSettings,
+      (path, mode) => this.getMvdImportanceLevel(path, mode),
+      (path) => this.getSchemaRequirement(path),
+    );
   }
 
   /**
    * フォールバック統計をリセット
    */
   resetFallbackStats() {
-    setState('importance.fallbackStats', {
-      totalChecks: 0,
-      fallbackCount: 0,
-      undefinedPaths: new Set(),
-    });
+    resetFallbackStats();
   }
 
   /**
@@ -1579,10 +1292,10 @@ export async function initializeImportanceManager(xsdContent = null) {
       const response = await fetch('./schemas/ST-Bridge202.xsd');
       if (response.ok) {
         xsdContent = await response.text();
-        console.log('XSDスキーマを読み込みました: schemas/ST-Bridge202.xsd');
+        log.info('XSDスキーマを読み込みました: schemas/ST-Bridge202.xsd');
       }
     } catch (error) {
-      console.warn('XSDスキーマの読み込みに失敗しました:', error);
+      log.warn('XSDスキーマの読み込みに失敗しました:', error);
     }
   }
 

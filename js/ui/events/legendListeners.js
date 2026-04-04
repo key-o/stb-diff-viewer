@@ -7,23 +7,18 @@
  */
 
 // --- UI Element Reference ---
-const legendPanel = document.getElementById('legendPanel');
 
-/**
- * Handle legend toggle
- * @param {Event} event - Click event
- */
-function handleLegendToggle(event) {
-  event.preventDefault();
-  toggleLegend();
-}
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('ui:events:legendListeners');
+const legendPanel = document.getElementById('legendPanel');
 
 /**
  * Toggle legend visibility
  */
 export function toggleLegend() {
   if (!legendPanel) {
-    console.warn('[UI] 凡例: パネル要素が見つかりません');
+    log.warn('[UI] 凡例: パネル要素が見つかりません');
     return;
   }
 
@@ -31,11 +26,11 @@ export function toggleLegend() {
 
   if (isCurrentlyVisible) {
     legendPanel.classList.add('hidden');
-    console.log('[Event] 凡例: 非表示');
+    log.info('[Event] 凡例: 非表示');
   } else {
     legendPanel.classList.remove('hidden');
     updateLegendContent(); // 凡例内容を更新
-    console.log('[Event] 凡例: 表示');
+    log.info('[Event] 凡例: 表示');
   }
 
   // Update toggle button text if it exists

@@ -52,21 +52,6 @@ export function normalizeAttributeName(attrName) {
 }
 
 /**
- * Check if two attribute names are semantically equivalent
- * @param {string} nameA - First attribute name
- * @param {string} nameB - Second attribute name
- * @returns {boolean} True if semantically equivalent
- */
-function areAttributeNamesEquivalent(nameA, nameB) {
-  if (nameA === nameB) return true;
-
-  const normalizedA = normalizeAttributeName(nameA);
-  const normalizedB = normalizeAttributeName(nameB);
-
-  return normalizedA === normalizedB;
-}
-
-/**
  * Classification of difference types
  */
 export const DIFF_TYPE = {

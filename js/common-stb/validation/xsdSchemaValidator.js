@@ -80,6 +80,7 @@ function validateElement(element, version, issues, parentDef) {
           message: `要素 '${elementName}' はこのコンテキストで予期されていません（親要素: '${parentDef.name}'）`,
           elementType: elementName,
           elementId: element.getAttribute('id') || '',
+          element,
           repairable: false,
         });
       }
@@ -124,6 +125,7 @@ function validateAttributes(element, elementName, elemDef, version, issues) {
           message: `要素 '${elementName}' に必須属性 '${attrName}' がありません`,
           elementType: elementName,
           elementId,
+          element,
           attribute: attrName,
           repairable: false,
         });
@@ -150,6 +152,7 @@ function validateAttributes(element, elementName, elemDef, version, issues) {
           message: `要素 '${elementName}' で属性 '${attrName}' は宣言されていません`,
           elementType: elementName,
           elementId,
+          element,
           attribute: attrName,
           value: attr.value,
           repairable: false,
@@ -160,7 +163,7 @@ function validateAttributes(element, elementName, elemDef, version, issues) {
       // 値のバリデーション
       const value = attr.value;
       if (value !== null && value !== undefined) {
-        validateAttributeValue(elementName, elementId, attrName, value, attrDef, version, issues);
+        validateAttributeValue(elementName, elementId, element, attrName, value, attrDef, version, issues);
       }
     }
   }
@@ -169,7 +172,7 @@ function validateAttributes(element, elementName, elemDef, version, issues) {
 /**
  * 属性値を検証
  */
-function validateAttributeValue(elementName, elementId, attrName, value, attrDef, version, issues) {
+function validateAttributeValue(elementName, elementId, element, attrName, value, attrDef, version, issues) {
   // fixed値チェック
   if (attrDef.fixed !== null && attrDef.fixed !== undefined && value !== attrDef.fixed) {
     issues.push({
@@ -178,6 +181,7 @@ function validateAttributeValue(elementName, elementId, attrName, value, attrDef
       message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' はfixed値 '${attrDef.fixed}' と一致しません`,
       elementType: elementName,
       elementId,
+      element,
       attribute: attrName,
       value,
       expected: attrDef.fixed,
@@ -191,6 +195,7 @@ function validateAttributeValue(elementName, elementId, attrName, value, attrDef
     validateValueConstraints(
       elementName,
       elementId,
+      element,
       attrName,
       value,
       attrDef.constraints,
@@ -206,14 +211,14 @@ function validateAttributeValue(elementName, elementId, attrName, value, attrDef
 
     // 組み込み型
     if (attrDef.type.startsWith('xs:') || attrDef.type.startsWith('xsd:')) {
-      validateBuiltinType(elementName, elementId, attrName, value, typeName, issues);
+      validateBuiltinType(elementName, elementId, element, attrName, value, typeName, issues);
       return;
     }
 
     // カスタムsimpleType
     const simpleType = getSimpleTypeForVersion(version, typeName);
     if (simpleType) {
-      validateSimpleTypeValue(elementName, elementId, attrName, value, simpleType, version, issues);
+      validateSimpleTypeValue(elementName, elementId, element, attrName, value, simpleType, version, issues);
     }
   }
 }
@@ -224,6 +229,7 @@ function validateAttributeValue(elementName, elementId, attrName, value, attrDef
 function validateValueConstraints(
   elementName,
   elementId,
+  element,
   attrName,
   value,
   constraints,
@@ -239,6 +245,7 @@ function validateValueConstraints(
         message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' は許可されていません。期待値: ${constraints.enumerations.join(', ')}`,
         elementType: elementName,
         elementId,
+        element,
         attribute: attrName,
         value,
         expected: constraints.enumerations,
@@ -259,6 +266,7 @@ function validateValueConstraints(
         message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' は有効な数値ではありません`,
         elementType: elementName,
         elementId,
+        element,
         attribute: attrName,
         value,
         repairable: false,
@@ -266,7 +274,7 @@ function validateValueConstraints(
       return;
     }
 
-    checkNumericConstraints(elementName, elementId, attrName, value, num, constraints, issues);
+    checkNumericConstraints(elementName, elementId, element, attrName, value, num, constraints, issues);
   }
 
   // minLengthチェック
@@ -278,6 +286,7 @@ function validateValueConstraints(
         message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' はminLength制約 '${constraints.minLength}' を満たしていません`,
         elementType: elementName,
         elementId,
+        element,
         attribute: attrName,
         value,
         repairable: false,
@@ -301,6 +310,7 @@ function validateValueConstraints(
         message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' はパターン制約に一致しません`,
         elementType: elementName,
         elementId,
+        element,
         attribute: attrName,
         value,
         repairable: false,
@@ -315,6 +325,7 @@ function validateValueConstraints(
 function checkNumericConstraints(
   elementName,
   elementId,
+  element,
   attrName,
   value,
   num,
@@ -329,6 +340,7 @@ function checkNumericConstraints(
         message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' はminExclusiveファセット '${constraints.minExclusive}' に違反しています`,
         elementType: elementName,
         elementId,
+        element,
         attribute: attrName,
         value,
         expected: `> ${constraints.minExclusive}`,
@@ -345,6 +357,7 @@ function checkNumericConstraints(
         message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' はmaxExclusiveファセット '${constraints.maxExclusive}' に違反しています`,
         elementType: elementName,
         elementId,
+        element,
         attribute: attrName,
         value,
         expected: `< ${constraints.maxExclusive}`,
@@ -361,6 +374,7 @@ function checkNumericConstraints(
         message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' はminInclusiveファセット '${constraints.minInclusive}' に違反しています`,
         elementType: elementName,
         elementId,
+        element,
         attribute: attrName,
         value,
         expected: `>= ${constraints.minInclusive}`,
@@ -377,6 +391,7 @@ function checkNumericConstraints(
         message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' はmaxInclusiveファセット '${constraints.maxInclusive}' に違反しています`,
         elementType: elementName,
         elementId,
+        element,
         attribute: attrName,
         value,
         expected: `<= ${constraints.maxInclusive}`,
@@ -392,6 +407,7 @@ function checkNumericConstraints(
 function validateSimpleTypeValue(
   elementName,
   elementId,
+  element,
   attrName,
   value,
   simpleType,
@@ -408,6 +424,7 @@ function validateSimpleTypeValue(
         validateSimpleTypeValue(
           elementName,
           elementId,
+          element,
           attrName,
           value,
           mtDef,
@@ -418,7 +435,7 @@ function validateSimpleTypeValue(
       }
       // 組み込み型
       const tempErrors = [];
-      validateBuiltinType(elementName, elementId, attrName, value, mtName, tempErrors);
+      validateBuiltinType(elementName, elementId, element, attrName, value, mtName, tempErrors);
       return tempErrors.length === 0;
     });
     if (!isValid) {
@@ -428,6 +445,7 @@ function validateSimpleTypeValue(
         message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' はunion型のいずれのメンバー型にも適合しません`,
         elementType: elementName,
         elementId,
+        element,
         attribute: attrName,
         value,
         repairable: false,
@@ -445,6 +463,7 @@ function validateSimpleTypeValue(
         message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' は許可されていません。期待値: ${simpleType.enumerations.join(', ')}`,
         elementType: elementName,
         elementId,
+        element,
         attribute: attrName,
         value,
         expected: simpleType.enumerations,
@@ -467,6 +486,7 @@ function validateSimpleTypeValue(
         message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' は有効な数値ではありません`,
         elementType: elementName,
         elementId,
+        element,
         attribute: attrName,
         value,
         repairable: false,
@@ -474,7 +494,7 @@ function validateSimpleTypeValue(
       return;
     }
 
-    checkNumericConstraints(elementName, elementId, attrName, value, num, simpleType, issues);
+    checkNumericConstraints(elementName, elementId, element, attrName, value, num, simpleType, issues);
   }
 
   // minLengthチェック
@@ -486,6 +506,7 @@ function validateSimpleTypeValue(
         message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' はminLength制約 '${simpleType.minLength}' を満たしていません`,
         elementType: elementName,
         elementId,
+        element,
         attribute: attrName,
         value,
         repairable: false,
@@ -509,6 +530,7 @@ function validateSimpleTypeValue(
         message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' はパターン制約に一致しません`,
         elementType: elementName,
         elementId,
+        element,
         attribute: attrName,
         value,
         repairable: false,
@@ -520,7 +542,7 @@ function validateSimpleTypeValue(
   if (baseTypeName && !isBuiltinType(baseTypeName)) {
     const baseST = getSimpleTypeForVersion(version, baseTypeName);
     if (baseST) {
-      validateSimpleTypeValue(elementName, elementId, attrName, value, baseST, version, issues);
+      validateSimpleTypeValue(elementName, elementId, element, attrName, value, baseST, version, issues);
     }
   }
 }
@@ -528,7 +550,7 @@ function validateSimpleTypeValue(
 /**
  * 組み込みXSD型の検証
  */
-function validateBuiltinType(elementName, elementId, attrName, value, typeName, issues) {
+function validateBuiltinType(elementName, elementId, element, attrName, value, typeName, issues) {
   switch (typeName) {
     case 'positiveInteger':
       if (!/^\d+$/.test(value) || parseInt(value, 10) <= 0) {
@@ -538,6 +560,7 @@ function validateBuiltinType(elementName, elementId, attrName, value, typeName, 
           message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' は有効なpositiveIntegerではありません`,
           elementType: elementName,
           elementId,
+          element,
           attribute: attrName,
           value,
           repairable: false,
@@ -553,6 +576,7 @@ function validateBuiltinType(elementName, elementId, attrName, value, typeName, 
           message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' は有効なnonNegativeIntegerではありません`,
           elementType: elementName,
           elementId,
+          element,
           attribute: attrName,
           value,
           repairable: false,
@@ -571,6 +595,7 @@ function validateBuiltinType(elementName, elementId, attrName, value, typeName, 
           message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' は有効な整数ではありません`,
           elementType: elementName,
           elementId,
+          element,
           attribute: attrName,
           value,
           repairable: false,
@@ -588,6 +613,7 @@ function validateBuiltinType(elementName, elementId, attrName, value, typeName, 
           message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' は有効な${typeName}ではありません`,
           elementType: elementName,
           elementId,
+          element,
           attribute: attrName,
           value,
           repairable: false,
@@ -603,6 +629,7 @@ function validateBuiltinType(elementName, elementId, attrName, value, typeName, 
           message: `要素 '${elementName}' の属性 '${attrName}' の値 '${value}' は有効なbooleanではありません`,
           elementType: elementName,
           elementId,
+          element,
           attribute: attrName,
           value,
           repairable: false,
@@ -654,6 +681,7 @@ function validateRequiredChildren(element, elementName, elemDef, issues) {
         message: `要素 '${elementName}' に必須の子要素 '${childDef.name}' がありません（最低 ${minOccurs} 個必要）`,
         elementType: elementName,
         elementId,
+        element,
         expected: `>= ${minOccurs} occurrences of '${childDef.name}'`,
         repairable: false,
       });

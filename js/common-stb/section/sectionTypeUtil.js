@@ -419,4 +419,3 @@ export function getSectionTypeDisplayName(sectionType) {
 
   return displayNames[normalized] || normalized;
 }
-

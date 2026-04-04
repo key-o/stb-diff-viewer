@@ -16,7 +16,7 @@ import {
   ImportanceEvents,
   ComparisonEvents,
   RenderEvents,
-} from '../../app/events/index.js';
+} from '../../data/events/index.js';
 import { showSuccess, showError, showWarning } from '../common/toast.js';
 import { createLogger } from '../../utils/logger.js';
 import { downloadBlob } from '../../utils/downloadHelper.js';
@@ -109,6 +109,7 @@ class ImportancePanel {
     this.elementContainer = null;
     this.statisticsContainer = null;
     this.treeNodeCounter = 0;
+    this._treeExpandedState = new Map(); // nodePath -> boolean
 
     this.setupEventListeners();
   }
@@ -302,7 +303,7 @@ class ImportancePanel {
     const panelHTML = `
       <div id="importance-panel" class="floating-window importance-panel">
         <div class="float-window-header" id="importance-panel-header">
-          <span class="float-window-title">🏷️ 重要度設定</span>
+          <span class="float-window-title">🏷️ バリデーション設定</span>
           <div class="float-window-controls">
             <button class="float-window-btn" id="importance-panel-close">✕</button>
           </div>
@@ -348,8 +349,11 @@ class ImportancePanel {
                 <div class="dropdown-content" id="importance-menu-content">
                    <button id="importance-export-csv" class="dropdown-item">CSV出力</button>
                    <button id="importance-import-csv-btn" class="dropdown-item">CSV読込</button>
+                   <button id="importance-export-json" class="dropdown-item">JSON出力</button>
+                   <button id="importance-import-json-btn" class="dropdown-item">JSON読込</button>
                    <button id="importance-reset-defaults" class="dropdown-item text-danger">デフォルトに戻す</button>
                    <input type="file" id="importance-import-csv" accept=".csv" style="display: none;" />
+                   <input type="file" id="importance-import-json" accept=".json" style="display: none;" />
                 </div>
               </div>
             </div>
@@ -443,6 +447,21 @@ class ImportancePanel {
       this.importFromCSV(e.target.files[0]);
     });
 
+    // JSON機能
+    document.getElementById('importance-export-json').addEventListener('click', () => {
+      this.exportToJSON();
+    });
+
+    document.getElementById('importance-import-json-btn').addEventListener('click', () => {
+      document.getElementById('importance-import-json').click();
+      if (menuContent) menuContent.style.display = 'none';
+    });
+
+    document.getElementById('importance-import-json').addEventListener('change', (e) => {
+      this.importFromJSON(e.target.files[0]);
+      e.target.value = '';
+    });
+
     // デフォルトリセット
     document.getElementById('importance-reset-defaults').addEventListener('click', () => {
       this.resetToDefaults();
@@ -477,6 +496,7 @@ class ImportancePanel {
    */
   selectCategory(categoryId) {
     this.currentTab = categoryId;
+    this._treeExpandedState.clear();
 
     // カテゴリリストの選択状態を更新
     if (this.categoryListContainer) {
@@ -1011,24 +1031,27 @@ class ImportancePanel {
    * @param {number} depth - 階層深さ
    * @returns {string} node HTML
    */
-  renderTreeNode(node, depth = 0) {
+  renderTreeNode(node, depth = 0, nodePath = '') {
     const directPaths = this.collectDirectPaths(node);
     const childNodes = this.getSortedElementChildren(node);
     const pathCount = this.countTreePaths(node);
     const nodeId = `importance-node-${++this.treeNodeCounter}`;
-    const isExpanded = depth === 0;
+    const currentNodePath = nodePath ? `${nodePath}/${node.name}` : node.name;
+    const isExpanded = this._treeExpandedState.has(currentNodePath)
+      ? this._treeExpandedState.get(currentNodePath)
+      : depth === 0;
     const indent = Math.min(depth, 6) * 16;
 
     return `
       <div class="importance-tree-node depth-${Math.min(depth, 6)}">
         <div class="importance-tree-summary" style="padding-left:${10 + indent}px;">
-          <span class="toggle-btn importance-toggle-btn" data-target-id="${nodeId}">${isExpanded ? '-' : '+'}</span>
+          <span class="toggle-btn importance-toggle-btn" data-target-id="${nodeId}" data-node-path="${currentNodePath}">${isExpanded ? '-' : '+'}</span>
           <span class="tree-node-name">${node.name}</span>
           <span class="tree-node-count">${pathCount}</span>
         </div>
         <div class="importance-tree-content" data-tree-id="${nodeId}" style="display:${isExpanded ? 'block' : 'none'};">
           ${directPaths.length ? this.renderPathsTable(directPaths, true) : ''}
-          ${childNodes.map((childNode) => this.renderTreeNode(childNode, depth + 1)).join('')}
+          ${childNodes.map((childNode) => this.renderTreeNode(childNode, depth + 1, currentNodePath)).join('')}
         </div>
       </div>
     `;
@@ -1044,6 +1067,18 @@ class ImportancePanel {
         '<div class="no-elements">該当するパラメータがありません</div>';
       return;
     }
+
+    // 現在の展開状態を保存
+    this.elementContainer.querySelectorAll('.importance-toggle-btn').forEach((btn) => {
+      const nodePath = btn.dataset.nodePath;
+      if (nodePath) {
+        const targetId = btn.dataset.targetId;
+        const targetEl = this.elementContainer.querySelector(`[data-tree-id="${targetId}"]`);
+        if (targetEl) {
+          this._treeExpandedState.set(nodePath, targetEl.style.display !== 'none');
+        }
+      }
+    });
 
     const uniquePaths = [...new Set(elementPaths)];
     this.treeNodeCounter = 0;
@@ -1077,11 +1112,15 @@ class ImportancePanel {
       toggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const targetId = toggleBtn.dataset.targetId;
+        const nodePath = toggleBtn.dataset.nodePath;
         const targetEl = this.elementContainer.querySelector(`[data-tree-id="${targetId}"]`);
         if (!targetEl) return;
         const isVisible = targetEl.style.display !== 'none';
         targetEl.style.display = isVisible ? 'none' : 'block';
         toggleBtn.textContent = isVisible ? '+' : '-';
+        if (nodePath) {
+          this._treeExpandedState.set(nodePath, !isVisible);
+        }
       });
     });
 
@@ -1256,6 +1295,42 @@ class ImportancePanel {
     } catch (error) {
       log.error('CSV export failed:', error);
       showError('CSVファイルの出力に失敗しました。');
+    }
+  }
+
+  /**
+   * JSON形式で設定をエクスポートする
+   */
+  exportToJSON() {
+    try {
+      const jsonContent = this.manager.exportToJSON('combined');
+      const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+      downloadBlob(blob, `importance_settings_${new Date().toISOString().slice(0, 10)}.json`);
+      showSuccess('重要度設定をJSONファイルに出力しました。');
+    } catch (error) {
+      log.error('JSON export failed:', error);
+      showError('JSONファイルの出力に失敗しました。');
+    }
+  }
+
+  /**
+   * JSONファイルから設定をインポートする
+   * @param {File} file - JSONファイル
+   */
+  async importFromJSON(file) {
+    if (!file) return;
+    try {
+      const jsonContent = await this.readFileAsText(file);
+      const success = this.manager.importFromJSON(jsonContent);
+      if (success) {
+        this.render();
+        showSuccess('重要度設定をJSONファイルから読み込みました。');
+      } else {
+        showError('JSONファイルの読み込みに失敗しました。');
+      }
+    } catch (error) {
+      log.error('JSON import failed:', error);
+      showError('JSONファイルの読み込み中にエラーが発生しました。');
     }
   }
 

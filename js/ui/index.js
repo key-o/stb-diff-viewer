@@ -41,6 +41,9 @@ import { setupUIEventListeners, getEventListenerStatus } from './events/index.js
 import { clearAllClippingPlanes, getClippingStatus } from './viewer3d/clipping.js';
 
 import { initColumnSectionListPanel } from './panels/sectionList/index.js';
+import { createLogger } from '../utils/logger.js';
+
+const log = createLogger('ui:index');
 
 /**
  * Initialize all UI modules
@@ -51,7 +54,7 @@ export function initializeUI() {
     // Validate that required DOM elements exist
     const validation = validateSelectorElements();
     if (!validation.isValid) {
-      console.warn('Some UI elements are missing:', validation.missing);
+      log.warn('Some UI elements are missing:', validation.missing);
     }
 
     // Setup event listeners
@@ -64,12 +67,12 @@ export function initializeUI() {
     try {
       initColumnSectionListPanel();
     } catch (e) {
-      console.warn('Failed to initialize column section list panel:', e);
+      log.warn('Failed to initialize column section list panel:', e);
     }
 
     return true;
   } catch (error) {
-    console.error('Failed to initialize UI modules:', error);
+    log.error('Failed to initialize UI modules:', error);
     return false;
   }
 }
@@ -119,6 +122,6 @@ export function resetAllUI() {
     // Hide all labels initially
     // Labels will be hidden automatically by the unified manager
   } catch (error) {
-    console.error('Error resetting UI modules:', error);
+    log.error('Error resetting UI modules:', error);
   }
 }

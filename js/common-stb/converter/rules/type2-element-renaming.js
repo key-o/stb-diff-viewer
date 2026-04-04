@@ -8,6 +8,24 @@ import logger from '../utils/converter-logger.js';
 import { renameKey, getStbRoot } from '../utils/xml-helper.js';
 
 /**
+ * マップに従ってオブジェクトのキーをリネームし、リネーム数を返す
+ * @param {object} obj - 対象オブジェクト
+ * @param {object} map - リネームマップ
+ * @returns {number} リネームした件数
+ */
+function applyRenames(obj, map) {
+  let count = 0;
+  for (const [oldName, newName] of Object.entries(map)) {
+    if (obj[oldName]) {
+      renameKey(obj, oldName, newName);
+      count++;
+      logger.debug(`Renamed: ${oldName} -> ${newName}`);
+    }
+  }
+  return count;
+}
+
+/**
  * Element rename mapping: v2.0.2 -> v2.1.0
  * Note: StbSecBeam_RC_Haunch does not exist in v2.1.0 - it needs conversion, not simple rename
  */
@@ -131,33 +149,17 @@ export function renameElementsTo210(stbRoot) {
     return;
   }
 
+  const MAP = ELEMENT_RENAME_MAP_202_TO_210;
+
   // Process RC Column sections
   const columnRc = sections['StbSecColumn_RC'];
   if (columnRc) {
     columnRc.forEach((section) => {
-      // Elements are inside StbSecFigureColumn_RC
       const figure = section['StbSecFigureColumn_RC']?.[0];
-      if (figure) {
-        for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_202_TO_210)) {
-          if (figure[oldName]) {
-            renameKey(figure, oldName, newName);
-            renameCount++;
-            logger.debug(`Renamed: ${oldName} -> ${newName}`);
-          }
-        }
-      }
+      if (figure) renameCount += applyRenames(figure, MAP);
 
-      // Process StbSecBarArrangementColumn_RC child elements
       const barArrangement = section['StbSecBarArrangementColumn_RC']?.[0];
-      if (barArrangement) {
-        for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_202_TO_210)) {
-          if (barArrangement[oldName]) {
-            renameKey(barArrangement, oldName, newName);
-            renameCount++;
-            logger.debug(`Renamed: ${oldName} -> ${newName}`);
-          }
-        }
-      }
+      if (barArrangement) renameCount += applyRenames(barArrangement, MAP);
     });
   }
 
@@ -165,10 +167,9 @@ export function renameElementsTo210(stbRoot) {
   const columnSrc = sections['StbSecColumn_SRC'];
   if (columnSrc) {
     columnSrc.forEach((section) => {
-      // Elements are inside StbSecFigureColumn_SRC
+      // SRC-specific figure elements use different source names
       const figure = section['StbSecFigureColumn_SRC']?.[0];
       if (figure) {
-        // Map SRC-specific elements to unified names
         if (figure['StbSecColumn_SRC_Rect']) {
           renameKey(figure, 'StbSecColumn_SRC_Rect', 'StbSecColumnRect');
           renameCount++;
@@ -181,40 +182,20 @@ export function renameElementsTo210(stbRoot) {
         }
       }
 
-      // Process StbSecSteelFigureColumn_SRC child elements
       const steelFigure = section['StbSecSteelFigureColumn_SRC']?.[0];
       if (steelFigure) {
-        // Process Same/NotSame/ThreeTypes containers
         const containers = [
           steelFigure['StbSecSteelColumn_SRC_Same']?.[0],
           ...(steelFigure['StbSecSteelColumn_SRC_NotSame'] || []),
           ...(steelFigure['StbSecSteelColumn_SRC_ThreeTypes'] || []),
         ];
-
-        containers.forEach((container) => {
-          if (container) {
-            for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_202_TO_210)) {
-              if (container[oldName]) {
-                renameKey(container, oldName, newName);
-                renameCount++;
-                logger.debug(`Renamed: ${oldName} -> ${newName}`);
-              }
-            }
-          }
+        containers.forEach((c) => {
+          if (c) renameCount += applyRenames(c, MAP);
         });
       }
 
-      // Process StbSecBarArrangementColumn_SRC child elements
       const barArrangement = section['StbSecBarArrangementColumn_SRC']?.[0];
-      if (barArrangement) {
-        for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_202_TO_210)) {
-          if (barArrangement[oldName]) {
-            renameKey(barArrangement, oldName, newName);
-            renameCount++;
-            logger.debug(`Renamed: ${oldName} -> ${newName}`);
-          }
-        }
-      }
+      if (barArrangement) renameCount += applyRenames(barArrangement, MAP);
     });
   }
 
@@ -222,7 +203,6 @@ export function renameElementsTo210(stbRoot) {
   const beamRc = sections['StbSecBeam_RC'];
   if (beamRc) {
     beamRc.forEach((section) => {
-      // Elements are inside StbSecFigureBeam_RC
       const figures = section['StbSecFigureBeam_RC'] || [];
       figures.forEach((figure, index) => {
         if (!figure['$']) figure['$'] = {};
@@ -230,26 +210,11 @@ export function renameElementsTo210(stbRoot) {
           figure['$'].order = String(index + 1);
           logger.debug(`Added order to StbSecFigureBeam_RC: ${figure['$'].order}`);
         }
-        for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_202_TO_210)) {
-          if (figure[oldName]) {
-            renameKey(figure, oldName, newName);
-            renameCount++;
-            logger.debug(`Renamed: ${oldName} -> ${newName}`);
-          }
-        }
+        renameCount += applyRenames(figure, MAP);
       });
 
-      // Process StbSecBarArrangementBeam_RC child elements
       const barArrangement = section['StbSecBarArrangementBeam_RC']?.[0];
-      if (barArrangement) {
-        for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_202_TO_210)) {
-          if (barArrangement[oldName]) {
-            renameKey(barArrangement, oldName, newName);
-            renameCount++;
-            logger.debug(`Renamed: ${oldName} -> ${newName}`);
-          }
-        }
-      }
+      if (barArrangement) renameCount += applyRenames(barArrangement, MAP);
     });
   }
 
@@ -257,63 +222,26 @@ export function renameElementsTo210(stbRoot) {
   const beamSrc = sections['StbSecBeam_SRC'];
   if (beamSrc) {
     beamSrc.forEach((section) => {
-      // Elements are inside StbSecFigureBeam_SRC
       const figure = section['StbSecFigureBeam_SRC']?.[0];
-      if (figure) {
-        for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_202_TO_210)) {
-          if (figure[oldName]) {
-            renameKey(figure, oldName, newName);
-            renameCount++;
-            logger.debug(`Renamed: ${oldName} -> ${newName}`);
-          }
-        }
-      }
+      if (figure) renameCount += applyRenames(figure, MAP);
 
-      // Process StbSecSteelFigureBeam_SRC child elements
       const steelFigures = section['StbSecSteelFigureBeam_SRC'] || [];
       steelFigures.forEach((steelFigure) => {
         if (!steelFigure) return;
+        renameCount += applyRenames(steelFigure, MAP);
 
-        // First, rename direct child elements (StbSecSteelBeam_SRC_Straight, etc.)
-        for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_202_TO_210)) {
-          if (steelFigure[oldName]) {
-            renameKey(steelFigure, oldName, newName);
-            renameCount++;
-            logger.debug(`Renamed: ${oldName} -> ${newName}`);
-          }
-        }
-
-        // Process Same/NotSame/ThreeTypes containers
         const containers = [
           steelFigure['StbSecSteelBeam_SRC_Same']?.[0],
           ...(steelFigure['StbSecSteelBeam_SRC_NotSame'] || []),
           ...(steelFigure['StbSecSteelBeam_SRC_ThreeTypes'] || []),
         ];
-
-        containers.forEach((container) => {
-          if (container) {
-            for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_202_TO_210)) {
-              if (container[oldName]) {
-                renameKey(container, oldName, newName);
-                renameCount++;
-                logger.debug(`Renamed: ${oldName} -> ${newName}`);
-              }
-            }
-          }
+        containers.forEach((c) => {
+          if (c) renameCount += applyRenames(c, MAP);
         });
       });
 
-      // Process StbSecBarArrangementBeam_SRC child elements
       const barArrangement = section['StbSecBarArrangementBeam_SRC']?.[0];
-      if (barArrangement) {
-        for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_202_TO_210)) {
-          if (barArrangement[oldName]) {
-            renameKey(barArrangement, oldName, newName);
-            renameCount++;
-            logger.debug(`Renamed: ${oldName} -> ${newName}`);
-          }
-        }
-      }
+      if (barArrangement) renameCount += applyRenames(barArrangement, MAP);
     });
   }
 
@@ -455,21 +383,14 @@ export function renameElementsTo202(stbRoot) {
     return;
   }
 
+  const MAP = ELEMENT_RENAME_MAP_210_TO_202;
+
   // Process RC Column sections
   const columnRc = sections['StbSecColumn_RC'];
   if (columnRc) {
     columnRc.forEach((section) => {
-      // Elements are inside StbSecFigureColumn_RC
       const figure = section['StbSecFigureColumn_RC']?.[0];
-      if (figure) {
-        for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_210_TO_202)) {
-          if (figure[oldName]) {
-            renameKey(figure, oldName, newName);
-            renameCount++;
-            logger.debug(`Renamed: ${oldName} -> ${newName}`);
-          }
-        }
-      }
+      if (figure) renameCount += applyRenames(figure, MAP);
     });
   }
 
@@ -477,10 +398,9 @@ export function renameElementsTo202(stbRoot) {
   const columnSrc = sections['StbSecColumn_SRC'];
   if (columnSrc) {
     columnSrc.forEach((section) => {
-      // Elements are inside StbSecFigureColumn_SRC
+      // SRC-specific figure elements use different target names
       const figure = section['StbSecFigureColumn_SRC']?.[0];
       if (figure) {
-        // Map unified names back to SRC-specific names
         if (figure['StbSecColumnRect']) {
           renameKey(figure, 'StbSecColumnRect', 'StbSecColumn_SRC_Rect');
           renameCount++;
@@ -493,40 +413,20 @@ export function renameElementsTo202(stbRoot) {
         }
       }
 
-      // Process StbSecSteelFigureColumn_SRC child elements
       const steelFigure = section['StbSecSteelFigureColumn_SRC']?.[0];
       if (steelFigure) {
-        // Process Same/NotSame/ThreeTypes containers
         const containers = [
           steelFigure['StbSecSteelColumn_SRC_Same']?.[0],
           ...(steelFigure['StbSecSteelColumn_SRC_NotSame'] || []),
           ...(steelFigure['StbSecSteelColumn_SRC_ThreeTypes'] || []),
         ];
-
-        containers.forEach((container) => {
-          if (container) {
-            for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_210_TO_202)) {
-              if (container[oldName]) {
-                renameKey(container, oldName, newName);
-                renameCount++;
-                logger.debug(`Renamed: ${oldName} -> ${newName}`);
-              }
-            }
-          }
+        containers.forEach((c) => {
+          if (c) renameCount += applyRenames(c, MAP);
         });
       }
 
-      // Process StbSecBarArrangementColumn_SRC child elements
       const barArrangement = section['StbSecBarArrangementColumn_SRC']?.[0];
-      if (barArrangement) {
-        for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_210_TO_202)) {
-          if (barArrangement[oldName]) {
-            renameKey(barArrangement, oldName, newName);
-            renameCount++;
-            logger.debug(`Renamed: ${oldName} -> ${newName}`);
-          }
-        }
-      }
+      if (barArrangement) renameCount += applyRenames(barArrangement, MAP);
     });
   }
 
@@ -534,17 +434,8 @@ export function renameElementsTo202(stbRoot) {
   const beamRc = sections['StbSecBeam_RC'];
   if (beamRc) {
     beamRc.forEach((section) => {
-      // Elements are inside StbSecFigureBeam_RC
       const figure = section['StbSecFigureBeam_RC']?.[0];
-      if (figure) {
-        for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_210_TO_202)) {
-          if (figure[oldName]) {
-            renameKey(figure, oldName, newName);
-            renameCount++;
-            logger.debug(`Renamed: ${oldName} -> ${newName}`);
-          }
-        }
-      }
+      if (figure) renameCount += applyRenames(figure, MAP);
     });
   }
 
@@ -552,52 +443,23 @@ export function renameElementsTo202(stbRoot) {
   const beamSrc = sections['StbSecBeam_SRC'];
   if (beamSrc) {
     beamSrc.forEach((section) => {
-      // Elements are inside StbSecFigureBeam_SRC
       const figure = section['StbSecFigureBeam_SRC']?.[0];
-      if (figure) {
-        for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_210_TO_202)) {
-          if (figure[oldName]) {
-            renameKey(figure, oldName, newName);
-            renameCount++;
-            logger.debug(`Renamed: ${oldName} -> ${newName}`);
-          }
-        }
-      }
+      if (figure) renameCount += applyRenames(figure, MAP);
 
-      // Process StbSecSteelFigureBeam_SRC child elements
       const steelFigure = section['StbSecSteelFigureBeam_SRC']?.[0];
       if (steelFigure) {
-        // Process Same/NotSame/ThreeTypes containers
         const containers = [
           steelFigure['StbSecSteelBeam_SRC_Same']?.[0],
           ...(steelFigure['StbSecSteelBeam_SRC_NotSame'] || []),
           ...(steelFigure['StbSecSteelBeam_SRC_ThreeTypes'] || []),
         ];
-
-        containers.forEach((container) => {
-          if (container) {
-            for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_210_TO_202)) {
-              if (container[oldName]) {
-                renameKey(container, oldName, newName);
-                renameCount++;
-                logger.debug(`Renamed: ${oldName} -> ${newName}`);
-              }
-            }
-          }
+        containers.forEach((c) => {
+          if (c) renameCount += applyRenames(c, MAP);
         });
       }
 
-      // Process StbSecBarArrangementBeam_SRC child elements
       const barArrangement = section['StbSecBarArrangementBeam_SRC']?.[0];
-      if (barArrangement) {
-        for (const [oldName, newName] of Object.entries(ELEMENT_RENAME_MAP_210_TO_202)) {
-          if (barArrangement[oldName]) {
-            renameKey(barArrangement, oldName, newName);
-            renameCount++;
-            logger.debug(`Renamed: ${oldName} -> ${newName}`);
-          }
-        }
-      }
+      if (barArrangement) renameCount += applyRenames(barArrangement, MAP);
     });
   }
 

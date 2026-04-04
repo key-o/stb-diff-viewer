@@ -111,7 +111,6 @@ function convertSPileSectionsTo210(stbRoot) {
 
   sPiles.forEach((pile) => {
     const pileId = pile['$']?.id || 'unknown';
-    const pileAttrs = pile['$'] || {};
 
     // Check if already has v2.1.0 structure
     if (pile['StbSecPile_S_Conventional']) return;

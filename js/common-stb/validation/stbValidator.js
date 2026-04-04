@@ -18,6 +18,10 @@ import {
 import { createLogger } from '../../utils/logger.js';
 import { isSchemaLoaded, getActiveVersion } from '../import/parser/jsonSchemaLoader.js';
 import { validateJsonSchema } from './jsonSchemaValidator.js';
+import { validateMvdRequirements, initializeMvdData } from './mvdValidator.js';
+
+// モジュールロード時にバックグラウンドで MVD データのプリロードを開始
+void initializeMvdData();
 
 const logger = createLogger('validation:validator');
 
@@ -40,6 +44,7 @@ export const CATEGORY = {
   GEOMETRY: 'geometry', // 幾何学的問題
   DUPLICATE: 'duplicate', // 重複問題
   SCHEMA: 'schema', // XSDスキーマ制約違反
+  MVD: 'mvd', // MVD必須属性違反
 };
 
 /**
@@ -84,6 +89,7 @@ export function validateStbDocument(xmlDoc, options = {}) {
     validateGeometry = true,
     validateSchema = true,
     includeInfo = false,
+    mvdLevel = null,
   } = options;
 
   const issues = [];
@@ -150,6 +156,16 @@ export function validateStbDocument(xmlDoc, options = {}) {
   // 8. 幾何学検証
   if (validateGeometry) {
     validateGeometricConstraints(xmlDoc, nodeMap, issues);
+  }
+
+  // 9. MVD必須属性バリデーション
+  if (mvdLevel === 's2' || mvdLevel === 's4') {
+    try {
+      const mvdIssues = validateMvdRequirements(xmlDoc, mvdLevel);
+      issues.push(...mvdIssues);
+    } catch (e) {
+      logger.warn(`MVDバリデーション中にエラーが発生: ${e.message}`);
+    }
   }
 
   // 統計情報の更新
@@ -891,8 +907,8 @@ function validateStructureKindConsistency(xmlDoc, issues) {
       const sectionTagName = sectionIdToTagMap.get(idSection);
       if (!sectionTagName) continue; // 存在チェックは validateSectionReferences が担当
 
-      // チェック A: 断面タグ種別チェック
-      if (!allowedTags.includes(sectionTagName)) {
+      // チェック A: 断面タグ種別チェック（kind_structure=UNDEFINED は構造種別未定義のため除外）
+      if (kindStructure !== 'UNDEFINED' && !allowedTags.includes(sectionTagName)) {
         issues.push({
           severity: SEVERITY.ERROR,
           category: CATEGORY.REFERENCE,
@@ -1242,7 +1258,8 @@ function detectStbVersion(xmlDoc) {
 
   const version = root.getAttribute('version');
   if (version) {
-    // '2.1.0' や '2.0.2' にマッピング
+    // JSON Schema バリデーション用に 2.1.1 を優先判定
+    if (version.startsWith('2.1.1')) return '2.1.1';
     if (version.startsWith('2.1')) return '2.1.0';
     if (version.startsWith('2.0')) return '2.0.2';
   }

@@ -16,7 +16,7 @@ import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
 import { getMaterialForElementWithMode } from './materials.js';
 import { IMPORTANCE_LEVELS } from '../../constants/importanceLevels.js';
-import { getState } from '../../app/globalState.js';
+import { getViewerState } from '../stateProvider.js';
 import {
   getSectionValidation,
   getElementValidation,
@@ -262,7 +262,7 @@ function drawOnlyLineElements(
         .clone()
         .add(offsetDir.multiplyScalar(labelOffsetSign * labelOffsetAmount));
 
-      const contentType = getState('ui.labelContentType') || 'id';
+      const contentType = getViewerState('ui.labelContentType') || 'id';
       let displayText = id;
 
       if (contentType === 'name' && element && element.name) {
@@ -409,7 +409,7 @@ function processMatchedLineItem(
 
   // 重要度データを取得（重要度管理システムから、比較結果の値を上書き）
   let resolvedImportance = importance;
-  const importanceManager = getState('importanceManager');
+  const importanceManager = getViewerState('importanceManager');
   const sourceElementA = dataA.rawElement || dataA.element || null;
   const sourceElementB = dataB.rawElement || dataB.element || null;
   if (importanceManager) {
@@ -466,7 +466,7 @@ function processMatchedLineItem(
   if (labelToggle && (idA || idB)) {
     const midPoint = new THREE.Vector3().addVectors(startVec, endVec).multiplyScalar(0.5);
 
-    const contentType = getState('ui.labelContentType') || 'id';
+    const contentType = getViewerState('ui.labelContentType') || 'id';
     let labelText;
 
     if (contentType === 'id') {
@@ -633,7 +633,7 @@ function processPolyItem(
 
   // 重要度データを取得
   let actualImportance = importance; // パラメータから取得
-  const importanceManager = getState('importanceManager');
+  const importanceManager = getViewerState('importanceManager');
   const sourceElement = item.rawElement || item.element || null;
   if (importanceManager) {
     const stbElementType = `Stb${elementType}`;

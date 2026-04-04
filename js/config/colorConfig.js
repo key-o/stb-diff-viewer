@@ -79,6 +79,9 @@ export const DEFAULT_ELEMENT_COLORS = {
   Footing: COLORS.CYAN, // マテリアルシアン（基礎用）
   StripFooting: COLORS.BLUE_DARK, // マテリアルブルーダーク（布基礎用）
   FoundationColumn: COLORS.GREEN_DARK, // マテリアルグリーンダーク（基礎柱用）
+  IsolatingDevice: COLORS.PURPLE, // マテリアルパープル（免震装置用）
+  DampingDevice: COLORS.DEEP_ORANGE, // マテリアルディープオレンジ（制振装置用）
+  FrameDampingDevice: COLORS.AMBER_DARK, // マテリアルアンバーダーク（制振装置フレーム用）
   Undefined: COLORS.GREY, // マテリアルグレー（未定義断面要素 - 寸法不明なため控えめな色）
   // 表示要素（構造部材以外）
   Axis: COLORS.GREY_LIGHT, // マテリアルグレーライト（軸線用）

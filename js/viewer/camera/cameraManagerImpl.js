@@ -14,6 +14,9 @@ import {
   setActiveCamera,
 } from '../core/core.js';
 import { CAMERA_MODES } from '../../constants/displayModes.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('viewer:camera:cameraManagerImpl');
 
 // 現在のカメラモード
 let currentMode = CAMERA_MODES.PERSPECTIVE;
@@ -29,12 +32,12 @@ export function getCameraMode() {
 /**
  * カメラモードを切り替え
  * @param {string} mode - 新しいカメラモード（'perspective' または 'orthographic'）
- * @param {number} [transitionDuration=0] - トランジション時間（ミリ秒、未実装）
+ * @param {number} [_transitionDuration=0] - トランジション時間（ミリ秒、未実装）
  * @returns {boolean} 切り替えが成功したかどうか
  */
-export function setCameraMode(mode, transitionDuration = 0) {
+export function setCameraMode(mode, _transitionDuration = 0) {
   if (mode !== CAMERA_MODES.PERSPECTIVE && mode !== CAMERA_MODES.ORTHOGRAPHIC) {
-    console.warn('[CameraManager] Invalid camera mode:', mode);
+    log.warn('[CameraManager] Invalid camera mode:', mode);
     return false;
   }
 
@@ -46,7 +49,7 @@ export function setCameraMode(mode, transitionDuration = 0) {
   const newCamera = mode === CAMERA_MODES.PERSPECTIVE ? camera : orthographicCamera;
 
   if (!newCamera) {
-    console.error('[CameraManager] Camera not initialized:', mode);
+    log.error('[CameraManager] Camera not initialized:', mode);
     return false;
   }
 
@@ -182,7 +185,7 @@ export function toggleCameraMode() {
  */
 export function setOrthographicSize(size) {
   if (!orthographicCamera) {
-    console.warn('[CameraManager] OrthographicCamera not initialized');
+    log.warn('[CameraManager] OrthographicCamera not initialized');
     return;
   }
 

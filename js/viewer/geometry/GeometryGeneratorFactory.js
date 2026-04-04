@@ -22,6 +22,8 @@ import { WallGenerator } from './WallGenerator.js';
 import { ParapetGenerator } from './ParapetGenerator.js';
 import { JointGenerator } from './JointGenerator.js';
 import { StripFootingGenerator } from './StripFootingGenerator.js';
+import { IsolatingDeviceGenerator } from './IsolatingDeviceGenerator.js';
+import { DampingDeviceGenerator } from './DampingDeviceGenerator.js';
 
 const log = createLogger('GeometryGeneratorFactory');
 
@@ -108,6 +110,24 @@ const GENERATOR_MAP = {
     },
     method: 'createJointMeshes',
   },
+  IsolatingDevice: {
+    get class() {
+      return IsolatingDeviceGenerator;
+    },
+    method: 'createIsolatingDeviceMeshes',
+  },
+  DampingDevice: {
+    get class() {
+      return DampingDeviceGenerator;
+    },
+    method: 'createDampingDeviceMeshes',
+  },
+  FrameDampingDevice: {
+    get class() {
+      return WallGenerator;
+    },
+    method: 'createWallMeshes',
+  },
 };
 
 /**
@@ -174,6 +194,8 @@ export class GeometryGeneratorFactory {
       PileGenerator,
       FootingGenerator,
       StripFootingGenerator,
+      IsolatingDeviceGenerator,
+      DampingDeviceGenerator,
     ];
     return staticGenerators.includes(GeneratorClass);
   }
@@ -288,6 +310,8 @@ export {
   ParapetGenerator,
   JointGenerator,
   StripFootingGenerator,
+  IsolatingDeviceGenerator,
+  DampingDeviceGenerator,
 };
 
 // ジェネレータマップのエクスポート（設定参照用）

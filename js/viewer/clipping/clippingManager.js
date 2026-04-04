@@ -10,7 +10,8 @@
 import * as THREE from 'three';
 import { renderer, elementGroups as viewerElementGroups } from '../core/core.js';
 import { createLogger } from '../../utils/logger.js';
-import { eventBus, ToastEvents } from '../../app/events/index.js';
+import { eventBus } from '../../data/events/eventBus.js';
+import { ToastEvents } from '../../constants/eventTypes.js';
 
 const log = createLogger('viewer:clipping');
 

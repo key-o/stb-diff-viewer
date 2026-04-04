@@ -7,6 +7,9 @@
 
 import { COMPARISON_KEY_TYPE } from '../../config/comparisonKeyConfig.js';
 import { COORDINATE_PRECISION } from '../../config/geometryConfig.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('common-stb:comparison:keyGenerator');
 
 const PRECISION = COORDINATE_PRECISION;
 
@@ -23,7 +26,7 @@ export function getNodeCoordKey(coords, precision = PRECISION) {
     typeof coords.y !== 'number' ||
     typeof coords.z !== 'number'
   ) {
-    console.warn('[keyGenerator] キー生成: 無効な座標', coords);
+    log.warn('[keyGenerator] キー生成: 無効な座標', coords);
     return null;
   }
   return `${coords.x.toFixed(precision)},${coords.y.toFixed(precision)},${coords.z.toFixed(precision)}`;
@@ -43,6 +46,61 @@ export function getLineElementKey(startCoords, endCoords, precision = PRECISION)
   return [startKey, endKey].sort().join('|');
 }
 
+function areCoordsEqual(a, b, epsilon = 1e-6) {
+  return (
+    Math.abs(a.x - b.x) <= epsilon &&
+    Math.abs(a.y - b.y) <= epsilon &&
+    Math.abs(a.z - b.z) <= epsilon
+  );
+}
+
+function areCoordsCollinear(a, b, c, epsilon = 1e-6) {
+  const ab = { x: b.x - a.x, y: b.y - a.y, z: b.z - a.z };
+  const bc = { x: c.x - b.x, y: c.y - b.y, z: c.z - b.z };
+  const cross = {
+    x: ab.y * bc.z - ab.z * bc.y,
+    y: ab.z * bc.x - ab.x * bc.z,
+    z: ab.x * bc.y - ab.y * bc.x,
+  };
+  return (
+    Math.abs(cross.x) <= epsilon && Math.abs(cross.y) <= epsilon && Math.abs(cross.z) <= epsilon
+  );
+}
+
+function normalizePolygonCoords(vertexCoordsList) {
+  const deduped = [];
+  for (const coords of vertexCoordsList) {
+    if (!deduped.length || !areCoordsEqual(deduped[deduped.length - 1], coords)) {
+      deduped.push(coords);
+    }
+  }
+
+  if (deduped.length > 1 && areCoordsEqual(deduped[0], deduped[deduped.length - 1])) {
+    deduped.pop();
+  }
+
+  let changed = true;
+  while (changed && deduped.length > 2) {
+    changed = false;
+    for (let i = 0; i < deduped.length; i++) {
+      const prev = deduped[(i - 1 + deduped.length) % deduped.length];
+      const curr = deduped[i];
+      const next = deduped[(i + 1) % deduped.length];
+      if (
+        areCoordsEqual(prev, curr) ||
+        areCoordsEqual(curr, next) ||
+        areCoordsCollinear(prev, curr, next)
+      ) {
+        deduped.splice(i, 1);
+        changed = true;
+        break;
+      }
+    }
+  }
+
+  return deduped;
+}
+
 /**
  * ポリゴン要素（頂点座標リスト）から比較用のキー文字列を生成する。
  * @param {Array<{x: number, y: number, z: number}>} vertexCoordsList - 頂点座標のリスト。
@@ -51,7 +109,8 @@ export function getLineElementKey(startCoords, endCoords, precision = PRECISION)
  */
 export function getPolyElementKey(vertexCoordsList, precision = PRECISION) {
   if (!vertexCoordsList || vertexCoordsList.length === 0) return null;
-  const coordKeys = vertexCoordsList.map((coords) => getNodeCoordKey(coords, precision));
+  const normalizedCoords = normalizePolygonCoords(vertexCoordsList);
+  const coordKeys = normalizedCoords.map((coords) => getNodeCoordKey(coords, precision));
   if (coordKeys.some((key) => key === null)) return null;
   return coordKeys.sort().join(',');
 }

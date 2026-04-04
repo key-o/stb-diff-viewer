@@ -8,6 +8,9 @@
 
 import { IMPORTANCE_LEVELS } from '../../../constants/importanceLevels.js';
 import { getImportanceManager } from '../../../app/importanceManager.js';
+import { createLogger } from '../../../utils/logger.js';
+
+const log = createLogger('ui:panels:element-info:ImportanceColors');
 
 // 構造部材のマッピング (StbMembers配下)
 const MEMBER_MAPPING = {
@@ -24,6 +27,9 @@ const MEMBER_MAPPING = {
   FoundationColumn: 'StbModel/StbMembers/StbFoundationColumns/StbFoundationColumn',
   Parapet: 'StbModel/StbMembers/StbParapets/StbParapet',
   Open: 'StbModel/StbMembers/StbOpens/StbOpen',
+  IsolatingDevice: 'StbModel/StbMembers/StbIsolatingDevices/StbIsolatingDevice',
+  DampingDevice: 'StbModel/StbMembers/StbDampingDevices/StbDampingDevice',
+  FrameDampingDevice: 'StbModel/StbMembers/StbFrameDampingDevices/StbFrameDampingDevice',
 };
 
 // その他の要素マッピング
@@ -81,10 +87,7 @@ export function getAttributeImportanceLevel(elementType, attributeName) {
     }
     return IMPORTANCE_LEVELS.OPTIONAL;
   } catch (error) {
-    console.warn(
-      `[Importance] Failed to get importance for ${elementType}.${attributeName}:`,
-      error,
-    );
+    log.warn(`[Importance] Failed to get importance for ${elementType}.${attributeName}:`, error);
     return IMPORTANCE_LEVELS.OPTIONAL;
   }
 }

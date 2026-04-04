@@ -24,6 +24,25 @@ import {
 import { evaluateSectionEquivalence } from './ElementInfoProviders.js';
 import { isEditMode, getCurrentEditingElement } from './EditMode.js';
 import { getState } from '../../../app/globalState.js';
+import { getToleranceConfig } from '../../../config/toleranceConfig.js';
+
+/**
+ * 属性値が「異なる」かどうかを判定する。
+ * 両方が数値として解釈できる場合は toleranceConfig.attributeNumericTolerance を適用し、
+ * "0" と "0.0" や "150" と "150.0" を同一とみなす。
+ * @param {string|number|null|undefined} valA
+ * @param {string|number|null|undefined} valB
+ * @returns {boolean}
+ */
+function attributesDiffer(valA, valB) {
+  const numA = Number(valA);
+  const numB = Number(valB);
+  if (isFinite(numA) && isFinite(numB)) {
+    const tolerance = getToleranceConfig().attributeNumericTolerance ?? 0.001;
+    return Math.abs(numA - numB) > tolerance;
+  }
+  return String(valA) !== String(valB);
+}
 
 /**
  * XML要素からXPath形式のパスを構築する。
@@ -89,7 +108,9 @@ function buildAttributeValidationStatusMap(elementId, options = {}) {
 
   if (!elementId) return result;
 
-  const validation = getElementValidation(elementId);
+  const validation = getElementValidation(elementId, {
+    targetElementName: targetElementName || undefined,
+  });
   if (!validation) return result;
 
   const mergeIssue = (issue, severity) => {
@@ -396,10 +417,16 @@ function renderSteelSectionBlock(
   }
   html += '</tr>';
 
-  // 属性行: 全属性を列挙（name以外）
+  // 属性行: バリデーション状態付きで列挙（name以外）
   const attrsA = resultA ? getAttributesMap(resultA.element) : new Map();
   const attrsB = resultB ? getAttributesMap(resultB.element) : new Map();
   const allAttrs = new Set([...attrsA.keys(), ...attrsB.keys()]);
+  const validationMapA = buildAttributeValidationStatusMap(shapeA || '', {
+    targetElementName: tagName,
+  });
+  const validationMapB = buildAttributeValidationStatusMap(shapeB || '', {
+    targetElementName: tagName,
+  });
 
   for (const attr of allAttrs) {
     if (attr === 'name') continue;
@@ -408,19 +435,25 @@ function renderSteelSectionBlock(
 
     if (showSingleColumn) {
       const val = valA ?? valB ?? '-';
+      const activeMap = validationMapA.size > 0 ? validationMapA : validationMapB;
+      const validationMeta = getValidationCellMeta(attr, activeMap);
+      const cellClass = buildCellClassAttr(validationMeta.className);
       html += `<tr data-parent="${blockRowId}">`;
       html += `<td style="${attrIndentStyle}"><span class="attr-name">${attr}</span></td>`;
-      html += `<td style="color: #555;">${val}</td>`;
+      html += `<td${cellClass}${validationMeta.titleAttr} style="color: #555;">${val}</td>`;
       html += '</tr>';
     } else {
       const displayA = valA ?? '<span class="no-value">-</span>';
       const displayB = valB ?? '<span class="no-value">-</span>';
-      const differs = valA != null && valB != null && valA !== valB;
-      const highlightClass = differs ? ' class="differs"' : '';
+      const differs = valA != null && valB != null && attributesDiffer(valA, valB);
+      const validationMetaA = getValidationCellMeta(attr, validationMapA);
+      const validationMetaB = getValidationCellMeta(attr, validationMapB);
+      const classAttrA = buildCellClassAttr(differs ? 'differs' : '', validationMetaA.className);
+      const classAttrB = buildCellClassAttr(differs ? 'differs' : '', validationMetaB.className);
       html += `<tr data-parent="${blockRowId}">`;
       html += `<td style="${attrIndentStyle}"><span class="attr-name">${attr}</span></td>`;
-      html += `<td${highlightClass} style="color: #555;">${displayA}</td>`;
-      html += `<td${highlightClass} style="color: #555;">${displayB}</td>`;
+      html += `<td${classAttrA}${validationMetaA.titleAttr} style="color: #555;">${displayA}</td>`;
+      html += `<td${classAttrB}${validationMetaB.titleAttr} style="color: #555;">${displayB}</td>`;
       html += '</tr>';
     }
   }
@@ -560,7 +593,7 @@ function renderOpeningPropertiesBlock(
     } else {
       const displayA = valA ?? '<span class="no-value">-</span>';
       const displayB = valB ?? '<span class="no-value">-</span>';
-      const differs = valA != null && valB != null && valA !== valB;
+      const differs = valA != null && valB != null && attributesDiffer(valA, valB);
       const highlightClass = differs ? ' class="differs"' : '';
       html += `<tr data-parent="${blockRowId}">`;
       html += `<td style="${attrIndentStyle}"><span class="attr-name">${attr}</span></td>`;
@@ -661,7 +694,7 @@ export function renderOpeningInfo(nodeA, nodeB, showSingleColumn) {
         } else {
           const displayA = valA ?? '<span class="no-value">-</span>';
           const displayB = valB ?? '<span class="no-value">-</span>';
-          const differs = valA != null && valB != null && valA !== valB;
+          const differs = valA != null && valB != null && attributesDiffer(valA, valB);
           const highlightClass = differs ? ' class="differs"' : '';
           content += `<tr data-parent="${secRowId}">`;
           content += `<td style="${attrIndentStyle}"><span class="attr-name">${dimAttr}</span></td>`;
@@ -871,8 +904,8 @@ export function renderSectionInfo(nodeA, nodeB, showSingleColumn, modelSource, e
 
   const docA = getState('models.documentA');
   const docB = getState('models.documentB');
-  const sectionNodeA = sectionIdA ? findSectionNode(docA, sectionIdA) : null;
-  const sectionNodeB = sectionIdB ? findSectionNode(docB, sectionIdB) : null;
+  const sectionNodeA = sectionIdA ? findSectionNode(docA, sectionIdA, elementType) : null;
+  const sectionNodeB = sectionIdB ? findSectionNode(docB, sectionIdB, elementType) : null;
 
   // 断面等価性評価の実行（比較モードの場合のみ）
   let equivalenceResult = null;
@@ -1144,7 +1177,11 @@ export function renderComparisonRecursive(
 
         // 比較結果: 値が異なる場合のみ黄色ハイライト
         const differs =
-          nodeA && nodeB && valueA !== valueB && valueA !== undefined && valueB !== undefined;
+          nodeA &&
+          nodeB &&
+          valueA !== undefined &&
+          valueB !== undefined &&
+          attributesDiffer(valueA, valueB);
         const classAttrA = buildCellClassAttr(differs ? 'differs' : '', validationMetaA.className);
         const classAttrB = buildCellClassAttr(differs ? 'differs' : '', validationMetaB.className);
 

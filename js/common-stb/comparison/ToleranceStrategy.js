@@ -43,6 +43,7 @@ export class ToleranceStrategy extends BaseStrategy {
     const keyType = options.keyType || COMPARISON_KEY_TYPE.POSITION_BASED;
     const isGuidBased = keyType === COMPARISON_KEY_TYPE.GUID_BASED;
     const classifyNullKeysAsOnly = options.classifyNullKeysAsOnly === true;
+    const attributeComparator = options.attributeComparator;
 
     // 厳密モードまたは許容差無効の場合は基本比較
     if (config.strictMode || !config.enabled) {
@@ -58,7 +59,7 @@ export class ToleranceStrategy extends BaseStrategy {
       return {
         exact: basicResult.matched,
         withinTolerance: [],
-        mismatch: [],
+        mismatch: basicResult.mismatch || [],
         onlyA: basicResult.onlyA,
         onlyB: basicResult.onlyB,
       };
@@ -109,12 +110,21 @@ export class ToleranceStrategy extends BaseStrategy {
           const comparisonResult = compareElementDataWithTolerance(dataA, data, config);
 
           if (comparisonResult.match && comparisonResult.type === 'exact') {
-            result.exact.push({
+            const pair = {
               dataA: dataA,
               dataB: data,
               matchType: 'exact',
               differences: comparisonResult.differences,
-            });
+            };
+
+            if (attributeComparator && !attributeComparator(dataA, data)) {
+              result.mismatch.push({
+                ...pair,
+                matchType: 'attributeMismatch',
+              });
+            } else {
+              result.exact.push(pair);
+            }
             candidatesA.splice(i, 1);
             if (candidatesA.length === 0) {
               mapA.delete(key);
@@ -141,12 +151,21 @@ export class ToleranceStrategy extends BaseStrategy {
             const comparisonResult = compareElementDataWithTolerance(dataA, data, config);
 
             if (comparisonResult.match && comparisonResult.type === 'withinTolerance') {
-              result.withinTolerance.push({
+              const pair = {
                 dataA: dataA,
                 dataB: data,
                 matchType: 'withinTolerance',
                 differences: comparisonResult.differences,
-              });
+              };
+
+              if (attributeComparator && !attributeComparator(dataA, data)) {
+                result.mismatch.push({
+                  ...pair,
+                  matchType: 'attributeMismatch',
+                });
+              } else {
+                result.withinTolerance.push(pair);
+              }
               candidatesA.splice(i, 1);
               if (candidatesA.length === 0) {
                 mapA.delete(keyA);

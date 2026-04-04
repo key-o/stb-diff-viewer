@@ -14,7 +14,7 @@ import {
   InteractionEvents,
   LoadingIndicatorEvents,
   FinalizationEvents,
-} from '../../app/events/index.js';
+} from '../../data/events/index.js';
 
 import { clearUIState, setGlobalStateForUI } from '../state.js';
 import { clearTree, clearTreeSelection, selectElementInTree } from '../panels/elementTreeView.js';

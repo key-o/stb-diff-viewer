@@ -13,7 +13,7 @@ import { IMPORTANCE_LEVELS } from '../constants/importanceLevels.js';
 /**
  * フォールバック重要度設定（読み込み専用）
  * JSON設定ファイルの読み込みが失敗した際のフォールバックとしてのみ使用される。
- * 通常時は importance-s2.json / importance-s4.json が上書きするため直接参照しないこと。
+ * 通常時は config/mvd-s2.json / config/mvd-s4.json が上書きするため直接参照しないこと。
  * 参照箇所: importanceManager.js の loadDefaultSettings() のみ
  *
  * ST-Bridge要素パスとその重要度レベルのマッピング

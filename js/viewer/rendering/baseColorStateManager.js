@@ -6,6 +6,9 @@
  */
 
 import { BaseElementStateManager } from './baseElementStateManager.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('viewer:rendering:baseColorStateManager');
 
 /**
  * BaseColorStateManagerクラス
@@ -151,7 +154,7 @@ class BaseColorStateManager extends BaseElementStateManager {
       try {
         callback(colorType, color);
       } catch (error) {
-        console.error(`[${this.managerName}] Color change callback error:`, error);
+        log.error(`[${this.managerName}] Color change callback error:`, error);
       }
     });
   }

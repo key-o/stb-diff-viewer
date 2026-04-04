@@ -11,8 +11,9 @@
 
 import * as THREE from 'three';
 import { createLogger } from '../utils/logger.js';
-import { ELEMENT_PRIORITY } from '../app/progressiveLoader.js';
-import { eventBus, LoadingIndicatorEvents } from '../app/events/index.js';
+import { ELEMENT_PRIORITY } from '../constants/elementPriority.js';
+import { eventBus } from '../data/events/eventBus.js';
+import { LoadingIndicatorEvents } from '../constants/eventTypes.js';
 import {
   elementGroups,
   drawNodes,
@@ -282,6 +283,8 @@ function renderElementTypeSync(elementType, comparisonResult, modelBounds, _glob
     case 'FoundationColumn':
     case 'Joint':
     case 'Parapet':
+    case 'IsolatingDevice':
+    case 'DampingDevice':
       // solidモードの場合は線分描画をスキップ（applyInitialDisplayModesで立体描画される）
       if (displayModeManager.isSolidMode(elementType)) break;
       // 要素数が多い場合はバッチ処理を使用
@@ -307,6 +310,7 @@ function renderElementTypeSync(elementType, comparisonResult, modelBounds, _glob
 
     case 'Slab':
     case 'Wall':
+    case 'FrameDampingDevice':
       // solidモードの場合はスキップ（applyInitialDisplayModesで描画される）
       if (displayModeManager.isSolidMode(elementType)) break;
       result.labels = drawPolyElements(comparisonResult, group, createLabels, modelBounds);

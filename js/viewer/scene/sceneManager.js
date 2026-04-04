@@ -26,7 +26,7 @@ const log = createLogger('viewer:scene');
  */
 export function clearSceneContent(groups = viewerElementGroups, nodeLabels = []) {
   if (!groups) {
-    console.warn('[viewer:scene] No element groups provided to clearSceneContent');
+    log.warn('[viewer:scene] No element groups provided to clearSceneContent');
     return new THREE.Box3();
   }
 

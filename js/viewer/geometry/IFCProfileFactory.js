@@ -25,6 +25,9 @@ import {
   calculate2CBackToBackProfile,
   calculate2CFaceToFaceProfile,
 } from './core/ProfileCalculator.js';
+import { createLogger } from '../../utils/logger.js';
+
+const log = createLogger('viewer:geometry:IFCProfileFactory');
 
 /**
  * IFC標準に従ったIFCプロファイルタイプ列挙
@@ -128,7 +131,7 @@ export class IFCProfileFactory {
         return this.createCircleGeometry(ifcProfile.ProfileParameters, originType);
 
       default:
-        console.warn(`Unsupported IFC profile type: ${ifcProfile.ProfileType}`);
+        log.warn(`Unsupported IFC profile type: ${ifcProfile.ProfileType}`);
         return null;
     }
   }
@@ -187,7 +190,7 @@ export class IFCProfileFactory {
       return this.createShapeFromVertices(profileData, originType);
     }
 
-    console.warn(`Unsupported combined section type: ${profileType}`);
+    log.warn(`Unsupported combined section type: ${profileType}`);
     return null;
   }
 
@@ -202,7 +205,7 @@ export class IFCProfileFactory {
     const { vertices, holes = [] } = profileData;
 
     if (!vertices || vertices.length === 0) {
-      console.warn('No vertices provided for shape creation');
+      log.warn('No vertices provided for shape creation');
       return null;
     }
 
@@ -591,7 +594,7 @@ export class IFCProfileFactory {
         },
       };
     } catch (error) {
-      console.warn(`IFCProfileFactory.createProfile failed for ${sectionType}:`, error);
+      log.warn(`IFCProfileFactory.createProfile failed for ${sectionType}:`, error);
       return null;
     }
   }
@@ -788,4 +791,3 @@ export class STBToIFCConverter {
     return 'Rect'; // Default fallback
   }
 }
-
