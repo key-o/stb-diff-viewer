@@ -63,13 +63,13 @@ export async function initializeRequiredModules(elementGroups) {
     });
 
   // clippingManagerへの状態プロバイダー注入（逆依存解消）
-  import('../globalState.js').then(({ getState }) => {
+  import('../../data/state/globalState.js').then(({ getState }) => {
     setClippingStateProvider({ getState });
     log.info('clippingManager状態プロバイダーが注入されました');
   });
 
   // viewer層全体への状態プロバイダー注入（レイヤー依存違反解消）
-  import('../globalState.js').then(({ getState, setState }) => {
+  import('../../data/state/globalState.js').then(({ getState, setState }) => {
     setViewerStateProvider({ getState, setState });
     log.info('viewer状態プロバイダーが注入されました');
   });
@@ -116,7 +116,7 @@ export async function initializeRequiredModules(elementGroups) {
       { getCurrentClippingState, applyStoryClip, applyAxisClip, clearAllClippingPlanes },
       { getCurrentStories, getCurrentAxesData },
     ] = await Promise.all([
-      import('../globalState.js'),
+      import('../../data/state/globalState.js'),
       import('../../ui/viewer3d/unifiedLabelManager.js'),
       import('../../ui/viewer3d/clipping.js'),
       import('../../ui/state.js'),

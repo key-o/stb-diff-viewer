@@ -16,6 +16,28 @@
 import { parseElements } from '../import/parser/stbXmlParser.js';
 import { CATEGORY, getRepairableIssues } from '../validation/stbValidator.js';
 
+/**
+ * @typedef {Object} RepairResult
+ * @property {boolean} success
+ * @property {string} action
+ * @property {string} message
+ * @property {string} [elementType]
+ * @property {string} [elementId]
+ * @property {string} [attribute]
+ * @property {any} [oldValue]
+ * @property {any} [newValue]
+ */
+
+/**
+ * @typedef {Object} RepairReport
+ * @property {number} totalRepairs
+ * @property {number} successCount
+ * @property {number} failureCount
+ * @property {RepairResult[]} results
+ * @property {Array<{tagName?: string, id?: string}>} removedElements
+ * @property {Date} timestamp
+ */
+
 // ========================================
 // 定数定義
 // ========================================

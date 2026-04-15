@@ -1,6 +1,9 @@
+import { createLogger } from '../../../utils/logger.js';
+
 /**
  * Logger Utility for STB Version Converter
  */
+const outputLogger = createLogger('common-stb:converter-logger');
 
 const LOG_LEVELS = {
   DEBUG: 0,
@@ -34,7 +37,7 @@ class Logger {
     const message = args.join(' ');
     this.warnings.push(message);
     if (this.level <= LOG_LEVELS.WARN) {
-      console.warn('[WARN]', ...args);
+      outputLogger.warn('[WARN]', ...args);
     }
   }
 
@@ -42,7 +45,7 @@ class Logger {
     const message = args.join(' ');
     this.errors.push(message);
     if (this.level <= LOG_LEVELS.ERROR) {
-      console.error('[ERROR]', ...args);
+      outputLogger.error('[ERROR]', ...args);
     }
   }
 

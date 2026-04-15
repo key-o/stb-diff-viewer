@@ -81,7 +81,7 @@ export function compareElements(
 
 // --- 要素タイプごとのキー抽出関数 ---
 
-/**
+/*
  * 線分要素（柱、梁など）から比較キーと関連データ（始点・終点座標、要素ID）を抽出する。
  * @param {Element} element - 線分要素のXML要素。
  * @param {Map<string, {x: number, y: number, z: number}>} nodeMap - 対応するノードマップ。
@@ -223,7 +223,7 @@ export function lineElementKeyExtractor(
   return { key: null, data: null };
 }
 
-/**
+/*
  * ポリゴン要素（スラブ、壁など）から比較キーと関連データ（頂点座標リスト、要素ID）を抽出する。
  * @param {Element} element - ポリゴン要素のXML要素。
  * @param {Map<string, {x: number, y: number, z: number}>} nodeMap - 対応するノードマップ。
@@ -301,7 +301,7 @@ export function polyElementKeyExtractor(
   return { key: null, data: null };
 }
 
-/**
+/*
  * 節点要素から比較キーと関連データ（座標、ノードID）を抽出する。
  * @param {Element} element - 節点要素のXML要素 (StbNode)。
  * @param {Map<string, {x: number, y: number, z: number}>} nodeMap - 対応するノードマップ。
@@ -369,7 +369,7 @@ function filterElementsByImportance(elements, elementType, targetLevels, lookupF
   });
 }
 
-/**
+/*
  * 重要度を考慮した要素比較（compareElementsの拡張版）
  * @param {Array<Element>} elementsA - モデルAの要素リスト
  * @param {Array<Element>} elementsB - モデルBの要素リスト
@@ -577,7 +577,7 @@ export function generateImportanceSummary(comparisonResults) {
   return summary;
 }
 
-/**
+/*
  * 要素の重要度を取得するヘルパー
  * @param {Element} element - 要素
  * @param {string} elementType - 要素タイプ
@@ -675,7 +675,7 @@ export function compareElementsWithTolerance(
  * @property {string} versionB - モデルBのバージョン ('2.0.2' or '2.1.0')
  */
 
-/**
+/*
  * バージョン対応の比較結果
  * @typedef {Object} VersionAwareComparisonResult
  * @property {Array} matched - 一致した要素

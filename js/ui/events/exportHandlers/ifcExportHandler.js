@@ -85,7 +85,7 @@ async function handleIfcExport() {
     }
 
     // globalStateから階データを取得
-    const { getState } = await import('../../../app/globalState.js');
+    const { getState } = await import('../../../data/state/globalState.js');
     const stories = getState('models.stories') || [];
 
     // エクスポーター作成

@@ -212,6 +212,37 @@
 }
 
 /* ビュー方向ボタン */
+.view-submode-buttons {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.view-submode-btn {
+  flex: 1;
+  padding: 6px 8px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: var(--border-radius);
+  background: var(--bg-panel, #fff);
+  color: var(--text-primary, #333);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.view-submode-btn:hover {
+  background: var(--bg-hover, #e8e8e8);
+  border-color: var(--primary-color, #4a90d9);
+}
+
+.view-submode-btn.active {
+  background: var(--primary-light, #e3f2fd);
+  border-color: var(--primary-color, #4a90d9);
+  color: var(--primary-color, #4a90d9);
+  font-weight: var(--font-weight-semibold);
+}
+
 .view-direction-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -261,4 +292,3 @@
 .export-settings .btn {
   width: 100%;
 }
-

@@ -197,13 +197,18 @@ function validateChildRelationships(element, elementName, elementId, version, is
   const allowedChildren = def.children;
   const allowedNameSet = new Set(allowedChildren.map((c) => c.name));
 
-  // 直接子要素の名前カウントを収集
+  // 直接子要素の出現数と出現位置を収集
   const actualCounts = {};
+  const childPositions = {};
   for (let i = 0; i < element.childNodes.length; i++) {
     const child = element.childNodes[i];
     if (child.nodeType !== 1) continue;
     const name = child.localName || child.nodeName.replace(/^.*:/, '');
     actualCounts[name] = (actualCounts[name] || 0) + 1;
+    if (!childPositions[name]) {
+      childPositions[name] = [];
+    }
+    childPositions[name].push(i);
   }
 
   // 未許可の子要素を検出
@@ -229,6 +234,43 @@ function validateChildRelationships(element, elementName, elementId, version, is
     if (!choiceGroups.has(childDef.choiceGroup)) choiceGroups.set(childDef.choiceGroup, []);
     choiceGroups.get(childDef.choiceGroup).push(childDef);
   }
+
+  const checkSequenceOrder = (members, label) => {
+    const orderedMembers = members
+      .filter(
+        (m) =>
+          (actualCounts[m.name] || 0) > 0 &&
+          m.sequenceOrder !== null &&
+          m.sequenceOrder !== undefined,
+      )
+      .sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+
+    if (orderedMembers.length <= 1) return;
+
+    for (let i = 1; i < orderedMembers.length; i += 1) {
+      const prev = orderedMembers[i - 1];
+      const curr = orderedMembers[i];
+      const prevPositions = childPositions[prev.name] || [];
+      const currPositions = childPositions[curr.name] || [];
+      if (prevPositions.length === 0 || currPositions.length === 0) continue;
+
+      const prevLastPosition = prevPositions[prevPositions.length - 1];
+      const currFirstPosition = currPositions[0];
+      if (prevLastPosition > currFirstPosition) {
+        const scopeMessage = label ? ` (${label})` : '';
+        issues.push({
+          severity: SEVERITY.ERROR,
+          category: CATEGORY.SCHEMA,
+          elementType: elementName,
+          elementId,
+          message: `sequenceOrder violation${scopeMessage}: '${elementName}' should keep '${prev.name}' before '${curr.name}'`,
+          ...buildIssueLocation(element, null),
+          repairable: false,
+        });
+        break;
+      }
+    }
+  };
 
   for (const [, members] of choiceGroups) {
     // sequenceGroup ごとにメンバーをグループ化（null = 直接の choice 枝）
@@ -271,6 +313,13 @@ function validateChildRelationships(element, elementName, elementId, version, is
         ...buildIssueLocation(element, null),
         repairable: false,
       });
+    }
+
+    for (const { sgMembers, sgId } of presentSeqGroups) {
+      checkSequenceOrder(
+        sgMembers,
+        `sequenceGroup '${sgId || 'default'}'`,
+      );
     }
 
     // choiceGroup 全体として必須か（いずれかのメンバーが minOccurs > 0）
@@ -346,6 +395,10 @@ function validateChildRelationships(element, elementName, elementId, version, is
       }
     }
   }
+
+  // choiceGroup 以外の sequenceOrder 定義がある場合の順序チェック
+  const directSequenceMembers = allowedChildren.filter((childDef) => !childDef.choiceGroup);
+  checkSequenceOrder(directSequenceMembers, 'direct children');
 
   // choiceGroup に属さない必須/個数制約チェック
   for (const childDef of allowedChildren) {

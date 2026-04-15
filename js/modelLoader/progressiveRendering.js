@@ -23,6 +23,7 @@ import {
   drawLineElementsBatched,
   shouldUseBatchRendering,
   displayModeManager,
+  labelDisplayManager,
 } from '../viewer/index.js';
 import { convertToDiffRenderModel, getDiffStatistics } from '../data/converters/index.js';
 import { renderAuxiliaryElements } from './renderingOrchestrator.js';
@@ -165,7 +166,11 @@ export async function orchestrateProgressiveRendering(
     });
   }
 
-  eventBus.emit(LoadingIndicatorEvents.COMPLETE, { message: '描画完了' });
+  eventBus.emit(LoadingIndicatorEvents.UPDATE, {
+    progress: 95,
+    message: '描画完了',
+    detail: '表示モードを適用しています',
+  });
 
   return renderingResults;
 }
@@ -237,7 +242,7 @@ async function renderElementTypeAsync(elementType, comparisonResult, modelBounds
  * @param {Object} globalData - グローバルデータ
  * @returns {Object} レンダリング結果
  */
-function renderElementTypeSync(elementType, comparisonResult, modelBounds, _globalData) {
+function renderElementTypeSync(elementType, comparisonResult, modelBounds, globalData) {
   const group = elementGroups[elementType];
   if (!group) {
     throw new Error(`Element group not found for type: ${elementType}`);
@@ -256,7 +261,8 @@ function renderElementTypeSync(elementType, comparisonResult, modelBounds, _glob
     return result;
   }
 
-  const createLabels = true;
+  labelDisplayManager.syncWithCheckbox(elementType);
+  const createLabels = labelDisplayManager.isLabelVisible(elementType);
 
   // バッチ処理を使用するかどうかを判定
   const useBatch = batchRenderingEnabled && shouldUseBatchRendering(comparisonResult);
@@ -309,6 +315,7 @@ function renderElementTypeSync(elementType, comparisonResult, modelBounds, _glob
       break;
 
     case 'Slab':
+    case 'ShearWall':
     case 'Wall':
     case 'FrameDampingDevice':
       // solidモードの場合はスキップ（applyInitialDisplayModesで描画される）

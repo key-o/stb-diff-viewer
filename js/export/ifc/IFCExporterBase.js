@@ -8,6 +8,7 @@ import { StepWriter, generateIfcGuid } from './StepWriter.js';
 import { resolveProfileType } from '../../constants/profileTypeAliases.js';
 import { downloadBlob } from '../../utils/downloadHelper.js';
 import { createLogger } from '../../utils/logger.js';
+import { eventBus, ExportEvents } from '../../data/events/index.js';
 
 const log = createLogger('export:ifc:IFCExporterBase');
 
@@ -743,8 +744,15 @@ export class IFCExporterBase {
    */
   download(options = {}) {
     const fileName = options.fileName || 'export.ifc';
-    const blob = this.generateBlob(options);
-    downloadBlob(blob, fileName);
+    eventBus.emit(ExportEvents.STARTED, { type: 'ifc', fileName });
+    try {
+      const blob = this.generateBlob(options);
+      downloadBlob(blob, fileName);
+      eventBus.emit(ExportEvents.COMPLETED, { type: 'ifc', fileName });
+    } catch (error) {
+      eventBus.emit(ExportEvents.ERROR, { type: 'ifc', error });
+      throw error;
+    }
   }
 
   /**

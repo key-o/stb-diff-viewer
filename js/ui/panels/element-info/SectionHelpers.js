@@ -5,11 +5,12 @@
  * 断面ノードの検索、鉄骨断面寸法の取得、断面データの抽出などを担当します。
  */
 
-import { getState } from '../../../app/globalState.js';
+import { getState } from '../../../data/state/globalState.js';
 import { SECTION_CONFIG } from '../../../common-stb/section/sectionConfig.js';
 
 const SECTION_LOOKUP_ALIASES = {
   FrameDampingDevice: 'DampingDevice',
+  ShearWall: 'Wall',
 };
 
 function getLookupElementType(elementType) {

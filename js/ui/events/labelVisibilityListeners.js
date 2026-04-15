@@ -7,7 +7,7 @@
  */
 
 import { updateLabelVisibility } from '../viewer3d/unifiedLabelManager.js';
-import { setState } from '../../app/globalState.js';
+import { setState } from '../../data/state/globalState.js';
 import { renderingController } from '../../app/controllers/renderingController.js';
 import { REDRAW_REQUIRED_ELEMENT_TYPES } from '../../config/uiElementConfig.js';
 import { eventBus, RenderEvents } from '../../data/events/index.js';

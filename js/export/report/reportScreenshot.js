@@ -8,7 +8,7 @@
  */
 
 import { renderer, setView, VIEW_DIRECTIONS } from '../../viewer/index.js';
-import { getState } from '../../app/globalState.js';
+import { getState } from '../../data/state/globalState.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('export:report:reportScreenshot');

@@ -616,16 +616,56 @@ export class LoadDisplayManager {
    * @returns {THREE.Vector3}
    */
   _getLoadDirection(load, start, end, memberType) {
-    if (memberType === 'column') {
-      // 柱の場合: 水平方向（X or Y軸）
-      if (load.directionLoad === 'Y') {
-        return new THREE.Vector3(0, -1, 0);
-      }
-      return new THREE.Vector3(-1, 0, 0);
+    const directionToken = (load.directionLoad || '').toUpperCase();
+    const coordinateToken = (load.coordinateSystem || '').toUpperCase();
+
+    const axis =
+      this._parseLoadDirectionAxis(directionToken) || this._parseLoadDirectionAxis(coordinateToken);
+    if (axis) {
+      return axis;
     }
 
-    // 梁の場合: 鉛直下向き（-Z方向）
+    if (
+      coordinateToken === 'LOCAL' ||
+      coordinateToken === 'GLOBAL' ||
+      coordinateToken === 'PROJECTION'
+    ) {
+      if (memberType === 'column') {
+        return new THREE.Vector3(0, -1, 0);
+      }
+      return new THREE.Vector3(0, 0, -1);
+    }
+
+    if (memberType === 'column') {
+      return new THREE.Vector3(-1, 0, 0);
+    }
     return new THREE.Vector3(0, 0, -1);
+  }
+
+  _parseLoadDirectionAxis(token) {
+    if (!token) return null;
+    switch (token) {
+      case 'X':
+      case '+X':
+      case '-X':
+      case 'UX':
+      case 'DX':
+        return new THREE.Vector3(-1, 0, 0);
+      case 'Y':
+      case '+Y':
+      case '-Y':
+      case 'UY':
+      case 'DY':
+        return new THREE.Vector3(0, -1, 0);
+      case 'Z':
+      case '+Z':
+      case '-Z':
+      case 'UZ':
+      case 'DZ':
+        return new THREE.Vector3(0, 0, -1);
+      default:
+        return null;
+    }
   }
 
   /**
@@ -637,7 +677,7 @@ export class LoadDisplayManager {
    * @param {string} memberType - 部材タイプ
    * @returns {Array<CSS2DObject>}
    */
-  _createLabelsByType(load, start, end, memberLength, _memberType) {
+  _createLabelsByType(load, start, end, memberLength, memberType) {
     const labels = [];
 
     switch (load.type) {

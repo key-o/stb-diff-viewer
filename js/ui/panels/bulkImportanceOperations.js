@@ -14,7 +14,7 @@
 
 import { getImportanceManager, STB_ELEMENT_TABS } from '../../app/importanceManager.js';
 import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../../constants/importanceLevels.js';
-import { setState } from '../../app/globalState.js';
+import { setState } from '../../data/state/globalState.js';
 import { floatingWindowManager } from './floatingWindowManager.js';
 import { eventBus, ImportanceEvents } from '../../data/events/index.js';
 import { storageHelper } from '../../utils/storageHelper.js';

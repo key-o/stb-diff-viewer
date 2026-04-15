@@ -56,6 +56,7 @@ export let camera; // PerspectiveCamera（デフォルト・3Dモード用）
 export let orthographicCamera; // OrthographicCamera（2Dモード用）
 export let renderer = null;
 export let controls = null;
+let renderRequested = true;
 
 // --- アクティブカメラ管理 ---
 // 複数のカメラ（Perspective/Orthographic）を切り替え可能にする
@@ -142,6 +143,11 @@ export function setActiveCamera(newCamera) {
  */
 export function setActiveControls(newControls) {
   controls = newControls;
+  requestRender();
+}
+
+export function requestRender() {
+  renderRequested = true;
 }
 
 // --- ライト設定 ---
@@ -195,7 +201,7 @@ export async function initRenderer() {
       log.warn('WebGL context check failed:', e);
     }
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     renderer.localClippingEnabled = true;
     // WebXR対応: xr.enabledをtrueにしても通常モードには影響なし
     renderer.xr.enabled = true;
@@ -235,6 +241,12 @@ export async function initRenderer() {
       MIDDLE: THREE.MOUSE.DOLLY,
       RIGHT: THREE.MOUSE.PAN,
     };
+
+    if (controls && typeof controls.addEventListener === 'function') {
+      controls.addEventListener('change', requestRender);
+    }
+
+    requestRender();
 
     return true;
   } catch (error) {
@@ -306,7 +318,7 @@ export function setXRFrameHandler(handler) {
  * @param {THREE.Scene} scene - レンダリングするシーン
  * @param {THREE.Camera} [camera] - 使用するカメラ（省略時はactiveCameraを使用）
  */
-export function animate(initialControls, scene, camera) {
+export function animate(controls, scene, camera) {
   // フラスタムカリング用のカウンター（毎フレームではなく一定間隔で実行）
   let cullingFrameCounter = 0;
   const CULLING_INTERVAL = 3; // 3フレームごとにカリング実行
@@ -314,12 +326,14 @@ export function animate(initialControls, scene, camera) {
   // 共通のフレーム処理（requestAnimationFrame / setAnimationLoop 両対応）
   const _frameUpdate = (_timestamp, _xrFrame) => {
     if (!renderer) return;
+    let shouldRender = renderRequested || _xrSessionActive;
     // XRセッション中はコントロール更新をスキップ（ヘッドトラッキングが制御）
     if (!skipControlsUpdate && !_xrSessionActive) {
       const dt = _clock.getDelta();
-      const currentControls = controls || initialControls;
+      const currentControls = controls;
       if (currentControls && typeof currentControls.update === 'function') {
-        currentControls.update(dt);
+        const controlsChanged = currentControls.update(dt);
+        shouldRender = shouldRender || controlsChanged === true;
       }
     }
     const renderCamera = camera || activeCamera;
@@ -330,6 +344,7 @@ export function animate(initialControls, scene, camera) {
         cullingFrameCounter = 0;
         const culler = getFrustumCuller(renderCamera);
         culler.cullElementGroups(elementGroups);
+        shouldRender = true;
       }
     }
 
@@ -341,13 +356,17 @@ export function animate(initialControls, scene, camera) {
       }
     }
 
-    renderer.render(scene, renderCamera);
+    if (shouldRender) {
+      renderer.render(scene, renderCamera);
+      renderRequested = false;
+    }
   };
 
   // アニメーション開始（多重開始防止のため、1回目の呼び出しでループセット）
   if (!_animating) {
     _animating = true;
     _clock = new THREE.Clock();
+    requestRender();
     // setAnimationLoop を使用（WebXRセッション時に自動でXRフレームループに切替わる）
     renderer.setAnimationLoop(_frameUpdate);
   }
@@ -388,6 +407,7 @@ export function setupViewportResizeHandler(_defaultCamera) {
       }
 
       renderer.setSize(window.innerWidth, window.innerHeight);
+      requestRender();
     },
     false,
   );

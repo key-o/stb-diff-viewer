@@ -4,7 +4,7 @@
 
 import { createLogger } from '../../utils/logger.js';
 import { compareModels } from '../controllers/modelLoaderController.js';
-import { getState } from '../globalState.js';
+import { getState } from '../../data/state/globalState.js';
 import { buildTree } from '../../ui/panels/elementTreeView.js';
 import { buildSectionTree } from '../../ui/panels/sectionTreeView.js';
 import { updateLabelVisibility } from '../../ui/viewer3d/unifiedLabelManager.js';
@@ -13,7 +13,7 @@ import { selectElement3D, selectMultipleElements3D } from '../controllers/intera
 import { showError } from '../../ui/common/toast.js';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
 import { convertComparisonResultsForTree, find3DObjectByElement } from './initializationUtils.js';
-import { scene, axesHelper } from '../../viewer/index.js';
+import { scene, axesHelper, setGridHelperVisibility } from '../../viewer/index.js';
 
 const log = createLogger('eventHandlers');
 
@@ -36,23 +36,38 @@ export async function handleCompareModelsClick(scheduleRender, dependencies) {
   }
 
   // モデルの読み込みと比較処理
-  await compareModels(scheduleRender, { camera, controls });
+  const compareSucceeded = await compareModels(scheduleRender, { camera, controls });
+  if (!compareSucceeded) {
+    return;
+  }
 
-  // 比較結果を取得してツリーを構築
-  const comparisonResults = getState('comparisonResults');
-  if (comparisonResults) {
+  const scheduleDeferredTask = (task) => {
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(task, { timeout: 100 });
+    } else {
+      setTimeout(task, 0);
+    }
+  };
+
+  // 比較結果を取得してツリーを非同期で構築
+  scheduleDeferredTask(() => {
+    const comparisonResults = getState('comparisonResults');
+    if (!comparisonResults) {
+      return;
+    }
+
     log.info('要素ツリーを構築しています...');
-    // comparisonResultsをツリー表示用に変換
     const treeData = convertComparisonResultsForTree(comparisonResults);
     buildTree(treeData);
 
-    // 断面ツリーも構築
     const sectionsData = getState('sectionsData');
     if (sectionsData) {
-      log.info('断面ツリーを構築しています...');
-      buildSectionTree(treeData, sectionsData);
+      scheduleDeferredTask(() => {
+        log.info('断面ツリーを構築しています...');
+        buildSectionTree(treeData, sectionsData);
+      });
     }
-  }
+  });
 
   // 少し待ってからラベル表示状態をチェックボックスに基づいて更新
   // （ラベル作成処理の完了を待つ）
@@ -290,5 +305,18 @@ export function togglePlacementLinesVisibility(isVisible) {
     log.info(`配置基準線の表示状態を切り替えました: ${isVisible}`);
   } catch (error) {
     log.error('配置基準線の表示切り替えでエラーが発生しました:', error);
+  }
+}
+
+/**
+ * Three.jsグリッドの表示切替
+ * @param {boolean} isVisible - 表示するかどうか
+ */
+export function toggleGridVisibility(isVisible) {
+  try {
+    setGridHelperVisibility(isVisible);
+    log.info(`グリッドの表示状態を変更しました: ${isVisible}`);
+  } catch (error) {
+    log.error('グリッドの表示切替でエラーが発生しました:', error);
   }
 }

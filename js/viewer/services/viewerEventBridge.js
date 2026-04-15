@@ -10,8 +10,8 @@
 import { eventBus } from '../../data/events/eventBus.js';
 import { AxisEvents, RenderEvents } from '../../constants/eventTypes.js';
 import { drawAxes, elementGroups } from '../index.js';
-import { getCameraMode } from '../camera/cameraManagerImpl.js';
-import { CAMERA_MODES } from '../../constants/displayModes.js';
+import { getCameraContext, getCameraMode } from '../camera/cameraManagerImpl.js';
+import { CAMERA_CONTEXTS, CAMERA_MODES } from '../../constants/displayModes.js';
 import { scheduleRender } from '../../utils/renderScheduler.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -79,7 +79,8 @@ class ViewerEventBridge {
     const is2DMode =
       providedIs2DMode !== undefined
         ? providedIs2DMode
-        : getCameraMode() === CAMERA_MODES.ORTHOGRAPHIC;
+        : getCameraMode() === CAMERA_MODES.ORTHOGRAPHIC &&
+          getCameraContext() === CAMERA_CONTEXTS.DRAWING;
 
     drawAxes(axesData, stories, axisGroup, modelBounds, labelToggle, null, {
       targetStoryId: targetStoryId === 'all' ? null : targetStoryId,
@@ -102,9 +103,11 @@ class ViewerEventBridge {
    */
   getCameraModeInfo() {
     const mode = getCameraMode();
+    const context = getCameraContext();
     return {
       mode,
-      is2D: mode === CAMERA_MODES.ORTHOGRAPHIC,
+      context,
+      is2D: mode === CAMERA_MODES.ORTHOGRAPHIC && context === CAMERA_CONTEXTS.DRAWING,
     };
   }
 

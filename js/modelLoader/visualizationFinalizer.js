@@ -26,9 +26,9 @@ import { ModelEvents, AxisEvents, FinalizationEvents } from '../constants/eventT
  * @param {Object} finalizationData - Data needed for finalization
  * @param {Function} scheduleRender - Render scheduling function
  * @param {Object} cameraControls - Camera and controls objects
- * @returns {Object} Finalization result
+ * @returns {Promise<Object>} Finalization result
  */
-export function finalizeVisualization(finalizationData, scheduleRender, _cameraControls) {
+export async function finalizeVisualization(finalizationData, scheduleRender, cameraControls) {
   const {
     nodeLabels,
     stories,
@@ -50,8 +50,9 @@ export function finalizeVisualization(finalizationData, scheduleRender, _cameraC
   // Initialize view modes
   const initViewModes = getLoaderInitViewModes();
   const updateModelVisibility = getLoaderUpdateModelVisibility();
-  initViewModes(finalizationData, scheduleRender);
-  updateModelVisibility(scheduleRender);
+  const initViewModesResult = await Promise.resolve(
+    initViewModes(finalizationData, scheduleRender),
+  );
 
   // Setup camera and grid
   createOrUpdateGridHelper(modelBounds);
@@ -68,7 +69,16 @@ export function finalizeVisualization(finalizationData, scheduleRender, _cameraC
   });
   logger.info('Axes redrawn with final model bounds');
 
-  return { stats: renderingStats };
+  updateModelVisibility(scheduleRender);
+
+  if (initViewModesResult?.errors?.length > 0) {
+    logger.warn('Initial display mode redraw completed with errors:', initViewModesResult.errors);
+  }
+
+  return {
+    stats: renderingStats,
+    initViewModesResult,
+  };
 }
 
 /**

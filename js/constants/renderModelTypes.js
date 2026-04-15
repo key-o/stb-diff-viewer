@@ -13,6 +13,25 @@
  * @module constants/renderModelTypes
  */
 
+/**
+ * @typedef {import('../viewer/types/render-elements.js').RenderNode} RenderNode
+ * @typedef {import('../viewer/types/render-elements.js').RenderColumn} RenderColumn
+ * @typedef {import('../viewer/types/render-elements.js').RenderPost} RenderPost
+ * @typedef {import('../viewer/types/render-elements.js').RenderGirder} RenderGirder
+ * @typedef {import('../viewer/types/render-elements.js').RenderBeam} RenderBeam
+ * @typedef {import('../viewer/types/render-elements.js').RenderBrace} RenderBrace
+ * @typedef {import('../viewer/types/render-elements.js').RenderSlab} RenderSlab
+ * @typedef {import('../viewer/types/render-elements.js').RenderWall} RenderWall
+ * @typedef {import('../viewer/types/render-elements.js').RenderFooting} RenderFooting
+ * @typedef {import('../viewer/types/render-elements.js').RenderPile} RenderPile
+ * @typedef {import('../viewer/types/render-elements.js').RenderFoundationColumn} RenderFoundationColumn
+ * @typedef {import('../viewer/types/render-elements.js').RenderParapet} RenderParapet
+ * @typedef {import('../viewer/types/render-elements.js').RenderStripFooting} RenderStripFooting
+ * @typedef {import('../viewer/types/render-elements.js').RenderJoint} RenderJoint
+ * @typedef {import('../viewer/types/render-elements.js').RenderAxis} RenderAxis
+ * @typedef {import('../viewer/types/render-elements.js').RenderStory} RenderStory
+ */
+
 // ============================================
 // 型定義 (JSDoc)
 // ============================================

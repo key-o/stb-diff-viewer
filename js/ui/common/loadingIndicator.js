@@ -303,9 +303,9 @@ class LoadingIndicator {
    * 完了状態を表示して非表示
    *
    * @param {string} [message='完了'] - 完了メッセージ
-   * @param {number} [hideDelay=1000] - 非表示までの遅延
+   * @param {number} [hideDelay=150] - 非表示までの遅延
    */
-  complete(message = '完了', hideDelay = 1000) {
+  complete(message = '完了', hideDelay = 150) {
     this.update(100, message, '');
     this.hide(hideDelay);
   }

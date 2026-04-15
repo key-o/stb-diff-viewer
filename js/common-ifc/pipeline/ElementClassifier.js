@@ -149,6 +149,7 @@ export class ElementClassifier {
       if (upper === 'SRC') return 'SRC';
       if (upper === 'CFT') return 'CFT';
       if (upper === 'S') return 'S';
+      if (upper === 'UNDEFINED') return 'UNDEFINED';
     }
 
     // 2. 要素名のプレフィックスから推定

@@ -7,6 +7,28 @@
  * @module viewer/types/render-model
  */
 
+export {};
+
+/**
+ * @typedef {import('./render-elements.js').RenderNode} RenderNode
+ * @typedef {import('./render-elements.js').RenderColumn} RenderColumn
+ * @typedef {import('./render-elements.js').RenderPost} RenderPost
+ * @typedef {import('./render-elements.js').RenderGirder} RenderGirder
+ * @typedef {import('./render-elements.js').RenderBeam} RenderBeam
+ * @typedef {import('./render-elements.js').RenderBrace} RenderBrace
+ * @typedef {import('./render-elements.js').RenderSlab} RenderSlab
+ * @typedef {import('./render-elements.js').RenderWall} RenderWall
+ * @typedef {import('./render-elements.js').RenderFooting} RenderFooting
+ * @typedef {import('./render-elements.js').RenderPile} RenderPile
+ * @typedef {import('./render-elements.js').RenderFoundationColumn} RenderFoundationColumn
+ * @typedef {import('./render-elements.js').RenderParapet} RenderParapet
+ * @typedef {import('./render-elements.js').RenderStripFooting} RenderStripFooting
+ * @typedef {import('./render-elements.js').RenderJoint} RenderJoint
+ * @typedef {import('./render-elements.js').RenderAxis} RenderAxis
+ * @typedef {import('./render-elements.js').RenderStory} RenderStory
+ * @typedef {import('./render-elements.js').RenderPosition} RenderPosition
+ */
+
 // ============================================
 // メイン型定義
 // ============================================

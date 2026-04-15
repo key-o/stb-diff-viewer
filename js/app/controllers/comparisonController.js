@@ -12,6 +12,7 @@ import {
   generateImportanceSummary,
   updateComparisonResultImportance,
 } from '../../common-stb/comparison/index.js';
+import { getImportanceManager } from '../importanceManager.js';
 
 /**
  * 比較コントローラー
@@ -20,32 +21,37 @@ import {
 export const comparisonController = {
   /**
    * バージョン差分のサマリーを生成
-   * @param {Object} model1 - 比較元モデル
-   * @param {Object} model2 - 比較先モデル
+   * @param {Object} comparisonResult - 比較結果
    * @returns {Object} バージョン差分サマリー
    */
-  getVersionDifferenceSummary(model1, model2) {
-    return generateVersionDifferenceSummary(model1, model2);
+  getVersionDifferenceSummary(comparisonResult) {
+    return generateVersionDifferenceSummary(comparisonResult);
   },
 
   /**
    * 重要度のサマリーを生成
-   * @param {Object} comparisonResult - 比較結果
+   * @param {Array<Object>} comparisonResults - 比較結果配列
    * @returns {Object} 重要度サマリー
    */
-  getImportanceSummary(comparisonResult) {
-    return generateImportanceSummary(comparisonResult);
+  getImportanceSummary(comparisonResults) {
+    return generateImportanceSummary(comparisonResults);
   },
 
   /**
    * 比較結果の重要度を更新
    * @param {Object} comparisonResult - 比較結果
-   * @param {string} nodeId - ノードID
-   * @param {string} importance - 重要度
+   * @param {string} elementType - 要素タイプ
+   * @param {Function} [importanceLookup] - 重要度判定関数
    * @returns {Object} 更新後の比較結果
    */
-  updateImportance(comparisonResult, nodeId, importance) {
-    return updateComparisonResultImportance(comparisonResult, nodeId, importance);
+  updateImportance(comparisonResult, elementType, importanceLookup = null) {
+    const manager = getImportanceManager();
+    const resolvedLookup =
+      typeof importanceLookup === 'function'
+        ? importanceLookup
+        : (element, targetElementType) => manager.getElementImportance(element, targetElementType);
+
+    return updateComparisonResultImportance(comparisonResult, elementType, resolvedLookup);
   },
 };
 

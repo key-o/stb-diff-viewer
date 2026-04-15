@@ -33,6 +33,7 @@ import { getLoaderNormalizeSectionData, getLoaderImportanceManager } from './loa
 import { SUPPORTED_ELEMENTS } from '../constants/elementTypes.js';
 import { COMPARISON_KEY_TYPE } from '../config/comparisonKeyConfig.js';
 import { getToleranceConfig } from '../config/toleranceConfig.js';
+import { filterWallsByViewerElementType } from '../common-stb/walls/wallClassification.js';
 
 const SECTION_MAP_KEY_BY_ELEMENT_TYPE = {
   Column: 'columnSections',
@@ -41,6 +42,7 @@ const SECTION_MAP_KEY_BY_ELEMENT_TYPE = {
   Beam: 'beamSections',
   Brace: 'braceSections',
   Slab: 'slabSections',
+  ShearWall: 'wallSections',
   Wall: 'wallSections',
   Parapet: 'parapetSections',
   Pile: 'pileSections',
@@ -50,6 +52,31 @@ const SECTION_MAP_KEY_BY_ELEMENT_TYPE = {
   DampingDevice: 'dampingDeviceSections',
   FrameDampingDevice: 'dampingDeviceSections',
 };
+
+const extractedSectionsCache = new WeakMap();
+const storyAxisLookupCache = new WeakMap();
+
+function getCachedExtractedSections(document) {
+  if (!document) return null;
+  if (extractedSectionsCache.has(document)) {
+    return extractedSectionsCache.get(document);
+  }
+
+  const extractedSections = extractAllSections(document);
+  extractedSectionsCache.set(document, extractedSections);
+  return extractedSections;
+}
+
+function getCachedStoryAxisLookup(document) {
+  if (!document) return new Map();
+  if (storyAxisLookupCache.has(document)) {
+    return storyAxisLookupCache.get(document);
+  }
+
+  const lookup = buildNodeStoryAxisLookup(document);
+  storyAxisLookupCache.set(document, lookup);
+  return lookup;
+}
 
 function getElementAttribute(element, attributeName) {
   if (!element) return null;
@@ -150,8 +177,9 @@ export function processElementComparison(modelData, selectedElementTypes, option
 
   const comparisonResults = new Map();
   const modelBounds = new THREE.Box3();
-  const sectionMapsA = modelADocument ? extractAllSections(modelADocument) : null;
-  const sectionMapsB = modelBDocument ? extractAllSections(modelBDocument) : null;
+  // キャッシュ付き断面抽出を使用（同一ドキュメントへの重複抽出を回避）
+  const sectionMapsA = modelADocument ? getCachedExtractedSections(modelADocument) : null;
+  const sectionMapsB = modelBDocument ? getCachedExtractedSections(modelBDocument) : null;
 
   const { comparisonKeyType = COMPARISON_KEY_TYPE.POSITION_BASED } = options;
 
@@ -163,89 +191,170 @@ export function processElementComparison(modelData, selectedElementTypes, option
     storyAxisLookupB = modelBDocument ? buildNodeStoryAxisLookup(modelBDocument) : new Map();
   }
 
-  // Axis の XML タグ名は 'StbParallelAxis'（'StbAxis' ではない）
-  const ELEMENT_TAG_OVERRIDES = { Axis: 'StbParallelAxis' };
+  const comparisonContext = {
+    modelADocument,
+    modelBDocument,
+    nodeMapA,
+    nodeMapB,
+    sectionMapsA,
+    sectionMapsB,
+    storyAxisLookupA,
+    storyAxisLookupB,
+    comparisonKeyType,
+    options,
+  };
 
   for (const elementType of SUPPORTED_ELEMENTS) {
     const isSelected = selectedElementTypes.includes(elementType);
-
-    let elementsA = [];
-    let elementsB = [];
-
-    // Undefined要素は特別な処理が必要（StbUndefinedタグは存在しない）
-    // stbStructureReader.jsのparseStbFileで抽出されたundefinedElementsを使用
-    // ここでは空の結果を返し、viewModes.jsのredrawUndefinedElementsForViewModeで処理
-    if (elementType === 'Undefined') {
-      const emptyResult = normalizeComparisonResult({ matched: [], onlyA: [], onlyB: [] });
-      comparisonResults.set(elementType, {
-        ...emptyResult,
-        elementType,
-        isSelected,
-        elementsA: [],
-        elementsB: [],
-      });
-      continue;
-    }
-
-    try {
-      // Parse elements from both models
-      const xmlTagName = ELEMENT_TAG_OVERRIDES[elementType] || 'Stb' + elementType;
-      elementsA = parseElements(modelADocument, xmlTagName);
-      elementsB = parseElements(modelBDocument, xmlTagName);
-
-      // Perform comparison with importance options
-      const rawComparisonResult = compareElementsByType(
-        elementType,
-        elementsA,
-        elementsB,
-        nodeMapA,
-        nodeMapB,
-        {
-          ...options,
-          comparisonKeyType,
-          modelADocument,
-          modelBDocument,
-          sectionMapsA,
-          sectionMapsB,
-          storyAxisLookupA,
-          storyAxisLookupB,
-        },
-      );
-
-      // Normalize to canonical 5-category format
-      const comparisonResult = normalizeComparisonResult(rawComparisonResult);
-
-      // Store comparison result
-      comparisonResults.set(elementType, {
-        ...comparisonResult,
-        elementType,
-        isSelected,
-        elementsA,
-        elementsB,
-      });
-    } catch (error) {
-      logger.error(`Error processing ${elementType}:`, error);
-      logger.error(`Error stack:`, error.stack);
-      logger.error(`Elements A length: ${elementsA.length}`);
-      logger.error(`Elements B length: ${elementsB.length}`);
-      logger.error(`Node map A size: ${nodeMapA.size}`);
-      logger.error(`Node map B size: ${nodeMapB.size}`);
-      const errorResult = normalizeComparisonResult({ matched: [], onlyA: [], onlyB: [] });
-      comparisonResults.set(elementType, {
-        ...errorResult,
-        elementType,
-        isSelected,
-        elementsA,
-        elementsB,
-        error: error.message,
-      });
-    }
+    const result = compareSingleElementTypeInternal(elementType, isSelected, comparisonContext);
+    comparisonResults.set(elementType, result);
   }
 
   return {
     comparisonResults,
     modelBounds,
   };
+}
+
+/**
+ * 単一要素タイプの再比較を実行する（編集後の差分同期用）
+ * @param {string} elementType - 要素タイプ
+ * @param {Object} modelData - モデルデータ
+ * @param {Object} [options={}] - 比較オプション
+ * @returns {Object} normalizeComparisonResult 済みの結果オブジェクト
+ */
+export function recompareSingleElementType(elementType, modelData, options = {}) {
+  const { modelADocument, modelBDocument, nodeMapA, nodeMapB } = modelData;
+  const sectionMapsA = getCachedExtractedSections(modelADocument);
+  const sectionMapsB = getCachedExtractedSections(modelBDocument);
+
+  const { comparisonKeyType = COMPARISON_KEY_TYPE.POSITION_BASED } = options;
+
+  let storyAxisLookupA = null;
+  let storyAxisLookupB = null;
+  if (comparisonKeyType === COMPARISON_KEY_TYPE.STORY_AXIS_BASED) {
+    storyAxisLookupA = getCachedStoryAxisLookup(modelADocument);
+    storyAxisLookupB = getCachedStoryAxisLookup(modelBDocument);
+  }
+
+  const comparisonContext = {
+    modelADocument,
+    modelBDocument,
+    nodeMapA,
+    nodeMapB,
+    sectionMapsA,
+    sectionMapsB,
+    storyAxisLookupA,
+    storyAxisLookupB,
+    comparisonKeyType,
+    options,
+  };
+
+  return compareSingleElementTypeInternal(elementType, true, comparisonContext);
+}
+
+// Axis の XML タグ名は 'StbParallelAxis'（'StbAxis' ではない）
+const ELEMENT_TAG_OVERRIDES = { Axis: 'StbParallelAxis', ShearWall: 'StbWall' };
+
+function filterElementsByViewerType(elementType, elements) {
+  if (elementType === 'Wall' || elementType === 'ShearWall') {
+    return filterWallsByViewerElementType(elementType, elements);
+  }
+  return elements;
+}
+
+function getImportanceElementType(elementType) {
+  return ELEMENT_TAG_OVERRIDES[elementType] || `Stb${elementType}`;
+}
+
+/**
+ * 単一要素タイプの比較を実行する内部関数
+ * @param {string} elementType - 要素タイプ
+ * @param {boolean} isSelected - 選択状態
+ * @param {Object} ctx - 比較コンテキスト
+ * @returns {Object} 比較結果
+ */
+function compareSingleElementTypeInternal(elementType, isSelected, ctx) {
+  const {
+    modelADocument,
+    modelBDocument,
+    nodeMapA,
+    nodeMapB,
+    sectionMapsA,
+    sectionMapsB,
+    storyAxisLookupA,
+    storyAxisLookupB,
+    comparisonKeyType,
+    options,
+  } = ctx;
+
+  let elementsA = [];
+  let elementsB = [];
+
+  // Undefined要素は特別な処理が必要（StbUndefinedタグは存在しない）
+  if (elementType === 'Undefined') {
+    const emptyResult = normalizeComparisonResult({ matched: [], onlyA: [], onlyB: [] });
+    return {
+      ...emptyResult,
+      elementType,
+      isSelected,
+      elementsA: [],
+      elementsB: [],
+    };
+  }
+
+  try {
+    // Parse elements from both models
+    const xmlTagName = ELEMENT_TAG_OVERRIDES[elementType] || 'Stb' + elementType;
+    elementsA = filterElementsByViewerType(elementType, parseElements(modelADocument, xmlTagName));
+    elementsB = filterElementsByViewerType(elementType, parseElements(modelBDocument, xmlTagName));
+
+    // Perform comparison with importance options
+    const rawComparisonResult = compareElementsByType(
+      elementType,
+      elementsA,
+      elementsB,
+      nodeMapA,
+      nodeMapB,
+      {
+        ...options,
+        comparisonKeyType,
+        modelADocument,
+        modelBDocument,
+        sectionMapsA,
+        sectionMapsB,
+        storyAxisLookupA,
+        storyAxisLookupB,
+      },
+    );
+
+    // Normalize to canonical 5-category format
+    const comparisonResult = normalizeComparisonResult(rawComparisonResult);
+
+    return {
+      ...comparisonResult,
+      elementType,
+      isSelected,
+      elementsA,
+      elementsB,
+    };
+  } catch (error) {
+    logger.error(`Error processing ${elementType}:`, error);
+    logger.error(`Error stack:`, error.stack);
+    logger.error(`Elements A length: ${elementsA.length}`);
+    logger.error(`Elements B length: ${elementsB.length}`);
+    logger.error(`Node map A size: ${nodeMapA.size}`);
+    logger.error(`Node map B size: ${nodeMapB.size}`);
+    const errorResult = normalizeComparisonResult({ matched: [], onlyA: [], onlyB: [] });
+    return {
+      ...errorResult,
+      elementType,
+      isSelected,
+      elementsA,
+      elementsB,
+      error: error.message,
+    };
+  }
 }
 
 /**
@@ -392,7 +501,7 @@ function compareElementsByType(
           nodeMapA,
           nodeMapB,
           keyExtractor,
-          'Stb' + elementType,
+          getImportanceElementType(elementType),
           { targetImportanceLevels, importanceLookup, compareOptions },
         );
       } else {
@@ -469,6 +578,7 @@ function compareElementsByType(
         break;
 
       case 'Slab':
+      case 'ShearWall':
       case 'Wall':
       case 'FrameDampingDevice':
         comparisonResult = performComparison(createPolyExtractor('StbNodeIdOrder'));

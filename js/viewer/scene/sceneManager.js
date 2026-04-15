@@ -24,8 +24,8 @@ const log = createLogger('viewer:scene');
  * @param {Array<THREE.Sprite>} nodeLabels - クリア対象のラベル配列。
  * @returns {THREE.Box3} 新しい空のバウンディングボックス。
  */
-export function clearSceneContent(groups = viewerElementGroups, nodeLabels = []) {
-  if (!groups) {
+export function clearSceneContent(elementGroups = viewerElementGroups, nodeLabels = []) {
+  if (!elementGroups) {
     log.warn('[viewer:scene] No element groups provided to clearSceneContent');
     return new THREE.Box3();
   }
@@ -37,10 +37,10 @@ export function clearSceneContent(groups = viewerElementGroups, nodeLabels = [])
   let totalDisposed = 0;
 
   // 各要素グループの子要素を再帰的に解放
-  for (const type in groups) {
-    if (!Object.prototype.hasOwnProperty.call(groups, type)) continue;
+  for (const type in elementGroups) {
+    if (!Object.prototype.hasOwnProperty.call(elementGroups, type)) continue;
 
-    const group = groups[type];
+    const group = elementGroups[type];
     // 後ろから処理して配列変更の影響を回避
     while (group.children.length > 0) {
       const child = group.children[group.children.length - 1];

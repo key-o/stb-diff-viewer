@@ -30,6 +30,7 @@ import {
   elementGroups,
   initRenderer,
   animate,
+  requestRender,
   setupViewportResizeHandler,
   setSkipControlsUpdate,
   getActiveCamera,
@@ -62,7 +63,11 @@ import {
 import { createLabel } from './annotations/labels.js';
 import { drawAxes, drawStories } from './annotations/layout.js';
 import { clearSceneContent, getModelBounds } from './scene/sceneManager.js';
-import { createOrUpdateGridHelper } from './grid/gridHelper.js';
+import {
+  createOrUpdateGridHelper,
+  setGridHelperVisibility,
+  isGridHelperVisible,
+} from './grid/gridHelper.js';
 import {
   adjustCameraToFitModel,
   focusOnSelected,
@@ -98,6 +103,7 @@ export {
   SUPPORTED_ELEMENTS,
   initRenderer,
   animate,
+  requestRender,
   setupViewportResizeHandler,
   setSkipControlsUpdate,
   getActiveCamera,
@@ -139,6 +145,8 @@ export {
   VIEW_DIRECTIONS,
   clearSceneContent,
   createOrUpdateGridHelper,
+  setGridHelperVisibility,
+  isGridHelperVisible,
   getModelBounds,
   setElementInfoProviders,
   setClippingStateProvider,
@@ -170,7 +178,14 @@ export {
 
 // 色管理・マテリアル管理
 export { colorManager } from './rendering/colorManager.js';
-export { applyImportanceColorMode, getMaterialForElementWithMode } from './rendering/materials.js';
+export {
+  applyImportanceColorMode,
+  getMaterialForElementWithMode,
+  getEffectiveImportanceLevelForObject,
+  clearImportanceMaterialCache,
+  applyImportanceColorModeBatch,
+  getImportanceRenderingStats,
+} from './rendering/materials.js';
 
 // 表示モード管理
 export { default as displayModeManager } from './rendering/displayModeManager.js';
@@ -189,6 +204,9 @@ export { initializeOutlineSystem } from './rendering/outlines.js';
 
 // ラベル作成
 export { createLabelSprite } from './annotations/labels.js';
+
+// ラベルテキスト生成
+export { generateLabelText } from './annotations/labelTextGenerator.js';
 
 // ============================================
 // ジオメトリ生成 (geometry/)
@@ -226,6 +244,8 @@ export * as GeometryDebugger from './geometry/debug/GeometryDebugger.js';
 export {
   setCameraMode,
   getCameraMode,
+  setCameraContext,
+  getCameraContext,
   reaffirmControlsForCurrentMode,
 } from './camera/cameraManagerImpl.js';
 

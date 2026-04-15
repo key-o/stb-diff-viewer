@@ -176,6 +176,63 @@ class ElementTreeView extends BaseTreeView {
   }
 
   /**
+   * 指定した要素タイプのみ差分更新
+   * @param {Object} comparisonResult - 更新対象の比較結果データ
+   * @param {Array<string>} changedElementTypes - 更新された要素タイプ
+   */
+  updateElementTypes(comparisonResult, changedElementTypes = []) {
+    if (
+      !this.treeContainer ||
+      !this.currentComparisonResult ||
+      !Array.isArray(changedElementTypes)
+    ) {
+      this.buildTree(comparisonResult || this.currentComparisonResult);
+      return;
+    }
+
+    const changedTypeSet = new Set(changedElementTypes);
+    this.currentComparisonResult = this._mergeComparisonResult(
+      this.currentComparisonResult,
+      comparisonResult,
+      changedTypeSet,
+    );
+
+    const rootNode = this.treeContainer.querySelector('.tree-root');
+    if (!rootNode) {
+      this.buildTree(this.currentComparisonResult);
+      return;
+    }
+
+    const searchPattern = parseSearchPattern(this.currentSearchText);
+    const elementsByType = this._groupElementsByType(this.currentComparisonResult);
+
+    for (const elementType of changedTypeSet) {
+      const existingNode = rootNode.querySelector(`.tree-node[data-element-type="${elementType}"]`);
+      if (existingNode) {
+        existingNode.remove();
+      }
+
+      const existingManager = this.virtualScrollManagers.get(elementType);
+      if (existingManager) {
+        existingManager.destroy();
+        this.virtualScrollManagers.delete(elementType);
+      }
+
+      const elements = elementsByType[elementType] || [];
+      const filteredElements = elements.filter((element) =>
+        matchesSearch(element, searchPattern, this.currentStatusFilter, this.currentTargetFilter),
+      );
+
+      if (filteredElements.length > 0) {
+        const typeNode = this._createTypeNode(elementType, filteredElements, searchPattern);
+        this._insertTypeNodeInOrder(rootNode, typeNode, elementType);
+      }
+    }
+
+    this._refreshTreeCountsAndEmptyState(searchPattern, rootNode);
+  }
+
+  /**
    * 選択をクリア
    */
   clearTreeSelection() {
@@ -362,6 +419,7 @@ class ElementTreeView extends BaseTreeView {
   _createTypeNode(elementType, elements, searchPattern = null) {
     const node = document.createElement('div');
     node.className = 'tree-node';
+    node.dataset.elementType = elementType;
 
     const header = document.createElement('div');
     header.className = 'tree-node-header';
@@ -462,6 +520,79 @@ class ElementTreeView extends BaseTreeView {
     });
 
     return node;
+  }
+
+  _mergeComparisonResult(currentResult, nextResult, changedTypeSet) {
+    const merged = {
+      matched: [],
+      onlyA: [],
+      onlyB: [],
+    };
+
+    for (const category of ['matched', 'onlyA', 'onlyB']) {
+      const currentItems = Array.isArray(currentResult?.[category]) ? currentResult[category] : [];
+      const nextItems = Array.isArray(nextResult?.[category]) ? nextResult[category] : [];
+
+      merged[category] = [
+        ...currentItems.filter((item) => !changedTypeSet.has(item.elementType || item.type)),
+        ...nextItems,
+      ];
+    }
+
+    return merged;
+  }
+
+  _insertTypeNodeInOrder(rootNode, typeNode, elementType) {
+    const orderedTypes = Object.keys(ELEMENT_LABELS);
+    const elementIndex = orderedTypes.indexOf(elementType);
+
+    if (elementIndex === -1) {
+      rootNode.appendChild(typeNode);
+      return;
+    }
+
+    const existingTypeNodes = Array.from(
+      rootNode.querySelectorAll(':scope > .tree-node[data-element-type]'),
+    );
+    const nextNode = existingTypeNodes.find((node) => {
+      const nodeIndex = orderedTypes.indexOf(node.dataset.elementType);
+      return nodeIndex > elementIndex;
+    });
+
+    if (nextNode) {
+      rootNode.insertBefore(typeNode, nextNode);
+    } else {
+      rootNode.appendChild(typeNode);
+    }
+  }
+
+  _refreshTreeCountsAndEmptyState(searchPattern, rootNode) {
+    const elementsByType = this._groupElementsByType(this.currentComparisonResult);
+    this.totalElementCount = 0;
+    this.filteredElementCount = 0;
+
+    Object.keys(elementsByType).forEach((elementType) => {
+      const elements = elementsByType[elementType];
+      this.totalElementCount += elements.length;
+      this.filteredElementCount += elements.filter((element) =>
+        matchesSearch(element, searchPattern, this.currentStatusFilter, this.currentTargetFilter),
+      ).length;
+    });
+
+    const noResultMessage = rootNode.querySelector('.tree-no-result-message');
+    if (this.filteredElementCount === 0 && this.totalElementCount > 0) {
+      if (!noResultMessage) {
+        const message = document.createElement('div');
+        message.className = 'tree-no-result-message';
+        message.style.cssText = 'padding: 20px; text-align: center; color: #868e96;';
+        message.textContent = '検索条件に一致する要素がありません';
+        rootNode.appendChild(message);
+      }
+    } else if (noResultMessage) {
+      noResultMessage.remove();
+    }
+
+    this.updateResultCount(this.filteredElementCount, this.totalElementCount);
   }
 
   /**
@@ -982,6 +1113,15 @@ export function initializeTreeView(containerId, onElementSelect, options) {
  */
 export function buildTree(comparisonResult) {
   instance.buildTree(comparisonResult);
+}
+
+/**
+ * 指定した要素タイプのみツリーを差分更新
+ * @param {Object} comparisonResult - 比較結果データ
+ * @param {Array<string>} changedElementTypes - 更新された要素タイプ
+ */
+export function updateTreeElementTypes(comparisonResult, changedElementTypes) {
+  instance.updateElementTypes(comparisonResult, changedElementTypes);
 }
 
 /**

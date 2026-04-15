@@ -6,7 +6,7 @@
  * displayModeManagerに同期する責務を持ちます。
  */
 
-import { setState } from '../globalState.js';
+import { setState } from '../../data/state/globalState.js';
 import { VIEW_MODE_CHECKBOX_IDS } from '../../config/uiElementConfig.js';
 import { SOLID_ONLY_ELEMENTS } from '../../constants/elementTypes.js';
 import { createLogger } from '../../utils/logger.js';
@@ -31,6 +31,7 @@ let modelADocument = null;
 let modelBDocument = null;
 let nodeMapA = null;
 let nodeMapB = null;
+let initialDisplayModeRunId = 0;
 
 /**
  * モデルコンテキストを取得
@@ -50,10 +51,11 @@ export function getModelContext() {
  * 状態管理モジュールを初期化
  * @param {Object} modelData - モデルデータ参照
  * @param {Function} scheduleRender - 再描画要求関数
+ * @returns {Promise<{completed: boolean, aborted: boolean, errors: Array}>}
  */
 export function initViewModes(modelData, scheduleRender) {
-  // 新しいモデルが設定される前にパースキャッシュをクリア
-  clearParseCache();
+  // compareModels 側でキャッシュをクリアし、必要データをプリウォームした後に到達する。
+  // ここで再度クリアすると初回ソリッド描画の高速化が失われる。
 
   modelBounds = modelData.modelBounds;
   modelADocument = modelData.modelADocument;
@@ -66,8 +68,8 @@ export function initViewModes(modelData, scheduleRender) {
   // UIのチェックボックスの状態を読み取り、displayModeManagerに反映
   syncDisplayModeFromUI();
 
-  // 立体表示モードの要素を再描画（オーケストレーターでスキップされた要素を描画）
-  applyInitialDisplayModes(scheduleRender);
+  // 立体表示モードの要素を非同期で再描画
+  return scheduleInitialDisplayModes(scheduleRender);
 }
 
 /**
@@ -75,6 +77,7 @@ export function initViewModes(modelData, scheduleRender) {
  */
 export function resetViewModes() {
   log.info('[resetViewModes] Resetting view modes');
+  initialDisplayModeRunId += 1;
   clearParseCache();
   modelBounds = null;
   modelADocument = null;
@@ -100,68 +103,124 @@ export function syncDisplayModeFromUI() {
 }
 
 /**
- * 初期ロード時の表示モードを適用
- * オーケストレーターでスキップされた要素を正しいモードで描画する
+ * 初期表示モード適用をUIブロックしないように分割実行する
  * @param {Function} scheduleRender - 再描画要求関数
- * @private
  */
-function applyInitialDisplayModes(scheduleRender) {
-  log.debug('[applyInitialDisplayModes] Applying initial display modes');
+function scheduleInitialDisplayModes(scheduleRender) {
+  const runId = ++initialDisplayModeRunId;
 
   // オーケストレーターで常にスキップされる要素タイプ（モードに関係なく再描画）
-  const alwaysRedrawTypes = new Set(['Slab', 'Wall', 'FrameDampingDevice']);
+  const alwaysRedrawTypes = new Set(['Slab', 'ShearWall', 'Wall', 'FrameDampingDevice']);
 
-  // VIEW_MODE_CHECKBOX_IDSから再描画が必要な要素タイプを動的に判定
   const typesToRedraw = Object.keys(VIEW_MODE_CHECKBOX_IDS).filter(
     (type) => alwaysRedrawTypes.has(type) || displayModeManager.isSolidMode(type),
   );
 
-  // 立体表示のみ要素も再描画対象に追加（常にsolid）
   for (const solidOnlyType of SOLID_ONLY_ELEMENTS) {
     if (!typesToRedraw.includes(solidOnlyType)) {
       typesToRedraw.push(solidOnlyType);
     }
   }
 
-  if (typesToRedraw.length === 0) {
-    log.debug('[applyInitialDisplayModes] No elements need redrawing (all in line mode)');
-  } else {
-    log.info(`[applyInitialDisplayModes] ${typesToRedraw.length} element type(s) need redrawing`);
+  const beamOrGirderNeedsRedraw =
+    typesToRedraw.includes('Beam') || typesToRedraw.includes('Girder');
+  const jointNeedsRedraw = typesToRedraw.includes('Joint');
+  const specialTypes = new Set(['Beam', 'Girder', 'Joint']);
+  const queue = typesToRedraw.filter((type) => !specialTypes.has(type));
 
-    // Beam/Girder は統合処理（redrawBeamsForViewMode が両方を処理する）
-    const beamOrGirderNeedsRedraw =
-      typesToRedraw.includes('Beam') || typesToRedraw.includes('Girder');
-
-    // 特殊処理が必要な要素タイプ
-    const specialTypes = new Set(['Beam', 'Girder', 'Joint']);
-
-    for (const elementType of typesToRedraw) {
-      if (specialTypes.has(elementType)) continue;
-      log.debug(`[applyInitialDisplayModes] Redrawing: ${elementType}`);
-      redrawElementByType(elementType, null, false);
-    }
-
-    // Beam/Girder 統合再描画
-    if (beamOrGirderNeedsRedraw) {
-      log.debug('[applyInitialDisplayModes] Redrawing: Beam/Girder');
-      redrawBeamsForViewMode(null);
-    }
-
-    // Joint 再描画（立体表示のみ要素だが専用描画関数あり）
-    if (typesToRedraw.includes('Joint')) {
-      log.debug('[applyInitialDisplayModes] Redrawing: Joint');
-      redrawJointsForViewMode(null);
-    }
+  if (beamOrGirderNeedsRedraw) {
+    queue.push('__BeamGirder__');
   }
-
-  // Undefined 要素の再描画（チェックボックスなし、常に再描画）
-  redrawUndefinedElementsForViewMode(null);
-
-  // ElementRegistryを再登録（再描画でグループ内容が変わったため）
-  registerElementsToRegistry();
-
-  // 最後に1回だけ再描画をスケジュール
-  if (scheduleRender) {
-    scheduleRender();
+  if (jointNeedsRedraw) {
+    queue.push('__Joint__');
   }
+  queue.push('__Undefined__');
+
+  log.info(`[scheduleInitialDisplayModes] Scheduling ${queue.length} redraw task(s)`);
+
+  return new Promise((resolve) => {
+    const errors = [];
+    let settled = false;
+
+    const settle = (result = {}) => {
+      if (settled) return;
+      settled = true;
+      resolve({
+        completed: true,
+        aborted: false,
+        errors,
+        ...result,
+      });
+    };
+
+    const yieldToEventLoop = () => new Promise((innerResolve) => setTimeout(innerResolve, 0));
+
+    const processBatch = async () => {
+      let processedTotal = 0;
+
+      while (queue.length > 0) {
+        if (runId !== initialDisplayModeRunId) {
+          log.debug('[scheduleInitialDisplayModes] Aborted stale redraw run');
+          settle({ completed: false, aborted: true });
+          return;
+        }
+
+        const next = queue.shift();
+
+        try {
+          if (next === '__BeamGirder__') {
+            log.debug('[scheduleInitialDisplayModes] Redrawing: Beam/Girder');
+            redrawBeamsForViewMode(null, false);
+          } else if (next === '__Joint__') {
+            log.debug('[scheduleInitialDisplayModes] Redrawing: Joint');
+            redrawJointsForViewMode(null);
+          } else if (next === '__Undefined__') {
+            log.debug('[scheduleInitialDisplayModes] Redrawing: Undefined');
+            redrawUndefinedElementsForViewMode(null);
+          } else {
+            log.debug(`[scheduleInitialDisplayModes] Redrawing: ${next}`);
+            redrawElementByType(next, null, false, false);
+          }
+        } catch (error) {
+          const elementType =
+            next === '__BeamGirder__'
+              ? 'Beam/Girder'
+              : next === '__Joint__'
+                ? 'Joint'
+                : next === '__Undefined__'
+                  ? 'Undefined'
+                  : next;
+          errors.push({ elementType, message: error.message });
+          log.error(`[scheduleInitialDisplayModes] Failed to redraw ${elementType}:`, error);
+        }
+
+        processedTotal++;
+
+        if (scheduleRender) {
+          scheduleRender();
+        }
+        await yieldToEventLoop();
+      }
+
+      registerElementsToRegistry();
+
+      import('../../colorModes/index.js')
+        .then(({ updateElementsForColorMode }) => {
+          updateElementsForColorMode();
+        })
+        .catch((err) => {
+          log.error('[scheduleInitialDisplayModes] Failed to apply color mode after redraw:', err);
+        });
+
+      if (scheduleRender) {
+        scheduleRender();
+      }
+      log.info(
+        `[scheduleInitialDisplayModes] Initial redraw completed: ${processedTotal} types, ${errors.length} error(s)`,
+      );
+      settle();
+    };
+
+    processBatch();
+  });
 }

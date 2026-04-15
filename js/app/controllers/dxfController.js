@@ -16,18 +16,16 @@ import { updatePlacementPositionOptions, updateStbExportStatus } from '../dxfLoa
 export const dxfController = {
   /**
    * 配置位置オプションを更新
-   * @param {Object} options - 配置位置オプション
    */
-  updatePlacementOptions(options) {
-    updatePlacementPositionOptions(options);
+  updatePlacementOptions() {
+    updatePlacementPositionOptions();
   },
 
   /**
    * STBエクスポートステータスを更新
-   * @param {Object} status - エクスポートステータス
    */
-  updateExportStatus(status) {
-    updateStbExportStatus(status);
+  updateExportStatus() {
+    updateStbExportStatus();
   },
 };
 

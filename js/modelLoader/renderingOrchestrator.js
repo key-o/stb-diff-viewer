@@ -24,6 +24,7 @@ import {
   drawStories,
   getActiveCamera,
   displayModeManager,
+  labelDisplayManager,
   getElementRegistry,
 } from '../viewer/index.js';
 import { convertToDiffRenderModel, getDiffStatistics } from '../data/converters/index.js';
@@ -130,7 +131,7 @@ export function registerElementsToRegistry() {
  * @param {Object} globalData - Global data
  * @returns {Object} Rendering result for this element type
  */
-function renderElementType(elementType, comparisonResult, modelBounds, _globalData) {
+function renderElementType(elementType, comparisonResult, modelBounds, globalData) {
   const group = elementGroups[elementType];
   if (!group) {
     throw new Error(`Element group not found for type: ${elementType}`);
@@ -151,8 +152,9 @@ function renderElementType(elementType, comparisonResult, modelBounds, _globalDa
     return result;
   }
 
-  // Always create labels, even if element is not selected for display
-  const createLabels = true;
+  // 初回ロード時はラベル表示設定を尊重し、非表示ラベルの生成を避ける。
+  labelDisplayManager.syncWithCheckbox(elementType);
+  const createLabels = labelDisplayManager.isLabelVisible(elementType);
 
   // Render based on element type
   switch (elementType) {
@@ -184,6 +186,7 @@ function renderElementType(elementType, comparisonResult, modelBounds, _globalDa
       break;
 
     case 'Slab':
+    case 'ShearWall':
     case 'Wall':
     case 'FrameDampingDevice':
     case 'Joint':

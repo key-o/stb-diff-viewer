@@ -21,12 +21,13 @@ import {
   elementGroups,
   clearClippingPlanes,
   clearParseCache,
+  parseStbFile,
   scene,
 } from '../../viewer/index.js';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
 import { resetSelection } from './interactionController.js';
-import { setState, getState, resetApplicationState } from '../globalState.js';
-import { eventBus } from '../../data/events/eventBus.js';
+import { setState, getState, resetApplicationState } from '../../data/state/globalState.js';
+import { eventBus, SettingsEvents } from '../../data/events/index.js';
 import { scheduleRender } from '../../utils/renderScheduler.js';
 import {
   EventTypes,
@@ -34,10 +35,19 @@ import {
   ComparisonEvents,
   AppEvents,
   ToastEvents,
+  LoadingIndicatorEvents,
 } from '../../constants/eventTypes.js';
 import comparisonKeyManager from '../comparisonKeyManager.js';
 
 const log = createLogger('ModelLoader');
+
+function schedulePostLoadTask(task) {
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(task, { timeout: 200 });
+  } else {
+    setTimeout(task, 0);
+  }
+}
 
 // Refactored modules
 import {
@@ -97,8 +107,10 @@ comparisonKeyManager.onChange(async (newKeyType, oldKeyType) => {
   }
 });
 
-// 許容差設定変更時に自動再比較を実行
-window.toleranceSettingsChanged = async (newConfig) => {
+// 許容差設定変更時に自動再比較を実行（eventBus経由）
+eventBus.on(SettingsEvents.CHANGED, async (payload = {}) => {
+  const { type, config: newConfig } = /** @type {{type?: string, config?: any}} */ (payload);
+  if (type !== 'tolerance') return;
   if (!modelsLoaded) return;
   log.info('許容差設定が変更されました、再比較を実行します', newConfig);
   try {
@@ -108,7 +120,7 @@ window.toleranceSettingsChanged = async (newConfig) => {
   } catch (error) {
     log.error('許容差設定変更後の再比較に失敗:', error);
   }
-};
+});
 
 /**
  * モデルデータへの参照を取得
@@ -249,10 +261,18 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     setState('models.stbVersionB', versionInfo.versionB);
 
     // アクティブXSDバージョンを決定（新しいバージョンを優先）
-    let activeXsdVersion = '2.0.2';
-    if (versionInfo.versionA === '2.1.0' || versionInfo.versionB === '2.1.0') {
-      activeXsdVersion = '2.1.0';
-    }
+    // 利用可能なスキーマ: 2.0.2, 2.1.0, 2.1.1
+    // 2.0.x → 2.0.2, 2.1.0 → 2.1.0, 2.1.1+ → 2.1.1
+    const resolveSchemaVersion = (v) => {
+      if (!v) return null;
+      if (v.startsWith('2.1')) return v === '2.1.0' ? '2.1.0' : '2.1.1';
+      if (v.startsWith('2.0')) return '2.0.2';
+      return null;
+    };
+    const candidates = [versionInfo.versionA, versionInfo.versionB]
+      .map(resolveSchemaVersion)
+      .filter(Boolean);
+    const activeXsdVersion = candidates.sort().pop() || '2.0.2';
     setState('models.activeXsdVersion', activeXsdVersion);
 
     // XSDスキーマをアクティブバージョンに切り替え
@@ -333,13 +353,6 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
 
     // 比較結果をグローバル状態に保存
     setState('comparisonResults', comparisonResults);
-
-    // 統計更新イベントを発行（EventBus経由）
-    eventBus.emit(ComparisonEvents.UPDATE_STATISTICS, {
-      comparisonResults: comparisonResults,
-      reason: 'modelComparison',
-      timestamp: new Date().toISOString(),
-    });
 
     // 比較完了イベントをEventBusで発行（バージョン情報を含む）
     eventBus.emit(EventTypes.Comparison.COMPLETED, {
@@ -450,7 +463,21 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     modelBounds = calculateRenderingBounds(renderingResult.renderedElements, nodeMapA, nodeMapB);
     setState('models.modelBounds', modelBounds);
 
+    // 初回表示モード適用で必要になる解析結果を先に温めて、99%フェーズのブロッキングを減らす。
+    const prewarmStart = performance.now();
+    if (modelADocument) parseStbFile(modelADocument, { modelKey: 'A', saveToGlobalState: true });
+    if (modelBDocument) parseStbFile(modelBDocument, { modelKey: 'B', saveToGlobalState: true });
+    log.info(
+      `[compareModels] parseStbFile pre-warm: ${(performance.now() - prewarmStart).toFixed(0)}ms`,
+    );
+
     // Phase 5: Visualization Finalization
+    eventBus.emit(LoadingIndicatorEvents.UPDATE, {
+      progress: 99,
+      message: '表示モードを適用中...',
+      detail: '最終描画を準備しています',
+    });
+
     const finalizationData = {
       nodeLabels,
       stories,
@@ -463,7 +490,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
       nodeMapB,
     };
 
-    finalizeVisualization(finalizationData, scheduleRender, {
+    await finalizeVisualization(finalizationData, scheduleRender, {
       camera,
       controls,
     });
@@ -475,11 +502,13 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     modelsLoaded = true;
     onLoadingComplete();
 
-    // 要素情報用違反は即時実行し、STBバリデーションパネルは遅延実行
-    // UI層に直接依存せずEventBus経由で通知（R1ルール遵守）
-    eventBus.emit(AppEvents.POST_LOAD_VALIDATION, {
-      documentA: modelADocument,
-      documentB: modelBDocument,
+    schedulePostLoadTask(() => {
+      // 要素情報用違反は即時実行せず、メイン描画完了後のアイドル時に実行
+      // UI層に直接依存せずEventBus経由で通知（R1ルール遵守）
+      eventBus.emit(AppEvents.POST_LOAD_VALIDATION, {
+        documentA: modelADocument,
+        documentB: modelBDocument,
+      });
     });
 
     // Apply appropriate color mode based on loaded models
@@ -491,11 +520,13 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
       });
     }, UI_TIMING.COLOR_MODE_APPLY_DELAY_MS);
 
-    // 差分フィルタパネル等の統計更新イベントを発行
-    eventBus.emit(ComparisonEvents.UPDATE_STATISTICS, {
-      comparisonResults: comparisonResults,
-      reason: 'modelComparison',
-      timestamp: new Date().toISOString(),
+    schedulePostLoadTask(() => {
+      // 差分フィルタパネル等の統計更新イベントをアイドル時に発行
+      eventBus.emit(ComparisonEvents.UPDATE_STATISTICS, {
+        comparisonResults: comparisonResults,
+        reason: 'modelComparison',
+        timestamp: new Date().toISOString(),
+      });
     });
 
     return true;
@@ -778,7 +809,7 @@ function convertElementForAdapter(
   }
 
   // 面要素（スラブ、壁）- 簡略化実装
-  if (['Slab', 'Wall', 'FrameDampingDevice'].includes(elementType)) {
+  if (['Slab', 'ShearWall', 'Wall', 'FrameDampingDevice'].includes(elementType)) {
     // 面要素は節点リストを持つ
     const nodeIds = extractNodeIdsForAdapter(elementData);
     const nodes = nodeIds

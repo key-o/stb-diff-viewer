@@ -28,7 +28,7 @@ import {
 } from './ElementInfoProviders.js';
 import { buildElementDataForLabels } from './SectionHelpers.js';
 import { showSuccess, showError, showWarning } from '../../common/toast.js';
-import { getState } from '../../../app/globalState.js';
+import { getState } from '../../../data/state/globalState.js';
 
 // 編集機能の状態管理
 let editMode = false;
@@ -231,9 +231,10 @@ export async function editAttributeValue(elementType, elementId, attributeName, 
     }
 
     // UIを更新（現在の要素を再表示）
+    // 再表示は親部材（currentEditingElement）のタイプとIDで行う（断面ノード編集後も親部材パネルに戻す）
     if (currentEditingElement && displayElementInfoFn) {
-      const { idA, idB, modelSource } = currentEditingElement;
-      displayElementInfoFn(idA, idB, elementType, modelSource);
+      const { idA, idB, elementType: parentElementType, modelSource } = currentEditingElement;
+      displayElementInfoFn(idA, idB, parentElementType, modelSource);
     }
 
     updateEditingSummary();
@@ -288,10 +289,10 @@ export async function editAttributeValue(elementType, elementId, attributeName, 
       log.warn('ジオメトリ更新に失敗しましたが、修正履歴には記録されました');
     }
 
-    // UIを更新
+    // UIを更新（親部材のタイプとIDで再表示）
     if (currentEditingElement && displayElementInfoFn) {
-      const { idA, idB, modelSource } = currentEditingElement;
-      displayElementInfoFn(idA, idB, elementType, modelSource);
+      const { idA, idB, elementType: parentElementType, modelSource } = currentEditingElement;
+      displayElementInfoFn(idA, idB, parentElementType, modelSource);
     }
 
     updateEditingSummary();
@@ -457,11 +458,21 @@ export function clearModifications() {
   }
 }
 
-// グローバル関数として登録（HTML内のonclickから呼び出すため）
-// Node.js環境ではwindowが存在しないため、チェックを追加
+// DOM初期化後にイベントリスナーを設定（window.*グローバル汚染の解消）
+function initEditModeButton() {
+  const editModeBtn = document.getElementById('edit-mode-button');
+  if (editModeBtn) {
+    editModeBtn.addEventListener('click', toggleEditMode);
+  }
+}
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initEditModeButton);
+  } else {
+    initEditModeButton();
+  }
+}
+// editAttribute は動的に生成されるHTML内のonclickから呼ばれるため window に登録を維持
 if (typeof window !== 'undefined') {
-  window.exportModifications = exportModifications;
-  window.clearModifications = clearModifications;
-  window.toggleEditMode = toggleEditMode;
   window.editAttribute = editAttributeValue;
 }

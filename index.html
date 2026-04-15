@@ -41,7 +41,8 @@
           "html2canvas": "https://esm.sh/html2canvas@1.4.1",
           "jspdf": "https://esm.sh/jspdf@2.5.1",
           "ajv": "https://esm.sh/ajv@8.17.1",
-          "web-ifc": "https://cdn.jsdelivr.net/npm/web-ifc@0.0.74/web-ifc-api.js"
+          "web-ifc": "https://cdn.jsdelivr.net/npm/web-ifc@0.0.74/web-ifc-api.js",
+          "encoding-japanese": "https://esm.sh/encoding-japanese@2.2.0"
         }
       }
     </script>
@@ -78,6 +79,26 @@
           </button>
         </div>
         <!-- ビュー方向ボタン（2Dモード時のみ表示） -->
+        <div id="solidProjectionButtons" class="view-submode-buttons">
+          <button
+            type="button"
+            class="view-submode-btn active"
+            data-projection="perspective"
+            id="solidProjectionPerspectiveBtn"
+            title="立体表示をパースで表示"
+          >
+            パース
+          </button>
+          <button
+            type="button"
+            class="view-submode-btn"
+            data-projection="orthographic"
+            id="solidProjectionOrthographicBtn"
+            title="立体表示を正投影で表示"
+          >
+            正投影
+          </button>
+        </div>
         <div id="viewDirectionButtons" class="view-direction-buttons hidden">
           <button type="button" class="view-dir-btn" data-view="top" title="平面図（上から）">
             平面
@@ -117,7 +138,7 @@
               </button>
             </div>
             <span class="file-name-display" id="fileNameA">未選択</span>
-            <input type="file" id="fileA" accept=".stb,.xml" />
+            <input type="file" id="fileA" accept=".stb,.xml,.ifc" />
           </div>
 
           <div class="file-input-wrapper" id="wrapperB">
@@ -129,7 +150,7 @@
               </button>
             </div>
             <span class="file-name-display" id="fileNameB">未選択</span>
-            <input type="file" id="fileB" accept=".stb,.xml" />
+            <input type="file" id="fileB" accept=".stb,.xml,.ifc" />
           </div>
 
           <hr class="section-divider" />
@@ -241,6 +262,7 @@
             <button type="button" id="exportIfcBtn" class="btn btn-secondary">
               📦 IFCファイルに変換
             </button>
+
             <button type="button" id="exportReportBtn" class="btn btn-secondary" disabled
               title="比較結果をHTMLレポートとして出力（比較実行後に有効化）">
               比較レポート出力
@@ -262,7 +284,7 @@
             </button>
           </div>
 
-          <!-- STBファイル出力セクション（バージョン変換・SS7/IFC変換後モデルに対応） -->
+          <!-- STBファイル出力セクション（バージョン変換・IFC変換後モデルに対応） -->
           <div class="export-settings">
             <label><strong>STBファイル出力</strong></label>
             <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
@@ -287,7 +309,7 @@
               type="button"
               id="exportStbBtn"
               class="btn btn-secondary"
-              title="読み込み済みモデル（SS7/IFCから変換されたものを含む）をSTBファイルとして出力"
+              title="読み込み済みモデル（IFCから変換されたものを含む）をSTBファイルとして出力"
             >
               📦 STBファイルを出力
             </button>
@@ -421,7 +443,6 @@
           <button
             id="edit-mode-button"
             class="btn btn-sm"
-            onclick="window.toggleEditMode()"
             title="高度な編集機能（開発者向け)"
             type="button"
           >
@@ -429,9 +450,8 @@
           </button>
           <span id="editing-summary" class="editing-summary-text">修正: 0件</span>
           <button
-            id="json-export-button"
+            id="exportElementInfoJsonBtn"
             class="btn btn-sm"
-            onclick="window.exportElementInfoAsJson()"
             title="表示中の要素情報をJSONファイルとしてダウンロード"
             type="button"
           >
@@ -593,6 +613,13 @@
             <label for="togglePlacementLines">
               <input type="checkbox" id="togglePlacementLines" />
               立体表示時の配置基準線を表示
+            </label>
+          </div>
+
+          <div class="viewer-grid-control">
+            <label for="toggleViewerGrid">
+              <input type="checkbox" id="toggleViewerGrid" checked />
+              Three.jsグリッドを表示
             </label>
           </div>
 

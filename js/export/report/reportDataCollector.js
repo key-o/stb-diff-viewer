@@ -7,7 +7,7 @@
  * @module export/report/reportDataCollector
  */
 
-import { getState } from '../../app/globalState.js';
+import { getState } from '../../data/state/globalState.js';
 import { ELEMENT_LABELS } from '../../config/elementLabels.js';
 import { NUMERIC_TOLERANCE } from '../../config/geometryConfig.js';
 import { getCategoryCounts } from '../../data/normalizeComparisonResult.js';
@@ -80,6 +80,7 @@ const SECTION_MAP_KEY_BY_ELEMENT_TYPE = {
   Beam: 'beamSections',
   Brace: 'braceSections',
   Slab: 'slabSections',
+  ShearWall: 'wallSections',
   Wall: 'wallSections',
   Parapet: 'parapetSections',
   Pile: 'pileSections',

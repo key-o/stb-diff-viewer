@@ -11,7 +11,7 @@
 import { createLogger } from '../utils/logger.js';
 import { getAttributeInfo, isSchemaLoaded } from '../common-stb/import/parser/jsonSchemaLoader.js';
 import { storageHelper } from '../utils/storageHelper.js';
-import { getState } from './globalState.js';
+import { getState } from '../data/state/globalState.js';
 
 const log = createLogger('app/suggestionEngine');
 
@@ -25,7 +25,7 @@ export class SuggestionEngine {
     this.loadUsageStats();
   }
 
-  /**
+  /*
    * 指定された要素・属性のサジェスト候補を取得
    * @param {string} elementType - 要素タイプ (Column, Beam等)
    * @param {string} attributeName - 属性名
@@ -143,7 +143,7 @@ export class SuggestionEngine {
     return null;
   }
 
-  /**
+  /*
    * XSDスキーマから列挙値を取得
    * @param {string} elementType - 要素タイプ
    * @param {string} attributeName - 属性名
@@ -200,7 +200,7 @@ export class SuggestionEngine {
     }
   }
 
-  /**
+  /*
    * 動的サジェスト（既存モデル内の値）を取得
    * @param {string} elementType - 要素タイプ
    * @param {string} attributeName - 属性名
@@ -243,7 +243,7 @@ export class SuggestionEngine {
     return suggestions.slice(0, 10); // 最大10個
   }
 
-  /**
+  /*
    * 構造関連サジェストを取得
    * @param {string} elementType - 要素タイプ
    * @param {string} attributeName - 属性名
@@ -290,7 +290,7 @@ export class SuggestionEngine {
     return suggestions;
   }
 
-  /**
+  /*
    * 断面名のサジェストを取得
    * @param {string} elementType - 要素タイプ
    * @returns {Array<string>} 断面名候補
@@ -415,7 +415,7 @@ export class SuggestionEngine {
     return suggestions;
   }
 
-  /**
+  /*
    * 関連性に基づいてサジェストをソート
    * @param {Array<string>} suggestions - サジェスト候補
    * @param {string} currentValue - 現在の値

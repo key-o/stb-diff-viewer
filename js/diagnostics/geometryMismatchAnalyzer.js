@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { createLogger } from '../utils/logger.js';
 import { ElementGeometryUtils } from '../viewer/index.js';
 import { getDefaultScene } from './geometryInspector.js';
-import { getState } from '../app/globalState.js';
+import { getState } from '../data/state/globalState.js';
 
 const log = createLogger('diagnostics:geomMismatch');
 

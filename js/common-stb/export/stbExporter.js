@@ -15,6 +15,44 @@ import { createLogger } from '../../utils/logger.js';
 
 const _log = createLogger('common-stb:export:stbExporter');
 
+/**
+ * @typedef {Object} ExportLogger
+ * @property {(...args: any[]) => void} debug
+ * @property {(...args: any[]) => void} warn
+ * @property {(...args: any[]) => void} error
+ */
+
+/**
+ * @typedef {Object} ValidationResult
+ * @property {boolean} valid
+ * @property {Array<any>} [errors]
+ * @property {string} [message]
+ * @property {string} [elementId]
+ * @property {string} [elementType]
+ */
+
+/**
+ * @typedef {Object} ValidatorFunctions
+ * @property {(elementType: string, attributes: Object) => ValidationResult} validateElement
+ * @property {() => boolean} isSchemaLoaded
+ * @property {(report: any) => string} formatValidationReport
+ * @property {(report: any) => string} formatRepairReport
+ */
+
+/**
+ * @typedef {Object} ExportStbDocumentOptions
+ * @property {string} [filename]
+ * @property {string|null} [targetVersion]
+ */
+
+/**
+ * @typedef {Object} ExportValidatedStbOptions
+ * @property {string} [filename]
+ * @property {Object|null} [validationReport]
+ * @property {Object|null} [repairReport]
+ * @property {boolean} [includeReport]
+ */
+
 // ======================================================================
 // 依存性注入（ロガーとバリデーション機能）
 // ======================================================================
@@ -23,6 +61,7 @@ const _log = createLogger('common-stb:export:stbExporter');
  * デフォルトロガー（createLogger使用）
  * @private
  */
+/** @type {ExportLogger} */
 const defaultLogger = {
   debug: (...args) => _log.debug(...args),
   warn: (...args) => _log.warn(...args),
@@ -33,14 +72,12 @@ const defaultLogger = {
  * 現在のロガー
  * @private
  */
+/** @type {ExportLogger} */
 let logger = defaultLogger;
 
 /**
  * ロガーを設定
- * @param {Object} customLogger - カスタムロガー
- * @param {Function} [customLogger.debug] - デバッグログ関数
- * @param {Function} [customLogger.warn] - 警告ログ関数
- * @param {Function} [customLogger.error] - エラーログ関数
+ * @param {Partial<ExportLogger>} customLogger - カスタムロガー
  */
 export function setLogger(customLogger) {
   logger = { ...defaultLogger, ...customLogger };
@@ -50,8 +87,9 @@ export function setLogger(customLogger) {
  * バリデーション関数のインジェクション用
  * @private
  */
+/** @type {ValidatorFunctions} */
 let validatorFunctions = {
-  validateElement: () => ({ valid: true }),
+  validateElement: (_elementType, _attributes) => ({ valid: true }),
   isSchemaLoaded: () => false,
   formatValidationReport: (report) => JSON.stringify(report, null, 2),
   formatRepairReport: (report) => JSON.stringify(report, null, 2),
@@ -59,11 +97,7 @@ let validatorFunctions = {
 
 /**
  * バリデーション関数を設定
- * @param {Object} functions - バリデーション関数群
- * @param {Function} [functions.validateElement] - 要素バリデーション関数
- * @param {Function} [functions.isSchemaLoaded] - スキーマ読み込み確認関数
- * @param {Function} [functions.formatValidationReport] - バリデーションレポートフォーマット関数
- * @param {Function} [functions.formatRepairReport] - 修復レポートフォーマット関数
+ * @param {Partial<ValidatorFunctions>} functions - バリデーション関数群
  */
 export function setValidatorFunctions(functions) {
   validatorFunctions = { ...validatorFunctions, ...functions };
@@ -102,7 +136,7 @@ export function setDynamicImportPaths(paths) {
 export async function exportModifiedStb(originalDoc, modifications, filename = 'modified.stb') {
   try {
     // 元ドキュメントのコピーを作成
-    const modifiedDoc = originalDoc.cloneNode(true);
+    const modifiedDoc = /** @type {Document} */ (originalDoc.cloneNode(true));
 
     // 修正を適用
     const validationResults = [];
@@ -139,15 +173,13 @@ export async function exportModifiedStb(originalDoc, modifications, filename = '
 /**
  * STBドキュメントを指定バージョンでエクスポート
  * @param {Document} doc - XMLドキュメント
- * @param {Object} options - オプション
- * @param {string} options.filename - 出力ファイル名
- * @param {string} options.targetVersion - 目標バージョン ('2.0.2' or '2.1.0')
+ * @param {ExportStbDocumentOptions} [options] - オプション
  * @returns {boolean} 成功可否
  */
 export function exportStbDocument(doc, options = {}) {
   try {
     const { filename = 'export.stb', targetVersion = null } = options;
-    const exportDoc = doc.cloneNode(true);
+    const exportDoc = /** @type {Document} */ (doc.cloneNode(true));
 
     if (targetVersion) {
       applyVersionOverrides(exportDoc, targetVersion);
@@ -238,7 +270,7 @@ function applyModification(doc, modification) {
   let validation = null;
   if (validatorFunctions.isSchemaLoaded()) {
     const currentAttributes = {};
-    for (const attr of element.attributes) {
+    for (const attr of Array.from(element.attributes)) {
       currentAttributes[attr.name] = attr.value;
     }
 
@@ -276,7 +308,7 @@ export function validateDocumentForExport(doc) {
 
     const id = element.getAttribute('id');
     const attributes = {};
-    for (const attr of element.attributes) {
+    for (const attr of Array.from(element.attributes)) {
       attributes[attr.name] = attr.value;
     }
 
@@ -327,11 +359,7 @@ export function generateModificationReport(modifications) {
  * バリデート・修復済みドキュメントをエクスポート
  *
  * @param {Document} doc - エクスポートするXMLドキュメント
- * @param {Object} options - エクスポートオプション
- * @param {string} options.filename - ファイル名
- * @param {Object} options.validationReport - バリデーションレポート
- * @param {Object} options.repairReport - 修復レポート
- * @param {boolean} options.includeReport - レポートを含めるかどうか
+ * @param {ExportValidatedStbOptions} [options] - エクスポートオプション
  * @returns {boolean} 成功可否
  */
 export function exportValidatedStb(doc, options = {}) {

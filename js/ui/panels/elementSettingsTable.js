@@ -9,6 +9,22 @@ import {
   STRUCTURAL_SYSTEM_LABELS,
 } from '../../constants/structuralSystems.js';
 
+const ELEMENT_GROUP_SETTINGS = [
+  {
+    id: 'WallGroup',
+    label: '壁 (StbWall)',
+    jpName: '壁',
+    childTypes: ['ShearWall', 'Wall'],
+    displayId: 'toggleWallGroupDisplay',
+  },
+];
+
+const ELEMENT_GROUP_BY_CHILD_TYPE = new Map(
+  ELEMENT_GROUP_SETTINGS.flatMap((group) =>
+    group.childTypes.map((childType) => [childType, group]),
+  ),
+);
+
 const ELEMENT_SETTINGS = [
   {
     type: 'Node',
@@ -119,9 +135,21 @@ const ELEMENT_SETTINGS = [
     defaultLabel: false,
   },
   {
+    type: 'ShearWall',
+    label: '\u8010\u9707\u58c1 (StbWall)',
+    jpName: '\u8010\u9707\u58c1',
+    solidType: 'checkbox',
+    displayId: 'toggleShearWallView',
+    solidId: 'toggleShearWall3DView',
+    solidName: 'shearWall3DViewMode',
+    defaultVisible: true,
+    defaultSolid: true,
+    defaultLabel: false,
+  },
+  {
     type: 'Wall',
-    label: '壁 (StbWall)',
-    jpName: '壁',
+    label: '雑壁 (StbWall)',
+    jpName: '雑壁',
     solidType: 'checkbox',
     displayId: 'toggleWallView',
     solidId: 'toggleWall3DView',
@@ -318,6 +346,43 @@ function createColorCell(setting) {
   return td;
 }
 
+function createEmptyCell(content = '-') {
+  const td = document.createElement('td');
+  td.textContent = content;
+  return td;
+}
+
+function createElementGroupRow(group) {
+  const tr = document.createElement('tr');
+  tr.className = 'element-group-row has-sub-categories';
+  tr.dataset.groupId = group.id;
+
+  const nameTd = document.createElement('td');
+  const toggle = document.createElement('span');
+  toggle.className = 'element-group-toggle';
+  toggle.textContent = '\u25B6';
+  toggle.title = '子要素を展開';
+  toggle.dataset.groupId = group.id;
+  nameTd.appendChild(toggle);
+  nameTd.appendChild(document.createTextNode(` ${group.label}`));
+  tr.appendChild(nameTd);
+
+  const displayTd = document.createElement('td');
+  const input = document.createElement('input');
+  input.type = 'checkbox';
+  input.id = group.displayId;
+  input.checked = true;
+  input.title = `${group.jpName}を表示`;
+  displayTd.appendChild(input);
+  tr.appendChild(displayTd);
+
+  tr.appendChild(createEmptyCell(''));
+  tr.appendChild(createEmptyCell(''));
+  tr.appendChild(createEmptyCell(''));
+
+  return tr;
+}
+
 /**
  * 構造種別サブ行を生成
  * @param {Object} setting - 親要素設定
@@ -358,48 +423,75 @@ function createStructuralSystemRows(setting, systems) {
   });
 }
 
+function appendElementSettingRow(tbody, setting, options = {}) {
+  const { parentGroupId = null } = options;
+  const tr = document.createElement('tr');
+  const subSystems = STRUCTURAL_SYSTEM_ELEMENT_TYPES[setting.type];
+
+  if (parentGroupId) {
+    tr.classList.add('element-sub-row');
+    tr.dataset.parentGroup = parentGroupId;
+    tr.style.display = 'none';
+  }
+
+  // 要素名セル
+  const nameTd = document.createElement('td');
+  if (subSystems) {
+    const toggle = document.createElement('span');
+    toggle.className = 'structural-system-toggle';
+    toggle.textContent = '\u25B6';
+    toggle.title = '構造種別フィルタを展開';
+    toggle.dataset.elementType = setting.type;
+    nameTd.appendChild(toggle);
+    nameTd.appendChild(document.createTextNode(' ' + setting.label));
+    tr.classList.add('has-sub-categories');
+  } else {
+    nameTd.textContent = setting.label;
+    if (parentGroupId) {
+      nameTd.classList.add('element-sub-label');
+    }
+  }
+  tr.appendChild(nameTd);
+
+  tr.appendChild(createDisplayCell(setting));
+  tr.appendChild(createSolidCell(setting));
+  tr.appendChild(createLabelCell(setting));
+  tr.appendChild(createColorCell(setting));
+
+  tbody.appendChild(tr);
+
+  // 構造種別サブ行を追加
+  if (subSystems) {
+    const subRows = createStructuralSystemRows(setting, subSystems);
+    for (const subRow of subRows) {
+      tbody.appendChild(subRow);
+    }
+  }
+}
+
 export function renderElementSettingsRows() {
   const tbody = document.getElementById('element-settings-body');
   if (!tbody) return;
 
+  const renderedGroups = new Set();
+
   for (const setting of ELEMENT_SETTINGS) {
-    const tr = document.createElement('tr');
-    const subSystems = STRUCTURAL_SYSTEM_ELEMENT_TYPES[setting.type];
+    const parentGroup = ELEMENT_GROUP_BY_CHILD_TYPE.get(setting.type);
 
-    // 要素名セル
-    const nameTd = document.createElement('td');
-    if (subSystems) {
-      const toggle = document.createElement('span');
-      toggle.className = 'structural-system-toggle';
-      toggle.textContent = '\u25B6';
-      toggle.title = '構造種別フィルタを展開';
-      toggle.dataset.elementType = setting.type;
-      nameTd.appendChild(toggle);
-      nameTd.appendChild(document.createTextNode(' ' + setting.label));
-      tr.classList.add('has-sub-categories');
-    } else {
-      nameTd.textContent = setting.label;
+    if (parentGroup && !renderedGroups.has(parentGroup.id)) {
+      tbody.appendChild(createElementGroupRow(parentGroup));
+      renderedGroups.add(parentGroup.id);
     }
-    tr.appendChild(nameTd);
 
-    tr.appendChild(createDisplayCell(setting));
-    tr.appendChild(createSolidCell(setting));
-    tr.appendChild(createLabelCell(setting));
-    tr.appendChild(createColorCell(setting));
-
-    tbody.appendChild(tr);
-
-    // 構造種別サブ行を追加
-    if (subSystems) {
-      const subRows = createStructuralSystemRows(setting, subSystems);
-      for (const subRow of subRows) {
-        tbody.appendChild(subRow);
-      }
-    }
+    appendElementSettingRow(tbody, setting, {
+      parentGroupId: parentGroup?.id || null,
+    });
   }
 
   // トグル展開/折りたたみのイベントリスナー
   setupStructuralSystemToggles();
+  setupElementGroupToggles();
+  setupElementGroupDisplaySync();
 }
 
 /**
@@ -422,6 +514,70 @@ function setupStructuralSystemToggles() {
         row.style.display = isExpanded ? '' : 'none';
       });
     });
+  });
+}
+
+function setupElementGroupToggles() {
+  const toggles = document.querySelectorAll('.element-group-toggle');
+  toggles.forEach((toggle) => {
+    toggle.addEventListener('click', () => {
+      const groupId = toggle.dataset.groupId;
+      const isExpanded = toggle.classList.toggle('expanded');
+      toggle.textContent = isExpanded ? '\u25BC' : '\u25B6';
+      toggle.title = isExpanded ? '子要素を折りたたむ' : '子要素を展開';
+
+      const childRows = document.querySelectorAll(
+        `.element-sub-row[data-parent-group="${groupId}"]`,
+      );
+      childRows.forEach((row) => {
+        row.style.display = isExpanded ? '' : 'none';
+      });
+    });
+  });
+}
+
+function setupElementGroupDisplaySync() {
+  ELEMENT_GROUP_SETTINGS.forEach((group) => {
+    const parentCheckbox = document.getElementById(group.displayId);
+    if (!parentCheckbox) return;
+
+    const childCheckboxes = group.childTypes
+      .map((childType) => ELEMENT_SETTINGS.find((setting) => setting.type === childType))
+      .map((setting) => (setting?.displayId ? document.getElementById(setting.displayId) : null))
+      .filter(Boolean);
+
+    if (childCheckboxes.length === 0) return;
+
+    let syncing = false;
+
+    const updateParentState = () => {
+      const checkedCount = childCheckboxes.filter((checkbox) => checkbox.checked).length;
+      parentCheckbox.checked = checkedCount === childCheckboxes.length;
+      parentCheckbox.indeterminate = checkedCount > 0 && checkedCount < childCheckboxes.length;
+    };
+
+    parentCheckbox.addEventListener('change', () => {
+      if (syncing) return;
+      syncing = true;
+
+      childCheckboxes.forEach((checkbox) => {
+        if (checkbox.checked !== parentCheckbox.checked) {
+          checkbox.click();
+        }
+      });
+
+      syncing = false;
+      updateParentState();
+    });
+
+    childCheckboxes.forEach((checkbox) => {
+      checkbox.addEventListener('change', () => {
+        if (syncing) return;
+        updateParentState();
+      });
+    });
+
+    updateParentState();
   });
 }
 

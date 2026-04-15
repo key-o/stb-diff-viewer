@@ -193,24 +193,9 @@ class ColorManager {
    * @private
    */
   _generateCacheKey(colorMode, params) {
-    return JSON.stringify({
-      mode: colorMode,
-      elementType: params.elementType,
-      state: params.comparisonState,
-      toleranceState: params.toleranceState,
-      positionState: params.positionState,
-      attributeState: params.attributeState,
-      diffStatus: params.diffStatus,
-      isLine: params.isLine,
-      isPoly: params.isPoly,
-      importanceLevel: params.importanceLevel,
-      wireframe: params.wireframe,
-      hasError: params.hasError,
-      status: params.status,
-      isTransparent: params.isTransparent,
-      layoutType: params.layoutType,
-      overrideColor: params.overrideColor,
-    });
+    // JSON.stringify を文字列連結に置換してパフォーマンスを改善
+    // 大量の要素に対して呼ばれるため、軽量なキー生成が重要
+    return `${colorMode}|${params.elementType ?? ''}|${params.comparisonState ?? ''}|${params.toleranceState ?? ''}|${params.positionState ?? ''}|${params.attributeState ?? ''}|${params.diffStatus ?? ''}|${params.isLine ?? ''}|${params.isPoly ?? ''}|${params.importanceLevel ?? ''}|${params.wireframe ?? ''}|${params.hasError ?? ''}|${params.status ?? ''}|${params.isTransparent ?? ''}|${params.layoutType ?? ''}|${params.overrideColor ?? ''}`;
   }
 
   /**

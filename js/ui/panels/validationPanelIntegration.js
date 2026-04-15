@@ -6,7 +6,7 @@ import { createLogger } from '../../utils/logger.js';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
 import { createValidationPanel } from './validationPanel.js';
 import { sharedManager } from '../../common-stb/validation/validationManager.js';
-import { getState } from '../../app/globalState.js';
+import { getState } from '../../data/state/globalState.js';
 import { notify } from '../../app/controllers/notificationController.js';
 import { eventBus } from '../../data/events/eventBus.js';
 import { AppEvents } from '../../constants/eventTypes.js';
@@ -210,12 +210,22 @@ export function runPostLoadValidations(models = {}) {
     return;
   }
 
-  try {
-    runImmediateElementInfoValidation(documentA, documentB);
-    void refreshCurrentElementInfoPanel();
-  } catch (error) {
-    log.warn('Failed to run immediate validation for element info:', error);
-  }
+  const scheduleIdleValidation = (task) => {
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+      window.requestIdleCallback(task, { timeout: UI_TIMING.VALIDATION_PANEL_IDLE_TIMEOUT_MS });
+    } else {
+      setTimeout(task, 0);
+    }
+  };
+
+  scheduleIdleValidation(() => {
+    try {
+      runImmediateElementInfoValidation(documentA, documentB);
+      void refreshCurrentElementInfoPanel();
+    } catch (error) {
+      log.warn('Failed to run immediate validation for element info:', error);
+    }
+  });
 
   schedulePanelValidation();
 }

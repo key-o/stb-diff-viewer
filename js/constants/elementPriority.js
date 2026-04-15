@@ -21,6 +21,7 @@ export const ELEMENT_PRIORITY = {
 
   // Phase 2: 面要素
   StbSlab: 3,
+  StbShearWall: 3,
   StbWall: 3,
   StbFrameDampingDevice: 3,
 

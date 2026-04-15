@@ -163,7 +163,16 @@ function validateAttributes(element, elementName, elemDef, version, issues) {
       // 値のバリデーション
       const value = attr.value;
       if (value !== null && value !== undefined) {
-        validateAttributeValue(elementName, elementId, element, attrName, value, attrDef, version, issues);
+        validateAttributeValue(
+          elementName,
+          elementId,
+          element,
+          attrName,
+          value,
+          attrDef,
+          version,
+          issues,
+        );
       }
     }
   }
@@ -172,7 +181,16 @@ function validateAttributes(element, elementName, elemDef, version, issues) {
 /**
  * 属性値を検証
  */
-function validateAttributeValue(elementName, elementId, element, attrName, value, attrDef, version, issues) {
+function validateAttributeValue(
+  elementName,
+  elementId,
+  element,
+  attrName,
+  value,
+  attrDef,
+  version,
+  issues,
+) {
   // fixed値チェック
   if (attrDef.fixed !== null && attrDef.fixed !== undefined && value !== attrDef.fixed) {
     issues.push({
@@ -218,7 +236,16 @@ function validateAttributeValue(elementName, elementId, element, attrName, value
     // カスタムsimpleType
     const simpleType = getSimpleTypeForVersion(version, typeName);
     if (simpleType) {
-      validateSimpleTypeValue(elementName, elementId, element, attrName, value, simpleType, version, issues);
+      validateSimpleTypeValue(
+        elementName,
+        elementId,
+        element,
+        attrName,
+        value,
+        simpleType,
+        version,
+        issues,
+      );
     }
   }
 }
@@ -274,7 +301,16 @@ function validateValueConstraints(
       return;
     }
 
-    checkNumericConstraints(elementName, elementId, element, attrName, value, num, constraints, issues);
+    checkNumericConstraints(
+      elementName,
+      elementId,
+      element,
+      attrName,
+      value,
+      num,
+      constraints,
+      issues,
+    );
   }
 
   // minLengthチェック
@@ -494,7 +530,16 @@ function validateSimpleTypeValue(
       return;
     }
 
-    checkNumericConstraints(elementName, elementId, element, attrName, value, num, simpleType, issues);
+    checkNumericConstraints(
+      elementName,
+      elementId,
+      element,
+      attrName,
+      value,
+      num,
+      simpleType,
+      issues,
+    );
   }
 
   // minLengthチェック
@@ -542,7 +587,16 @@ function validateSimpleTypeValue(
   if (baseTypeName && !isBuiltinType(baseTypeName)) {
     const baseST = getSimpleTypeForVersion(version, baseTypeName);
     if (baseST) {
-      validateSimpleTypeValue(elementName, elementId, element, attrName, value, baseST, version, issues);
+      validateSimpleTypeValue(
+        elementName,
+        elementId,
+        element,
+        attrName,
+        value,
+        baseST,
+        version,
+        issues,
+      );
     }
   }
 }

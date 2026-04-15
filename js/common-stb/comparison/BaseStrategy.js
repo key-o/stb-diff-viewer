@@ -52,7 +52,7 @@ export class BaseStrategy {
    * @param {ComparisonOptions} [options={}] - 比較オプション
    * @returns {ComparisonResult} 比較結果
    */
-  compare(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor, _options = {}) {
+  compare(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor, options = {}) {
     throw new Error('compare() must be implemented by subclass');
   }
 
@@ -64,7 +64,7 @@ export class BaseStrategy {
    * @param {ComparisonOptions} [options={}] - 比較オプション
    * @returns {Object} 詳細な比較結果
    */
-  compareElementData(dataA, dataB, _options = {}) {
+  compareElementData(dataA, dataB, options = {}) {
     throw new Error('compareElementData() must be implemented by subclass');
   }
 
@@ -73,7 +73,7 @@ export class BaseStrategy {
    * @param {ComparisonOptions} options - 比較オプション
    * @returns {boolean} 適用可能な場合true
    */
-  isApplicable(_options = {}) {
+  isApplicable(options = {}) {
     return true;
   }
 }

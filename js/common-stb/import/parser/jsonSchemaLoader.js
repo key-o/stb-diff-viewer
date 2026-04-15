@@ -327,7 +327,7 @@ export function getElementChildren(elementType) {
 export function validateAttributeValue(elementType, attributeName, value) {
   const attrInfo = getAttributeInfo(elementType, attributeName);
   if (!attrInfo) {
-    return { valid: false, error: '属性がスキーマで定義されていません' };
+    return { valid: false, error: '属性がスキーマで定義されていません', blocking: false };
   }
 
   // 空値チェック

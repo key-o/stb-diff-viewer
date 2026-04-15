@@ -3,77 +3,22 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { initializeTheme, setThemeSetting, getThemeSetting } from '../../ui/common/theme.js';
+import { getState } from '../../data/state/globalState.js';
 import {
-  initializeToast,
-  showSuccess,
-  showError,
-  showWarning,
-  showInfo,
-  initializeToastEventListeners,
-} from '../../ui/common/toast.js';
-import { initializeFloatingWindow } from '../../ui/panels/floatingWindow.js';
-import { initializeTreeView } from '../../ui/panels/elementTreeView.js';
-import {
-  initializeSectionTreeView,
-  buildSectionTree,
-  setGroupingMode,
-} from '../../ui/panels/sectionTreeView.js';
-import { initializeComparisonKeySelector } from '../../ui/panels/comparisonKeySelector.js';
-import { initializeToleranceSettings } from '../../ui/panels/toleranceSettings.js';
-import { initDxfLoaderUI, initDxfLoaderEventListeners } from '../dxfLoader.js';
-import { setupVersionPanelEventListeners } from '../../ui/panels/versionPanel.js';
-import { initClipping2DEventListeners } from '../../ui/viewer3d/clipping2DImpl.js';
-import { initSectionBoxEventListeners } from '../../ui/viewer3d/sectionBox.js';
-import { injectElementInfoService } from '../../viewer/services/elementInfoAdapter.js';
-import { initializeValidationPanel } from '../../ui/panels/validationPanelIntegration.js';
-import { initializeXmlViewer } from '../../ui/panels/xmlViewer.js';
-import { getState } from '../globalState.js';
-import { convertComparisonResultsForTree } from './initializationUtils.js';
-import {
-  handleTreeElementSelection,
   toggleOriginAxesVisibility,
   togglePlacementLinesVisibility,
+  toggleGridVisibility,
 } from './eventHandlers.js';
 import { getLoadDisplayManager, LOAD_DISPLAY_MODE } from '../../viewer/index.js';
 import {
-  initColumnSectionListPanel,
-  initBeamSectionListPanel,
-} from '../../ui/panels/sectionList/index.js';
+  initializeThemeSystem,
+  initializeSharedPanels,
+  initializeTreePanels,
+  initializeComparisonControls,
+  initializeSectionListPanels,
+} from './uiInitializationHelpers.js';
 
 const log = createLogger('uiInitializer');
-
-/**
- * テーマボタンのイベントリスナーをセットアップ
- */
-function setupThemeButtonListeners() {
-  const buttonGroup = document.getElementById('theme-button-group');
-  if (!buttonGroup) return;
-
-  const buttons = buttonGroup.querySelectorAll('button[data-theme]');
-  buttons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const theme = button.dataset.theme;
-      setThemeSetting(theme);
-
-      // アクティブ状態を更新
-      buttons.forEach((btn) => btn.classList.remove('active'));
-      button.classList.add('active');
-    });
-  });
-
-  // 初期状態を設定
-  const currentSetting = getThemeSetting();
-  buttons.forEach((btn) => {
-    if (btn.dataset.theme === currentSetting) {
-      btn.classList.add('active');
-    } else {
-      btn.classList.remove('active');
-    }
-  });
-
-  log.info('テーマボタンリスナーをセットアップしました');
-}
 
 /**
  * UIコンポーネントを初期化
@@ -81,146 +26,11 @@ function setupThemeButtonListeners() {
  * @param {Object} elementGroups - 要素グループ
  */
 export function initializeUIComponents(scheduleRender, elementGroups) {
-  // テーマシステムを初期化
-  initializeTheme({
-    onThemeChange: (theme, setting) => {
-      log.info(`テーマが変更されました: ${theme} (設定: ${setting})`);
-    },
-  });
-  setupThemeButtonListeners();
-  log.info('テーマシステムが初期化されました');
-
-  // トースト通知システムを初期化
-  initializeToast({
-    position: 'bottom-right',
-    duration: 4000,
-    maxToasts: 5,
-  });
-  log.info('トースト通知システムが初期化されました');
-
-  // トーストイベントリスナーを初期化（イベントバス経由でトーストを表示可能に）
-  initializeToastEventListeners();
-  log.info('トーストイベントリスナーが初期化されました');
-
-  // 2Dクリッピングイベントリスナーを初期化
-  initClipping2DEventListeners();
-  log.info('2Dクリッピングイベントリスナーが初期化されました');
-
-  // セクションボックスイベントリスナーを初期化
-  initSectionBoxEventListeners();
-  log.info('セクションボックスイベントリスナーが初期化されました');
-
-  // DXFローダーイベントリスナーを初期化
-  initDxfLoaderEventListeners();
-  log.info('DXFローダーイベントリスナーが初期化されました');
-
-  // 要素情報サービスを注入
-  import('../../ui/panels/element-info/index.js').then((elementInfo) => {
-    injectElementInfoService(elementInfo);
-    log.info('要素情報サービスが注入されました');
-  });
-
-  // グローバルにトースト関数を公開
-  window.showToast = { showSuccess, showError, showWarning, showInfo };
-
-  // フローティングウィンドウを初期化
-  initializeFloatingWindow();
-
-  // STBバリデーションパネルを初期化
-  initializeValidationPanel();
-
-  // 生XMLビューアパネルを初期化
-  initializeXmlViewer();
-
-  // 要素ツリー表示を初期化
-  initializeTreeView('element-tree-container', (selectedElement) => {
-    try {
-      log.info('要素ツリーから要素が選択されました:', selectedElement);
-      handleTreeElementSelection(
-        selectedElement,
-        '要素ツリー',
-        true,
-        scheduleRender,
-        elementGroups,
-      );
-    } catch (err) {
-      log.error('要素ツリー選択処理でエラーが発生:', err);
-    }
-  });
-
-  // 断面ツリー表示を初期化（要素ツリーと同じハンドラを使用）
-  initializeSectionTreeView('section-tree-container', (selectedElement) => {
-    try {
-      log.info('断面ツリーから要素が選択されました:', selectedElement);
-      handleTreeElementSelection(
-        selectedElement,
-        '断面ツリー',
-        false,
-        scheduleRender,
-        elementGroups,
-      );
-    } catch (err) {
-      log.error('断面ツリー選択処理でエラーが発生:', err);
-    }
-  });
-
-  // グループ化モードの変更イベントリスナー
-  const groupingModeSelect = document.getElementById('section-grouping-mode');
-  if (groupingModeSelect) {
-    groupingModeSelect.addEventListener('change', (e) => {
-      const newMode = e.target.value;
-      log.info(`断面ツリーのグループ化モードを変更: ${newMode}`);
-      setGroupingMode(newMode);
-
-      // 現在の比較結果と断面データで再構築
-      const comparisonResult = getState('comparisonResults');
-      const sectionsData = getState('sectionsData');
-      if (comparisonResult && sectionsData) {
-        const treeData = convertComparisonResultsForTree(comparisonResult);
-        buildSectionTree(treeData, sectionsData);
-      }
-    });
-  }
-
-  // 比較キー選択UIを初期化
-  // 再比較のトリガーはmodelLoader.jsのcomparisonKeyManager.onChange()で処理
-  initializeComparisonKeySelector('#comparison-key-selector-container', (newKeyType) => {
-    log.info(`比較キータイプが変更されました: ${newKeyType}`);
-  });
-  log.info('比較キー選択UIが初期化されました');
-
-  // 許容差設定パネルを初期化
-  const toleranceContainer = document.getElementById('tolerance-settings-container');
-  if (toleranceContainer) {
-    initializeToleranceSettings(toleranceContainer);
-    log.info('許容差設定パネルを初期化しました');
-  } else {
-    log.warn('許容差設定コンテナー #tolerance-settings-container が見つかりません');
-  }
-
-  // DXFローダーUIを初期化
-  initDxfLoaderUI();
-  log.info('DXFローダーUIを初期化しました');
-
-  // バージョンパネルのイベントリスナーを設定
-  setupVersionPanelEventListeners();
-  log.info('バージョンパネルのイベントリスナーを設定しました');
-
-  // RC柱断面リストパネルを初期化
-  try {
-    initColumnSectionListPanel();
-    log.info('RC柱断面リストパネルを初期化しました');
-  } catch (e) {
-    log.warn('RC柱断面リストパネルの初期化に失敗:', e);
-  }
-
-  // RC梁断面リストパネルを初期化
-  try {
-    initBeamSectionListPanel();
-    log.info('RC梁断面リストパネルを初期化しました');
-  } catch (e) {
-    log.warn('RC梁断面リストパネルの初期化に失敗:', e);
-  }
+  initializeThemeSystem();
+  initializeSharedPanels();
+  initializeTreePanels(scheduleRender, elementGroups);
+  initializeComparisonControls();
+  initializeSectionListPanels();
 }
 
 /**
@@ -260,6 +70,17 @@ export function setupButtonEventListeners() {
   }
 
   // 荷重表示切り替え
+  const gridToggle = document.getElementById('toggleViewerGrid');
+  if (gridToggle) {
+    gridToggle.addEventListener('change', (event) => {
+      const isVisible = event.target.checked;
+      toggleGridVisibility(isVisible);
+      log.info(`グリッドの表示状態を設定しました: ${isVisible}`);
+    });
+  } else {
+    log.warn('グリッド切替用のチェックボックスが見つかりません');
+  }
+
   const loadDisplayToggle = document.getElementById('toggleLoadDisplay');
   const loadCaseSelector = document.getElementById('loadCaseSelector');
 

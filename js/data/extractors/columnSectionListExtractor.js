@@ -454,7 +454,7 @@ export function extractColumnSectionList(xmlDoc) {
  * @param {string} parserVersion - パーサーバージョン
  * @returns {Object} 断面リストデータ
  */
-function buildColumnSectionList(xmlDoc, _parserVersion) {
+function buildColumnSectionList(xmlDoc, parserVersion) {
   // 基本データを抽出
   const stories = extractStories(xmlDoc);
   const columns = extractColumns(xmlDoc);

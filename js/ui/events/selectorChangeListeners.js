@@ -15,7 +15,7 @@ import {
 } from '../viewer3d/clipping.js';
 import { activateSectionBoxForBounds, deactivateSectionBox } from '../viewer3d/sectionBox.js';
 import { eventBus, AxisEvents, RenderEvents } from '../../data/events/index.js';
-import { getState } from '../../app/globalState.js';
+import { getState } from '../../data/state/globalState.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('ui:events:selectorChangeListeners');

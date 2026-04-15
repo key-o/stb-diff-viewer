@@ -8,7 +8,7 @@
 
 import { showError, showWarning, showSuccess } from '../../common/toast.js';
 import { eventBus, ComparisonEvents } from '../../../data/events/index.js';
-import { getState } from '../../../app/globalState.js';
+import { getState } from '../../../data/state/globalState.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('ui:events:exportHandlers:reportExportHandler');

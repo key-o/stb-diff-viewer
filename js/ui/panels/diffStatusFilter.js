@@ -14,7 +14,7 @@
  * 注: 差分カテゴリ、プリセットの定義は config/diffFilterConfig.js に統合されています。
  */
 
-import { getState } from '../../app/globalState.js';
+import { getState } from '../../data/state/globalState.js';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
 import { eventBus, DiffStatusEvents, ComparisonEvents } from '../../data/events/index.js';
 import { sceneController } from '../../app/controllers/sceneController.js';

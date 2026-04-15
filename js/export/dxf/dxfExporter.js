@@ -803,6 +803,4 @@ export function getExportStats(entities, selectedLayers = []) {
   return stats;
 }
 
-// グローバルにエクスポート
-window.exportDxf = exportDxf;
-window.getExportStats = getExportStats;
+// Note: window.* グローバルエクスポートは廃止（ESM import を使用）

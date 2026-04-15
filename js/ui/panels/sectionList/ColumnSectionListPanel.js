@@ -12,7 +12,7 @@ import { extractColumnSectionGrid } from '../../../data/extractors/columnSection
 import { ColumnSectionListRenderer } from './ColumnSectionListRenderer.js';
 import { exportToPdf } from './ColumnSectionListExporter.js';
 import { createLogger } from '../../../utils/logger.js';
-import { getState } from '../../../app/globalState.js';
+import { getState } from '../../../data/state/globalState.js';
 
 const log = createLogger('ui/ColumnSectionListPanel');
 
@@ -168,13 +168,21 @@ export class ColumnSectionListPanel {
     const xmlDoc = source === 'A' ? getState('models.documentA') : getState('models.documentB');
 
     if (!xmlDoc) {
-      container.innerHTML = `<div class="section-list-empty">モデル${source}が読み込まれていません</div>`;
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'section-list-empty';
+      emptyDiv.textContent = `モデル${source}が読み込まれていません`;
+      container.innerHTML = '';
+      container.appendChild(emptyDiv);
       if (infoEl) infoEl.textContent = '';
       return;
     }
 
     // ローディング表示
-    container.innerHTML = '<div class="section-list-loading">データを抽出しています...</div>';
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'section-list-loading';
+    loadingDiv.textContent = 'データを抽出しています...';
+    container.innerHTML = '';
+    container.appendChild(loadingDiv);
 
     // 非同期で処理（UIブロックを避ける）
     setTimeout(() => {

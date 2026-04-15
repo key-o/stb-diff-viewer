@@ -156,6 +156,42 @@ export class BaseTreeView {
     this.currentTargetFilter = { ...this.config.defaultTargetFilter };
   }
 
+  // --- DOM ヘルパーメソッド ---
+
+  /**
+   * トグルアイコン（▶/▼）を作成
+   * @param {boolean} [isExpanded=false] - 初期状態で展開するか
+   * @param {string} [extraClass=''] - 追加CSSクラス
+   * @returns {HTMLSpanElement} トグルアイコン要素
+   */
+  _createToggleIcon(isExpanded = false, extraClass = '') {
+    const icon = document.createElement('span');
+    icon.className = `tree-toggle-icon${extraClass ? ` ${extraClass}` : ''}`;
+    icon.textContent = isExpanded ? '▼' : '▶';
+    if (isExpanded) {
+      icon.classList.add('expanded');
+    }
+    return icon;
+  }
+
+  /**
+   * ノードの展開/折りたたみをトグル（display方式）
+   *
+   * コンテナの display を none/block で切り替え、トグルアイコンの
+   * テキスト（▶/▼）と expanded クラスを同期する。
+   *
+   * @param {HTMLElement} childrenContainer - 子要素コンテナ
+   * @param {HTMLElement} toggleIcon - トグルアイコン要素
+   * @returns {boolean} トグル後の展開状態（true=展開）
+   */
+  _toggleNodeExpand(childrenContainer, toggleIcon) {
+    const isExpanded = childrenContainer.style.display !== 'none';
+    childrenContainer.style.display = isExpanded ? 'none' : 'block';
+    toggleIcon.textContent = isExpanded ? '▶' : '▼';
+    toggleIcon.classList.toggle('expanded', !isExpanded);
+    return !isExpanded;
+  }
+
   /**
    * ツリーを再構築（サブクラスで実装必須）
    * @abstract

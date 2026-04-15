@@ -15,8 +15,23 @@
 import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
 import { LABEL_SETTINGS, LABEL_OCCLUSION_SETTINGS } from '../../config/renderingConstants.js';
+import { elementGroups } from '../core/core.js';
 
 const log = createLogger('viewer/ui/labels');
+let cachedOcclusionTargets = [];
+let cachedOcclusionTargetsFrame = -1;
+
+function getLabelOcclusionTargets() {
+  return Object.values(elementGroups).filter((group) => group && group.visible !== false);
+}
+
+function getLabelOcclusionTargetsForFrame() {
+  if (cachedOcclusionTargetsFrame !== globalFrameCounter) {
+    cachedOcclusionTargets = getLabelOcclusionTargets();
+    cachedOcclusionTargetsFrame = globalFrameCounter;
+  }
+  return cachedOcclusionTargets;
+}
 
 // オクルージョンチェック用のフレームカウンター
 let globalFrameCounter = 0;
@@ -278,13 +293,32 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
         state.lastCameraQuaternion.copy(cameraQuat);
 
         try {
+          let skipOcclusionRaycast = false;
+          if (elementType !== 'Story' && elementType !== 'Axis') {
+            const projectedCurrentPosition = currentPos.clone().project(cameraInstance);
+            const occlusionMargin = 1.1;
+            if (
+              projectedCurrentPosition.x < -occlusionMargin ||
+              projectedCurrentPosition.x > occlusionMargin ||
+              projectedCurrentPosition.y < -occlusionMargin ||
+              projectedCurrentPosition.y > occlusionMargin ||
+              projectedCurrentPosition.z < -1 ||
+              projectedCurrentPosition.z > 1
+            ) {
+              state.visibleFrameCount++;
+              state.occludedFrameCount = 0;
+              state.targetPushDistance = 0;
+              skipOcclusionRaycast = true;
+            }
+          }
+
           const dirToLabel = new THREE.Vector3().subVectors(currentPos, cameraPos);
           const distance = dirToLabel.length();
 
-          if (distance > 0) {
+          if (!skipOcclusionRaycast && distance > 0) {
             const ray = new THREE.Raycaster(cameraPos, dirToLabel.normalize(), 0.01, distance);
             ray.camera = cameraInstance;
-            const intersects = ray.intersectObjects(scene.children, true);
+            const intersects = ray.intersectObjects(getLabelOcclusionTargetsForFrame(), true);
 
             const firstBlocker = intersects.find((hit) => {
               if (!hit || !hit.object) return false;

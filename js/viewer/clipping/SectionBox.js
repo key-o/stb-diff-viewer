@@ -486,15 +486,15 @@ export class SectionBox {
   /**
    * @param {PointerEvent} _event
    */
-  _onPointerUp(event) {
+  _onPointerUp(_event) {
     if (!this._dragging) return;
-    if (this._activePointerId !== null && event.pointerId !== this._activePointerId) return;
+    if (this._activePointerId !== null && _event.pointerId !== this._activePointerId) return;
 
     this._dragging = false;
-    event.preventDefault();
-    event.stopImmediatePropagation();
+    _event.preventDefault();
+    _event.stopImmediatePropagation();
     if (typeof this._domElement.releasePointerCapture === 'function') {
-      this._domElement.releasePointerCapture(event.pointerId);
+      this._domElement.releasePointerCapture(_event.pointerId);
     }
     this._activePointerId = null;
 

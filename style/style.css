@@ -14,7 +14,10 @@ body {
 }
 
 /* フォーム要素のフォント継承リセット */
-button, input, select, textarea {
+button,
+input,
+select,
+textarea {
   font-family: inherit;
   font-size: inherit;
 }
@@ -25,7 +28,9 @@ body {
   flex-direction: row-reverse; /* ★★★ 追加: 要素の並び順を反転 ★★★ */
   background-color: var(--bg-body);
   color: var(--text-primary);
-  transition: background-color var(--transition-base), color var(--transition-base);
+  transition:
+    background-color var(--transition-base),
+    color var(--transition-base);
 }
 
 #overlay {
@@ -48,7 +53,7 @@ body {
   min-width: 0;
   margin-top: 0; /* 汎用canvasセレクタのmargin-topを上書き */
   background-color: var(--bg-canvas);
-  outline: 2px dashed rgba(255,255,255,0.08);
+  outline: 2px dashed rgba(255, 255, 255, 0.08);
   position: relative; /* キャンバス要素の絶対配置用 */
   overflow: hidden;
 }
@@ -57,7 +62,7 @@ body {
 
 /* Optional: Improve spacing within the overlay panel */
 #overlay label,
-#overlay input[type="file"],
+#overlay input[type='file'],
 #overlay select,
 #overlay button {
   display: block; /* Make controls block elements */
@@ -65,7 +70,7 @@ body {
   margin-bottom: 10px; /* Add space below controls */
 }
 
-#overlay input[type="checkbox"] {
+#overlay input[type='checkbox'] {
   display: inline-block; /* Keep checkboxes inline */
   width: var(--checkbox-size); /* カスタムチェックボックスサイズを維持 */
   margin-right: 5px;
@@ -107,13 +112,14 @@ body {
   background-color: var(--bg-hover, rgba(0, 0, 0, 0.05));
 }
 
-.element-settings-table input[type="checkbox"] {
+.element-settings-table input[type='checkbox'] {
   margin: 0;
   cursor: pointer;
 }
 
 /* 構造種別サブカテゴリ */
-.structural-system-toggle {
+.structural-system-toggle,
+.element-group-toggle {
   cursor: pointer;
   display: inline-block;
   width: 1em;
@@ -125,21 +131,25 @@ body {
   transition: color var(--transition-fast, 0.15s);
 }
 
-.structural-system-toggle:hover {
+.structural-system-toggle:hover,
+.element-group-toggle:hover {
   color: var(--primary-color, #4a90d9);
 }
 
-.structural-system-row {
+.structural-system-row,
+.element-sub-row {
   background-color: var(--bg-secondary, #f9f9f9);
 }
 
-.structural-system-row td {
+.structural-system-row td,
+.element-sub-row td {
   padding-top: 3px !important;
   padding-bottom: 3px !important;
   border-bottom: 1px solid var(--border-color-light, #eee) !important;
 }
 
-.structural-system-label {
+.structural-system-label,
+.element-sub-label {
   font-size: 0.85em;
   color: var(--text-secondary, #666);
   padding-left: 24px !important;
@@ -233,7 +243,7 @@ label {
    ======================================== */
 
 /* サイドバー内のトグルボタン共通スタイル（ウィンドウを開くボタン） */
-#overlay > button[id^="toggle-"] {
+#overlay > button[id^='toggle-'] {
   display: block;
   width: 100%;
   padding: 12px var(--spacing-md);
@@ -250,7 +260,7 @@ label {
   text-align: left;
 }
 
-#overlay > button[id^="toggle-"]:hover {
+#overlay > button[id^='toggle-']:hover {
   background: var(--sidebar-btn-hover-bg);
   border-color: var(--color-primary-light);
 }

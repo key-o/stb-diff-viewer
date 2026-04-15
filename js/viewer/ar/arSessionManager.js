@@ -13,11 +13,11 @@ import {
   scene,
   getActiveCamera,
   elementGroups,
-  gridHelper,
   axesHelper,
   setXRSessionActive,
   setXRFrameHandler,
 } from '../core/core.js';
+import { isGridHelperVisible, setGridHelperVisibility } from '../grid/gridHelper.js';
 import { ArPlacement } from './arPlacement.js';
 
 const log = createLogger('viewer/ar/arSessionManager');
@@ -341,9 +341,9 @@ export class ArSessionManager {
    * @private
    */
   _hideSceneHelpersForAr() {
-    this._gridWasVisible = gridHelper?.visible;
+    this._gridWasVisible = isGridHelperVisible();
     this._axesWasVisible = axesHelper?.visible;
-    if (gridHelper) gridHelper.visible = false;
+    setGridHelperVisibility(false);
     if (axesHelper) axesHelper.visible = false;
   }
 
@@ -352,8 +352,8 @@ export class ArSessionManager {
    * @private
    */
   _restoreSceneHelpersAfterAr() {
-    if (gridHelper && this._gridWasVisible !== undefined) {
-      gridHelper.visible = this._gridWasVisible;
+    if (this._gridWasVisible !== undefined) {
+      setGridHelperVisibility(this._gridWasVisible);
     }
     if (axesHelper && this._axesWasVisible !== undefined) {
       axesHelper.visible = this._axesWasVisible;

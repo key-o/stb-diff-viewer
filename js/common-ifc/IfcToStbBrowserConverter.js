@@ -157,7 +157,7 @@ export class IfcToStbBrowserConverter {
     haunchDetector,
     wallOpeningMap = new Map(),
   ) {
-    if (['column', 'beam', 'brace'].includes(el.stbCategory)) {
+    if (['column', 'beam', 'brace', 'pile'].includes(el.stbCategory)) {
       return this._processLinearElement(
         api,
         modelID,
@@ -226,8 +226,16 @@ export class IfcToStbBrowserConverter {
 
     const worldMatrix = resolvePlacement(api, modelID, el.placementRef, placementCache);
     const origin = extractPosition(worldMatrix);
-    const profileResult = profileAnalyzer.analyzeElement(el.representationRef);
-    const length = profileResult?.length || 0;
+    const pileMeta = el.stbCategory === 'pile' ? this._parsePileMetadata(el.description) : null;
+    const analyzedProfile = profileAnalyzer.analyzeElement(
+      el.representationRef,
+      pileMeta ? { skipSectionRegistration: true } : {},
+    );
+    const profileResult =
+      el.stbCategory === 'pile' && pileMeta
+        ? this._buildPileProfileResult(profileAnalyzer, pileMeta, analyzedProfile)
+        : analyzedProfile;
+    const length = profileResult?.length || analyzedProfile?.length || 0;
 
     const dirX = worldMatrix[8];
     const dirY = worldMatrix[9];
@@ -265,6 +273,7 @@ export class IfcToStbBrowserConverter {
     }
 
     const rotate = this._extractRotation(worldMatrix, el.stbCategory);
+    const kindStructure = this._resolveLinearKindStructure(el, profileResult);
 
     return {
       id: String(elementId),
@@ -275,9 +284,12 @@ export class IfcToStbBrowserConverter {
       nodeEnd,
       sectionId: profileResult?.sectionId || null,
       storyId: elementToStory.get(el.expressID) || null,
-      kindStructure: el.kindStructure || 'S',
+      kindStructure,
       rotate,
       haunch,
+      ...(el.stbCategory === 'pile'
+        ? this._buildPileAttrs(startPt, endPt, nodeStart, nodeEnd, length, pileMeta)
+        : {}),
     };
   }
 
@@ -720,6 +732,98 @@ export class IfcToStbBrowserConverter {
     const cosAngle = dotProduct(defaultX, actualRef);
     const angle = Math.atan2(sinAngle, cosAngle) * (180 / Math.PI);
     return Math.round(angle * 1000) / 1000;
+  }
+
+  _resolveLinearKindStructure(el, profileResult) {
+    if (el.stbCategory === 'pile') {
+      const profileType = profileResult?.sectionInfo?.stbType;
+      if (profileType === 'PILE_RC' || profileType === 'CIRCLE') return 'RC';
+      if (profileType === 'PILE_S' || profileType === 'PIPE') return 'S';
+      if (profileType === 'PILE_PRODUCT') return 'PC';
+    }
+    return el.kindStructure || 'S';
+  }
+
+  _buildPileAttrs(startPt, endPt, nodeStart, nodeEnd, length, pileMeta = null) {
+    const isStartTop = startPt.z >= endPt.z;
+    const elementMeta = pileMeta?.element || null;
+    const lengthAll = this._toFiniteNumber(elementMeta?.length_all) ?? Math.round(length * 100) / 100;
+    const kindPile = elementMeta?.kind_pile || 'CAST_IN_PLACE';
+
+    if (elementMeta?.format === '1node') {
+      return {
+        pileFormat: '1node',
+        nodeSingle: isStartTop ? nodeStart : nodeEnd,
+        levelTop: this._toFiniteNumber(elementMeta.level_top) ?? (isStartTop ? startPt.z : endPt.z),
+        lengthAll,
+        offsetX: this._toFiniteNumber(elementMeta.offset_X) ?? 0,
+        offsetY: this._toFiniteNumber(elementMeta.offset_Y) ?? 0,
+        kindPile,
+      };
+    }
+
+    return {
+      pileFormat: '2node',
+      nodeBottom: isStartTop ? nodeEnd : nodeStart,
+      nodeTop: isStartTop ? nodeStart : nodeEnd,
+      lengthAll,
+      kindPile,
+    };
+  }
+
+  _parsePileMetadata(description) {
+    if (typeof description !== 'string' || !description.startsWith('STBPILE_META:')) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(description.slice('STBPILE_META:'.length));
+    } catch {
+      return null;
+    }
+  }
+
+  _buildPileProfileResult(profileAnalyzer, pileMeta, analyzedProfile) {
+    const sectionMeta = pileMeta?.section;
+    if (!sectionMeta) return analyzedProfile;
+
+    const sectionInfo = {
+      stbType: sectionMeta.stbType || analyzedProfile?.sectionInfo?.stbType || 'PILE_RC',
+      name: sectionMeta.name || 'Pile',
+      pileTagName: sectionMeta.pileTagName || null,
+      pileType: sectionMeta.pileType || null,
+      params: { ...(sectionMeta.params || {}) },
+      segments: Array.isArray(sectionMeta.segments) ? [...sectionMeta.segments] : null,
+      sectionKey: JSON.stringify({
+        stbType: sectionMeta.stbType || 'PILE_RC',
+        name: sectionMeta.name || 'Pile',
+        pileTagName: sectionMeta.pileTagName || null,
+        params: Object.fromEntries(
+          Object.entries(sectionMeta.params || {}).sort(([a], [b]) => a.localeCompare(b)),
+        ),
+        segments: Array.isArray(sectionMeta.segments)
+          ? sectionMeta.segments.map((segment) =>
+              Object.fromEntries(
+                Object.entries(segment)
+                  .filter(([, value]) => value !== undefined)
+                  .sort(([a], [b]) => a.localeCompare(b)),
+              ),
+            )
+          : null,
+      }),
+    };
+
+    const registered = profileAnalyzer.registerSection(sectionInfo);
+    return {
+      sectionId: registered?.id || null,
+      sectionInfo: registered || sectionInfo,
+      length: analyzedProfile?.length || 0,
+    };
+  }
+
+  _toFiniteNumber(value) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
   }
 
   _countByType(elements) {

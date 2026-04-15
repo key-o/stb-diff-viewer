@@ -10,12 +10,18 @@ const log = createLogger('initializationUtils');
 /**
  * comparisonResultsをツリー表示用のデータ構造に変換
  * @param {Map} comparisonResults - 要素タイプごとの比較結果Map
+ * @param {Array<string>|Set<string>|null} [targetElementTypes=null] - 変換対象の要素タイプ
  * @returns {Object} ツリー表示用のデータ構造
  */
-export function convertComparisonResultsForTree(comparisonResults) {
+export function convertComparisonResultsForTree(comparisonResults, targetElementTypes = null) {
   const matched = [];
   const onlyA = [];
   const onlyB = [];
+  const targetTypeSet = targetElementTypes
+    ? targetElementTypes instanceof Set
+      ? targetElementTypes
+      : new Set(targetElementTypes)
+    : null;
 
   // comparisonResultsがMapかどうかチェック
   if (!comparisonResults) {
@@ -31,6 +37,7 @@ export function convertComparisonResultsForTree(comparisonResults) {
 
   for (const [elementType, result] of entries) {
     if (!result) continue;
+    if (targetTypeSet && !targetTypeSet.has(elementType)) continue;
 
     // matched要素を変換
     if (result.matched && Array.isArray(result.matched)) {

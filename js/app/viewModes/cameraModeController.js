@@ -1,149 +1,220 @@
 /**
- * @fileoverview カメラモード制御モジュール
+ * @fileoverview Camera mode controller
  *
- * 3D/2Dカメラモードの切り替えとビュー方向の管理を行います。
- * このモジュールは以下の責務を持ちます：
- * - 3D（透視投影）/2D（正投影）カメラモードの切り替え
- * - ビュー方向の設定（上面、正面、右、左、等角投影）
- * - カメラモードボタンの同期
- * - 2Dクリッピング表示制御
+ * This module keeps the UI state for:
+ * - display context: solid view / drawing view
+ * - solid projection: perspective / orthographic
+ * - drawing directions: top / front / right / left / iso
  */
 
-import { CAMERA_MODES } from '../../constants/displayModes.js';
-import { setCameraMode, setView } from '../../viewer/index.js';
+import { CAMERA_CONTEXTS, CAMERA_MODES } from '../../constants/displayModes.js';
+import {
+  getCameraContext,
+  getCameraMode,
+  setCameraContext,
+  setCameraMode,
+  setView,
+} from '../../viewer/index.js';
 import { setStbExportPanelVisibility } from '../dxfLoader.js';
 import { createLogger } from '../../utils/logger.js';
 import { getModelContext } from './displayModeController.js';
 import { eventBus } from '../../data/events/eventBus.js';
 import { ViewEvents, AxisEvents } from '../../constants/eventTypes.js';
-import { getState } from '../globalState.js';
+import { getState } from '../../data/state/globalState.js';
 
-// ロガー
 const log = createLogger('cameraModeController');
 
-/**
- * 通り芯の再描画を eventBus 経由でリクエスト
- * @param {string} targetStoryId - 対象フロアID（'all' で全フロア）
- */
-function emitAxisRedraw(targetStoryId) {
+const ORTHOGRAPHIC_VIEWS = {
+  PLAN: 'top',
+  ISOMETRIC: 'iso',
+};
+
+let currentSolidProjectionMode = CAMERA_MODES.PERSPECTIVE;
+let currentDrawingView = ORTHOGRAPHIC_VIEWS.PLAN;
+
+function emitAxisRedraw(targetStoryId, is2DMode) {
   const stories = getState('models.stories') || [];
   const axesData = getState('models.axesData') || { xAxes: [], yAxes: [] };
   const modelBounds = getState('models.modelBounds') || null;
   if (!axesData.xAxes?.length && !axesData.yAxes?.length) return;
+
   const labelCheckbox = document.getElementById('toggleLabel-Axis');
   const labelToggle = labelCheckbox ? labelCheckbox.checked : true;
+
   eventBus.emit(AxisEvents.REDRAW_REQUESTED, {
     axesData,
     stories,
     modelBounds,
     labelToggle,
     targetStoryId,
+    is2DMode,
   });
 }
 
-/**
- * 正投影ビューの種類
- * @private
- */
-const ORTHOGRAPHIC_VIEWS = {
-  PLAN: 'top', // 平面図
-  ISOMETRIC: 'iso', // 等角投影
-};
+function emitCameraModeChanged(mode, context) {
+  eventBus.emit(ViewEvents.CAMERA_MODE_CHANGED, {
+    mode,
+    context,
+    isDrawingMode: context === CAMERA_CONTEXTS.DRAWING,
+  });
+}
 
-/**
- * 正投影ビューを設定
- * @private
- * @param {string} view - ビューの種類（'top', 'iso' など）
- */
 function setOrthographicView(view) {
   const { modelBounds } = getModelContext();
   setView(view, modelBounds);
 }
 
-/**
- * すべての表示モードボタンのアクティブ状態を同期
- * @private
- * @param {string} mode - 'perspective' または 'orthographic'
- */
-function syncViewModeButtons(mode) {
-  const isPerspective = mode === 'perspective';
+function syncPrimaryModeButtons(context) {
+  const isSolid = context === CAMERA_CONTEXTS.SOLID;
 
-  // フローティングウィンドウ内のボタン
   const cameraPerspectiveBtn = document.getElementById('cameraPerspectiveBtn');
   const cameraOrthographicBtn = document.getElementById('cameraOrthographicBtn');
   if (cameraPerspectiveBtn) {
-    cameraPerspectiveBtn.classList.toggle('active', isPerspective);
+    cameraPerspectiveBtn.classList.toggle('active', isSolid);
   }
   if (cameraOrthographicBtn) {
-    cameraOrthographicBtn.classList.toggle('active', !isPerspective);
+    cameraOrthographicBtn.classList.toggle('active', !isSolid);
   }
 
-  // パネル上部の常時表示ボタン
   const viewModePerspectiveBtn = document.getElementById('viewModePerspectiveBtn');
   const viewModeOrthographicBtn = document.getElementById('viewModeOrthographicBtn');
   if (viewModePerspectiveBtn) {
-    viewModePerspectiveBtn.classList.toggle('active', isPerspective);
+    viewModePerspectiveBtn.classList.toggle('active', isSolid);
   }
   if (viewModeOrthographicBtn) {
-    viewModeOrthographicBtn.classList.toggle('active', !isPerspective);
+    viewModeOrthographicBtn.classList.toggle('active', !isSolid);
   }
 
-  // ビュー方向ボタンの表示/非表示
-  const viewDirectionButtons = document.getElementById('viewDirectionButtons');
-  const viewDirectionPanel = document.getElementById('viewDirectionPanel');
-  if (viewDirectionButtons) {
-    viewDirectionButtons.classList.toggle('hidden', isPerspective);
+  const cameraPerspective = document.getElementById('cameraPerspective');
+  const cameraOrthographic = document.getElementById('cameraOrthographic');
+  if (cameraPerspective) {
+    cameraPerspective.checked = isSolid;
   }
-  if (viewDirectionPanel) {
-    viewDirectionPanel.classList.toggle('hidden', isPerspective);
+  if (cameraOrthographic) {
+    cameraOrthographic.checked = !isSolid;
   }
 }
 
-/**
- * すべてのビュー方向ボタンのアクティブ状態を同期
- * @private
- * @param {string} viewType - ビュータイプ（'top', 'front', 'right', 'left', 'iso'）
- */
+function syncSolidProjectionButtons(mode) {
+  const perspectiveBtn = document.getElementById('solidProjectionPerspectiveBtn');
+  const orthographicBtn = document.getElementById('solidProjectionOrthographicBtn');
+  const isPerspective = mode === CAMERA_MODES.PERSPECTIVE;
+
+  if (perspectiveBtn) {
+    perspectiveBtn.classList.toggle('active', isPerspective);
+  }
+  if (orthographicBtn) {
+    orthographicBtn.classList.toggle('active', !isPerspective);
+  }
+}
+
 function syncViewDirectionButtons(viewType) {
-  // パネル上部のビュー方向ボタン
   const viewDirectionButtons = document.getElementById('viewDirectionButtons');
   const panelBtns = viewDirectionButtons?.querySelectorAll('.view-dir-btn');
   if (panelBtns) {
-    panelBtns.forEach((b) => b.classList.remove('active'));
+    panelBtns.forEach((button) => button.classList.remove('active'));
     const activeBtn = viewDirectionButtons?.querySelector(`.view-dir-btn[data-view="${viewType}"]`);
     if (activeBtn) activeBtn.classList.add('active');
   }
 
-  // フローティングウィンドウ内のビュー方向ボタン
   const floatBtns = document.querySelectorAll('#viewDirectionPanel button[data-view]');
-  floatBtns.forEach((b) => b.classList.remove('active'));
+  floatBtns.forEach((button) => button.classList.remove('active'));
   const floatActiveBtn = document.querySelector(
     `#viewDirectionPanel button[data-view="${viewType}"]`,
   );
   if (floatActiveBtn) floatActiveBtn.classList.add('active');
 }
 
-/**
- * カメラモード関連のイベントリスナーを設定
- * @param {Function} scheduleRender - 再描画要求関数
- */
+function syncSubPanels(context) {
+  const solidProjectionButtons = document.getElementById('solidProjectionButtons');
+  const viewDirectionButtons = document.getElementById('viewDirectionButtons');
+  const viewDirectionPanel = document.getElementById('viewDirectionPanel');
+  const isSolid = context === CAMERA_CONTEXTS.SOLID;
+
+  if (solidProjectionButtons) {
+    solidProjectionButtons.classList.toggle('hidden', !isSolid);
+  }
+  if (viewDirectionButtons) {
+    viewDirectionButtons.classList.toggle('hidden', isSolid);
+  }
+  if (viewDirectionPanel) {
+    viewDirectionPanel.classList.toggle('hidden', isSolid);
+  }
+}
+
+function syncUiState(context = getCameraContext()) {
+  syncPrimaryModeButtons(context);
+  syncSolidProjectionButtons(currentSolidProjectionMode);
+  syncSubPanels(context);
+  syncViewDirectionButtons(context === CAMERA_CONTEXTS.DRAWING ? currentDrawingView : null);
+}
+
+function switchToSolidDisplay(scheduleRender, projectionMode = currentSolidProjectionMode) {
+  const previousContext = getCameraContext();
+  currentSolidProjectionMode =
+    projectionMode === CAMERA_MODES.ORTHOGRAPHIC
+      ? CAMERA_MODES.ORTHOGRAPHIC
+      : CAMERA_MODES.PERSPECTIVE;
+
+  setCameraContext(CAMERA_CONTEXTS.SOLID);
+  setCameraMode(currentSolidProjectionMode);
+
+  if (previousContext === CAMERA_CONTEXTS.DRAWING) {
+    setOrthographicView(ORTHOGRAPHIC_VIEWS.ISOMETRIC);
+  }
+
+  syncUiState(CAMERA_CONTEXTS.SOLID);
+  emitCameraModeChanged(currentSolidProjectionMode, CAMERA_CONTEXTS.SOLID);
+  setStbExportPanelVisibility(false);
+  emitAxisRedraw('all', false);
+  scheduleRender();
+}
+
+function switchToDrawingDisplay(scheduleRender, viewType = currentDrawingView) {
+  currentDrawingView = viewType || ORTHOGRAPHIC_VIEWS.PLAN;
+
+  setCameraContext(CAMERA_CONTEXTS.DRAWING);
+  setCameraMode(CAMERA_MODES.ORTHOGRAPHIC);
+  setOrthographicView(currentDrawingView);
+
+  syncUiState(CAMERA_CONTEXTS.DRAWING);
+  emitCameraModeChanged(CAMERA_MODES.ORTHOGRAPHIC, CAMERA_CONTEXTS.DRAWING);
+  setStbExportPanelVisibility(true);
+  emitAxisRedraw('all', true);
+  scheduleRender();
+}
+
+function updateDrawingView(scheduleRender, viewType) {
+  currentDrawingView = viewType;
+  syncUiState(CAMERA_CONTEXTS.DRAWING);
+  setOrthographicView(viewType);
+  scheduleRender();
+}
+
+function initializeLocalState() {
+  const context = getCameraContext();
+  const mode = getCameraMode();
+
+  if (context === CAMERA_CONTEXTS.SOLID) {
+    currentSolidProjectionMode =
+      mode === CAMERA_MODES.ORTHOGRAPHIC ? CAMERA_MODES.ORTHOGRAPHIC : CAMERA_MODES.PERSPECTIVE;
+  }
+}
+
 export function setupCameraModeListeners(scheduleRender) {
   log.debug('[setupCameraModeListeners] Initializing camera mode listeners');
 
-  // カメラモード切り替え
+  initializeLocalState();
+
   const cameraPerspective = document.getElementById('cameraPerspective');
   const cameraOrthographic = document.getElementById('cameraOrthographic');
-
-  // ボタン形式のカメラモード切り替え（フローティングウィンドウ内）
   const cameraPerspectiveBtn = document.getElementById('cameraPerspectiveBtn');
   const cameraOrthographicBtn = document.getElementById('cameraOrthographicBtn');
-
-  // パネル上部の常時表示ボタン
   const viewModePerspectiveBtn = document.getElementById('viewModePerspectiveBtn');
   const viewModeOrthographicBtn = document.getElementById('viewModeOrthographicBtn');
-  const viewDirectionButtons = document.getElementById('viewDirectionButtons');
+  const solidProjectionPerspectiveBtn = document.getElementById('solidProjectionPerspectiveBtn');
+  const solidProjectionOrthographicBtn = document.getElementById('solidProjectionOrthographicBtn');
 
-  // 少なくとも1組のボタンが必要
   const hasRadioButtons = cameraPerspective && cameraOrthographic;
   const hasFloatingButtons = cameraPerspectiveBtn && cameraOrthographicBtn;
   const hasPanelButtons = viewModePerspectiveBtn && viewModeOrthographicBtn;
@@ -153,147 +224,68 @@ export function setupCameraModeListeners(scheduleRender) {
     return;
   }
 
-  /**
-   * 3D（立体表示）モードに切り替え
-   * カメラモード変更 + ビュー設定 + UI副作用を一括実行
-   */
-  function switchToPerspective() {
-    log.info('カメラモード切り替え: 3D（立体表示）');
-    syncViewModeButtons('perspective');
-    setCameraMode(CAMERA_MODES.PERSPECTIVE);
-    setOrthographicView(ORTHOGRAPHIC_VIEWS.ISOMETRIC);
-    // 2Dクリッピングコントロールを非表示
-    eventBus.emit(ViewEvents.CAMERA_MODE_CHANGED, { mode: CAMERA_MODES.PERSPECTIVE });
-    // STBエクスポートパネルを非表示（3Dモードでは使用不可）
-    setStbExportPanelVisibility(false);
-    // 通り芯を3Dモード用に再描画
-    emitAxisRedraw('all');
-    scheduleRender();
-  }
-
-  /**
-   * 2D（図面表示）モードに切り替え
-   * カメラモード変更 + ビュー設定 + UI副作用を一括実行
-   */
-  function switchToOrthographic() {
-    log.info('カメラモード切り替え: 2D（図面表示）');
-    syncViewModeButtons('orthographic');
-    setCameraMode(CAMERA_MODES.ORTHOGRAPHIC);
-    setOrthographicView(ORTHOGRAPHIC_VIEWS.PLAN);
-    syncViewDirectionButtons('top');
-    // 2Dクリッピングコントロールを表示
-    eventBus.emit(ViewEvents.CAMERA_MODE_CHANGED, { mode: CAMERA_MODES.ORTHOGRAPHIC });
-    // STBエクスポートパネルを表示（2Dモードで使用可能）
-    setStbExportPanelVisibility(true);
-    // 通り芯を2Dモード用に再描画
-    emitAxisRedraw('all');
-    scheduleRender();
-  }
-
-  // フローティングウィンドウ内のボタン
   if (hasFloatingButtons) {
-    // 3Dボタンクリック
     cameraPerspectiveBtn.addEventListener('click', () => {
-      switchToPerspective();
-      // ラジオボタンがある場合は同期
-      if (cameraPerspective) {
-        cameraPerspective.checked = true;
-      }
+      switchToSolidDisplay(scheduleRender);
     });
 
-    // 2Dボタンクリック
     cameraOrthographicBtn.addEventListener('click', () => {
-      switchToOrthographic();
-      // ラジオボタンがある場合は同期
-      if (cameraOrthographic) {
-        cameraOrthographic.checked = true;
-      }
+      switchToDrawingDisplay(scheduleRender);
     });
   }
 
-  // パネル上部の常時表示ボタン
   if (hasPanelButtons) {
-    // 立体表示ボタンクリック
     viewModePerspectiveBtn.addEventListener('click', () => {
-      switchToPerspective();
-      // ラジオボタンがある場合は同期
-      if (cameraPerspective) {
-        cameraPerspective.checked = true;
-      }
+      switchToSolidDisplay(scheduleRender);
     });
 
-    // 図面表示ボタンクリック
     viewModeOrthographicBtn.addEventListener('click', () => {
-      switchToOrthographic();
-      // ラジオボタンがある場合は同期
-      if (cameraOrthographic) {
-        cameraOrthographic.checked = true;
-      }
+      switchToDrawingDisplay(scheduleRender);
     });
   }
 
-  // フローティングウィンドウ内のビュー方向ボタン
+  if (solidProjectionPerspectiveBtn) {
+    solidProjectionPerspectiveBtn.addEventListener('click', () => {
+      switchToSolidDisplay(scheduleRender, CAMERA_MODES.PERSPECTIVE);
+    });
+  }
+
+  if (solidProjectionOrthographicBtn) {
+    solidProjectionOrthographicBtn.addEventListener('click', () => {
+      switchToSolidDisplay(scheduleRender, CAMERA_MODES.ORTHOGRAPHIC);
+    });
+  }
+
   const viewButtons = document.querySelectorAll('#viewDirectionPanel button[data-view]');
-  log.debug(
-    `[setupCameraModeListeners] Found ${viewButtons.length} view direction buttons in floating window`,
-  );
+  viewButtons.forEach((button) => {
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      updateDrawingView(scheduleRender, this.dataset.view);
+    });
+  });
 
-  viewButtons.forEach((btn) => {
-    btn.addEventListener('click', function (e) {
-      e.preventDefault();
-      const viewType = this.dataset.view;
-      log.info('ビュー方向切り替え（フローティング）:', viewType);
-      syncViewDirectionButtons(viewType);
-      try {
-        const { modelBounds } = getModelContext();
-        setView(viewType, modelBounds);
-        if (scheduleRender) scheduleRender();
-      } catch (error) {
-        log.error('ビュー方向の設定に失敗:', error);
+  const panelViewButtons = document.querySelectorAll('#viewDirectionButtons .view-dir-btn');
+  panelViewButtons.forEach((button) => {
+    button.addEventListener('click', function (event) {
+      event.preventDefault();
+      updateDrawingView(scheduleRender, this.dataset.view);
+    });
+  });
+
+  if (hasRadioButtons) {
+    cameraPerspective.addEventListener('change', function () {
+      if (this.checked) {
+        switchToSolidDisplay(scheduleRender);
       }
     });
-  });
 
-  // パネル上部のビュー方向ボタン
-  const viewDirBtns = viewDirectionButtons?.querySelectorAll('.view-dir-btn');
-  if (viewDirBtns) {
-    log.debug(
-      `[setupCameraModeListeners] Found ${viewDirBtns.length} view direction buttons in panel`,
-    );
-    viewDirBtns.forEach((btn) => {
-      btn.addEventListener('click', function (e) {
-        e.preventDefault();
-        const viewType = this.dataset.view;
-        log.info('ビュー方向切り替え（パネル上部）:', viewType);
-        syncViewDirectionButtons(viewType);
-        try {
-          const { modelBounds } = getModelContext();
-          setView(viewType, modelBounds);
-          if (scheduleRender) scheduleRender();
-        } catch (error) {
-          log.error('ビュー方向の設定に失敗:', error);
-        }
-      });
+    cameraOrthographic.addEventListener('change', function () {
+      if (this.checked) {
+        switchToDrawingDisplay(scheduleRender);
+      }
     });
   }
 
-  // ラジオボタンがある場合のみリスナーを設定
-  if (!hasRadioButtons) {
-    log.info('[setupCameraModeListeners] Camera mode listeners initialized (panel buttons only)');
-    return;
-  }
-
-  cameraPerspective.addEventListener('change', function () {
-    if (this.checked) {
-      switchToPerspective();
-    }
-  });
-
-  cameraOrthographic.addEventListener('change', function () {
-    if (this.checked) {
-      switchToOrthographic();
-    }
-  });
-
+  syncUiState();
   log.info('[setupCameraModeListeners] Camera mode listeners initialized successfully');
 }

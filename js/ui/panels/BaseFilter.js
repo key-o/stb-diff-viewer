@@ -9,7 +9,7 @@
  * - importanceFilter.js: applyFilter, showAllElements, requestRender, etc.
  */
 
-import { getState } from '../../app/globalState.js';
+import { getState } from '../../data/state/globalState.js';
 import { sceneController } from '../../app/controllers/sceneController.js';
 import { scheduleRender } from '../../utils/renderScheduler.js';
 
@@ -105,7 +105,7 @@ export class BaseFilter {
    * @param {THREE.Object3D} element
    * @returns {string}
    */
-  _getFilterValueFromElement(_element) {
+  _getFilterValueFromElement(element) {
     throw new Error('_getFilterValueFromElement must be implemented');
   }
 

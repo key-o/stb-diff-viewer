@@ -3,7 +3,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { setState } from '../globalState.js';
+import { setState } from '../../data/state/globalState.js';
 import { initializeImportancePanel } from '../../ui/panels/importancePanel.js';
 import { initializeImportanceFilterSystem } from '../../ui/panels/importanceFilter.js';
 import { initializeImportanceStatistics } from '../../ui/panels/statistics.js';
@@ -16,13 +16,14 @@ import {
 import { initializeDiffStatusPanel } from '../../ui/panels/diffStatusPanel.js';
 import { eventBus } from '../../data/events/eventBus.js';
 import { EventTypes } from '../../constants/eventTypes.js';
-import { getState } from '../globalState.js';
+import { getState } from '../../data/state/globalState.js';
 import { buildMemberDataFromDocument, updateLoadCaseSelector } from './initializationUtils.js';
 import {
   initializeOutlineSystem,
   getLoadDisplayManager,
   getModelBounds,
 } from '../../viewer/index.js';
+import { initEditComparisonSync } from '../controllers/editComparisonSyncController.js';
 
 const log = createLogger('systemInitializer');
 
@@ -56,6 +57,9 @@ export function initializeIntegratedSystems() {
   setState('diffListPanel', diffListPanel);
   setState('diffStatusFilter', diffStatusFilterSystem.filter);
   setState('diffStatusPanel', diffStatusPanel);
+
+  // 編集→再比較同期コントローラーの初期化
+  initEditComparisonSync();
 
   log.info('重要度統合システムが初期化されました');
   log.info('差分ステータスフィルタが初期化されました');

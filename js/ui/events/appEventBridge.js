@@ -14,14 +14,25 @@ import {
   InteractionEvents,
   LoadingIndicatorEvents,
   FinalizationEvents,
+  ComparisonEvents,
+  ViewEvents,
 } from '../../data/events/index.js';
 
 import { clearUIState, setGlobalStateForUI } from '../state.js';
-import { clearTree, clearTreeSelection, selectElementInTree } from '../panels/elementTreeView.js';
+import {
+  clearTree,
+  clearTreeSelection,
+  selectElementInTree,
+  buildTree,
+  updateTreeElementTypes,
+} from '../panels/elementTreeView.js';
 import { clearSectionTree } from '../panels/sectionTreeView.js';
-import { showError, showWarning } from '../common/toast.js';
+import { showError, showWarning, showSuccess, showInfo } from '../common/toast.js';
 import { showContextMenu, initializeContextMenu } from '../common/contextMenu.js';
-import { displayElementInfo } from '../panels/element-info/ElementInfoDisplay.js';
+import {
+  displayElementInfo,
+  displayMultiSelectionSummary,
+} from '../panels/element-info/ElementInfoDisplay.js';
 import { activateSectionBoxForBox } from '../viewer3d/sectionBox.js';
 import {
   getLoadingIndicator,
@@ -30,7 +41,18 @@ import {
   completeLoading,
 } from '../common/loadingIndicator.js';
 import { updateStorySelector, updateAxisSelectors } from '../viewer3d/selectors.js';
-import { updateLabelVisibility } from '../viewer3d/unifiedLabelManager.js';
+import { updateLabelVisibility, handleColorModeChange } from '../viewer3d/unifiedLabelManager.js';
+import { updateLegendContent } from './legendListeners.js';
+import { refreshElementInfoPanel } from '../panels/element-info/ElementInfoDisplay.js';
+import { convertComparisonResultsForTree } from '../../app/initialization/initializationUtils.js';
+
+function scheduleUiIdle(task) {
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(task, { timeout: 100 });
+  } else {
+    setTimeout(task, 0);
+  }
+}
 
 /**
  * app層イベントをUI関数に接続するブリッジを初期化
@@ -55,6 +77,14 @@ export function setupAppEventBridge() {
     showWarning(message);
   });
 
+  eventBus.on(ToastEvents.SHOW_SUCCESS, ({ message } = {}) => {
+    showSuccess(message);
+  });
+
+  eventBus.on(ToastEvents.SHOW_INFO, ({ message } = {}) => {
+    showInfo(message);
+  });
+
   // --- InteractionEvents ---
   eventBus.on(
     InteractionEvents.DISPLAY_ELEMENT_INFO,
@@ -62,6 +92,10 @@ export function setupAppEventBridge() {
       displayElementInfo(idA, idB, elementType, modelSource);
     },
   );
+
+  eventBus.on(InteractionEvents.DISPLAY_MULTI_SELECTION_INFO, (summaryData = {}) => {
+    displayMultiSelectionSummary(summaryData);
+  });
 
   eventBus.on(
     InteractionEvents.SELECT_ELEMENT_IN_TREE,
@@ -112,8 +146,42 @@ export function setupAppEventBridge() {
   });
 
   eventBus.on(FinalizationEvents.UPDATE_SELECTORS, () => {
-    updateStorySelector();
-    updateAxisSelectors();
-    updateLabelVisibility();
+    scheduleUiIdle(() => {
+      updateStorySelector();
+      updateAxisSelectors();
+    });
+    scheduleUiIdle(() => {
+      updateLabelVisibility();
+    });
   });
+
+  // --- ViewEvents (色付けモード変更通知) ---
+  eventBus.on(ViewEvents.COLOR_MODE_CHANGED, (_payload) => {
+    // ラベル管理システムに通知
+    handleColorModeChange();
+
+    // 凡例を表示中の場合は内容を更新
+    const legendPanel = document.getElementById('legendPanel');
+    if (legendPanel && legendPanel.style.display !== 'none') {
+      updateLegendContent();
+    }
+
+    // 要素情報パネルを更新
+    refreshElementInfoPanel();
+  });
+
+  // --- ComparisonEvents (編集後の再比較でTree View を再構築) ---
+  eventBus.on(
+    ComparisonEvents.UPDATE_STATISTICS,
+    ({ reason, comparisonResults, changedElementTypes } = {}) => {
+      if (reason === 'editRecomparison' && comparisonResults) {
+        const treeData = convertComparisonResultsForTree(comparisonResults, changedElementTypes);
+        if (Array.isArray(changedElementTypes) && changedElementTypes.length > 0) {
+          updateTreeElementTypes(treeData, changedElementTypes);
+        } else {
+          buildTree(treeData);
+        }
+      }
+    },
+  );
 }

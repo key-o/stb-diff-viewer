@@ -419,8 +419,11 @@ export class IFCSTBExporter extends IFCBeamExporter {
       bottomPoint,
       diameter = 600,
       wallThickness = null,
+      kindStructure = 'S',
       predefinedType = 'BORED',
       constructionType = 'CAST_IN_PLACE',
+      stbSectionMeta = null,
+      sourcePileMeta = null,
     } = pileData;
 
     // 必須パラメータのチェック
@@ -539,12 +542,14 @@ export class IFCSTBExporter extends IFCBeamExporter {
     ]);
 
     // 杭エンティティ（IFCPILE）
+    const pileDescription = this._buildPileDescription(stbSectionMeta, sourcePileMeta);
+
     const pileId = w.createEntity('IFCPILE', [
       generateIfcGuid(),
       null, // OwnerHistory
       name,
-      null, // Description
-      null, // ObjectType
+      pileDescription,
+      kindStructure, // ObjectType: kind_structure (RC/S)
       `#${pileLocalPlacement}`,
       `#${productShape}`,
       null, // Tag
@@ -556,6 +561,15 @@ export class IFCSTBExporter extends IFCBeamExporter {
     this._addToStorey(pileId, topPoint.z);
 
     return pileId;
+  }
+
+  _buildPileDescription(stbSectionMeta, sourcePileMeta) {
+    if (!stbSectionMeta && !sourcePileMeta) return null;
+
+    return `STBPILE_META:${JSON.stringify({
+      section: stbSectionMeta || null,
+      element: sourcePileMeta || null,
+    })}`;
   }
 
   /**

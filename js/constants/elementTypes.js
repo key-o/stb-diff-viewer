@@ -20,6 +20,7 @@ export const SUPPORTED_ELEMENTS = [
   'Beam',
   'Brace',
   'Slab',
+  'ShearWall',
   'Wall',
   'Parapet',
   'Joint',
@@ -48,6 +49,7 @@ export const DISPLAY_MODE_ELEMENTS = [
   'Beam',
   'Brace',
   'Slab',
+  'ShearWall',
   'Wall',
   'Parapet',
   'Pile',
@@ -83,6 +85,7 @@ export const COLOR_ELEMENTS = [
   'Beam',
   'Brace',
   'Slab',
+  'ShearWall',
   'Wall',
   'Parapet',
   'Joint',
@@ -103,7 +106,7 @@ export const COLOR_ELEMENTS = [
 export const ELEMENT_CATEGORIES = {
   STRUCTURAL: ['Column', 'Post', 'Girder', 'Beam', 'Brace', 'Joint'],
   SEISMIC: ['IsolatingDevice', 'DampingDevice', 'FrameDampingDevice'],
-  SURFACE: ['Slab', 'Wall', 'Parapet'],
+  SURFACE: ['Slab', 'ShearWall', 'Wall', 'Parapet'],
   FOUNDATION: ['Pile', 'Footing', 'StripFooting', 'FoundationColumn'],
   REFERENCE: ['Node', 'Axis', 'Story'],
 };

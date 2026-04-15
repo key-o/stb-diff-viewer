@@ -1,8 +1,8 @@
 /**
- * @fileoverview 配筋情報抽出ユーティリティ
+ * @fileoverview 驟咲ｭ区ュ蝣ｱ謚ｽ蜃ｺ繝ｦ繝ｼ繝・ぅ繝ｪ繝・ぅ
  *
- * 梁・柱の配筋（鉄筋配置）情報を STB バージョンに依存しないで抽出する
- * 3段階属性フォールバック：v2.0.2 → v1.x → legacy
+ * 譴√・譟ｱ縺ｮ驟咲ｭ具ｼ磯延遲矩・鄂ｮ・画ュ蝣ｱ繧・STB 繝舌・繧ｸ繝ｧ繝ｳ縺ｫ萓晏ｭ倥＠縺ｪ縺・〒謚ｽ蜃ｺ縺吶ｋ
+ * 3谿ｵ髫主ｱ樊ｧ繝輔か繝ｼ繝ｫ繝舌ャ繧ｯ・嘛2.0.2 竊・v1.x 竊・legacy
  *
  * @module common/stb/utils/barArrangementExtractor
  */
@@ -10,20 +10,20 @@
 import { getAttributeValueCascade } from './domHelpers.js';
 
 /**
- * 複数の属性候補から値を取得（3段階フォールバック）
- * v2.0.2 → v1.x → legacy の順で属性を検索
+ * 隍・焚縺ｮ螻樊ｧ蛟呵｣懊°繧牙､繧貞叙蠕暦ｼ・谿ｵ髫弱ヵ繧ｩ繝ｼ繝ｫ繝舌ャ繧ｯ・・
+ * v2.0.2 竊・v1.x 竊・legacy 縺ｮ鬆・〒螻樊ｧ繧呈､懃ｴ｢
  *
- * @param {Element} element - 対象要素
- * @param {string[]} attributeCandidates - 属性名の配列（優先順）
- * @param {string|number} [defaultValue='0'] - デフォルト値
- * @returns {string|number} 最初に見つかった属性値、またはデフォルト値
+ * @param {Element} element - 蟇ｾ雎｡隕∫ｴ
+ * @param {string[]} attributeCandidates - 螻樊ｧ蜷阪・驟榊・・亥━蜈磯・ｼ・
+ * @param {string|number} [defaultValue='0'] - 繝・ヵ繧ｩ繝ｫ繝亥､
+ * @returns {string|number} 譛蛻昴↓隕九▽縺九▲縺溷ｱ樊ｧ蛟､縲√∪縺溘・繝・ヵ繧ｩ繝ｫ繝亥､
  *
  * @example
- * // v2.0.2 → v1.x → legacy の順で検索
+ * // v2.0.2 竊・v1.x 竊・legacy 縺ｮ鬆・〒讀懃ｴ｢
  * const mainBarX = getAttributeWithFallback(element, [
- *   'N_main_X_1st',   // v2.0.2: 1段目主筋本数
- *   'N_main_X',       // v1.x: 主筋本数
- *   'count_main_X'    // legacy: レガシー名
+ *   'N_main_X_1st',   // v2.0.2: 1谿ｵ逶ｮ荳ｻ遲区悽謨ｰ
+ *   'N_main_X',       // v1.x: 荳ｻ遲区悽謨ｰ
+ *   'count_main_X'    // legacy: 繝ｬ繧ｬ繧ｷ繝ｼ蜷・
  * ], '0');
  */
 export function getAttributeWithFallback(element, attributeCandidates, defaultValue = '0') {
@@ -36,15 +36,10 @@ export function getAttributeWithFallback(element, attributeCandidates, defaultVa
 }
 
 /**
- * 梁の主筋情報を抽出
+ * 譴√・荳ｻ遲区ュ蝣ｱ繧呈歓蜃ｺ
  *
- * @param {Element} beamSection - 梁断面要素 (StbSecBeam_*, StbSecGirder_*)
- * @returns {Object} 主筋情報オブジェクト
- * @returns {string} return.N_main_X - X方向主筋本数
- * @returns {string} return.N_main_Y - Y方向主筋本数
- * @returns {string} return.D_main - 主筋径
- * @returns {string} return.D_main_X - X方向主筋径
- * @returns {string} return.D_main_Y - Y方向主筋径
+ * @param {Element} beamSection - 譴∵妙髱｢隕∫ｴ (StbSecBeam_*, StbSecGirder_*)
+ * @returns {Object} 荳ｻ遲区ュ蝣ｱ繧ｪ繝悶ず繧ｧ繧ｯ繝・
  *
  * @example
  * const mainBar = extractBeamMainBar(beamSection);
@@ -76,14 +71,10 @@ export function extractBeamMainBar(beamSection) {
 }
 
 /**
- * 梁のあばら筋（横補強）情報を抽出
+ * 譴√・縺ゅ・繧臥ｭ具ｼ域ｨｪ陬懷ｼｷ・画ュ蝣ｱ繧呈歓蜃ｺ
  *
- * @param {Element} beamSection - 梁断面要素
- * @returns {Object} あばら筋情報オブジェクト
- * @returns {string} return.N_stirrup - あばら筋本数
- * @returns {string} return.D_stirrup - あばら筋径
- * @returns {string} return.spacing - あばら筋間隔
- * @returns {string} return.spacing_1st - 支点部あばら筋間隔
+ * @param {Element} beamSection - 譴∵妙髱｢隕∫ｴ
+ * @returns {Object} 縺ゅ・繧臥ｭ区ュ蝣ｱ繧ｪ繝悶ず繧ｧ繧ｯ繝・
  *
  * @example
  * const stirrup = extractStirrupInfo(beamSection);
@@ -115,13 +106,10 @@ export function extractStirrupInfo(beamSection) {
 }
 
 /**
- * 梁の腹筋（側面せん断補強）情報を抽出
+ * 譴√・閻ｹ遲具ｼ亥・髱｢縺帙ｓ譁ｭ陬懷ｼｷ・画ュ蝣ｱ繧呈歓蜃ｺ
  *
- * @param {Element} beamSection - 梁断面要素
- * @returns {Object} 腹筋情報オブジェクト
- * @returns {string} return.N_web - 腹筋本数
- * @returns {string} return.D_web - 腹筋径
- * @returns {string} return.spacing - 腹筋間隔
+ * @param {Element} beamSection - 譴∵妙髱｢隕∫ｴ
+ * @returns {Object} 閻ｹ遲区ュ蝣ｱ繧ｪ繝悶ず繧ｧ繧ｯ繝・
  *
  * @example
  * const webBar = extractWebBarInfo(beamSection);
@@ -146,16 +134,10 @@ export function extractWebBarInfo(beamSection) {
 }
 
 /**
- * 柱の主筋情報を抽出
+ * 譟ｱ縺ｮ荳ｻ遲区ュ蝣ｱ繧呈歓蜃ｺ
  *
- * @param {Element} columnSection - 柱断面要素 (StbSecColumn_*)
- * @returns {Object} 主筋情報オブジェクト
- * @returns {string} return.N_main - 主筋本数
- * @returns {string} return.D_main - 主筋径
- * @returns {string} return.N_main_X - X方向主筋本数（四角柱）
- * @returns {string} return.N_main_Y - Y方向主筋本数（四角柱）
- * @returns {string} return.D_main_X - X方向主筋径
- * @returns {string} return.D_main_Y - Y方向主筋径
+ * @param {Element} columnSection - 譟ｱ譁ｭ髱｢隕∫ｴ (StbSecColumn_*)
+ * @returns {Object} 荳ｻ遲区ュ蝣ｱ繧ｪ繝悶ず繧ｧ繧ｯ繝・
  *
  * @example
  * const mainBar = extractMainBarInfo(columnSection);
@@ -190,14 +172,10 @@ export function extractMainBarInfo(columnSection) {
 }
 
 /**
- * 柱の帯筋（横補強）情報を抽出
+ * 譟ｱ縺ｮ蟶ｯ遲具ｼ域ｨｪ陬懷ｼｷ・画ュ蝣ｱ繧呈歓蜃ｺ
  *
- * @param {Element} columnSection - 柱断面要素
- * @returns {Object} 帯筋情報オブジェクト
- * @returns {string} return.N_hoop - 帯筋本数
- * @returns {string} return.D_hoop - 帯筋径
- * @returns {string} return.spacing - 帯筋間隔
- * @returns {string} return.spacing_1st - 支点部帯筋間隔
+ * @param {Element} columnSection - 譟ｱ譁ｭ髱｢隕∫ｴ
+ * @returns {Object} 蟶ｯ遲区ュ蝣ｱ繧ｪ繝悶ず繧ｧ繧ｯ繝・
  *
  * @example
  * const hoop = extractHoopInfo(columnSection);
@@ -226,14 +204,11 @@ export function extractHoopInfo(columnSection) {
 }
 
 /**
- * ブレースの配筋情報を抽出
- * （ブレースは通常、単純な鋼材配置のため、主に寸法情報）
+ * 繝悶Ξ繝ｼ繧ｹ縺ｮ驟咲ｭ区ュ蝣ｱ繧呈歓蜃ｺ
+ * ・医ヶ繝ｬ繝ｼ繧ｹ縺ｯ騾壼ｸｸ縲∝腰邏斐↑驪ｼ譚宣・鄂ｮ縺ｮ縺溘ａ縲∽ｸｻ縺ｫ蟇ｸ豕墓ュ蝣ｱ・・
  *
- * @param {Element} braceSection - ブレース断面要素 (StbSecBrace_*)
- * @returns {Object} ブレース配筋情報オブジェクト
- * @returns {string} return.D - ブレース径または幅
- * @returns {string} return.width - ブレース幅（フラットバーの場合）
- * @returns {string} return.thickness - ブレース厚さ
+ * @param {Element} braceSection - 繝悶Ξ繝ｼ繧ｹ譁ｭ髱｢隕∫ｴ (StbSecBrace_*)
+ * @returns {Object} 繝悶Ξ繝ｼ繧ｹ驟咲ｭ区ュ蝣ｱ繧ｪ繝悶ず繧ｧ繧ｯ繝・
  *
  * @example
  * const brace = extractBraceBarInfo(braceSection);
@@ -258,15 +233,10 @@ export function extractBraceBarInfo(braceSection) {
 }
 
 /**
- * 杭の配筋情報を抽出
+ * 譚ｭ縺ｮ驟咲ｭ区ュ蝣ｱ繧呈歓蜃ｺ
  *
- * @param {Element} pileSection - 杭断面要素 (StbSecPile_*)
- * @returns {Object} 杭配筋情報オブジェクト
- * @returns {string} return.D - 杭径
- * @returns {string} return.N_main - 主筋本数
- * @returns {string} return.D_main - 主筋径
- * @returns {string} return.N_hoop - 帯筋本数
- * @returns {string} return.D_hoop - 帯筋径
+ * @param {Element} pileSection - 譚ｭ譁ｭ髱｢隕∫ｴ (StbSecPile_*)
+ * @returns {Object} 譚ｭ驟咲ｭ区ュ蝣ｱ繧ｪ繝悶ず繧ｧ繧ｯ繝・
  *
  * @example
  * const pileBar = extractPileBarInfo(pileSection);
@@ -297,16 +267,10 @@ export function extractPileBarInfo(pileSection) {
 }
 
 /**
- * 壁の配筋情報を抽出
+ * 螢√・驟咲ｭ区ュ蝣ｱ繧呈歓蜃ｺ
  *
- * @param {Element} wallSection - 壁断面要素 (StbSecWall_*)
- * @returns {Object} 壁配筋情報オブジェクト
- * @returns {string} return.N_main_h - 水平主筋本数
- * @returns {string} return.D_main_h - 水平主筋径
- * @returns {string} return.N_main_v - 鉛直主筋本数
- * @returns {string} return.D_main_v - 鉛直主筋径
- * @returns {string} return.spacing_h - 水平補強筋間隔
- * @returns {string} return.spacing_v - 鉛直補強筋間隔
+ * @param {Element} wallSection - 螢∵妙髱｢隕∫ｴ (StbSecWall_*)
+ * @returns {Object} 螢・・遲区ュ蝣ｱ繧ｪ繝悶ず繧ｧ繧ｯ繝・
  *
  * @example
  * const wallBar = extractWallBarInfo(wallSection);

@@ -299,6 +299,19 @@ export const LoadingIndicatorEvents = {
 };
 
 /**
+ * ラベル管理関連イベント（app→ui 方向違反解消用）
+ * @constant {Object}
+ */
+export const LabelEvents = {
+  /** ラベルをグローバル状態に追加 */
+  ADD_LABELS: 'label:addLabels',
+  /** 要素タイプ別にラベルを削除 */
+  REMOVE_BY_TYPE: 'label:removeByType',
+  /** ラベル表示状態を更新 */
+  UPDATE_VISIBILITY: 'label:updateVisibility',
+};
+
+/**
  * ファイナライゼーション関連イベント
  * @constant {Object}
  */
@@ -316,6 +329,8 @@ export const FinalizationEvents = {
 export const InteractionEvents = {
   /** 要素情報を表示 */
   DISPLAY_ELEMENT_INFO: 'interaction:displayElementInfo',
+  /** 複数選択サマリー情報を表示 */
+  DISPLAY_MULTI_SELECTION_INFO: 'interaction:displayMultiSelectionInfo',
   /** ツリーで要素を選択 */
   SELECT_ELEMENT_IN_TREE: 'interaction:selectElementInTree',
   /** コンテキストメニューを表示 */
@@ -368,6 +383,7 @@ export const EventTypes = {
   Interaction: InteractionEvents,
   LoadingIndicator: LoadingIndicatorEvents,
   Finalization: FinalizationEvents,
+  Label: LabelEvents,
 };
 
 /**
@@ -399,6 +415,7 @@ export function isValidEventType(eventType) {
     ...Object.values(InteractionEvents),
     ...Object.values(LoadingIndicatorEvents),
     ...Object.values(FinalizationEvents),
+    ...Object.values(LabelEvents),
   ];
   return allTypes.includes(eventType);
 }

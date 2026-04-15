@@ -17,7 +17,7 @@ import {
   getElementsByStatus,
 } from '../common-stb/validation/validationManager.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
-import { getState } from '../app/globalState.js';
+import { getState } from '../data/state/globalState.js';
 import { showColorModeStatus } from './colorModeManager.js';
 import { createApplyColorMode } from './colorModeState.js';
 import {
@@ -313,7 +313,7 @@ function focusOnSchemaErrorElement(elementId, elementType) {
 
   if (targetObject) {
     // 要素を選択
-    import('../interaction.js').then(({ selectElement3D }) => {
+    import('../app/controllers/interactionController.js').then(({ selectElement3D }) => {
       selectElement3D(targetObject, scheduleRender);
     });
 
@@ -464,10 +464,10 @@ function updateSchemaStatsUI() {
   const warningCountEl = document.getElementById('schema-warning-count');
   const errorCountEl = document.getElementById('schema-error-count');
 
-  if (validCountEl) validCountEl.textContent = validCount;
-  if (infoCountEl) infoCountEl.textContent = stats.info;
-  if (warningCountEl) warningCountEl.textContent = stats.warning;
-  if (errorCountEl) errorCountEl.textContent = stats.error;
+  if (validCountEl) validCountEl.textContent = String(validCount);
+  if (infoCountEl) infoCountEl.textContent = String(stats.info);
+  if (warningCountEl) warningCountEl.textContent = String(stats.warning);
+  if (errorCountEl) errorCountEl.textContent = String(stats.error);
 }
 
 // Re-export schema error store functions for backward compatibility

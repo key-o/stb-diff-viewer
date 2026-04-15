@@ -18,12 +18,13 @@ const logger = createLogger('interaction');
 import {
   scene,
   camera,
+  getActiveCamera,
   renderer,
   colorManager,
   controls,
   elementGroups,
 } from '../../viewer/index.js';
-import { getState } from '../globalState.js';
+import { getState } from '../../data/state/globalState.js';
 import { eventBus, SelectionEvents, InteractionEvents } from '../../data/events/index.js';
 import { CAMERA_CONTROLS } from '../../config/renderingConstants.js';
 
@@ -174,7 +175,7 @@ function deselectSingleObject(obj) {
 /**
  * 選択状態をリセット（全選択解除）
  */
-export function resetSelection() {
+export function resetSelection(scheduleRender) {
   // common/viewerモードの場合はアダプター経由で選択解除
   if (isCommonViewerReady()) {
     getState('viewer.adapter').clearSelection();
@@ -204,6 +205,8 @@ export function resetSelection() {
   }
   // 回転中心ヘルパーも非表示
   hideOrbitCenterHelper();
+
+  if (scheduleRender) scheduleRender();
 }
 
 /**
@@ -248,8 +251,10 @@ function highlightObject(obj) {
  * ツリービューからの呼び出し用（常に単一選択）
  * @param {THREE.Object3D} obj - 選択するThree.jsオブジェクト
  * @param {Function} scheduleRender - 再描画要求関数
+ * @param {Object} [options] - 互換用オプション
  */
-export function selectElement3D(obj, scheduleRender) {
+export function selectElement3D(obj, scheduleRender, options = {}) {
+  void options;
   if (!obj || !obj.userData) {
     logger.warn(`${WarnCategory.UI} 選択: 無効なオブジェクトが指定されました`);
     return;
@@ -312,8 +317,8 @@ export function selectElement3D(obj, scheduleRender) {
  * ツリービューの複数選択からの呼び出し用
  * @param {THREE.Object3D[]} objects - 選択するThree.jsオブジェクトの配列
  * @param {Function} scheduleRender - 再描画要求関数
- * @param {Object} options - オプション
- * @param {boolean} options.clearPrevious - 既存選択をクリアするか（デフォルト: true）
+ * @param {Object} [options] - オプション
+ * @param {boolean} [options.clearPrevious=true] - 既存選択をクリアするか（デフォルト: true）
  */
 export function selectMultipleElements3D(objects, scheduleRender, options = {}) {
   const { clearPrevious = true } = options;
@@ -384,10 +389,10 @@ function getElementIds(userData) {
   if (modelSource === 'matched') {
     idA = userData.elementIdA || userData.elementId;
     idB = userData.elementIdB;
-  } else if (modelSource === 'A') {
-    idA = userData.elementId;
-  } else if (modelSource === 'B') {
-    idB = userData.elementId;
+  } else if (modelSource === 'A' || modelSource === 'onlyA') {
+    idA = userData.elementIdA || userData.elementId;
+  } else if (modelSource === 'B' || modelSource === 'onlyB') {
+    idB = userData.elementIdB || userData.elementId;
   } else {
     // フォールバック
     idA = userData.elementId;
@@ -397,63 +402,116 @@ function getElementIds(userData) {
 }
 
 /**
- * 複数選択時のサマリー情報を表示
+ * 選択要素タイプを表示用に正規化
+ * @param {Object} userData
+ * @returns {string|null}
  */
-function displayMultiSelectionSummary() {
-  const panel = document.getElementById('component-info');
-  const contentDiv = document.getElementById('element-info-content');
-  if (!panel || !contentDiv) return;
+function normalizeSelectedElementType(userData) {
+  const elementType = userData?.elementType || userData?.stbNodeType || null;
+  return elementType === 'Column (fallback line)' ? 'Column' : elementType;
+}
+
+/**
+ * モデルソースを A/B に正規化
+ * @param {string|null|undefined} modelSource
+ * @returns {'A'|'B'|null}
+ */
+function normalizeSelectionModelSide(modelSource) {
+  if (modelSource === 'A' || modelSource === 'onlyA') {
+    return 'A';
+  }
+  if (modelSource === 'B' || modelSource === 'onlyB') {
+    return 'B';
+  }
+  return null;
+}
+
+/**
+ * 2要素選択から比較対象を解決する
+ * @param {THREE.Object3D[]} objects
+ * @returns {{idA: string, idB: string, elementType: string, modelSource: 'matched'}|null}
+ */
+export function resolveTwoObjectComparisonTarget(objects) {
+  if (!Array.isArray(objects) || objects.length !== 2) {
+    return null;
+  }
+
+  const selectionInfo = objects.map((obj) => {
+    const userData = obj?.userData;
+    if (!userData || userData.modelSource === 'matched') {
+      return null;
+    }
+
+    const elementType = normalizeSelectedElementType(userData);
+    const side = normalizeSelectionModelSide(userData.modelSource);
+    if (!elementType || !side) {
+      return null;
+    }
+
+    const { idA, idB } = getElementIds(userData);
+    return { elementType, side, idA, idB };
+  });
+
+  if (selectionInfo.some((info) => !info)) {
+    return null;
+  }
+
+  if (selectionInfo[0].elementType !== selectionInfo[1].elementType) {
+    return null;
+  }
+
+  const infoA = selectionInfo.find((info) => info.side === 'A');
+  const infoB = selectionInfo.find((info) => info.side === 'B');
+  if (!infoA || !infoB || !infoA.idA || !infoB.idB) {
+    return null;
+  }
+
+  return {
+    idA: String(infoA.idA),
+    idB: String(infoB.idB),
+    elementType: infoA.elementType,
+    modelSource: 'matched',
+  };
+}
+
+/**
+ * 複数選択サマリー情報を生成
+ * @param {THREE.Object3D[]} objects
+ * @returns {{
+ *   count: number,
+ *   typeCounts: Array<{elementType: string, count: number}>,
+ *   modelSourceCounts: {A: number, B: number, matched: number, unknown: number}
+ * }}
+ */
+function buildMultiSelectionSummaryData(objects) {
+  const safeObjects = Array.isArray(objects) ? objects : [];
 
   // 要素タイプ別にカウント
   const typeCounts = new Map();
   const modelSourceCounts = { A: 0, B: 0, matched: 0, unknown: 0 };
 
-  for (const obj of selectedObjects) {
-    const userData = obj.userData;
-    const elementType = userData.elementType || userData.stbNodeType || 'Unknown';
+  for (const obj of safeObjects) {
+    const userData = obj?.userData || {};
+    const elementType = normalizeSelectedElementType(userData) || 'Unknown';
     typeCounts.set(elementType, (typeCounts.get(elementType) || 0) + 1);
 
-    const modelSource = userData.modelSource || 'unknown';
-    if (modelSource in modelSourceCounts) {
-      modelSourceCounts[modelSource]++;
+    const normalizedSource = normalizeSelectionModelSide(userData.modelSource);
+    if (normalizedSource) {
+      modelSourceCounts[normalizedSource]++;
+    } else if (userData.modelSource === 'matched') {
+      modelSourceCounts.matched++;
     } else {
       modelSourceCounts.unknown++;
     }
   }
 
-  // サマリーHTMLを生成
-  let summaryHtml = `
-    <div style="font-weight:var(--font-weight-bold);margin-bottom:8px;font-size:var(--font-size-lg);">
-      複数選択: ${selectedObjects.length}要素
-    </div>
-    <div style="margin-bottom:8px;">
-      <strong>要素タイプ:</strong>
-      <ul style="margin:4px 0;padding-left:20px;">
-  `;
-
-  for (const [type, count] of typeCounts) {
-    summaryHtml += `<li>${type}: ${count}</li>`;
-  }
-
-  summaryHtml += `
-      </ul>
-    </div>
-    <div>
-      <strong>モデルソース:</strong>
-      <ul style="margin:4px 0;padding-left:20px;">
-  `;
-
-  if (modelSourceCounts.A > 0) summaryHtml += `<li>モデルA: ${modelSourceCounts.A}</li>`;
-  if (modelSourceCounts.B > 0) summaryHtml += `<li>モデルB: ${modelSourceCounts.B}</li>`;
-  if (modelSourceCounts.matched > 0)
-    summaryHtml += `<li>マッチ済: ${modelSourceCounts.matched}</li>`;
-
-  summaryHtml += `
-      </ul>
-    </div>
-  `;
-
-  contentDiv.innerHTML = summaryHtml;
+  return {
+    count: safeObjects.length,
+    typeCounts: Array.from(typeCounts.entries())
+      .map(([elementType, count]) => ({ elementType, count }))
+      .sort((left, right) => left.elementType.localeCompare(right.elementType, 'ja')),
+    modelSourceCounts,
+  };
 }
 
 /**
@@ -470,7 +528,7 @@ function performRaycast(event) {
   mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-  raycaster.setFromCamera(mouse, camera);
+  raycaster.setFromCamera(mouse, getActiveCamera() || camera);
 
   return raycaster.intersectObjects(scene.children, true);
 }
@@ -595,15 +653,14 @@ function showElementInfo() {
     // 単一選択: 従来通りの詳細表示
     const singleObj = selectedObjects[0];
     const singleUserData = singleObj.userData;
-    const singleElementType = singleUserData.elementType || singleUserData.stbNodeType;
-    const displayType =
-      singleElementType === 'Column (fallback line)' ? 'Column' : singleElementType;
+    const displayType = normalizeSelectedElementType(singleUserData);
 
     // 継手要素の場合はuserData.idをそのまま使用（"joint_165_start"形式）
     let idA, idB;
     if (displayType === 'Joint') {
-      idA = singleUserData.modelSource !== 'B' ? singleUserData.id : null;
-      idB = singleUserData.modelSource === 'B' ? singleUserData.id : null;
+      const isModelB = singleUserData.modelSource === 'B' || singleUserData.modelSource === 'onlyB';
+      idA = isModelB ? null : singleUserData.id;
+      idB = isModelB ? singleUserData.id : null;
     } else {
       ({ idA, idB } = getElementIds(singleUserData));
     }
@@ -635,14 +692,21 @@ function showElementInfo() {
       });
     }
   } else {
-    // 複数選択: サマリー表示
-    displayMultiSelectionSummary();
+    const comparisonTarget = resolveTwoObjectComparisonTarget(selectedObjects);
+    if (comparisonTarget) {
+      eventBus.emit(InteractionEvents.DISPLAY_ELEMENT_INFO, comparisonTarget);
+    } else {
+      eventBus.emit(
+        InteractionEvents.DISPLAY_MULTI_SELECTION_INFO,
+        buildMultiSelectionSummaryData(selectedObjects),
+      );
+    }
 
     // 複数選択イベントを発行
     const selectedIds = selectedObjects.map((obj) => {
       const ud = obj.userData;
       return {
-        elementType: ud.elementType || ud.stbNodeType,
+        elementType: normalizeSelectedElementType(ud),
         elementId: ud.elementId || ud.elementIdA || ud.elementIdB,
         modelSource: ud.modelSource,
       };
@@ -823,7 +887,7 @@ function handleContextMenu(event, scheduleRender) {
   mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-  raycaster.setFromCamera(mouse, camera);
+  raycaster.setFromCamera(mouse, getActiveCamera() || camera);
   const intersects = raycaster.intersectObjects(scene.children, true);
 
   // 選択可能なオブジェクトを探す

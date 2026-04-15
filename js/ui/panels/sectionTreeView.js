@@ -31,6 +31,15 @@ const VIRTUAL_ITEM_HEIGHT = VIRTUAL_SCROLL_CONFIG.ITEM_HEIGHT.section;
 
 // 断面タイプの日本語名マップ - elementLabels.jsからインポートしたSECTION_LABELSを使用
 const SECTION_TYPE_NAMES = SECTION_LABELS;
+const SECTION_MAP_KEY_BY_ELEMENT_TYPE = {
+  Column: 'columnSections',
+  Girder: 'girderSections',
+  Beam: 'beamSections',
+  Brace: 'braceSections',
+  Slab: 'slabSections',
+  ShearWall: 'wallSections',
+  Wall: 'wallSections',
+};
 
 class SectionTreeView extends BaseTreeView {
   constructor() {
@@ -133,12 +142,13 @@ class SectionTreeView extends BaseTreeView {
     log.info('Section usage map:', sectionUsageMap);
 
     // 断面タイプごとにツリーノードを作成
-    const sectionTypes = ['Column', 'Girder', 'Beam', 'Brace', 'Slab', 'Wall'];
+    const sectionTypes = ['Column', 'Girder', 'Beam', 'Brace', 'Slab', 'ShearWall', 'Wall'];
 
     this.sectionStats = { total: 0, filtered: 0 };
 
     sectionTypes.forEach((elementType) => {
-      const sectionMapKey = `${elementType.toLowerCase()}Sections`;
+      const sectionMapKey =
+        SECTION_MAP_KEY_BY_ELEMENT_TYPE[elementType] || `${elementType.toLowerCase()}Sections`;
       const sectionMap = sectionsData[sectionMapKey];
 
       if (!sectionMap || sectionMap.size === 0) return;
@@ -329,9 +339,10 @@ class SectionTreeView extends BaseTreeView {
     const typeHeader = document.createElement('div');
     typeHeader.className = 'section-type-header';
 
-    const toggleIcon = document.createElement('span');
-    toggleIcon.className = 'tree-toggle-icon';
-    toggleIcon.textContent = '▶';
+    // 検索中の場合は初期状態で展開
+    const shouldExpand = !!(searchPattern && searchPattern.pattern);
+
+    const toggleIcon = this._createToggleIcon(shouldExpand);
 
     const typeName = document.createElement('span');
     typeName.className = 'section-type-name';
@@ -347,14 +358,7 @@ class SectionTreeView extends BaseTreeView {
 
     const sectionsContainer = document.createElement('div');
     sectionsContainer.className = 'sections-container';
-
-    // 検索中の場合は初期状態で展開
-    const shouldExpand = searchPattern && searchPattern.pattern;
     sectionsContainer.style.display = shouldExpand ? 'block' : 'none';
-    toggleIcon.textContent = shouldExpand ? '▼' : '▶';
-    if (shouldExpand) {
-      toggleIcon.classList.add('expanded');
-    }
 
     // 各断面ノードを作成
     usedSections.forEach(({ sectionId, sectionData, elements }) => {
@@ -370,10 +374,7 @@ class SectionTreeView extends BaseTreeView {
 
     // クリックで展開/折りたたみ
     typeHeader.addEventListener('click', () => {
-      const isExpanded = sectionsContainer.style.display !== 'none';
-      sectionsContainer.style.display = isExpanded ? 'none' : 'block';
-      toggleIcon.textContent = isExpanded ? '▶' : '▼';
-      toggleIcon.classList.toggle('expanded', !isExpanded);
+      this._toggleNodeExpand(sectionsContainer, toggleIcon);
     });
 
     typeContainer.appendChild(typeHeader);
@@ -399,9 +400,7 @@ class SectionTreeView extends BaseTreeView {
     const sectionHeader = document.createElement('div');
     sectionHeader.className = 'section-item-header';
 
-    const toggleIcon = document.createElement('span');
-    toggleIcon.className = 'tree-toggle-icon section-toggle';
-    toggleIcon.textContent = '▶';
+    const toggleIcon = this._createToggleIcon(false, 'section-toggle');
 
     const sectionIcon = document.createElement('span');
     sectionIcon.className = 'section-icon';
@@ -518,13 +517,10 @@ class SectionTreeView extends BaseTreeView {
       }
 
       // 通常クリック: 展開/折りたたみ
-      const isExpanded = elementsContainer.style.display !== 'none';
-      elementsContainer.style.display = isExpanded ? 'none' : 'block';
-      toggleIcon.textContent = isExpanded ? '▶' : '▼';
-      toggleIcon.classList.toggle('expanded', !isExpanded);
+      const nowExpanded = this._toggleNodeExpand(elementsContainer, toggleIcon);
 
       // 仮想スクロールの初期化（初回展開時）
-      if (!isExpanded && virtualManager && !virtualManager.isVirtualScrollEnabled()) {
+      if (nowExpanded && virtualManager && !virtualManager.isVirtualScrollEnabled()) {
         virtualManager.initialize(elements);
       }
     });
@@ -658,9 +654,7 @@ class SectionTreeView extends BaseTreeView {
     const groupHeader = document.createElement('div');
     groupHeader.className = 'element-group-header';
 
-    const toggleIcon = document.createElement('span');
-    toggleIcon.className = 'tree-toggle-icon group-toggle';
-    toggleIcon.textContent = '▶';
+    const toggleIcon = this._createToggleIcon(false, 'group-toggle');
 
     const groupName = document.createElement('span');
     groupName.className = 'group-name';
@@ -708,13 +702,10 @@ class SectionTreeView extends BaseTreeView {
     // クリックで展開/折りたたみ
     groupHeader.addEventListener('click', (e) => {
       e.stopPropagation();
-      const isExpanded = elementsContainer.style.display !== 'none';
-      elementsContainer.style.display = isExpanded ? 'none' : 'block';
-      toggleIcon.textContent = isExpanded ? '▶' : '▼';
-      toggleIcon.classList.toggle('expanded', !isExpanded);
+      const nowExpanded = this._toggleNodeExpand(elementsContainer, toggleIcon);
 
       // 仮想スクロールの初期化（初回展開時）
-      if (!isExpanded && virtualManager && !virtualManager.isVirtualScrollEnabled()) {
+      if (nowExpanded && virtualManager && !virtualManager.isVirtualScrollEnabled()) {
         virtualManager.initialize(elements);
       }
     });

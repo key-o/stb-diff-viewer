@@ -3,7 +3,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { getState } from '../globalState.js';
+import { getState } from '../../data/state/globalState.js';
 import { getLoadDisplayManager } from '../../viewer/index.js';
 
 const log = createLogger('devToolsInitializer');

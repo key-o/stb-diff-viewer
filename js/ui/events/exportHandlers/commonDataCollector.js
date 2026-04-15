@@ -30,7 +30,7 @@ const log = createLogger('commonDataCollector');
  * @returns {Promise<Object>} 構造データ {nodeMap, steelSections, elementData, sectionMaps}
  */
 export async function getOrParseStructureData() {
-  const { getState } = await import('../../../app/globalState.js');
+  const { getState } = await import('../../../data/state/globalState.js');
 
   // globalStateからパース済みデータを確認
   const cachedNodeMap = getState('models.nodeMapRawA') || getState('models.nodeMapRawB');
@@ -80,7 +80,7 @@ export async function getOrParseStructureData() {
     extractPileElements,
     extractFootingElements,
     extractFoundationColumnElements,
-  } = await import('../../../parser/stbXmlParser.js');
+  } = await import('../../../common-stb/import/parser/stbXmlParser.js');
 
   const { extractAllSections } =
     await import('../../../common-stb/import/extractor/defaultSectionExtractor.js');

@@ -495,11 +495,13 @@ export class ParameterEditor {
     const okBtn = this.modal.querySelector('.parameter-editor-ok');
 
     let isValid = true;
+    let isBlocking = true;
     let message = '';
 
     // 必須チェック
     if (this.currentConfig.required && (!currentValue || currentValue.trim() === '')) {
       isValid = false;
+      isBlocking = true;
       message = '⚠️ この属性は必須です';
     }
     // XSDバリデーション
@@ -514,6 +516,8 @@ export class ParameterEditor {
 
       if (!validation.valid) {
         isValid = false;
+        // blocking: false の場合（スキーマ未定義など）はOKを有効のまま警告のみ表示
+        isBlocking = validation.blocking !== false;
         message = `⚠️ ${validation.error}`;
 
         if (validation.suggestions && validation.suggestions.length > 0) {
@@ -526,8 +530,8 @@ export class ParameterEditor {
 
     // UI更新
     validationArea.innerHTML = message;
-    validationArea.className = `parameter-editor-validation ${isValid ? 'valid' : 'invalid'}`;
-    okBtn.disabled = !isValid;
+    validationArea.className = `parameter-editor-validation ${isValid ? 'valid' : isBlocking ? 'invalid' : 'warning'}`;
+    okBtn.disabled = isBlocking && !isValid;
 
     return isValid;
   }
@@ -585,7 +589,8 @@ export class ParameterEditor {
    * 確定処理
    */
   confirm() {
-    if (!this.validateCurrentInput()) {
+    const okBtn = this.modal.querySelector('.parameter-editor-ok');
+    if (okBtn && okBtn.disabled) {
       return;
     }
 

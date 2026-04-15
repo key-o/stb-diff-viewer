@@ -6,15 +6,22 @@
  * @module colorModes/importanceColorMode
  */
 
-import { getState } from '../app/globalState.js';
+import { getState } from '../data/state/globalState.js';
 import { UI_TIMING } from '../config/uiTimingConfig.js';
 import { IMPORTANCE_LEVELS } from '../constants/importanceLevels.js';
 import { eventBus, ImportanceEvents, ComparisonEvents } from '../data/events/index.js';
-import { colorManager, applyImportanceColorMode } from '../viewer/index.js';
+import {
+  colorManager,
+  applyImportanceColorMode,
+  elementGroups as viewerElementGroups,
+  getEffectiveImportanceLevelForObject,
+  clearImportanceMaterialCache,
+  applyImportanceColorModeBatch,
+  getImportanceRenderingStats,
+} from '../viewer/index.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
-import { elementGroups as viewerElementGroups } from '../viewer/index.js';
 import { createLogger } from '../utils/logger.js';
-import { getEffectiveImportanceLevelForObject } from '../viewer/rendering/materials.js';
+import { ViewEvents } from '../data/events/index.js';
 
 const log = createLogger('colorModes:importanceColorMode');
 const IMPORTANCE_DISPLAY_FILTERS = {
@@ -256,11 +263,8 @@ function updateImportanceColor(importanceLevel, color) {
   // 重要度モードが有効な場合は即座に適用
   import('./index.js').then(({ getCurrentColorMode, COLOR_MODES, updateElementsForColorMode }) => {
     if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
-      // マテリアルキャッシュをクリアして再生成
-      import('../viewer/rendering/materials.js').then(({ clearImportanceMaterialCache }) => {
-        clearImportanceMaterialCache();
-        updateElementsForColorMode();
-      });
+      clearImportanceMaterialCache();
+      updateElementsForColorMode();
     }
   });
 }
@@ -282,10 +286,8 @@ export function resetImportanceColors() {
     import('./index.js').then(
       ({ getCurrentColorMode, COLOR_MODES, updateElementsForColorMode }) => {
         if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
-          import('../viewer/rendering/materials.js').then(({ clearImportanceMaterialCache }) => {
-            clearImportanceMaterialCache();
-            updateElementsForColorMode();
-          });
+          clearImportanceMaterialCache();
+          updateElementsForColorMode();
         }
       },
     );
@@ -304,19 +306,10 @@ export function setupImportanceChangeListeners() {
         setTimeout(() => {
           applyImportanceColorModeToAll();
 
-          // 凡例も更新
-          const legendPanel = document.getElementById('legendPanel');
-          if (legendPanel && legendPanel.style.display !== 'none') {
-            import('../ui/events/index.js').then(({ updateLegendContent }) => {
-              updateLegendContent();
-            });
-          }
-
-          // 要素情報パネルの重要度表示も更新
-          import('../ui/panels/element-info/index.js').then(({ refreshElementInfoPanel }) => {
-            if (refreshElementInfoPanel) {
-              refreshElementInfoPanel();
-            }
+          // UI層に変更を通知（eventBus経由でレイヤー違反解消）
+          eventBus.emit(ViewEvents.COLOR_MODE_CHANGED, {
+            mode: 'importance',
+            trigger: 'settingsChanged',
           });
 
           // 再描画をリクエスト
@@ -392,15 +385,13 @@ export function applyImportanceColorModeToAll() {
 
   if (useBatchProcessing) {
     // バッチ処理を使用
-    import('../viewer/rendering/materials.js').then(({ applyImportanceColorModeBatch }) => {
-      const batchOptions = {
-        batchSize: Math.max(50, Math.min(200, Math.floor(objectCount / 10))),
-        delay: 5,
-      };
+    const batchOptions = {
+      batchSize: Math.max(50, Math.min(200, Math.floor(objectCount / 10))),
+      delay: 5,
+    };
 
-      applyImportanceVisibilityFilterToAll();
-      applyImportanceColorModeBatch(allObjects, batchOptions);
-    });
+    applyImportanceVisibilityFilterToAll();
+    applyImportanceColorModeBatch(allObjects, batchOptions);
   } else {
     // 通常処理
     allObjects.forEach((object) => {
@@ -415,28 +406,26 @@ export function applyImportanceColorModeToAll() {
  * パフォーマンス統計を表示
  */
 export function showImportancePerformanceStats() {
-  import('../viewer/rendering/materials.js').then(({ getImportanceRenderingStats }) => {
-    const stats = getImportanceRenderingStats();
-    const elementGroups = getState('elementGroups');
+  const stats = getImportanceRenderingStats();
+  const elementGroups = getState('elementGroups');
 
-    let totalObjects = 0;
-    if (elementGroups) {
-      elementGroups.forEach((group) => {
-        group.traverse((object) => {
-          if (object.isMesh) totalObjects++;
-        });
+  let totalObjects = 0;
+  if (elementGroups) {
+    elementGroups.forEach((group) => {
+      group.traverse((object) => {
+        if (object.isMesh) totalObjects++;
       });
-    }
-
-    import('./index.js').then(({ getCurrentColorMode, COLOR_MODES }) => {
-      const perfInfo = {
-        totalObjects,
-        ...stats,
-        currentColorMode: getCurrentColorMode(),
-        isImportanceMode: getCurrentColorMode() === COLOR_MODES.IMPORTANCE,
-      };
-
-      return perfInfo;
     });
+  }
+
+  import('./index.js').then(({ getCurrentColorMode, COLOR_MODES }) => {
+    const perfInfo = {
+      totalObjects,
+      ...stats,
+      currentColorMode: getCurrentColorMode(),
+      isImportanceMode: getCurrentColorMode() === COLOR_MODES.IMPORTANCE,
+    };
+
+    return perfInfo;
   });
 }

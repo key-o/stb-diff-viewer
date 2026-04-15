@@ -18,6 +18,7 @@ export const VIEW_MODE_CHECKBOX_IDS = {
   Pile: 'togglePile3DView',
   StripFooting: 'toggleStripFooting3DView',
   Slab: 'toggleSlab3DView',
+  ShearWall: 'toggleShearWall3DView',
   Wall: 'toggleWall3DView',
   Parapet: 'toggleParapet3DView',
 };
@@ -41,6 +42,7 @@ export const REDRAW_REQUIRED_ELEMENT_TYPES = new Set([
   'StripFooting',
   'FoundationColumn',
   'Slab',
+  'ShearWall',
   'Wall',
   'Parapet',
   'Joint',

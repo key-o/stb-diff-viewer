@@ -16,16 +16,14 @@
 
 import { createLogger } from './utils/logger.js';
 import {
-  scene,
   camera,
   controls,
-  renderer,
   elementGroups,
-  getActiveCamera,
+  requestRender,
   displayModeManager,
   labelDisplayManager,
 } from './viewer/index.js';
-import { setState } from './app/globalState.js';
+import { setState } from './data/state/globalState.js';
 import { showError } from './ui/common/toast.js';
 import { handleCompareModelsClick } from './app/initialization/eventHandlers.js';
 import { initializeRenderer, exposeManagers } from './app/initialization/rendererInitializer.js';
@@ -49,10 +47,7 @@ const log = createLogger('app');
 // --- 再描画をリクエストする関数 ---
 function scheduleRender() {
   if (rendererInitialized) {
-    const activeCamera = getActiveCamera();
-    if (renderer && activeCamera) {
-      renderer.render(scene, activeCamera);
-    }
+    requestRender();
   } else {
     log.warn('レンダリングをリクエストできません: レンダラーが初期化されていません');
   }

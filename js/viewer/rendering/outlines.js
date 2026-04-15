@@ -98,12 +98,12 @@ class OutlineManager {
    * @param {string} newImportance - 新しい重要度レベル
    * @param {THREE.Group} parentGroup - 親グループ
    */
-  updateOutlineImportance(originalObject, newImportance, parentGroup) {
+  updateOutlineImportance(_originalObject, newImportance, parentGroup) {
     // 既存のアウトラインを削除
-    this.removeOutline(originalObject);
+    this.removeOutline(_originalObject);
 
     // 新しい重要度でアウトラインを追加
-    this.addOutline(originalObject, newImportance, parentGroup);
+    this.addOutline(_originalObject, newImportance, parentGroup);
   }
 
   /**

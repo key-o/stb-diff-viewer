@@ -7,31 +7,23 @@
  * 定数は constants/importanceConstants.js、
  * パス正規化は data/importance/pathNormalizer.js、
  * CSV入出力は app/importance/csvSerializer.js、
- * 統計収集は app/importance/statisticsCollector.js に分離。
+ * 統計収集は app/importance/statisticsCollector.js、
+ * MVDモード管理は app/importance/mvdModeManager.js、
+ * 設定管理は app/importance/settingsManager.js、
+ * 要素重要度評価は app/importance/comparisonConfig.js に分離。
  *
  * @module app/importanceManager
  */
 
-import { validateImportanceSettings } from '../common-stb/validation/importanceValidation.js';
-import { setState } from './globalState.js';
-import { eventBus, ImportanceEvents } from '../data/events/index.js';
-import { FALLBACK_IMPORTANCE_SETTINGS } from '../config/importanceConfig.js';
-import { loadConfigById } from '../config/importanceConfigLoader.js';
 import { IMPORTANCE_LEVELS } from '../constants/importanceLevels.js';
 import {
   initializeXsdSchemas,
   getElementDefinition,
-  validateAttributeValue,
 } from '../common-stb/import/parser/xsdSchemaParser.js';
 import { createLogger } from '../utils/logger.js';
 
 // 分離モジュールからインポート
-import {
-  MVD_MODES,
-  IMPORTANCE_PRIORITY,
-  STB_ELEMENT_TABS,
-  TAB_PARENT_PATHS,
-} from '../constants/importanceConstants.js';
+import { MVD_MODES, STB_ELEMENT_TABS, TAB_PARENT_PATHS } from '../constants/importanceConstants.js';
 import {
   normalizeImportancePath,
   shouldSkipImportancePath,
@@ -40,12 +32,36 @@ import {
   exportToCSV as csvExportToCSV,
   importFromCSV as csvImportFromCSV,
 } from './importance/csvSerializer.js';
+import { collectStatistics, resetFallbackStats } from './importance/statisticsCollector.js';
+
+// 分離した内部モジュール
 import {
-  collectStatistics,
-  resetFallbackStats,
-  recordFallback,
-  recordCheck,
-} from './importance/statisticsCollector.js';
+  normalizeS4Level as _normalizeS4Level,
+  getPriority as _getPriority,
+  applyPatterns as _applyPatterns,
+  ensurePathExistsInMvdSettings as _ensurePathExistsInMvdSettings,
+  rebuildEffectiveImportanceSettings as _rebuildEffectiveImportanceSettings,
+  getMvdImportanceLevel as _getMvdImportanceLevel,
+  setMvdImportanceLevel as _setMvdImportanceLevel,
+  initializeMvdSettings as _initializeMvdSettings,
+  loadExternalConfig as _loadExternalConfig,
+  getCurrentConfigId as _getCurrentConfigId,
+  getCurrentConfigName as _getCurrentConfigName,
+} from './importance/mvdModeManager.js';
+import {
+  loadDefaultSettings as _loadDefaultSettings,
+  getImportanceLevel as _getImportanceLevel,
+  setImportanceLevel as _setImportanceLevel,
+  getAllImportanceSettings as _getAllImportanceSettings,
+  notifySettingsChanged as _notifySettingsChanged,
+  validateSettings as _validateSettings,
+  resetToDefaults as _resetToDefaults,
+} from './importance/settingsManager.js';
+import {
+  getElementImportance as _getElementImportance,
+  exportToJSON as _exportToJSON,
+  importFromJSON as _importFromJSON,
+} from './importance/comparisonConfig.js';
 
 const log = createLogger('app:importanceManager');
 
@@ -159,232 +175,97 @@ class ImportanceManager {
     }
   }
 
-  /**
-   * S2/S4 のMVD設定を初期化する
-   */
+  // --- MVDモード管理（mvdModeManager.jsに委譲） ---
+
   async initializeMvdSettings() {
-    let s2Config = null;
-    let s4Config = null;
-
-    try {
-      [s2Config, s4Config] = await Promise.all([
-        loadConfigById(MVD_MODES.S2),
-        loadConfigById(MVD_MODES.S4),
-      ]);
-    } catch (error) {
-      log.warn('[ImportanceManager] MVD設定ファイルの読み込みに失敗しました:', error);
-    }
-
-    this.s2ParameterChecks.clear();
-
-    // 設定ファイルが読めなかった場合は機能利用不可
-    if (!s2Config || !s4Config) {
-      log.error(
-        '[ImportanceManager] MVD設定ファイルが読み込めないため重要度設定を利用できません。',
-      );
-      this.mvdImportanceSettings[MVD_MODES.S2] = new Map();
-      this.mvdImportanceSettings[MVD_MODES.S4] = new Map();
-      this.rebuildEffectiveImportanceSettings();
-      return;
-    }
-
-    // S2/S4 の REQUIRED パスセットを構築
-    const s2RequiredPaths = new Set();
-    for (const [rawPath, level] of Object.entries(s2Config.settings || {})) {
-      if (level !== IMPORTANCE_LEVELS.REQUIRED) continue;
-      const path = this.resolveCanonicalPath(rawPath);
-      if (path) s2RequiredPaths.add(path);
-    }
-
-    const s4RequiredPaths = new Set();
-    for (const [rawPath, level] of Object.entries(s4Config.settings || {})) {
-      if (level !== IMPORTANCE_LEVELS.REQUIRED) continue;
-      const path = this.resolveCanonicalPath(rawPath);
-      if (path) s4RequiredPaths.add(path);
-    }
-
-    // S4 は S2 を包含するため S2 の REQUIRED は S4 にも追加
-    for (const path of s2RequiredPaths) {
-      s4RequiredPaths.add(path);
-    }
-
-    // 全既知パスを収集（XSD由来 + S2/S4 JSON由来）
-    const allPaths = new Set([
-      ...this.orderedElementPaths.map((p) => this.normalizePath(p)).filter(Boolean),
-      ...s2RequiredPaths,
-      ...s4RequiredPaths,
-    ]);
-
-    // orderedElementPaths を更新（JSON由来の新規パスを追加）
-    for (const path of allPaths) {
-      if (!this.orderedElementPaths.includes(path)) {
-        this.orderedElementPaths.push(path);
-      }
-    }
-
-    // フラットパス（JSON由来）から「要素名/@属性名」の末尾キーセットを構築。
-    // XSD由来の階層パス（StbSecColumn_RC/StbSecFigureColumn_RC/StbSecColumn_RC_Rect/@width_X）
-    // とフラットパス（StbSecColumn_RC_Rect/@width_X）のマッチングに使用。
-    const buildTailKeySet = (requiredPaths) => {
-      const tails = new Set();
-      for (const p of requiredPaths) {
-        const atIdx = p.lastIndexOf('/@');
-        if (atIdx === -1) continue;
-        const slashBefore = p.lastIndexOf('/', atIdx - 1);
-        if (slashBefore === -1) continue;
-        tails.add(p.slice(slashBefore + 1)); // "ElementName/@attrName"
-      }
-      return tails;
-    };
-    const s2TailKeys = buildTailKeySet(s2RequiredPaths);
-    const s4TailKeys = buildTailKeySet(s4RequiredPaths);
-
-    const matchesTailKey = (path, tailKeys) => {
-      const atIdx = path.lastIndexOf('/@');
-      if (atIdx === -1) return false;
-      const slashBefore = path.lastIndexOf('/', atIdx - 1);
-      if (slashBefore === -1) return false;
-      return tailKeys.has(path.slice(slashBefore + 1));
-    };
-
-    // S2/S4 マップを構築：JSON の required リストに含まれる → REQUIRED、それ以外 → NOT_APPLICABLE
-    const s2Map = new Map();
-    const s4Map = new Map();
-    for (const path of allPaths) {
-      const isS2 = s2RequiredPaths.has(path) || matchesTailKey(path, s2TailKeys);
-      const isS4 = s4RequiredPaths.has(path) || matchesTailKey(path, s4TailKeys);
-      s2Map.set(path, isS2 ? IMPORTANCE_LEVELS.REQUIRED : IMPORTANCE_LEVELS.NOT_APPLICABLE);
-      s4Map.set(path, isS4 ? IMPORTANCE_LEVELS.REQUIRED : IMPORTANCE_LEVELS.NOT_APPLICABLE);
-    }
-
-    this.mvdImportanceSettings[MVD_MODES.S2] = s2Map;
-    this.mvdImportanceSettings[MVD_MODES.S4] = s4Map;
-
-    if (this.defaultMvdImportanceSettings[MVD_MODES.S2].size === 0) {
-      this.defaultMvdImportanceSettings[MVD_MODES.S2] = new Map(s2Map);
-      this.defaultMvdImportanceSettings[MVD_MODES.S4] = new Map(s4Map);
-    }
-
-    this.rebuildEffectiveImportanceSettings();
+    return _initializeMvdSettings(this);
   }
 
-  /**
-   * S4レベルをS2包含ルールで正規化
-   * @param {string} path
-   * @param {string} s2Level
-   * @param {string} s4Level
-   * @returns {string}
-   */
   normalizeS4Level(path, s2Level, s4Level) {
-    const fallbackS2 = s2Level || IMPORTANCE_LEVELS.OPTIONAL;
-    const candidateS4 = s4Level || fallbackS2;
-    return this.getPriority(candidateS4) >= this.getPriority(fallbackS2) ? candidateS4 : fallbackS2;
+    return _normalizeS4Level(this, path, s2Level, s4Level);
   }
 
-  /**
-   * 重要度レベルの優先度を取得
-   * @param {string} level
-   * @returns {number}
-   */
   getPriority(level) {
-    return IMPORTANCE_PRIORITY[level] ?? IMPORTANCE_PRIORITY[IMPORTANCE_LEVELS.OPTIONAL];
+    return _getPriority(level);
   }
 
-  /**
-   * パターンに基づいて重要度マップを更新する
-   * @param {Map<string, string>} map - 重要度マップ
-   * @param {Array<{contains: string, level: string}>} patterns - パターン配列
-   * @param {Set<string>} [excludePaths] - 除外するパス（明示設定済み）
-   */
   applyPatterns(map, patterns, excludePaths) {
-    if (!patterns || patterns.length === 0) return;
-    for (const [path] of map) {
-      if (excludePaths && excludePaths.has(path)) continue;
-      const pathLower = path.toLowerCase();
-      for (const { contains, level } of patterns) {
-        if (pathLower.includes(contains.toLowerCase())) {
-          map.set(path, level);
-          break;
-        }
-      }
-    }
+    return _applyPatterns(map, patterns, excludePaths);
   }
 
-  /**
-   * MVD設定にパスが存在することを保証
-   * @param {string} path
-   */
   ensurePathExistsInMvdSettings(path) {
-    const normalizedPath = this.resolveCanonicalPath(path);
-    if (!normalizedPath) return null;
-    if (!this.orderedElementPaths.includes(normalizedPath)) {
-      this.orderedElementPaths.push(normalizedPath);
-    }
-    // 未登録パスは対象外として追加
-    if (!this.mvdImportanceSettings[MVD_MODES.S2].has(normalizedPath)) {
-      this.mvdImportanceSettings[MVD_MODES.S2].set(
-        normalizedPath,
-        IMPORTANCE_LEVELS.NOT_APPLICABLE,
-      );
-    }
-    if (!this.mvdImportanceSettings[MVD_MODES.S4].has(normalizedPath)) {
-      this.mvdImportanceSettings[MVD_MODES.S4].set(
-        normalizedPath,
-        IMPORTANCE_LEVELS.NOT_APPLICABLE,
-      );
-    }
-    return normalizedPath;
+    return _ensurePathExistsInMvdSettings(this, path);
   }
 
-  /**
-   * 現在の評価モードで有効な重要度設定を再構築
-   */
   rebuildEffectiveImportanceSettings() {
-    const sourceMode = this.currentConfigId === MVD_MODES.S2 ? MVD_MODES.S2 : MVD_MODES.S4;
-    const allPaths = new Set([
-      ...this.orderedElementPaths,
-      ...this.mvdImportanceSettings[MVD_MODES.S2].keys(),
-      ...this.mvdImportanceSettings[MVD_MODES.S4].keys(),
-    ]);
-
-    this.userImportanceSettings.clear();
-
-    for (const path of allPaths) {
-      const level = this.getMvdImportanceLevel(path, sourceMode);
-      this.userImportanceSettings.set(path, level);
-    }
-
-    if (!this.currentConfigId) {
-      this.currentConfigId = MVD_MODES.COMBINED;
-    }
-
-    if (this.currentConfigId === MVD_MODES.S2) {
-      this.currentConfigName = 'MVD S2 (必須)';
-    } else if (this.currentConfigId === MVD_MODES.S4) {
-      this.currentConfigName = 'MVD S4 (任意)';
-    } else {
-      this.currentConfigName = 'MVD 統合';
-    }
+    return _rebuildEffectiveImportanceSettings(this);
   }
 
-  /**
-   * 指定MVDでの重要度を取得
-   * @param {string} elementPath
-   * @param {'s2'|'s4'} mvdMode
-   * @returns {string}
-   */
   getMvdImportanceLevel(elementPath, mvdMode) {
-    const normalizedPath = this.ensurePathExistsInMvdSettings(elementPath);
-    if (!normalizedPath) {
-      return IMPORTANCE_LEVELS.NOT_APPLICABLE;
-    }
-
-    const map =
-      mvdMode === MVD_MODES.S2
-        ? this.mvdImportanceSettings[MVD_MODES.S2]
-        : this.mvdImportanceSettings[MVD_MODES.S4];
-    return map.get(normalizedPath) ?? IMPORTANCE_LEVELS.NOT_APPLICABLE;
+    return _getMvdImportanceLevel(this, elementPath, mvdMode);
   }
+
+  setMvdImportanceLevel(elementPath, mvdMode, importanceLevel, options = {}) {
+    return _setMvdImportanceLevel(this, elementPath, mvdMode, importanceLevel, options);
+  }
+
+  async loadExternalConfig(configId) {
+    return _loadExternalConfig(this, configId);
+  }
+
+  getCurrentConfigId() {
+    return _getCurrentConfigId(this);
+  }
+
+  getCurrentConfigName() {
+    return _getCurrentConfigName(this);
+  }
+
+  // --- 設定管理（settingsManager.jsに委譲） ---
+
+  async loadDefaultSettings() {
+    return _loadDefaultSettings(this);
+  }
+
+  getImportanceLevel(elementPath) {
+    return _getImportanceLevel(this, elementPath);
+  }
+
+  setImportanceLevel(elementPath, importanceLevel) {
+    return _setImportanceLevel(this, elementPath, importanceLevel);
+  }
+
+  getAllImportanceSettings() {
+    return _getAllImportanceSettings(this);
+  }
+
+  notifySettingsChanged() {
+    return _notifySettingsChanged(this);
+  }
+
+  validateSettings() {
+    return _validateSettings(this);
+  }
+
+  resetToDefaults() {
+    return _resetToDefaults(this);
+  }
+
+  // --- 要素重要度評価・JSON入出力（comparisonConfig.jsに委譲） ---
+
+  getElementImportance(element, elementType = null) {
+    return _getElementImportance(this, element, elementType);
+  }
+
+  exportToJSON(mvdLevel = 'combined') {
+    return _exportToJSON(this, mvdLevel);
+  }
+
+  importFromJSON(jsonContent) {
+    return _importFromJSON(this, jsonContent);
+  }
+
+  // --- パスがXSDで必須かどうかを取得 ---
 
   /**
    * パスがXSDで必須かどうかを取得
@@ -418,55 +299,7 @@ class ImportanceManager {
     return { required: !!attrDef.required, kind: 'attribute' };
   }
 
-  /**
-   * 指定MVDでの重要度を設定
-   * @param {string} elementPath
-   * @param {'s2'|'s4'} mvdMode
-   * @param {string} importanceLevel
-   * @param {Object} [options]
-   * @param {boolean} [options.notify=true]
-   * @param {boolean} [options.rebuild=true]
-   * @returns {boolean}
-   */
-  setMvdImportanceLevel(elementPath, mvdMode, importanceLevel, options = {}) {
-    const { notify = true, rebuild = true } = options;
-    if (!Object.values(IMPORTANCE_LEVELS).includes(importanceLevel)) {
-      log.error(`無効な重要度レベル: ${importanceLevel}`);
-      return false;
-    }
-    if (mvdMode !== MVD_MODES.S2 && mvdMode !== MVD_MODES.S4) {
-      log.error(`無効なMVDモード: ${mvdMode}`);
-      return false;
-    }
-
-    const normalizedPath = this.ensurePathExistsInMvdSettings(elementPath);
-    if (!normalizedPath) {
-      return false;
-    }
-
-    if (mvdMode === MVD_MODES.S2) {
-      this.mvdImportanceSettings[MVD_MODES.S2].set(normalizedPath, importanceLevel);
-      const currentS4 = this.mvdImportanceSettings[MVD_MODES.S4].get(normalizedPath);
-      this.mvdImportanceSettings[MVD_MODES.S4].set(
-        normalizedPath,
-        this.normalizeS4Level(normalizedPath, importanceLevel, currentS4),
-      );
-    } else {
-      const s2Level = this.mvdImportanceSettings[MVD_MODES.S2].get(normalizedPath);
-      this.mvdImportanceSettings[MVD_MODES.S4].set(
-        normalizedPath,
-        this.normalizeS4Level(normalizedPath, s2Level, importanceLevel),
-      );
-    }
-
-    if (rebuild) {
-      this.rebuildEffectiveImportanceSettings();
-    }
-    if (notify) {
-      this.notifySettingsChanged();
-    }
-    return true;
-  }
+  // --- XSD解析・パス生成（初期化関連） ---
 
   /**
    * 要素階層からXPathパスを再帰的に生成する
@@ -620,52 +453,7 @@ class ImportanceManager {
     await this.initializeMvdSettings();
   }
 
-  /**
-   * デフォルト重要度設定を読み込む
-   * MVDベースのFALLBACK_IMPORTANCE_SETTINGSから設定を読み込む
-   */
-  async loadDefaultSettings() {
-    // FALLBACK_IMPORTANCE_SETTINGSから設定を読み込む
-    for (const [rawPath, importance] of Object.entries(FALLBACK_IMPORTANCE_SETTINGS)) {
-      const path = this.normalizePath(rawPath);
-      if (!path) continue;
-      if (!this.orderedElementPaths.includes(path)) {
-        this.orderedElementPaths.push(path);
-      }
-      this.userImportanceSettings.set(path, importance);
-    }
-
-    // 各タブの要素パスを生成（タブ表示用）
-    for (const tab of STB_ELEMENT_TABS) {
-      const elementPaths = this.generateElementPathsForTab(tab.id);
-
-      if (!this.elementPathsByTab.has(tab.id)) {
-        this.elementPathsByTab.set(tab.id, []);
-      }
-
-      for (const path of elementPaths) {
-        const normalizedPath = this.normalizePath(path);
-        if (!normalizedPath) continue;
-
-        const tabPaths = this.elementPathsByTab.get(tab.id);
-
-        // 全体リストへの重複チェック
-        if (!this.orderedElementPaths.includes(normalizedPath)) {
-          this.orderedElementPaths.push(normalizedPath);
-        }
-
-        // タブ別リストへの重複チェック
-        if (!tabPaths.includes(normalizedPath)) {
-          tabPaths.push(normalizedPath);
-        }
-
-        // FALLBACK_IMPORTANCE_SETTINGSにない場合はREQUIREDをデフォルトとする
-        if (!this.userImportanceSettings.has(normalizedPath)) {
-          this.userImportanceSettings.set(normalizedPath, IMPORTANCE_LEVELS.REQUIRED);
-        }
-      }
-    }
-  }
+  // --- パス/タブユーティリティ ---
 
   /**
    * 指定されたタブIDの要素パスを生成する
@@ -728,73 +516,6 @@ class ImportanceManager {
     };
 
     return additionalPaths[elementType] || [];
-  }
-
-  /**
-   * 要素パスの重要度を取得する
-   * @param {string} elementPath - 要素パス
-   * @returns {string} 重要度レベル（設定がない場合はOPTIONAL）
-   */
-  getImportanceLevel(elementPath) {
-    const normalizedPath = this.normalizePath(elementPath);
-    if (!normalizedPath) {
-      return IMPORTANCE_LEVELS.OPTIONAL;
-    }
-
-    const importance = this.userImportanceSettings.get(normalizedPath);
-
-    if (!importance) {
-      recordFallback(normalizedPath);
-
-      // デバッグログ（開発時のみ）
-      if (typeof process !== 'undefined' && process.env?.NODE_ENV === 'development') {
-        log.debug(`[Importance] Fallback to OPTIONAL: ${normalizedPath}`);
-      }
-    } else {
-      recordCheck();
-    }
-
-    // 設定がない場合はOPTIONAL（MVDに記載されていない要素は任意扱い）
-    return importance || IMPORTANCE_LEVELS.OPTIONAL;
-  }
-
-  /**
-   * 要素パスの重要度を設定する
-   * @param {string} elementPath - 要素パス
-   * @param {string} importanceLevel - 重要度レベル
-   * @returns {boolean} 設定成功フラグ
-   */
-  setImportanceLevel(elementPath, importanceLevel) {
-    if (!Object.values(IMPORTANCE_LEVELS).includes(importanceLevel)) {
-      log.error(`無効な重要度レベル: ${importanceLevel}`);
-      return false;
-    }
-
-    // 互換性維持: 単一レベル変更は S2/S4 の両方へ適用
-    const setS2 = this.setMvdImportanceLevel(elementPath, MVD_MODES.S2, importanceLevel, {
-      notify: false,
-      rebuild: false,
-    });
-    const setS4 = this.setMvdImportanceLevel(elementPath, MVD_MODES.S4, importanceLevel, {
-      notify: false,
-      rebuild: false,
-    });
-
-    if (!setS2 || !setS4) {
-      return false;
-    }
-
-    this.rebuildEffectiveImportanceSettings();
-    this.notifySettingsChanged();
-    return true;
-  }
-
-  /**
-   * 全ての重要度設定を取得する
-   * @returns {Map<string, string>} 要素パスと重要度のマップ
-   */
-  getAllImportanceSettings() {
-    return new Map(this.userImportanceSettings);
   }
 
   /**
@@ -950,6 +671,8 @@ class ImportanceManager {
     return ordered;
   }
 
+  // --- CSV入出力（csvSerializer.jsに委譲） ---
+
   /**
    * 重要度設定をCSV形式でエクスポートする
    * @returns {string} CSV形式の文字列
@@ -960,73 +683,6 @@ class ImportanceManager {
       (path, mode) => this.getMvdImportanceLevel(path, mode),
       (path) => this.getImportanceLevel(path),
     );
-  }
-
-  /**
-   * 重要度設定をJSON形式（mvd-s2.json互換フォーマット）でエクスポートする
-   * @param {string} mvdLevel - 's2' | 's4' | 'combined'
-   * @returns {string} JSON形式の文字列
-   */
-  exportToJSON(mvdLevel = 'combined') {
-    const elements = {};
-
-    if (mvdLevel === 'combined' || mvdLevel === 's2') {
-      for (const [path, level] of this.mvdImportanceSettings[MVD_MODES.S2].entries()) {
-        if (level !== IMPORTANCE_LEVELS.REQUIRED) continue;
-        // path例: //ST_BRIDGE/StbColumn/@id → elementName: StbColumn, attr: id
-        const match = path.match(/\/\/ST_BRIDGE\/([^/]+)\/@(.+)/);
-        if (!match) continue;
-        const [, elementName, attr] = match;
-        if (!elements[elementName]) elements[elementName] = { required: [] };
-        if (!elements[elementName].required.includes(attr)) {
-          elements[elementName].required.push(attr);
-        }
-      }
-    }
-
-    const result = {
-      version: '1.0',
-      mvdLevel: mvdLevel === 'combined' ? 'combined' : mvdLevel,
-      schemaVersion: '2.0.2',
-      description: `MVD ${mvdLevel.toUpperCase()} - エクスポート設定`,
-      elements,
-    };
-    return JSON.stringify(result, null, 2);
-  }
-
-  /**
-   * JSON形式の重要度設定をインポートする（mvd-s2.json互換フォーマット）
-   * @param {string} jsonContent - JSON文字列
-   * @returns {boolean} インポート成功フラグ
-   */
-  importFromJSON(jsonContent) {
-    try {
-      const config = JSON.parse(jsonContent);
-      if (!config.elements || typeof config.elements !== 'object') {
-        return false;
-      }
-
-      const targetMvd = config.mvdLevel === 's4' ? [MVD_MODES.S4] : [MVD_MODES.S2, MVD_MODES.S4];
-
-      for (const [elementName, elementDef] of Object.entries(config.elements)) {
-        for (const attr of elementDef.required || []) {
-          const path = `//ST_BRIDGE/${elementName}/@${attr}`;
-          for (const mode of targetMvd) {
-            this.setMvdImportanceLevel(path, mode, IMPORTANCE_LEVELS.REQUIRED, {
-              notify: false,
-              rebuild: false,
-            });
-          }
-        }
-      }
-
-      this.rebuildEffectiveImportanceSettings();
-      this.notifySettingsChanged();
-      return true;
-    } catch (error) {
-      log.error('JSONのインポートに失敗しました:', error);
-      return false;
-    }
   }
 
   /**
@@ -1044,114 +700,7 @@ class ImportanceManager {
     );
   }
 
-  /**
-   * 重要度設定の変更を関連システムに通知する
-   */
-  notifySettingsChanged() {
-    // グローバル状態を更新
-    setState('importanceSettings', {
-      userSettings: Object.fromEntries(this.userImportanceSettings),
-      mvdSettings: {
-        s2: Object.fromEntries(this.mvdImportanceSettings[MVD_MODES.S2]),
-        s4: Object.fromEntries(this.mvdImportanceSettings[MVD_MODES.S4]),
-      },
-      orderedPaths: [...this.orderedElementPaths],
-      elementPathsByTab: Object.fromEntries(this.elementPathsByTab),
-      lastModified: new Date().toISOString(),
-    });
-
-    // MVD設定情報をglobalStateに反映
-    setState('importance.currentConfigId', this.currentConfigId);
-    setState('importance.currentConfigName', this.currentConfigName);
-
-    // EventBus経由でイベントを発行
-    eventBus.emit(ImportanceEvents.SETTINGS_CHANGED, {
-      manager: this,
-      timestamp: Date.now(),
-    });
-  }
-
-  /**
-   * 重要度設定を検証する
-   * @returns {Object} 検証結果
-   */
-  validateSettings() {
-    const settingsObject = {
-      elements: Object.fromEntries(this.userImportanceSettings),
-      attributes: {},
-      lastModified: new Date().toISOString(),
-    };
-
-    return validateImportanceSettings(settingsObject);
-  }
-
-  /**
-   * 外部設定ファイルから重要度設定を読み込む
-   * @param {string} configId - 設定ID ('mvd-combined', 's2', 's4')
-   * @returns {Promise<boolean>} 読み込み成功フラグ
-   */
-  async loadExternalConfig(configId) {
-    try {
-      const normalizedConfigId = configId || MVD_MODES.COMBINED;
-
-      if (![MVD_MODES.S2, MVD_MODES.S4, MVD_MODES.COMBINED].includes(normalizedConfigId)) {
-        throw new Error(`不明な設定ID: ${configId}`);
-      }
-
-      // 初期化前の利用にも対応
-      if (
-        this.mvdImportanceSettings[MVD_MODES.S2].size === 0 ||
-        this.mvdImportanceSettings[MVD_MODES.S4].size === 0
-      ) {
-        await this.initializeMvdSettings();
-      }
-
-      this.currentConfigId = normalizedConfigId;
-      this.rebuildEffectiveImportanceSettings();
-
-      this.notifySettingsChanged();
-      return true;
-    } catch (error) {
-      log.error('[ImportanceManager] 外部設定の読み込みに失敗:', error);
-      return false;
-    }
-  }
-
-  /**
-   * 現在の設定IDを取得
-   * @returns {string|null} 設定ID
-   */
-  getCurrentConfigId() {
-    return this.currentConfigId || null;
-  }
-
-  /**
-   * 現在の設定名を取得
-   * @returns {string|null} 設定名
-   */
-  getCurrentConfigName() {
-    return this.currentConfigName || 'デフォルト';
-  }
-
-  /**
-   * 重要度設定をリセットする
-   */
-  resetToDefaults() {
-    this.userImportanceSettings.clear();
-    this.orderedElementPaths = [];
-    this.elementPathsByTab.clear();
-    this.mvdImportanceSettings[MVD_MODES.S2] = new Map(
-      this.defaultMvdImportanceSettings[MVD_MODES.S2],
-    );
-    this.mvdImportanceSettings[MVD_MODES.S4] = new Map(
-      this.defaultMvdImportanceSettings[MVD_MODES.S4],
-    );
-    this.currentConfigId = MVD_MODES.COMBINED;
-    this.currentConfigName = 'MVD 統合';
-    this.loadDefaultSettings();
-    this.rebuildEffectiveImportanceSettings();
-    this.notifySettingsChanged();
-  }
+  // --- 統計（statisticsCollector.jsに委譲） ---
 
   /**
    * 統計情報を取得する
@@ -1171,96 +720,6 @@ class ImportanceManager {
    */
   resetFallbackStats() {
     resetFallbackStats();
-  }
-
-  /**
-   * 要素の重要度を取得する
-   * @param {Object} element - 要素データ
-   * @param {string} elementType - 要素タイプ（オプション）
-   * @returns {string} 重要度レベル
-   */
-  getElementImportance(element, elementType = null) {
-    if (!this.isInitialized) {
-      return IMPORTANCE_LEVELS.REQUIRED; // デフォルト
-    }
-
-    // 要素タイプの決定
-    let type = elementType;
-    if (!type && element) {
-      // element から要素タイプを推測
-      if (typeof element.getAttribute === 'function') {
-        // DOM Element の場合（あまり使われないが念のため）
-        type = element.tagName;
-      } else if (typeof element === 'object') {
-        // JavaScript object の場合
-        // elementType プロパティがあればそれを使用
-        type = element.elementType || element.type;
-      }
-    }
-
-    if (!type) {
-      return IMPORTANCE_LEVELS.REQUIRED; // デフォルト
-    }
-
-    const resolvedType = type.startsWith('Stb') ? type : `Stb${type}`;
-
-    const getElementAttributeValue = (target, attrName) => {
-      if (!target) return undefined;
-      if (typeof target.getAttribute === 'function') {
-        const value = target.getAttribute(attrName);
-        return value === null ? undefined : value;
-      }
-      return target[attrName];
-    };
-
-    const elementDef = getElementDefinition(resolvedType);
-    const schemaAttributes = new Set(
-      elementDef?.attributes ? Array.from(elementDef.attributes.keys()) : [],
-    );
-
-    // この要素タイプに対して設定されている属性重要度パスを対象に、
-    // 必須チェック + 値制約チェック（JSONスキーマ）を行う。
-    const pathMarker = `/${resolvedType}/@`;
-    let hasTargetViolation = false;
-
-    for (const [path, configuredLevel] of this.userImportanceSettings.entries()) {
-      if (!path || !path.includes(pathMarker)) continue;
-      if (configuredLevel !== IMPORTANCE_LEVELS.REQUIRED) continue;
-
-      const markerIndex = path.lastIndexOf('/@');
-      if (markerIndex < 0) continue;
-      const attrName = path.slice(markerIndex + 2);
-      if (!attrName) continue;
-      if (schemaAttributes.size > 0 && !schemaAttributes.has(attrName)) continue;
-
-      const checkOptions = this.s2ParameterChecks.get(path) || {
-        checkRequired: true,
-        checkValue: true,
-      };
-      if (!checkOptions.checkRequired && !checkOptions.checkValue) {
-        continue;
-      }
-
-      const value = getElementAttributeValue(element, attrName);
-      const isMissing = value === undefined || value === null || value === '';
-      if (isMissing && checkOptions.checkRequired) {
-        hasTargetViolation = true;
-        continue;
-      }
-
-      if (!isMissing && checkOptions.checkValue) {
-        const validation = validateAttributeValue(resolvedType, attrName, String(value));
-        if (!validation.valid) {
-          hasTargetViolation = true;
-        }
-      }
-    }
-
-    if (hasTargetViolation) {
-      return IMPORTANCE_LEVELS.REQUIRED;
-    }
-
-    return IMPORTANCE_LEVELS.NOT_APPLICABLE;
   }
 }
 

@@ -380,7 +380,7 @@ function checkProperties(normA, normB) {
   };
 }
 
-/**
+/*
  * 寸法を抽出
  *
  * @param {Object} sectionData - 断面データ

@@ -11,8 +11,15 @@
  */
 
 import { UI_TIMING } from '../config/uiTimingConfig.js';
-import { elementGroups, colorManager } from '../viewer/index.js';
+import {
+  elementGroups,
+  colorManager,
+  clearImportanceMaterialCache,
+  getMaterialForElementWithMode,
+} from '../viewer/index.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
+import { eventBus, ViewEvents } from '../data/events/index.js';
+import { getState } from '../data/state/globalState.js';
 
 // 色付けモード状態（循環依存解消のため分離）
 import { COLOR_MODES, getCurrentColorMode, setCurrentColorModeInternal } from './colorModeState.js';
@@ -70,42 +77,38 @@ export function setColorMode(mode) {
   setCurrentColorModeInternal(mode);
   updateColorModeUI();
 
-  // モデルが読み込まれているかチェック
-  import('../app/controllers/modelLoaderController.js').then(({ isModelLoaded }) => {
-    const modelsLoaded = isModelLoaded();
+  // モデルが読み込まれているかチェック（data層のglobalState経由）
+  const modelsLoaded = !!(getState('models.modelADocument') || getState('models.modelBDocument'));
 
-    if (!modelsLoaded) {
-      // UI要素の表示状態を更新
-      updateColorModeUI();
-      // 状況メッセージを表示
-      showColorModeStatus(
-        `表示モードを「${getModeDisplayName(
-          mode,
-        )}」に設定しました。モデル読み込み後に適用されます。`,
-      );
-      // ロック解除と待機キュー処理
-      finishColorModeChange();
-      return;
-    }
+  if (!modelsLoaded) {
+    // UI要素の表示状態を更新
+    updateColorModeUI();
+    // 状況メッセージを表示
+    showColorModeStatus(
+      `表示モードを「${getModeDisplayName(mode)}」に設定しました。モデル読み込み後に適用されます。`,
+    );
+    // ロック解除と待機キュー処理
+    finishColorModeChange();
+    return;
+  }
 
-    // 色付けモード変更処理
-    try {
-      updateElementsForColorMode();
-      // 変更成功メッセージを表示
-      showColorModeStatus(`「${getModeDisplayName(mode)}」モードを適用しました。`, 3000);
-    } catch (error) {
-      log.error('[ColorMode] Error updating elements for color mode:', error);
-      // エラーメッセージを表示
-      showColorModeStatus(`色付けモード変更でエラーが発生しました: ${error.message}`, 5000);
-    }
+  // 色付けモード変更処理
+  try {
+    updateElementsForColorMode();
+    // 変更成功メッセージを表示
+    showColorModeStatus(`「${getModeDisplayName(mode)}」モードを適用しました。`, 3000);
+  } catch (error) {
+    log.error('[ColorMode] Error updating elements for color mode:', error);
+    // エラーメッセージを表示
+    showColorModeStatus(`色付けモード変更でエラーが発生しました: ${error.message}`, 5000);
+  }
 
-    // 色付けモード変更時は確実に再描画を実行
-    setTimeout(() => {
-      scheduleRender();
-      // ロック解除と待機キュー処理
-      finishColorModeChange();
-    }, UI_TIMING.COLOR_MODE_REDRAW_DELAY_MS);
-  });
+  // 色付けモード変更時は確実に再描画を実行
+  setTimeout(() => {
+    scheduleRender();
+    // ロック解除と待機キュー処理
+    finishColorModeChange();
+  }, UI_TIMING.COLOR_MODE_REDRAW_DELAY_MS);
 }
 
 /**
@@ -136,7 +139,9 @@ function updateColorModeUI() {
   const currentMode = getCurrentColorMode();
 
   // ドロップダウンセレクターの値を同期
-  const selector = document.getElementById('colorModeSelector');
+  const selector = /** @type {HTMLSelectElement|null} */ (
+    document.getElementById('colorModeSelector')
+  );
   if (selector && selector.value !== currentMode) {
     selector.value = currentMode;
   }
@@ -178,10 +183,16 @@ function updateColorModeUI() {
  */
 export function setupColorModeListeners() {
   log.info('[ColorModeManager] setupColorModeListeners() called');
-  const selector = document.getElementById('colorModeSelector');
+  const selector = /** @type {HTMLSelectElement|null} */ (
+    document.getElementById('colorModeSelector')
+  );
   if (selector) {
     selector.addEventListener('change', (e) => {
-      setColorMode(e.target.value);
+      const target = /** @type {HTMLSelectElement|null} */ (e.target);
+      if (!target) {
+        return;
+      }
+      setColorMode(target.value);
     });
   } else {
     log.warn('[ColorModeManager] colorModeSelector not found');
@@ -209,10 +220,8 @@ export function updateElementsForColorMode() {
   switch (currentMode) {
     case COLOR_MODES.IMPORTANCE:
       // 重要度モードの場合は全要素に重要度マテリアルを適用
-      import('../viewer/rendering/materials.js').then(({ clearImportanceMaterialCache }) => {
-        clearImportanceMaterialCache();
-        applyImportanceColorModeToAll();
-      });
+      clearImportanceMaterialCache();
+      applyImportanceColorModeToAll();
       break;
 
     case COLOR_MODES.SCHEMA:
@@ -237,27 +246,9 @@ export function updateElementsForColorMode() {
   // updateElementsForColorModeが呼ばれるため、ここで再度redrawすると循環依存になる）
   // マテリアルの更新は各色付けモード関数（applyDiffColorModeToAll等）で処理される
 
-  // 統合ラベル管理システムに色付けモード変更を通知
-  import('../ui/viewer3d/unifiedLabelManager.js').then(({ handleColorModeChange }) => {
-    if (handleColorModeChange) {
-      handleColorModeChange();
-    }
-  });
-
-  // 凡例を表示中の場合は内容を更新
-  const legendPanel = document.getElementById('legendPanel');
-  if (legendPanel && legendPanel.style.display !== 'none') {
-    import('../ui/events/index.js').then(({ updateLegendContent }) => {
-      updateLegendContent();
-    });
-  }
-
-  // 要素情報パネルを更新（バリデーション情報の反映）
-  import('../ui/panels/element-info/index.js').then(({ refreshElementInfoPanel }) => {
-    if (refreshElementInfoPanel) {
-      refreshElementInfoPanel();
-    }
-  });
+  // UI層に色付けモード変更を通知（eventBus経由でレイヤー違反解消）
+  // ラベル管理、凡例更新、要素情報パネル更新はUI側のリスナーが処理
+  eventBus.emit(ViewEvents.COLOR_MODE_CHANGED, { mode: getCurrentColorMode() });
 }
 
 /**
@@ -296,59 +287,72 @@ export function applyColorModeToAllObjects(modeName) {
   });
 
   // マテリアルを適用（現在のカラーモードに基づいて自動選択される）
-  import('../viewer/rendering/materials.js').then(({ getMaterialForElementWithMode }) => {
-    allObjects.forEach((object) => {
-      const elementType = object.userData.elementType;
+  const CHUNK_SIZE = 200;
+  {
+    let index = 0;
 
-      // AxisとStoryは色付けモードの対象外（独自のマテリアルを使用）
-      if (elementType === 'Axis' || elementType === 'Story') {
-        return;
+    function processChunk() {
+      const end = Math.min(index + CHUNK_SIZE, allObjects.length);
+
+      for (; index < end; index++) {
+        const object = allObjects[index];
+        const elementType = object.userData.elementType;
+
+        if (elementType === 'Axis' || elementType === 'Story') {
+          continue;
+        }
+
+        const modelSource = object.userData.modelSource || 'matched';
+        let comparisonState;
+        switch (modelSource) {
+          case 'A':
+            comparisonState = 'onlyA';
+            break;
+          case 'B':
+            comparisonState = 'onlyB';
+            break;
+          case 'solid':
+          case 'line':
+            comparisonState = 'matched';
+            break;
+          default:
+            comparisonState = modelSource;
+        }
+        const isLine = object.isLine || object.userData.isLine || false;
+        const isPoly = object.userData.isPoly || false;
+        const elementId = object.userData.elementId || null;
+        const toleranceState = object.userData.toleranceState || null;
+        const materialOptions = {
+          isTransparent: object.userData.isSRCConcrete === true,
+          srcComponentType: object.userData.srcComponentType || null,
+          modelSource: object.userData.modelSource || null,
+        };
+
+        const newMaterial = getMaterialForElementWithMode(
+          elementType,
+          comparisonState,
+          isLine,
+          isPoly,
+          elementId,
+          toleranceState,
+          materialOptions,
+        );
+
+        if (newMaterial) {
+          object.material = newMaterial;
+        }
       }
-      // modelSourceを色管理の状態名にマッピング
-      const modelSource = object.userData.modelSource || 'matched';
-      let comparisonState;
-      switch (modelSource) {
-        case 'A':
-          comparisonState = 'onlyA';
-          break;
-        case 'B':
-          comparisonState = 'onlyB';
-          break;
-        case 'solid':
-        case 'line':
-          comparisonState = 'matched';
-          break;
-        default:
-          comparisonState = modelSource;
+
+      if (index < allObjects.length) {
+        scheduleRender();
+        requestAnimationFrame(processChunk);
+      } else {
+        requestColorModeRedraw();
       }
-      const isLine = object.isLine || object.userData.isLine || false;
-      const isPoly = object.userData.isPoly || false;
-      const elementId = object.userData.elementId || null;
-      const toleranceState = object.userData.toleranceState || null;
-      const materialOptions = {
-        isTransparent: object.userData.isSRCConcrete === true,
-        srcComponentType: object.userData.srcComponentType || null,
-        modelSource: object.userData.modelSource || null,
-      };
+    }
 
-      const newMaterial = getMaterialForElementWithMode(
-        elementType,
-        comparisonState,
-        isLine,
-        isPoly,
-        elementId,
-        toleranceState,
-        materialOptions,
-      );
-
-      if (newMaterial) {
-        object.material = newMaterial;
-      }
-    });
-
-    // マテリアル適用完了後に再描画をリクエスト
-    requestColorModeRedraw();
-  });
+    processChunk();
+  }
 }
 
 /**
@@ -357,7 +361,7 @@ export function applyColorModeToAllObjects(modeName) {
  * @param {boolean} isLine 線要素かどうか
  * @param {string} elementId 要素ID（スキーマエラー判定用）
  * @param {string} [modelSource] モデルソース ('A', 'B', 'matched') A/B混線防止用
- * @returns {THREE.Material} マテリアル
+ * @returns {import('three').Material|null} マテリアル
  */
 export function getMaterialForElement(
   elementType,

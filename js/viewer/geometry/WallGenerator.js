@@ -60,6 +60,9 @@ export class WallGenerator extends BaseElementGenerator {
       return [];
     }
 
+    // 開口の逆引きインデックスを事前構築（STB 2.1.0形式対応: O(n²) → O(n)）
+    const openingsByWallId = this._buildOpeningIndex(openingElements);
+
     const meshes = [];
     let processed = 0;
     let skipped = 0;
@@ -73,6 +76,7 @@ export class WallGenerator extends BaseElementGenerator {
         isJsonInput,
         log,
         openingElements, // 開口情報を追加
+        openingsByWallId, // 逆引きインデックス
       };
 
       try {
@@ -94,13 +98,36 @@ export class WallGenerator extends BaseElementGenerator {
   }
 
   /**
+   * 開口要素の壁ID逆引きインデックスを構築
+   * STB 2.1.0形式で id_member を使用する際の O(n²) ループを回避
+   * @param {Map<string, Object>|null} openingElements - 開口情報マップ
+   * @returns {Map<string, Array<[string, Object]>>} 壁ID → [openId, opening][] のマップ
+   */
+  static _buildOpeningIndex(openingElements) {
+    const index = new Map();
+    if (!openingElements) return index;
+
+    for (const [openId, opening] of openingElements) {
+      if (opening.kind_member === 'WALL' && opening.id_member != null) {
+        const wallId = String(opening.id_member);
+        if (!index.has(wallId)) {
+          index.set(wallId, []);
+        }
+        index.get(wallId).push([openId, opening]);
+      }
+    }
+    return index;
+  }
+
+  /**
    * 単一壁メッシュを作成（BaseElementGeneratorの抽象メソッドを実装）
    * @param {Object} wall - 壁要素
    * @param {Object} context - コンテキスト
    * @returns {THREE.Mesh|null} メッシュまたはnull
    */
   static _createSingleMesh(wall, context) {
-    const { nodes, sections, elementType, isJsonInput, log, openingElements } = context;
+    const { nodes, sections, elementType, isJsonInput, log, openingElements, openingsByWallId } =
+      context;
 
     // 1. ノードIDリストの取得（壁は通常4点）
     const nodeIds = wall.node_ids;
@@ -167,83 +194,82 @@ export class WallGenerator extends BaseElementGenerator {
     */
 
     // 5. 壁の方向と寸法を再計算（バウンディングボックス方式）
-    // 全ノードを使用して、壁の基準方向（長さ方向）と法線方向、高さを正確に計算する
+    // 配列コピーやソートを避け、min/maxスキャンで計算（GC負荷削減）
 
-    // Z座標でソートして下端・上端を特定
-    const sortedByZ = [...vertices].sort((a, b) => a.z - b.z);
-
-    // Z方向の範囲（高さ）
-    const minZ = sortedByZ[0].z;
-    const maxZ = sortedByZ[sortedByZ.length - 1].z;
+    // Z方向の範囲（高さ）をスキャンで取得
+    let minZ = Infinity;
+    let maxZ = -Infinity;
+    for (const v of vertices) {
+      if (v.z < minZ) minZ = v.z;
+      if (v.z > maxZ) maxZ = v.z;
+    }
     let wallHeight = maxZ - minZ;
     if (wallHeight < 1) wallHeight = 1000; // デフォルト高さ(異常値対応)
 
     // 壁の基準方向（Wall Direction）を決定
-    // 下端付近の点（minZから許容誤差内）を抽出
+    // 下端付近の点（minZから許容誤差内）から最も離れた2点を探す
     const tolerance = 10; // 10mm
-    const bottomPoints = sortedByZ.filter((v) => Math.abs(v.z - minZ) < tolerance);
-
-    // 下端の点群から、最も離れた2点を見つけて基準方向とする
-    let pStart = bottomPoints[0];
-    let pEnd = bottomPoints[0];
+    let pStart = vertices[0];
+    let pEnd = vertices[0];
     let maxDistSq = 0;
 
-    if (bottomPoints.length >= 2) {
-      for (let i = 0; i < bottomPoints.length; i++) {
-        for (let j = i + 1; j < bottomPoints.length; j++) {
-          const dSq = bottomPoints[i].distanceToSquared(bottomPoints[j]);
-          if (dSq > maxDistSq) {
-            maxDistSq = dSq;
-            pStart = bottomPoints[i];
-            pEnd = bottomPoints[j];
-          }
+    // 下端点を集めつつ、最遠点ペアを同時に探す（配列コピー不要）
+    let hasMultipleBottom = false;
+    for (let i = 0; i < vertices.length; i++) {
+      if (Math.abs(vertices[i].z - minZ) >= tolerance) continue;
+      for (let j = i + 1; j < vertices.length; j++) {
+        if (Math.abs(vertices[j].z - minZ) >= tolerance) continue;
+        hasMultipleBottom = true;
+        const dSq = vertices[i].distanceToSquared(vertices[j]);
+        if (dSq > maxDistSq) {
+          maxDistSq = dSq;
+          pStart = vertices[i];
+          pEnd = vertices[j];
         }
       }
-    } else if (vertices.length >= 2) {
-      // 下端点が1つしかない場合（特異なケース）、全点から最遠点を探す（水平成分のみで）
+    }
+
+    if (!hasMultipleBottom && vertices.length >= 2) {
+      // 下端点が1つしかない場合、全点から最遠点を探す（水平成分のみで）
       for (let i = 0; i < vertices.length; i++) {
         for (let j = i + 1; j < vertices.length; j++) {
-          const v1 = vertices[i];
-          const v2 = vertices[j];
-          const dx = v1.x - v2.x;
-          const dy = v1.y - v2.y;
+          const dx = vertices[i].x - vertices[j].x;
+          const dy = vertices[i].y - vertices[j].y;
           const dSq = dx * dx + dy * dy;
           if (dSq > maxDistSq) {
             maxDistSq = dSq;
-            pStart = v1;
-            pEnd = v2;
+            pStart = vertices[i];
+            pEnd = vertices[j];
           }
         }
       }
     }
 
-    // 壁の基準ベクトル（水平）
-    const wallDirection = new THREE.Vector3().subVectors(pEnd, pStart);
-    wallDirection.z = 0;
+    // 壁の基準ベクトル（水平）- 一時Vector3を再利用
+    const wallDirection = new THREE.Vector3(pEnd.x - pStart.x, pEnd.y - pStart.y, 0);
     if (wallDirection.lengthSq() > 0.0001) {
       wallDirection.normalize();
     } else {
       wallDirection.set(1, 0, 0); // デフォルトX軸
     }
 
-    const wallUp = new THREE.Vector3(0, 0, 1);
-    const wallNormal = new THREE.Vector3().crossVectors(wallDirection, wallUp).normalize();
+    const wallNormal = new THREE.Vector3(-wallDirection.y, wallDirection.x, 0); // crossVectors(dir, (0,0,1)) の結果を直接計算
 
-    // 全頂点をローカル座標軸（Direction, Normal, Up）に投影してバウンディングボックスを計算
-    // 基準点として重力中心ではなく、pStartを使用しても良いが、
-    // ここでは正確な幅を出すために投影距離のmin/maxをとる
+    // 全頂点をローカル座標軸に投影してバウンディングボックスを計算
+    // dotを直接計算（Vector3アロケーション不要）
     let minL = Infinity,
-      maxL = -Infinity; // Length方向 (WallDirection)
+      maxL = -Infinity;
     let minT = Infinity,
-      maxT = -Infinity; // Thickness方向 (WallNormal)
-    // Height方向はすでに minZ, maxZ で計算済み
+      maxT = -Infinity;
 
     for (const v of vertices) {
-      // pStartからの相対ベクトル
-      const vec = new THREE.Vector3().subVectors(v, pStart);
+      // pStartからの相対ベクトルのdotを直接計算
+      const relX = v.x - pStart.x;
+      const relY = v.y - pStart.y;
+      const relZ = v.z - pStart.z;
 
-      const distL = vec.dot(wallDirection); // 長さ方向の距離
-      const distT = vec.dot(wallNormal); // 厚さ方向の距離（通常はほぼ0だが、わずかな偏心や誤差を吸収）
+      const distL = relX * wallDirection.x + relY * wallDirection.y + relZ * wallDirection.z;
+      const distT = relX * wallNormal.x + relY * wallNormal.y + relZ * wallNormal.z;
 
       if (distL < minL) minL = distL;
       if (distL > maxL) maxL = distL;
@@ -287,7 +313,7 @@ export class WallGenerator extends BaseElementGenerator {
     );
 
     // 6. 開口情報を取得
-    const openings = this._getOpeningsForWall(wall, openingElements, log);
+    const openings = this._getOpeningsForWall(wall, openingElements, log, openingsByWallId);
 
     // 7. ジオメトリを作成（開口がある場合はExtrudeGeometry、ない場合はBoxGeometry）
     let geometry;
@@ -295,7 +321,6 @@ export class WallGenerator extends BaseElementGenerator {
       geometry = this._createWallWithOpenings(wallWidth, wallHeight, thickness, openings, log);
       log.debug(`Wall ${wall.id}: Created geometry with ${openings.length} opening(s)`);
     } else {
-      // 開口がない場合は従来のBoxGeometry
       geometry = new THREE.BoxGeometry(wallWidth, thickness, wallHeight);
     }
 
@@ -354,9 +379,10 @@ export class WallGenerator extends BaseElementGenerator {
    * @param {Object} wall - 壁要素
    * @param {Map<string, Object>} openingElements - 開口情報マップ
    * @param {Object} log - ロガー
+   * @param {Map<string, Array>} [openingsByWallId] - 事前構築済み壁ID逆引きインデックス
    * @returns {Array<Object>} 開口情報配列
    */
-  static _getOpeningsForWall(wall, openingElements, log) {
+  static _getOpeningsForWall(wall, openingElements, log, openingsByWallId = null) {
     const openings = [];
 
     if (!openingElements) {
@@ -373,50 +399,48 @@ export class WallGenerator extends BaseElementGenerator {
       positionY: opening.position_Y ?? opening.offset_Y ?? 0,
     });
 
-    // STB 2.0.2形式: wall.open_ids から開口を取得
+    /**
+     * 開口をリストに追加するヘルパー
+     */
+    const addOpening = (openId, opening) => {
+      const pos = getOpeningPosition(opening);
+      openings.push({
+        id: opening.id,
+        name: opening.name,
+        positionX: pos.positionX,
+        positionY: pos.positionY,
+        width: opening.length_X,
+        height: opening.length_Y,
+        rotate: opening.rotate,
+      });
+      log.debug(
+        `Wall ${wall.id}: Found opening ${openId} (${opening.length_X}x${opening.length_Y} at ${pos.positionX},${pos.positionY})`,
+      );
+    };
+
+    // STB 2.0.2形式: wall.open_ids から開口を取得（O(1) per opening via Map.get）
     if (wall.open_ids && wall.open_ids.length > 0) {
       for (const openId of wall.open_ids) {
         const opening = openingElements.get(openId);
         if (opening) {
-          const pos = getOpeningPosition(opening);
-          openings.push({
-            id: opening.id,
-            name: opening.name,
-            // 壁ローカル座標系での位置（壁左下から）
-            positionX: pos.positionX,
-            positionY: pos.positionY,
-            // 開口の寸法
-            width: opening.length_X,
-            height: opening.length_Y,
-            rotate: opening.rotate,
-          });
-          log.debug(
-            `Wall ${wall.id}: Found opening ${openId} (${opening.length_X}x${opening.length_Y} at ${pos.positionX},${pos.positionY})`,
-          );
+          addOpening(openId, opening);
         } else {
           log.warn(`Wall ${wall.id}: Opening ${openId} not found in opening elements`);
         }
       }
+    } else if (openingsByWallId) {
+      // STB 2.1.0形式: 事前構築済みインデックスから O(1) で取得
+      const wallOpenings = openingsByWallId.get(String(wall.id));
+      if (wallOpenings) {
+        for (const [openId, opening] of wallOpenings) {
+          addOpening(openId, opening);
+        }
+      }
     } else {
-      // STB 2.1.0形式: 開口の id_member から壁を逆引き
+      // フォールバック: 逆引きインデックスがない場合は線形探索
       for (const [openId, opening] of openingElements) {
-        // String()で型を揃えて比較（events.js, IFCWallExporter.jsと同様）
         if (opening.kind_member === 'WALL' && String(opening.id_member) === String(wall.id)) {
-          const pos = getOpeningPosition(opening);
-          openings.push({
-            id: opening.id,
-            name: opening.name,
-            // 壁ローカル座標系での位置（壁左下から）
-            positionX: pos.positionX,
-            positionY: pos.positionY,
-            // 開口の寸法
-            width: opening.length_X,
-            height: opening.length_Y,
-            rotate: opening.rotate,
-          });
-          log.debug(
-            `Wall ${wall.id}: Found opening ${openId} via id_member (${opening.length_X}x${opening.length_Y} at ${pos.positionX},${pos.positionY})`,
-          );
+          addOpening(openId, opening);
         }
       }
     }

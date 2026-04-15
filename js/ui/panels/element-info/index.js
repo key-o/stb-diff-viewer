@@ -7,6 +7,7 @@
 // メインモジュールからエクスポート
 export {
   displayElementInfo,
+  displayMultiSelectionSummary,
   refreshElementInfoPanel,
   getCurrentSelectedElement,
   setElementInfoProviders,

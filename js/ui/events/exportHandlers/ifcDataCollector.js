@@ -9,7 +9,6 @@
 import {
   getOrParseStructureData,
   extractProfileFromSection,
-  getSectionHeight,
   convertToMultiSectionData,
 } from './commonDataCollector.js';
 import { createLogger } from '../../../utils/logger.js';
@@ -111,12 +110,6 @@ function convertElementToBeamData(element, nodeMap, sectionMap, steelSections, e
 
     // 断面高さを取得（天端基準調整用）
     // SRC造の場合はコンクリート外形の高さを使用（ビューアと同じ）
-    let sectionHeight;
-    if (section?.isSRC && section.concreteProfile?.height) {
-      sectionHeight = section.concreteProfile.height;
-    } else {
-      sectionHeight = getSectionHeight(profile);
-    }
 
     // 回転角度を取得
     const rotation = element.rotate || element.angle || 0;
@@ -171,8 +164,8 @@ function convertElementToBeamData(element, nodeMap, sectionMap, steelSections, e
       profile,
       rotation,
       // IFCエクスポートで天端基準配置を使用（単一断面・多断面両方）
-      placementMode: 'top-aligned',
-      sectionHeight: sectionHeight,
+      placementMode: 'center',
+      sectionHeight: 0,
       stbType: elementType === 'Beam' ? 'StbBeam' : 'StbGirder',
     };
 
@@ -187,7 +180,7 @@ function convertElementToBeamData(element, nodeMap, sectionMap, steelSections, e
       beamData.isMultiSection = true;
       beamData.sections = multiSectionData.sections;
       // 多断面梁でも天端基準配置を使用
-      beamData.placementMode = 'top-aligned';
+      beamData.placementMode = 'center';
     }
 
     return beamData;

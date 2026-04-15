@@ -191,7 +191,7 @@ export class BaseSectionListRenderer {
    * @param {Object} sectionData - 断面データ
    * @returns {string} HTMLストリング
    */
-  renderSectionCell(_sectionData) {
+  renderSectionCell(sectionData) {
     throw new Error('renderSectionCell() must be implemented by subclass');
   }
 
@@ -221,7 +221,7 @@ export class BaseSectionListRenderer {
    * @param {string} symbol - 符号
    * @returns {Object|Array|undefined}
    */
-  getGridCellData(_grid, _storyId, _symbol) {
+  getGridCellData(grid, storyId, symbol) {
     throw new Error('getGridCellData() must be implemented by subclass');
   }
 
@@ -231,7 +231,7 @@ export class BaseSectionListRenderer {
    * @param {Object} sectionData - 断面データ
    * @returns {{dedupeId: string, labelId: string}}
    */
-  getSectionIdentifiers(_sectionData) {
+  getSectionIdentifiers(sectionData) {
     throw new Error('getSectionIdentifiers() must be implemented by subclass');
   }
 

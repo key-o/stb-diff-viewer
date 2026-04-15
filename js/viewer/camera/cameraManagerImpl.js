@@ -13,13 +13,14 @@ import {
   getActiveCamera,
   setActiveCamera,
 } from '../core/core.js';
-import { CAMERA_MODES } from '../../constants/displayModes.js';
+import { CAMERA_MODES, CAMERA_CONTEXTS } from '../../constants/displayModes.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('viewer:camera:cameraManagerImpl');
 
 // 現在のカメラモード
 let currentMode = CAMERA_MODES.PERSPECTIVE;
+let currentContext = CAMERA_CONTEXTS.SOLID;
 
 /**
  * 現在のカメラモードを取得
@@ -27,6 +28,21 @@ let currentMode = CAMERA_MODES.PERSPECTIVE;
  */
 export function getCameraMode() {
   return currentMode;
+}
+
+export function getCameraContext() {
+  return currentContext;
+}
+
+export function setCameraContext(context) {
+  if (context !== CAMERA_CONTEXTS.SOLID && context !== CAMERA_CONTEXTS.DRAWING) {
+    log.warn('[CameraManager] Invalid camera context:', context);
+    return false;
+  }
+
+  currentContext = context;
+  updateControlsForMode(currentMode, currentContext);
+  return true;
 }
 
 /**
@@ -96,7 +112,7 @@ export function setCameraMode(mode, _transitionDuration = 0) {
   }
 
   // カメラモードに応じてコントロールを更新
-  updateControlsForMode(mode);
+  updateControlsForMode(mode, currentContext);
 
   return true;
 }
@@ -106,10 +122,13 @@ export function setCameraMode(mode, _transitionDuration = 0) {
  * @param {string} mode - カメラモード
  * @private
  */
-function updateControlsForMode(mode) {
+function updateControlsForMode(mode, context = currentContext) {
   if (!controls) return;
 
-  if (mode === CAMERA_MODES.ORTHOGRAPHIC) {
+  const isDrawingOrthographic =
+    mode === CAMERA_MODES.ORTHOGRAPHIC && context === CAMERA_CONTEXTS.DRAWING;
+
+  if (isDrawingOrthographic) {
     // 2Dモード: 回転を無効化し、ズームとパンを有効化
     controls.enableRotate = false;
     controls.enableZoom = true; // CameraControls の標準ズーム（Orthographic では zoom 変更）
@@ -151,11 +170,16 @@ function updateControlsForMode(mode) {
     // Orthographic モードで設定された値をリセット + 回転基準をリセット
     if (controls._cc) {
       controls._cc.minZoom = 0.01;
-      controls._cc.maxZoom = Infinity;
+      controls._cc.maxZoom = mode === CAMERA_MODES.ORTHOGRAPHIC ? 50 : Infinity;
       controls._cc.dollySpeed = 1.0;
       controls._cc.normalizeRotations();
       controls._cc.update(0);
     }
+  }
+
+  if (controls._cc && isDrawingOrthographic) {
+    controls._cc.normalizeRotations();
+    controls._cc.update(0);
   }
 }
 
@@ -164,7 +188,7 @@ function updateControlsForMode(mode) {
  * ビュー変更後にコントロールの整合性を保証するために使用
  */
 export function reaffirmControlsForCurrentMode() {
-  updateControlsForMode(currentMode);
+  updateControlsForMode(currentMode, currentContext);
 }
 
 /**
@@ -204,6 +228,7 @@ export function setOrthographicSize(size) {
 export function getDebugInfo() {
   return {
     currentMode,
+    currentContext,
     activeCameraType: getActiveCamera()?.type || 'none',
     perspectiveCameraExists: !!camera,
     orthographicCameraExists: !!orthographicCamera,

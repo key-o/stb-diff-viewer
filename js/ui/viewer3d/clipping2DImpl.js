@@ -8,8 +8,13 @@
  */
 
 import * as THREE from 'three';
-import { CAMERA_MODES } from '../../constants/displayModes.js';
-import { applyClipPlanes, clearClippingPlanes, getCameraMode } from '../../viewer/index.js';
+import { CAMERA_CONTEXTS, CAMERA_MODES } from '../../constants/displayModes.js';
+import {
+  applyClipPlanes,
+  clearClippingPlanes,
+  getCameraContext,
+  getCameraMode,
+} from '../../viewer/index.js';
 import { eventBus, ModelEvents, ViewEvents } from '../../data/events/index.js';
 import { createLogger } from '../../utils/logger.js';
 
@@ -22,11 +27,15 @@ let current2DClippingState = {
   range: 5000, // 範囲（±mm）
 };
 
+function isDrawingOrthographicMode(mode = getCameraMode(), context = getCameraContext()) {
+  return mode === CAMERA_MODES.ORTHOGRAPHIC && context === CAMERA_CONTEXTS.DRAWING;
+}
+
 /**
  * カメラモード変更時に2Dクリッピングコントロールの表示を更新
  * @param {string} mode - カメラモード ('perspective' または 'orthographic')
  */
-export function updateDepth2DClippingVisibility(mode) {
+export function updateDepth2DClippingVisibility(mode, context = getCameraContext()) {
   const depth2DClippingGroup = document.getElementById('depth2DClippingGroup');
 
   if (!depth2DClippingGroup) {
@@ -34,7 +43,7 @@ export function updateDepth2DClippingVisibility(mode) {
     return;
   }
 
-  if (mode === CAMERA_MODES.ORTHOGRAPHIC) {
+  if (isDrawingOrthographicMode(mode, context)) {
     // 2Dモード時は表示
     depth2DClippingGroup.classList.remove('hidden');
   } else {
@@ -55,7 +64,8 @@ export function updateDepth2DClippingVisibility(mode) {
 export function applyDepth2DClipping(centerZ, range) {
   // カメラモードが2Dでない場合は警告
   const currentMode = getCameraMode();
-  if (currentMode !== CAMERA_MODES.ORTHOGRAPHIC) {
+  const currentContext = getCameraContext();
+  if (!isDrawingOrthographicMode(currentMode, currentContext)) {
     log.warn('[Clipping2D] Cannot apply 2D depth clipping in 3D mode');
     return;
   }
@@ -270,8 +280,8 @@ export function adjustDepth2DClippingRangeFromModel(modelBounds) {
  */
 export function initClipping2DEventListeners() {
   // カメラモード変更時に2Dクリッピングコントロールの表示を更新
-  eventBus.on(ViewEvents.CAMERA_MODE_CHANGED, ({ mode }) => {
-    updateDepth2DClippingVisibility(mode);
+  eventBus.on(ViewEvents.CAMERA_MODE_CHANGED, ({ mode, context }) => {
+    updateDepth2DClippingVisibility(mode, context);
   });
 
   // modelLoader層からのモデルバウンド更新イベントをリスン

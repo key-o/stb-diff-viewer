@@ -66,20 +66,6 @@ export const FILE_TYPE_DEFINITIONS = [
     icon: '📏',
     enabled: false, // 将来実装予定
   },
-  {
-    id: 'ss7',
-    name: { ja: 'SS7 (一貫構造計算)', en: 'SS7 (Structural Calculation)' },
-    description: { ja: '一貫構造計算プログラムデータ', en: 'SS7 Structural Calculation Data' },
-    extensions: ['.ss7', '.csv'],
-    mimeTypes: ['text/csv', 'application/octet-stream'],
-    magicBytes: [],
-    encoding: ['Shift_JIS', 'UTF-8'],
-    loader: 'Ss7Loader',
-    validator: 'validateSs7Structure',
-    priority: 30,
-    icon: '📊',
-    enabled: true,
-  },
 ];
 
 // ============================================================================
@@ -92,7 +78,7 @@ export const FILE_TYPE_DEFINITIONS = [
  */
 const FILE_VALIDATION_RULES = {
   maxFileSize: 100 * 1024 * 1024, // 100MB
-  allowedCategories: ['stb', 'ss7'], // 現在有効なファイルタイプID
+  allowedCategories: ['stb'], // 現在有効なファイルタイプID
   requireValidation: true,
   showWarningOnUnknownType: true,
 };

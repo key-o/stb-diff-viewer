@@ -42,5 +42,6 @@ export {
   InteractionEvents,
   LoadingIndicatorEvents,
   FinalizationEvents,
+  LabelEvents,
   isValidEventType,
 } from '../../constants/eventTypes.js';

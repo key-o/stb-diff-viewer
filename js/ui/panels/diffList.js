@@ -9,7 +9,7 @@
  * - 統計情報との連携
  */
 
-import { getState, setState, addStateListener } from '../../app/globalState.js';
+import { getState, setState } from '../../data/state/globalState.js';
 import { floatingWindowManager } from './floatingWindowManager.js';
 import { sceneController } from '../../app/controllers/sceneController.js';
 import { selectElement3D } from '../../app/controllers/interactionController.js';
@@ -56,13 +56,6 @@ export class DiffListPanel {
     eventBus.on(ComparisonEvents.UPDATE_STATISTICS, (data) => {
       if (data && data.comparisonResults) {
         this.updateDiffList(data.comparisonResults);
-      }
-    });
-
-    // globalStateの変更を監視
-    addStateListener('comparisonResults', (newValue) => {
-      if (newValue) {
-        this.updateDiffList(newValue);
       }
     });
 

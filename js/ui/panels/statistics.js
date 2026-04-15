@@ -14,16 +14,11 @@
 
 import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../../constants/importanceLevels.js';
 import { IMPORTANCE_COLORS } from '../../config/colorConfig.js';
-import { getState, setState } from '../../app/globalState.js';
+import { getState, setState } from '../../data/state/globalState.js';
 import { comparisonController } from '../../app/controllers/comparisonController.js';
 import { floatingWindowManager } from './floatingWindowManager.js';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
-import {
-  eventBus,
-  ImportanceEvents,
-  ComparisonEvents,
-  EditEvents,
-} from '../../data/events/index.js';
+import { eventBus, ImportanceEvents, ComparisonEvents } from '../../data/events/index.js';
 import { showError, showWarning } from '../common/toast.js';
 import { createLogger } from '../../utils/logger.js';
 import { downloadBlob } from '../../utils/downloadHelper.js';
@@ -66,13 +61,6 @@ export class ImportanceStatistics {
     // フィルタ適用時の統計更新（EventBus経由）
     eventBus.on(ImportanceEvents.FILTER_APPLIED, (data) => {
       this.updateFilterStatistics(data);
-    });
-
-    // 編集による属性変更時の統計更新（EventBus経由）
-    eventBus.on(EditEvents.ATTRIBUTE_CHANGED, (_data) => {
-      if (this.autoUpdateEnabled) {
-        setTimeout(() => this.refreshStatistics(), UI_TIMING.STATISTICS_REFRESH_DELAY_MS);
-      }
     });
   }
 
@@ -318,7 +306,7 @@ export class ImportanceStatistics {
       log.info('Results with importance stats:', resultsWithImportance);
 
       if (resultsWithImportance.length === 0) {
-        log.warn('No results with importance statistics found');
+        log.info('Importance statistics are unavailable; using basic statistics fallback');
         // 重要度情報がない場合は基本的な統計を作成
         this.createBasicStatistics(results);
       } else {

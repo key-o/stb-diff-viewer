@@ -81,7 +81,7 @@ async function _handleArButtonClick() {
  * @param {Event} e
  * @private
  */
-function _handleArTap(_e) {
+function _handleArTap(e) {
   if (!arSessionManager.isActive) {
     const canvas = document.getElementById('three-canvas');
     if (canvas) {

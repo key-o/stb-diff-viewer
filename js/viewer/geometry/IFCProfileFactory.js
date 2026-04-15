@@ -200,7 +200,7 @@ export class IFCProfileFactory {
    * @param {string} originType - Origin type
    * @returns {THREE.Shape} Generated shape
    */
-  static createShapeFromVertices(profileData, _originType) {
+  static createShapeFromVertices(profileData, originType) {
     const shape = new THREE.Shape();
     const { vertices, holes = [] } = profileData;
 

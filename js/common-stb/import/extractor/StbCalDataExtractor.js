@@ -51,6 +51,33 @@ const COORDINATE_SYSTEM = {
   PROJECTION: 'PROJECTION', // 全体座標系（投影）
 };
 
+const STB_LOAD_TYPES = {
+  CONCENTRATED: 1,
+  MOMENT: 2,
+  CONCENTRATED_BYNUMBER: 3,
+  DISTRIBUTED_UNIFORM: 4,
+  DISTRIBUTED_TRIANGLE: 5,
+  DISTRIBUTED_ISOSCELESTRIANGLE: 6,
+  DISTRIBUTED_QUADRILATERAL1: 7,
+  DISTRIBUTED_QUADRILATERAL2: 8,
+  DISTRIBUTED_3POINT_SPECIFY1: 9,
+  DISTRIBUTED_3POINT_SPECIFY2: 10,
+  INPUT_CMQ: 11,
+  TORTOISE_SHELL1: 12,
+  TORTOISE_SHELL2: 13,
+  TORTOISE_SHELL3: 14,
+};
+
+const STB_LOAD_CASE_KIND = {
+  DEADLOAD: 'DL',
+  LIVELOAD_FRAME: 'LL',
+  LIVELOAD_SEISMIC: 'LLe',
+  SNOWLOAD: 'S',
+  WINDLOAD: 'W',
+  SEISMICLOAD: 'K',
+  OTHER: 'T',
+};
+
 /**
  * XMLドキュメントからStbCalDataを解析
  * @param {Document} doc - XMLドキュメント
@@ -142,7 +169,10 @@ function parseLoadCases(calData) {
     id: lc.getAttribute('id'),
     name: lc.getAttribute('name'),
     category: lc.getAttribute('category') || LOAD_CASE_CATEGORY.STANDARD,
-    kind: lc.getAttribute('kind') || 'DL',
+    kind:
+      STB_LOAD_CASE_KIND[(lc.getAttribute('kind') || '').toUpperCase()] ||
+      lc.getAttribute('kind') ||
+      'DL',
     direction: parseFloat(lc.getAttribute('direction')) || 0,
   }));
 }
@@ -161,17 +191,97 @@ function parseMemberLoads(calData) {
     id: ml.getAttribute('id'),
     loadCaseId: ml.getAttribute('id_loadcase'),
     loadCaseName: ml.getAttribute('loadcase'),
-    type: parseInt(ml.getAttribute('type')) || 0,
+    type: _parseLoadType(ml.getAttribute('type')),
     P1: parseFloat(ml.getAttribute('P1')) || 0,
     P2: parseFloat(ml.getAttribute('P2')) || null,
     P3: parseFloat(ml.getAttribute('P3')) || null,
     P4: parseFloat(ml.getAttribute('P4')) || null,
     P5: parseFloat(ml.getAttribute('P5')) || null,
     P6: parseFloat(ml.getAttribute('P6')) || null,
-    coordinateSystem: ml.getAttribute('coordinate_load') || COORDINATE_SYSTEM.LOCAL,
-    directionLoad: ml.getAttribute('direction_load') || 'X',
+    coordinateSystem: _parseCoordinateSystem(
+      ml.getAttribute('direction_load'),
+      ml.getAttribute('coordinate_load'),
+    ),
+    directionLoad: _parseDirectionLoad(
+      ml.getAttribute('direction_load'),
+      ml.getAttribute('coordinate_load'),
+    ),
     description: ml.getAttribute('description') || '',
   }));
+}
+
+function _parseCoordinateSystem(directionLoadAttr, coordinateLoadAttr) {
+  const upperDirection = (directionLoadAttr || '').toUpperCase();
+  if (
+    upperDirection === 'LOCAL' ||
+    upperDirection === 'GLOBAL' ||
+    upperDirection === 'PROJECTION'
+  ) {
+    return upperDirection;
+  }
+
+  const upperCoordinate = (coordinateLoadAttr || '').toUpperCase();
+  if (
+    upperCoordinate === 'LOCAL' ||
+    upperCoordinate === 'GLOBAL' ||
+    upperCoordinate === 'PROJECTION'
+  ) {
+    return upperCoordinate;
+  }
+
+  return COORDINATE_SYSTEM.LOCAL;
+}
+
+function _parseDirectionLoad(directionLoadAttr, coordinateLoadAttr) {
+  const upperDirection = (directionLoadAttr || '').toUpperCase();
+  if (_isDirectionAxisToken(upperDirection)) {
+    return upperDirection;
+  }
+
+  const upperCoordinate = (coordinateLoadAttr || '').toUpperCase();
+  if (_isDirectionAxisToken(upperCoordinate)) {
+    return upperCoordinate;
+  }
+
+  // 方向情報が明示されていない場合は、SS7由来データとの整合を取りやすくするため Z を既定値にする
+  return 'Z';
+}
+
+function _isDirectionAxisToken(token) {
+  if (!token) return false;
+  return [
+    'X',
+    '+X',
+    '-X',
+    'UX',
+    'DX',
+    'Y',
+    '+Y',
+    '-Y',
+    'UY',
+    'DY',
+    'Z',
+    '+Z',
+    '-Z',
+    'UZ',
+    'DZ',
+  ].includes(token);
+}
+
+/**
+ * STBの荷重種別文字列/数値をDisplayManagerが利用する数値型へ変換
+ *
+ * @param {string|number|null} rawType
+ * @returns {number}
+ */
+function _parseLoadType(rawType) {
+  if (rawType == null) return 0;
+  const asNumber = Number.parseInt(rawType, 10);
+  if (!Number.isNaN(asNumber)) {
+    return asNumber;
+  }
+  const normalized = String(rawType).trim().toUpperCase();
+  return STB_LOAD_TYPES[normalized] || 0;
 }
 
 /**

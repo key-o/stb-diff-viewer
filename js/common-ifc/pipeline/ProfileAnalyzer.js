@@ -34,7 +34,7 @@ export class ProfileAnalyzer {
    * @param {number} representationRef - IFCPRODUCTDEFINITIONSHAPE の expressID
    * @returns {{ sectionId: string, sectionInfo: Object, length: number } | null}
    */
-  analyzeElement(representationRef) {
+  analyzeElement(representationRef, options = {}) {
     if (!representationRef) return null;
 
     const productShape = this.api.GetLine(this.modelID, representationRef);
@@ -63,7 +63,7 @@ export class ProfileAnalyzer {
       const items = rep.Items || [];
       for (const itemRef of items) {
         const itemId = itemRef?.value ?? itemRef;
-        const result = this._extractFromItem(itemId);
+        const result = this._extractFromItem(itemId, options);
         if (result) return result;
       }
     }
@@ -76,13 +76,13 @@ export class ProfileAnalyzer {
    * @param {number} itemId
    * @returns {{ sectionId: string, sectionInfo: Object, length: number } | null}
    */
-  _extractFromItem(itemId) {
+  _extractFromItem(itemId, options = {}) {
     const item = this.api.GetLine(this.modelID, itemId);
     if (!item) return null;
 
     // IFCEXTRUDEDAREASOLID
     if (item.type === WebIFC.IFCEXTRUDEDAREASOLID) {
-      return this._handleExtrudedAreaSolid(item);
+      return this._handleExtrudedAreaSolid(item, options);
     }
 
     // IFCMAPPEDITEM → MappingSource → MappedRepresentation → 再帰
@@ -97,7 +97,7 @@ export class ProfileAnalyzer {
             if (mappedRep?.Items) {
               for (const subRef of mappedRep.Items) {
                 const subId = subRef?.value ?? subRef;
-                const result = this._extractFromItem(subId);
+                const result = this._extractFromItem(subId, options);
                 if (result) return result;
               }
             }
@@ -109,7 +109,7 @@ export class ProfileAnalyzer {
     // IFCBOOLEANCLIPPINGRESULT → FirstOperand を再帰
     if (item.type === WebIFC.IFCBOOLEANCLIPPINGRESULT) {
       const firstRef = item.FirstOperand?.value ?? item.FirstOperand;
-      if (firstRef) return this._extractFromItem(firstRef);
+      if (firstRef) return this._extractFromItem(firstRef, options);
     }
 
     return null;
@@ -118,7 +118,7 @@ export class ProfileAnalyzer {
   /**
    * IFCEXTRUDEDAREASOLID からプロファイルと押出長さを抽出
    */
-  _handleExtrudedAreaSolid(item) {
+  _handleExtrudedAreaSolid(item, options = {}) {
     // 押出長さ
     const depth = item.Depth?.value ?? item.Depth ?? 0;
     const lengthMM = depth * this.unitFactor;
@@ -139,25 +139,79 @@ export class ProfileAnalyzer {
     for (const [key, value] of Object.entries(sectionInfo.params)) {
       convertedParams[key] = value * this.unitFactor;
     }
-    sectionInfo.params = convertedParams;
+    const normalizedSectionInfo = {
+      ...sectionInfo,
+      params: convertedParams,
+    };
 
-    // 正規化キーで重複排除
-    const key = buildSectionKey(sectionInfo.stbType, convertedParams);
-    if (!this.sectionMap.has(key)) {
-      const sectionId = String(this.nextSectionId++);
-      this.sectionMap.set(key, {
-        id: sectionId,
-        ...sectionInfo,
-        params: convertedParams,
-      });
+    if (options.skipSectionRegistration) {
+      return {
+        sectionId: null,
+        sectionInfo: normalizedSectionInfo,
+        length: Math.round(lengthMM * 100) / 100,
+      };
     }
 
-    const section = this.sectionMap.get(key);
+    const section = this.registerSection(normalizedSectionInfo);
     return {
       sectionId: section.id,
       sectionInfo: section,
       length: Math.round(lengthMM * 100) / 100,
     };
+  }
+
+  registerSection(sectionInfo) {
+    if (!sectionInfo) return null;
+
+    const key = this._buildSectionRegistryKey(sectionInfo);
+    if (!this.sectionMap.has(key)) {
+      const sectionId = String(this.nextSectionId++);
+      this.sectionMap.set(key, {
+        id: sectionId,
+        ...sectionInfo,
+      });
+    }
+
+    return this.sectionMap.get(key);
+  }
+
+  _buildSectionRegistryKey(sectionInfo) {
+    if (sectionInfo?.sectionKey) return sectionInfo.sectionKey;
+
+    const params = sectionInfo?.params || {};
+    const requiresDetailedKey =
+      String(sectionInfo?.stbType || '').startsWith('PILE_') ||
+      Array.isArray(sectionInfo?.segments) ||
+      !!sectionInfo?.pileTagName ||
+      !!sectionInfo?.pileType;
+    const isNumericOnly = Object.values(params).every(
+      (value) => typeof value === 'number' && Number.isFinite(value),
+    );
+
+    if (isNumericOnly && !requiresDetailedKey) {
+      return buildSectionKey(sectionInfo.stbType, params);
+    }
+
+    const sortedParams = Object.fromEntries(
+      Object.entries(params).sort(([a], [b]) => a.localeCompare(b)),
+    );
+
+    return JSON.stringify({
+      stbType: sectionInfo?.stbType || '',
+      name: sectionInfo?.name || '',
+      pileTagName: sectionInfo?.pileTagName || null,
+      pileType: sectionInfo?.pileType || null,
+      params: sortedParams,
+      segments: Array.isArray(sectionInfo?.segments)
+        ? sectionInfo.segments.map((segment) =>
+            Object.fromEntries(
+              Object.entries(segment)
+                .filter(([, value]) => value !== undefined)
+                .sort(([a], [b]) => a.localeCompare(b)),
+            ),
+          )
+        : null,
+    });
   }
 
   /**

@@ -55,7 +55,7 @@ export function getNodePosition(nodeMap, nodeId) {
 /**
  * 節点配列からバウンディングボックスを計算
  * @param {Array<{x: number, y: number, z: number}>} nodes - 節点配列
- * @returns {import('../viewer/types/render-model.js').RenderBoundingBox}
+ * @returns {import('../../viewer/types/render-model.js').RenderBoundingBox}
  */
 export function calculateBoundingBox(nodes) {
   const zero = { x: 0, y: 0, z: 0 };

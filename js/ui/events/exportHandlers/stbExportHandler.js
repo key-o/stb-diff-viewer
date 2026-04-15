@@ -3,7 +3,7 @@
  *
  * STBファイルのエクスポート機能を処理します。
  * 元のSTBファイルが利用可能な場合、バージョン変換ルール（12種類）を適用します。
- * IFC/SS7ソースの場合はDOMドキュメントのバージョン属性のみ更新します。
+ * IFCソースの場合はDOMドキュメントのバージョン属性のみ更新します。
  *
  * @module ui/events/exportHandlers/stbExportHandler
  */
@@ -55,7 +55,7 @@ async function handleStbExport() {
     const targetVersion = versionSelect?.value || '2.1.0';
     const targetModel = targetSelect?.value || 'auto';
 
-    const { getState } = await import('../../../app/globalState.js');
+    const { getState } = await import('../../../data/state/globalState.js');
     const { exportStbDocument } = await import('../../../export/stb/stbExporter.js');
 
     const docA = getState('models.documentA');
@@ -122,7 +122,7 @@ async function handleStbExport() {
       }
     }
 
-    // IFC/SS7ソースまたは同バージョンの場合はDOM経由で出力
+    // IFCソースまたは同バージョンの場合はDOM経由で出力
     const { validateJsonSchema } =
       await import('../../../common-stb/validation/jsonSchemaValidator.js');
     const schemaIssues = validateJsonSchema(sourceDoc, {

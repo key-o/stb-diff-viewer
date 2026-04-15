@@ -98,42 +98,24 @@ function isIfcFile(file) {
 }
 
 /**
- * ファイルがSS7形式かどうかを判定
- * @param {File} file - チェック対象ファイル
- * @returns {boolean}
- */
-function isSs7CsvFile(file) {
-  const name = file.name.toLowerCase();
-  return name.endsWith('.csv') || name.endsWith('.ss7');
-}
-
-/**
  * Process a single model file (pure transformation, no side effects)
- * Supports STB (XML), IFC, and SS7 CSV files.
- * IFC files are converted to STB XML DOM in-memory via web-ifc WASM.
- * SS7 CSV files are converted to STB XML DOM in-memory via SS7-STB bridge.
+ * Supports STB (XML) and IFC files.
+ * All importers return a unified ImportResult: { document, metadata }.
  * @param {File} file - Model file to process
  * @returns {Promise<Object>} Processing result for single model
  */
 async function processModelFile(file) {
-  let document;
-  let sourceType = 'stb';
-  let ifcSchema = null;
+  /** @type {import('../constants/importTypes.js').ImportResult} */
+  let importResult;
 
   if (isIfcFile(file)) {
     const { convertIfcToStbDocument } = await import('../common-ifc/IfcToStbBridge.js');
-    const result = await convertIfcToStbDocument(file);
-    document = result.document;
-    ifcSchema = result.ifcSchema;
-    sourceType = 'ifc';
-  } else if (isSs7CsvFile(file)) {
-    const { convertSs7ToStbDocument } = await import('../common-ss7/Ss7ToStbBridge.js');
-    document = await convertSs7ToStbDocument(file);
-    sourceType = 'ss7csv';
+    importResult = await convertIfcToStbDocument(file);
   } else {
-    document = await loadStbXmlAutoEncoding(file);
-    sourceType = 'stb';
+    importResult = await loadStbXmlAutoEncoding(file);
   }
+
+  const { document, metadata } = importResult;
 
   if (!document) {
     throw new Error('モデルファイルの解析に失敗しました。');
@@ -145,11 +127,11 @@ async function processModelFile(file) {
     stories: parseStories(document),
     axesData: parseAxes(document),
     sectionMaps: extractAllSections(document),
-    calData: parseStbCalData(document),
+    calData: metadata.calData || parseStbCalData(document),
     version: detectStbVersion(document),
     versionInfo: getVersionInfo(document),
-    sourceType,
-    ifcSchema,
+    sourceType: metadata.sourceType,
+    ifcSchema: metadata.ifcSchema || null,
   };
 }
 

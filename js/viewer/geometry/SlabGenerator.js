@@ -130,54 +130,16 @@ export class SlabGenerator extends BaseElementGenerator {
       normal.negate();
     }
 
-    // 6. ローカル座標系を構築（傾斜平面用）
-    // localZ: 法線方向（スラブの厚さ方向）
-    // localX, localY: スラブ平面上の軸
-    const localZ = normal.clone().normalize();
+    // 6. 水平スラブの高速パス（大多数のケース）
+    // 法線がほぼ(0,0,1)の場合、ExtrudeGeometry を避けて直接 BufferGeometry を構築
+    const isHorizontal = Math.abs(normal.z) > 0.999;
+    let geometry;
 
-    // localXの基準ベクトルを選択（法線がZ軸に近い場合はY軸、そうでなければZ軸を使用）
-    const upVector =
-      Math.abs(localZ.z) > 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1);
-
-    const localX = new THREE.Vector3().crossVectors(upVector, localZ).normalize();
-    const localY = new THREE.Vector3().crossVectors(localZ, localX).normalize();
-
-    // 7. 頂点をローカル座標系に投影して2D形状を作成
-    const shape = new THREE.Shape();
-    const localVertices2D = [];
-
-    for (const vertex of vertices) {
-      // 中心からの相対位置
-      const relative = vertex.clone().sub(center);
-      // ローカル座標系への投影
-      const localX2D = relative.dot(localX);
-      const localY2D = relative.dot(localY);
-      localVertices2D.push(new THREE.Vector2(localX2D, localY2D));
+    if (isHorizontal && this._isConvexPolygon(vertices)) {
+      geometry = this._createHorizontalSlabGeometry(vertices, center, depth);
+    } else {
+      geometry = this._createInclinedSlabGeometry(vertices, center, normal, depth);
     }
-
-    // Shapeを作成
-    shape.moveTo(localVertices2D[0].x, localVertices2D[0].y);
-    for (let i = 1; i < localVertices2D.length; i++) {
-      shape.lineTo(localVertices2D[i].x, localVertices2D[i].y);
-    }
-    shape.closePath();
-
-    // 8. 押し出しジオメトリを作成
-    const extrudeSettings = {
-      depth: depth,
-      bevelEnabled: false,
-    };
-    const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-
-    // 押し出しはZ+方向に行われるので、厚さ分だけ-Z方向に移動
-    // （上面が基準位置になるように）
-    geometry.translate(0, 0, -depth);
-
-    // 9. ジオメトリを傾斜平面に合わせて回転
-    // ExtrudeGeometryはXY平面上に作成されるので、ローカル座標系に合わせて回転
-    const rotationMatrix = new THREE.Matrix4();
-    rotationMatrix.makeBasis(localX, localY, localZ);
-    geometry.applyMatrix4(rotationMatrix);
 
     if (!this._validateGeometry(geometry, slab, context)) {
       return null;
@@ -194,7 +156,7 @@ export class SlabGenerator extends BaseElementGenerator {
 
     // 12. メタデータ設定
     const topZ = center.z;
-    const bottomZ = topZ - depth * localZ.z; // 傾斜を考慮した下面Z
+    const bottomZ = topZ - depth * normal.z; // 傾斜を考慮した下面Z
 
     mesh.userData = {
       id: slab.id,
@@ -229,6 +191,95 @@ export class SlabGenerator extends BaseElementGenerator {
   }
 
   /**
+   * 水平スラブの高速ジオメトリ生成
+   * ExtrudeGeometry を避け、直接頂点データから BufferGeometry を構築
+   * @param {Array<THREE.Vector3>} vertices - 頂点配列
+   * @param {THREE.Vector3} center - 中心座標
+   * @param {number} depth - スラブ厚さ
+   * @returns {THREE.BufferGeometry} ジオメトリ
+   */
+  static _createHorizontalSlabGeometry(vertices, center, depth) {
+    const n = vertices.length;
+
+    // 上面と下面の頂点を構築（center相対座標）
+    const positions = [];
+    const indices = [];
+
+    // 上面の頂点 (0..n-1)
+    for (const v of vertices) {
+      positions.push(v.x - center.x, v.y - center.y, v.z - center.z);
+    }
+    // 下面の頂点 (n..2n-1)
+    for (const v of vertices) {
+      positions.push(v.x - center.x, v.y - center.y, v.z - center.z - depth);
+    }
+
+    // 上面のファン三角形分割
+    for (let i = 1; i < n - 1; i++) {
+      indices.push(0, i, i + 1);
+    }
+    // 下面のファン三角形分割（逆回り）
+    for (let i = 1; i < n - 1; i++) {
+      indices.push(n, n + i + 1, n + i);
+    }
+    // 側面
+    for (let i = 0; i < n; i++) {
+      const next = (i + 1) % n;
+      indices.push(i, next, n + next);
+      indices.push(i, n + next, n + i);
+    }
+
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geometry.setIndex(indices);
+    geometry.computeVertexNormals();
+    return geometry;
+  }
+
+  /**
+   * 傾斜スラブのジオメトリ生成（従来のExtrudeGeometry方式）
+   * @param {Array<THREE.Vector3>} vertices - 頂点配列
+   * @param {THREE.Vector3} center - 中心座標
+   * @param {THREE.Vector3} normal - 法線ベクトル
+   * @param {number} depth - スラブ厚さ
+   * @returns {THREE.BufferGeometry} ジオメトリ
+   */
+  static _createInclinedSlabGeometry(vertices, center, normal, depth) {
+    const localZ = normal.clone().normalize();
+    const upVector =
+      Math.abs(localZ.z) > 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(0, 0, 1);
+    const localX = new THREE.Vector3().crossVectors(upVector, localZ).normalize();
+    const localY = new THREE.Vector3().crossVectors(localZ, localX).normalize();
+
+    // 頂点をローカル座標系に投影して2D形状を作成
+    const shape = new THREE.Shape();
+    const localVertices2D = [];
+
+    for (const vertex of vertices) {
+      const relX = vertex.x - center.x;
+      const relY = vertex.y - center.y;
+      const relZ = vertex.z - center.z;
+      const localX2D = relX * localX.x + relY * localX.y + relZ * localX.z;
+      const localY2D = relX * localY.x + relY * localY.y + relZ * localY.z;
+      localVertices2D.push({ x: localX2D, y: localY2D });
+    }
+
+    shape.moveTo(localVertices2D[0].x, localVertices2D[0].y);
+    for (let i = 1; i < localVertices2D.length; i++) {
+      shape.lineTo(localVertices2D[i].x, localVertices2D[i].y);
+    }
+    shape.closePath();
+
+    const geometry = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: false });
+    geometry.translate(0, 0, -depth);
+
+    const rotationMatrix = new THREE.Matrix4();
+    rotationMatrix.makeBasis(localX, localY, localZ);
+    geometry.applyMatrix4(rotationMatrix);
+    return geometry;
+  }
+
+  /**
    * 頂点群からスラブ平面の法線ベクトルを計算
    * 3点以上の頂点から最適な平面を求める
    * @param {Array<THREE.Vector3>} vertices - 頂点配列
@@ -240,11 +291,15 @@ export class SlabGenerator extends BaseElementGenerator {
       return new THREE.Vector3(0, 0, 1);
     }
 
-    if (vertices.length === 3) {
-      // 3点の場合は単純に外積で計算
-      const v1 = vertices[1].clone().sub(vertices[0]);
-      const v2 = vertices[2].clone().sub(vertices[0]);
-      const normal = new THREE.Vector3().crossVectors(v1, v2);
+    if (vertices.length === 3 || vertices.length === 4) {
+      // 3-4点の場合は最初の3点の外積で計算（clone不要）
+      const ax = vertices[1].x - vertices[0].x;
+      const ay = vertices[1].y - vertices[0].y;
+      const az = vertices[1].z - vertices[0].z;
+      const bx = vertices[2].x - vertices[0].x;
+      const by = vertices[2].y - vertices[0].y;
+      const bz = vertices[2].z - vertices[0].z;
+      const normal = new THREE.Vector3(ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx);
 
       if (normal.lengthSq() < 1e-10) {
         // 3点が同一直線上の場合
@@ -275,6 +330,32 @@ export class SlabGenerator extends BaseElementGenerator {
     }
 
     return normal.normalize();
+  }
+
+  /**
+   * 頂点群が凸ポリゴンかどうかを判定（XY平面）
+   * ファン三角形分割は凸ポリゴンでのみ正しいため、凹ポリゴンは ExtrudeGeometry にフォールバック
+   * @param {Array<THREE.Vector3>} vertices - 頂点配列
+   * @returns {boolean} 凸ポリゴンならtrue
+   */
+  static _isConvexPolygon(vertices) {
+    const n = vertices.length;
+    if (n <= 3) return true;
+
+    let sign = 0;
+    for (let i = 0; i < n; i++) {
+      const a = vertices[i];
+      const b = vertices[(i + 1) % n];
+      const c = vertices[(i + 2) % n];
+      const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+      if (Math.abs(cross) < 1e-10) continue;
+      if (sign === 0) {
+        sign = cross > 0 ? 1 : -1;
+      } else if ((cross > 0 ? 1 : -1) !== sign) {
+        return false;
+      }
+    }
+    return true;
   }
 }
 

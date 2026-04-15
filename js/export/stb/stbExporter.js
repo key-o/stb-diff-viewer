@@ -15,6 +15,7 @@ import {
 import { formatValidationReport } from '../../common-stb/validation/stbValidator.js';
 import { formatRepairReport } from '../../common-stb/repair/stbRepairEngine.js';
 import { createLogger } from '../../utils/logger.js';
+import { eventBus, ExportEvents } from '../../data/events/index.js';
 
 const log = createLogger('export:stb:stbExporter');
 
@@ -59,14 +60,63 @@ setDynamicImportPaths({
   validator: '../validation/stbValidator.js',
 });
 
+// イベント発行ラッパー: メインのエクスポート関数にイベント通知を追加
+async function exportModifiedStb(originalDoc, modifications, filename) {
+  eventBus.emit(ExportEvents.STARTED, { type: 'stb', fileName: filename });
+  try {
+    const result = await _exportModifiedStb(originalDoc, modifications, filename);
+    eventBus.emit(ExportEvents.COMPLETED, { type: 'stb', fileName: filename });
+    return result;
+  } catch (error) {
+    eventBus.emit(ExportEvents.ERROR, { type: 'stb', error });
+    throw error;
+  }
+}
+
+async function exportStbDocument(doc, filename, options) {
+  eventBus.emit(ExportEvents.STARTED, { type: 'stb', fileName: filename });
+  try {
+    const result = await _exportStbDocument(doc, filename, options);
+    eventBus.emit(ExportEvents.COMPLETED, { type: 'stb', fileName: filename });
+    return result;
+  } catch (error) {
+    eventBus.emit(ExportEvents.ERROR, { type: 'stb', error });
+    throw error;
+  }
+}
+
+async function exportValidatedStb(doc, filename, options) {
+  eventBus.emit(ExportEvents.STARTED, { type: 'stb', fileName: filename });
+  try {
+    const result = await _exportValidatedStb(doc, filename, options);
+    eventBus.emit(ExportEvents.COMPLETED, { type: 'stb', fileName: filename });
+    return result;
+  } catch (error) {
+    eventBus.emit(ExportEvents.ERROR, { type: 'stb', error });
+    throw error;
+  }
+}
+
+async function validateRepairAndExport(doc, filename, options) {
+  eventBus.emit(ExportEvents.STARTED, { type: 'stb', fileName: filename });
+  try {
+    const result = await _validateRepairAndExport(doc, filename, options);
+    eventBus.emit(ExportEvents.COMPLETED, { type: 'stb', fileName: filename });
+    return result;
+  } catch (error) {
+    eventBus.emit(ExportEvents.ERROR, { type: 'stb', error });
+    throw error;
+  }
+}
+
 // 全機能を再エクスポート
 export {
-  _exportModifiedStb as exportModifiedStb,
-  _exportStbDocument as exportStbDocument,
+  exportModifiedStb,
+  exportStbDocument,
   _validateDocumentForExport as validateDocumentForExport,
   _generateModificationReport as generateModificationReport,
-  _exportValidatedStb as exportValidatedStb,
-  _validateRepairAndExport as validateRepairAndExport,
+  exportValidatedStb,
+  validateRepairAndExport,
   _createExportConfig as createExportConfig,
   _getExportSummary as getExportSummary,
   formatXml,

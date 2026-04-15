@@ -37,6 +37,21 @@ function debugLog(..._args) {
   }
 }
 
+/**
+ * @param {{ localName?: string | null, nodeName?: string | null } | null | undefined} node
+ * @returns {string}
+ */
+function getNodeLocalName(node) {
+  if (!node) return '';
+  if (typeof node.localName === 'string' && node.localName) {
+    return node.localName;
+  }
+  if (typeof node.nodeName === 'string' && node.nodeName) {
+    return node.nodeName.replace(/^.*:/, '');
+  }
+  return '';
+}
+
 // グローバルにスキーマ情報を保持（バージョン別管理）
 const xsdSchemas = new Map(); // version -> Document
 const elementDefinitionsByVersion = new Map(); // version -> Map<elementName, definition>
@@ -44,6 +59,8 @@ const simpleTypesByVersion = new Map(); // version -> Map<typeName, simpleTypeDe
 let choiceGroupCounter = 0;
 let activeVersion = '2.0.2'; // デフォルトバージョン
 let schemaBootstrapPromise = null;
+/** @type {Record<string, number>} */
+const elementAttributesLastLog = {};
 
 // 後方互換性のためのエイリアス（既存コードで使用）
 let xsdSchema = null;
@@ -519,7 +536,7 @@ function collectSimpleTypes(version, xsdDoc) {
 
     // トップレベルのsimpleTypeのみ（schema直下）
     const parent = st.parentNode;
-    const parentLN = parent?.localName || parent?.nodeName?.replace(/^.*:/, '');
+    const parentLN = getNodeLocalName(parent);
     if (parentLN !== 'schema') return;
 
     const typeDef = {
@@ -565,9 +582,10 @@ function parseRestrictionFacetsBrowser(restriction, typeDef) {
   for (let i = 0; i < restriction.childNodes.length; i++) {
     const node = restriction.childNodes[i];
     if (node.nodeType !== 1) continue;
+    const facetElement = /** @type {Element} */ (node);
 
-    const localName = node.localName || node.nodeName.replace(/^.*:/, '');
-    const value = node.getAttribute('value');
+    const localName = getNodeLocalName(facetElement);
+    const value = facetElement.getAttribute('value');
 
     switch (localName) {
       case 'enumeration':
@@ -685,16 +703,14 @@ function getDocumentation(element) {
 export function getElementAttributes(elementType) {
   // 短時間での重複ログを避けるため、最後のログ時刻を記録
   const now = Date.now();
-  if (!getElementAttributes._lastLog) getElementAttributes._lastLog = {};
-
   const shouldLog =
     XSD_DEBUG &&
-    (!getElementAttributes._lastLog[elementType] ||
-      now - getElementAttributes._lastLog[elementType] > 5000); // 5秒間隔
+    (!elementAttributesLastLog[elementType] ||
+      now - elementAttributesLastLog[elementType] > 5000); // 5秒間隔
 
   if (shouldLog) {
     debugLog(`getElementAttributes called for: ${elementType}`);
-    getElementAttributes._lastLog[elementType] = now;
+    elementAttributesLastLog[elementType] = now;
   }
 
   const definition = elementDefinitions.get(elementType);
@@ -981,10 +997,11 @@ function parseChildElements(complexTypeElement, childrenMap, visited, depth) {
   for (let i = 0; i < complexTypeElement.childNodes.length; i++) {
     const child = complexTypeElement.childNodes[i];
     if (child.nodeType !== 1) continue;
-    const localName = child.localName || child.nodeName.replace(/^.*:/, '');
+    const childElement = /** @type {Element} */ (child);
+    const localName = getNodeLocalName(childElement);
 
     if (localName === 'sequence' || localName === 'choice' || localName === 'all') {
-      processContainerChildren(child, childrenMap, visited, depth + 1, null);
+      processContainerChildren(childElement, childrenMap, visited, depth + 1, null);
     }
   }
 
@@ -1009,10 +1026,11 @@ function parseChildElements(complexTypeElement, childrenMap, visited, depth) {
     for (let i = 0; i < extension.childNodes.length; i++) {
       const child = extension.childNodes[i];
       if (child.nodeType !== 1) continue;
-      const localName = child.localName || child.nodeName.replace(/^.*:/, '');
+      const childElement = /** @type {Element} */ (child);
+      const localName = getNodeLocalName(childElement);
 
       if (localName === 'sequence' || localName === 'choice' || localName === 'all') {
-        processContainerChildren(child, childrenMap, visited, depth + 1, null);
+        processContainerChildren(childElement, childrenMap, visited, depth + 1, null);
       }
     }
   }
@@ -1029,7 +1047,7 @@ function parseChildElements(complexTypeElement, childrenMap, visited, depth) {
 function processContainerChildren(container, childrenMap, visited, depth, parentChoiceGroup) {
   if (depth >= MAX_DEPTH) return;
 
-  const localName = container.localName || container.nodeName.replace(/^.*:/, '');
+  const localName = getNodeLocalName(container);
   const isChoice = localName === 'choice';
   const currentChoiceGroup = isChoice ? `choice_${choiceGroupCounter++}` : parentChoiceGroup;
 
@@ -1038,10 +1056,11 @@ function processContainerChildren(container, childrenMap, visited, depth, parent
   for (let i = 0; i < container.childNodes.length; i++) {
     const child = container.childNodes[i];
     if (child.nodeType !== 1) continue;
-    const childLN = child.localName || child.nodeName.replace(/^.*:/, '');
+    const childElement = /** @type {Element} */ (child);
+    const childLN = getNodeLocalName(childElement);
 
     if (childLN === 'element') {
-      const childDef = parseElementChild(child, visited);
+      const childDef = parseElementChild(childElement, visited);
       if (childDef) {
         if (currentChoiceGroup) {
           childDef.choiceGroup = currentChoiceGroup;
@@ -1052,7 +1071,7 @@ function processContainerChildren(container, childrenMap, visited, depth, parent
         }
       }
     } else if (childLN === 'group') {
-      const ref = child.getAttribute('ref');
+      const ref = childElement.getAttribute('ref');
       if (ref) {
         debugLog(`  Processing group reference: ${ref}`);
         const groupChildren = resolveGroupReference(ref, visited, depth + 1);
@@ -1069,7 +1088,7 @@ function processContainerChildren(container, childrenMap, visited, depth, parent
         }
       }
     } else if (childLN === 'sequence' || childLN === 'choice' || childLN === 'all') {
-      processContainerChildren(child, childrenMap, visited, depth + 1, currentChoiceGroup);
+      processContainerChildren(childElement, childrenMap, visited, depth + 1, currentChoiceGroup);
     }
   }
 }

@@ -21,9 +21,9 @@ import {
   redrawBeamsForViewMode,
   redrawJointsForViewMode,
 } from './elementRedrawer.js';
-import { updateLabelVisibility } from '../../ui/viewer3d/unifiedLabelManager.js';
+import { eventBus, LabelEvents } from '../../data/events/index.js';
 import { updateStbExportStatus } from '../dxfLoader.js';
-import { getState } from '../globalState.js';
+import { getState } from '../../data/state/globalState.js';
 import {
   isVisibleByStructuralFilter,
   setStructuralSystemVisible,
@@ -245,7 +245,7 @@ export function updateModelVisibility(scheduleRender) {
   });
 
   // ラベルの表示状態も更新
-  updateLabelVisibility();
+  eventBus.emit(LabelEvents.UPDATE_VISIBILITY);
 
   // 再描画を要求
   if (scheduleRender) scheduleRender();
@@ -406,6 +406,12 @@ export function setupViewModeListeners(scheduleRender) {
     { id: 'toggleFootingView', type: 'Footing', name: '基礎' },
     { id: 'toggleFoundationColumnView', type: 'FoundationColumn', name: '基礎柱' },
     { id: 'toggleSlabView', type: 'Slab', name: 'スラブ', solidViewId: 'toggleSlab3DView' },
+    {
+      id: 'toggleShearWallView',
+      type: 'ShearWall',
+      name: '\u8010\u9707\u58c1',
+      solidViewId: 'toggleShearWall3DView',
+    },
     { id: 'toggleWallView', type: 'Wall', name: '壁', solidViewId: 'toggleWall3DView' },
     {
       id: 'toggleParapetView',

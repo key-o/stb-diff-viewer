@@ -27,7 +27,7 @@ import { eventBus, ToastEvents } from '../../../data/events/index.js';
 
 const log = createLogger('StbToDxfExporter');
 
-/**
+/*
  * エクスポート可能かどうかを判定
  * @returns {{canExport: boolean, reason: string}} エクスポート可否と理由
  */
@@ -80,7 +80,7 @@ export function canExportStbToDxf() {
   return { canExport: true, reason: '', solidElementTypes };
 }
 
-/**
+/*
  * STBモデルをDXFにエクスポート
  * @param {Array<string>} selectedElementTypes - エクスポートする要素タイプの配列
  * @param {string} filename - ファイル名（拡張子なし）
@@ -92,13 +92,16 @@ export function canExportStbToDxf() {
  * @returns {Promise<boolean>} エクスポート成功フラグ
  */
 export async function exportStbToDxf(selectedElementTypes, filename = 'stb_export', options = {}) {
-  const includeLabels = options.includeLabels !== undefined ? options.includeLabels : true;
-  const includeAxes = options.includeAxes !== undefined ? options.includeAxes : true;
-  const includeLevels = options.includeLevels !== undefined ? options.includeLevels : true;
-  const labelHeight = options.labelHeight || 200;
-  const directoryHandle = options.directoryHandle || null;
+  const exportOptions = /** @type {any} */ (options);
+  const includeLabels =
+    exportOptions.includeLabels !== undefined ? exportOptions.includeLabels : true;
+  const includeAxes = exportOptions.includeAxes !== undefined ? exportOptions.includeAxes : true;
+  const includeLevels =
+    exportOptions.includeLevels !== undefined ? exportOptions.includeLevels : true;
+  const labelHeight = exportOptions.labelHeight || 200;
+  const directoryHandle = exportOptions.directoryHandle || null;
   // 強制ビュー方向: 'top'（平面図）, 'front', 'side', または null（自動検出）
-  const forceViewDirection = options.forceViewDirection || null;
+  const forceViewDirection = exportOptions.forceViewDirection || null;
 
   try {
     log.info('STB→DXFエクスポート開始:', {

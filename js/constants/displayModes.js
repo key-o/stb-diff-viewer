@@ -10,6 +10,11 @@ export const CAMERA_MODES = {
 };
 
 // ラベル内容タイプ
+export const CAMERA_CONTEXTS = {
+  SOLID: 'solid',
+  DRAWING: 'drawing',
+};
+
 export const LABEL_CONTENT_TYPES = {
   ID: 'id',
   NAME: 'name',

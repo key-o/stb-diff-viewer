@@ -244,7 +244,13 @@ export function parseStbFile(xmlDoc, options = {}) {
   // originalType: 元の要素タイプ（'Column', 'Girder'など）
   // nodeStartAttr, nodeEndAttr: ライン描画用のノード属性名
   // typedSections: 当該要素タイプの断面マップ（IDが衝突してもこちらが優先）
-  const separateUndefinedElements = (elements, originalType, nodeStartAttr, nodeEndAttr, typedSections) => {
+  const separateUndefinedElements = (
+    elements,
+    originalType,
+    nodeStartAttr,
+    nodeEndAttr,
+    typedSections,
+  ) => {
     const normalElements = [];
     for (const element of elements) {
       const sectionId = parseInt(element.id_section, 10);

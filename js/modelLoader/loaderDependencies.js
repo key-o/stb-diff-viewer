@@ -22,7 +22,7 @@ const log = createLogger('modelLoader:dependencies');
  * @property {Object} notify - notificationController.notify
  * @property {function(): Object} getImportanceManager - importanceManager.getImportanceManager
  * @property {function(Object, *): *} normalizeSectionData - sectionEquivalenceEngine.normalizeSectionData
- * @property {function(Object, Function): void} initViewModes - viewModes.initViewModes
+ * @property {function(Object, Function): (void|Promise<Object>)} initViewModes - viewModes.initViewModes
  * @property {function(Function): void} updateModelVisibility - viewModes.updateModelVisibility
  */
 
@@ -108,7 +108,7 @@ export function getLoaderNormalizeSectionData() {
 
 /**
  * viewModes.initViewModes を取得
- * @returns {function(Object, Function): void}
+ * @returns {function(Object, Function): (void|Promise<Object>)}
  */
 export function getLoaderInitViewModes() {
   if (!_deps.initViewModes) {

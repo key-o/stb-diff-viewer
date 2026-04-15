@@ -331,7 +331,7 @@ function convertSurfaceElements(elements, nodeMap, elementType) {
  * @param {Object} sections - 断面情報
  * @returns {import('../../viewer/types/render-elements.js').RenderParapet[]}
  */
-function convertParapets(parapets, nodeMap, _sections) {
+function convertParapets(parapets, nodeMap, sections) {
   if (!parapets || !Array.isArray(parapets)) {
     return [];
   }

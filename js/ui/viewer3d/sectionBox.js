@@ -15,6 +15,7 @@ import {
   controls,
   getModelBounds,
   clearClippingPlanes,
+  getCameraContext,
   getCameraMode,
 } from '../../viewer/index.js';
 import { scheduleRender } from '../../utils/renderScheduler.js';
@@ -22,7 +23,7 @@ import { showWarning } from '../common/toast.js';
 import { createLogger } from '../../utils/logger.js';
 import { eventBus } from '../../data/events/eventBus.js';
 import { ViewEvents } from '../../constants/eventTypes.js';
-import { CAMERA_MODES } from '../../constants/displayModes.js';
+import { CAMERA_CONTEXTS, CAMERA_MODES } from '../../constants/displayModes.js';
 
 const log = createLogger('ui:sectionBox');
 
@@ -259,11 +260,12 @@ function updateHintVisibility(visible) {
  * 正投影モード時に視線方向のハンドルを非表示にする
  * @param {string} [mode] - CAMERA_MODES.PERSPECTIVE または CAMERA_MODES.ORTHOGRAPHIC（省略時は現在のモードを使用）
  */
-function updateZHandleVisibility(mode) {
+function updateZHandleVisibility(mode, context = getCameraContext()) {
   if (!sectionBoxInstance || !sectionBoxInstance.isActive()) return;
   const currentMode = mode ?? getCameraMode();
-  const isOrthographic = currentMode === CAMERA_MODES.ORTHOGRAPHIC;
-  sectionBoxInstance.setHandleVisibilityByAxis('z', !isOrthographic);
+  const isDrawingOrthographic =
+    currentMode === CAMERA_MODES.ORTHOGRAPHIC && context === CAMERA_CONTEXTS.DRAWING;
+  sectionBoxInstance.setHandleVisibilityByAxis('z', !isDrawingOrthographic);
   scheduleRender();
 }
 
@@ -271,7 +273,7 @@ function updateZHandleVisibility(mode) {
  * セクションボックスのイベントリスナーを初期化する
  */
 export function initSectionBoxEventListeners() {
-  eventBus.on(ViewEvents.CAMERA_MODE_CHANGED, ({ mode }) => {
-    updateZHandleVisibility(mode);
+  eventBus.on(ViewEvents.CAMERA_MODE_CHANGED, ({ mode, context }) => {
+    updateZHandleVisibility(mode, context);
   });
 }

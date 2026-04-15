@@ -30,7 +30,7 @@ import { createLogger } from '../../../utils/logger.js';
 const logger = createLogger('viewer:element-info');
 
 // グローバル状態とimportanceManagerをインポート
-import { getState } from '../../../app/globalState.js';
+import { getState } from '../../../data/state/globalState.js';
 import { getImportanceManager } from '../../../app/importanceManager.js';
 import { eventBus, ImportanceEvents } from '../../../data/events/index.js';
 
@@ -58,6 +58,13 @@ import {
   generateTableStyles,
   setupCollapseHandlers,
 } from './ComparisonRenderer.js';
+import {
+  buildComparisonHeaderHtml,
+  buildSingleColumnHeaderHtml,
+  buildSingleModelTitle,
+  resolveElementInfoModelSide,
+  shouldUseSingleColumnElementInfo,
+} from './DisplayModelResolver.js';
 
 // パネル幅の状態を保持するグローバル変数（storageHelper経由で永続化）
 let storedPanelWidth = storageHelper.get('panelWidth');
@@ -65,6 +72,16 @@ let storedPanelHeight = storageHelper.get('panelHeight');
 
 // 現在表示中の要素ノード（JSON出力用）
 let currentDisplayNodes = { nodeA: null, nodeB: null, elementType: null };
+const DEFAULT_ELEMENT_INFO_MESSAGE = '要素を選択してください。';
+
+function clearElementInfoDisplayState(contentDiv = null, { renderEmptyMessage = false } = {}) {
+  currentDisplayNodes = { nodeA: null, nodeB: null, elementType: null };
+  setCurrentEditingElement(null);
+
+  if (contentDiv && renderEmptyMessage) {
+    contentDiv.textContent = DEFAULT_ELEMENT_INFO_MESSAGE;
+  }
+}
 
 /**
  * XML要素ノードをJSONオブジェクトに再帰変換する
@@ -191,6 +208,71 @@ export function exportElementInfoAsJson() {
 
   const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
   downloadBlob(blob, `element_${elementType}_${elementId}.json`);
+}
+
+/**
+ * 複数選択サマリーを表示する
+ * @param {{
+ *   count?: number,
+ *   typeCounts?: Array<{elementType: string, count: number}>,
+ *   modelSourceCounts?: {A?: number, B?: number, matched?: number, unknown?: number}
+ * }} summaryData
+ */
+export function displayMultiSelectionSummary(summaryData = {}) {
+  const panel = document.getElementById('component-info');
+  const contentDiv = document.getElementById('element-info-content');
+
+  clearElementInfoDisplayState(contentDiv, { renderEmptyMessage: false });
+
+  if (!panel || !contentDiv) {
+    logger.error('Component info panel or content div not found!');
+    return;
+  }
+
+  applyPanelSize(panel);
+  setupPanelResizeObserver(panel);
+
+  const { count = 0, typeCounts = [], modelSourceCounts: rawModelSourceCounts = {} } = summaryData;
+  const modelSourceCounts = {
+    A: rawModelSourceCounts.A ?? 0,
+    B: rawModelSourceCounts.B ?? 0,
+    matched: rawModelSourceCounts.matched ?? 0,
+    unknown: rawModelSourceCounts.unknown ?? 0,
+  };
+
+  let summaryHtml = `
+    <div style="font-weight:var(--font-weight-bold);margin-bottom:8px;font-size:var(--font-size-lg);">
+      複数選択: ${count}要素
+    </div>
+    <div style="margin-bottom:8px;">
+      <strong>要素タイプ:</strong>
+      <ul style="margin:4px 0;padding-left:20px;">
+  `;
+
+  for (const item of typeCounts) {
+    summaryHtml += `<li>${item.elementType}: ${item.count}</li>`;
+  }
+
+  summaryHtml += `
+      </ul>
+    </div>
+    <div>
+      <strong>モデルソース:</strong>
+      <ul style="margin:4px 0;padding-left:20px;">
+  `;
+
+  if (modelSourceCounts.A > 0) summaryHtml += `<li>モデルA: ${modelSourceCounts.A}</li>`;
+  if (modelSourceCounts.B > 0) summaryHtml += `<li>モデルB: ${modelSourceCounts.B}</li>`;
+  if (modelSourceCounts.matched > 0)
+    summaryHtml += `<li>マッチ済: ${modelSourceCounts.matched}</li>`;
+  if (modelSourceCounts.unknown > 0) summaryHtml += `<li>不明: ${modelSourceCounts.unknown}</li>`;
+
+  summaryHtml += `
+      </ul>
+    </div>
+  `;
+
+  contentDiv.innerHTML = summaryHtml;
 }
 
 // XSDスキーマの初期化フラグ
@@ -597,20 +679,29 @@ function showInfo(
   // モデルが一つだけかどうかを判定
   const hasModelA = !!getState('models.documentA');
   const hasModelB = !!getState('models.documentB');
-  const isSingleModel = (hasModelA && !hasModelB) || (!hasModelA && hasModelB);
-  const hasOnlyA = nodeA && !nodeB;
-  const hasOnlyB = !nodeA && nodeB;
-  const showSingleColumn = isSingleModel || hasOnlyA || hasOnlyB;
+  const hasPrimaryA = !!nodeA;
+  const hasPrimaryB = !!nodeB;
+  const showSingleColumn = shouldUseSingleColumnElementInfo({
+    hasPrimaryA,
+    hasPrimaryB,
+    hasModelA,
+    hasModelB,
+  });
+  const displayModelSide = resolveElementInfoModelSide({
+    hasPrimaryA,
+    hasPrimaryB,
+    modelSource,
+    hasModelA,
+    hasModelB,
+  });
 
   // --- 統合比較テーブルの生成 ---
   content += '<table class="unified-comparison-table">';
 
   if (showSingleColumn) {
-    const modelName = hasOnlyA || hasModelA ? 'モデル A' : 'モデル B';
-    content += `<thead><tr><th style="width: 50%;">要素 / 属性</th><th style="width: 50%;">${modelName}</th></tr></thead>`;
+    content += buildSingleColumnHeaderHtml('要素 / 属性', displayModelSide);
   } else {
-    content +=
-      '<thead><tr><th style="width: 40%;">要素 / 属性</th><th style="width: 30%;">モデル A</th><th style="width: 30%;">モデル B</th></tr></thead>';
+    content += buildComparisonHeaderHtml('要素 / 属性');
   }
 
   content += `<tbody id="element-info-tbody">`;
@@ -630,7 +721,7 @@ function showInfo(
   content += renderSectionInfo(nodeA, nodeB, showSingleColumn, modelSource, elementType);
 
   // 壁・スラブの開口情報表示（v2.1.0: StbOpenArrangement経由）
-  if (elementType === 'Wall' || elementType === 'Slab') {
+  if (elementType === 'Wall' || elementType === 'ShearWall' || elementType === 'Slab') {
     content += renderOpeningInfo(nodeA, nodeB, showSingleColumn);
   }
 
@@ -821,24 +912,41 @@ function renderJointParentRow(label, valueA, valueB, showSingleColumn, parentRow
  * @param {HTMLElement} contentDiv - コンテンツ表示要素
  * @param {Object|null} jointMeshDataA - 継手メッシュデータA
  * @param {Object|null} jointMeshDataB - 継手メッシュデータB
+ * @param {string|null} modelSource - 要素のモデルソース
  */
-function showJointMeshDataOnly(panel, title, contentDiv, jointMeshDataA, jointMeshDataB) {
+function showJointMeshDataOnly(
+  panel,
+  title,
+  contentDiv,
+  jointMeshDataA,
+  jointMeshDataB,
+  modelSource = null,
+) {
   const hasModelA = !!getState('models.documentA');
   const hasModelB = !!getState('models.documentB');
-  const isSingleModel = (hasModelA && !hasModelB) || (!hasModelA && hasModelB);
-  const hasOnlyA = jointMeshDataA && !jointMeshDataB;
-  const hasOnlyB = !jointMeshDataA && jointMeshDataB;
-  const showSingleColumn = isSingleModel || hasOnlyA || hasOnlyB;
+  const hasPrimaryA = !!jointMeshDataA;
+  const hasPrimaryB = !!jointMeshDataB;
+  const showSingleColumn = shouldUseSingleColumnElementInfo({
+    hasPrimaryA,
+    hasPrimaryB,
+    hasModelA,
+    hasModelB,
+  });
+  const displayModelSide = resolveElementInfoModelSide({
+    hasPrimaryA,
+    hasPrimaryB,
+    modelSource,
+    hasModelA,
+    hasModelB,
+  });
 
   let content = `<h3>${title}</h3>`;
   content += '<table class="unified-comparison-table">';
 
   if (showSingleColumn) {
-    const modelName = hasOnlyA || hasModelA ? 'モデル A' : 'モデル B';
-    content += `<thead><tr><th style="width: 50%;">属性</th><th style="width: 50%;">${modelName}</th></tr></thead>`;
+    content += buildSingleColumnHeaderHtml('属性', displayModelSide);
   } else {
-    content +=
-      '<thead><tr><th style="width: 40%;">属性</th><th style="width: 30%;">モデル A</th><th style="width: 30%;">モデル B</th></tr></thead>';
+    content += buildComparisonHeaderHtml('属性');
   }
 
   content += '<tbody>';
@@ -881,9 +989,17 @@ function showJointMeshDataOnly(panel, title, contentDiv, jointMeshDataA, jointMe
  * @param {string | null} modelSource - 要素のモデルソース ('A', 'B', 'matched', またはnull)
  */
 export async function displayElementInfo(idA, idB, elementType, modelSource = null) {
+  const panel = document.getElementById('component-info');
+  const contentDiv = document.getElementById('element-info-content');
+
   // --- null パラメータの処理（選択解除時） ---
   if (!elementType || (!idA && !idB)) {
-    setCurrentEditingElement(null);
+    clearElementInfoDisplayState(contentDiv, { renderEmptyMessage: true });
+    return;
+  }
+
+  if (!panel || !contentDiv) {
+    logger.error('Component info panel or content div not found!');
     return;
   }
 
@@ -892,17 +1008,13 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
 
   // 現在編集中の要素を記録
   setCurrentEditingElement({ idA, idB, elementType, modelSource });
-
-  const panel = document.getElementById('component-info');
-  const contentDiv = document.getElementById('element-info-content');
-  if (!panel || !contentDiv) {
-    logger.error('Component info panel or content div not found!');
-    return;
-  }
+  currentDisplayNodes = { nodeA: null, nodeB: null, elementType: null };
 
   // --- 単一モデル / XML未ロード時のフォールバック ---
   const docA = getState('models.documentA');
   const docB = getState('models.documentB');
+  const hasModelA = !!docA;
+  const hasModelB = !!docB;
   if (elementType && !docA && !docB) {
     if (tryFallbackDisplay(elementType, idA, idB, contentDiv)) {
       return;
@@ -915,7 +1027,7 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
 
   // IDやタイプがnullならパネルをクリア
   if (elementType === null || (idA === null && idB === null)) {
-    contentDiv.innerHTML = '要素を選択してください。';
+    clearElementInfoDisplayState(contentDiv, { renderEmptyMessage: true });
     return;
   }
 
@@ -958,12 +1070,8 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
     }
   } else {
     // 通常の要素
-    const tagName =
-      elementType === 'Axis'
-        ? 'StbParallelAxis'
-        : elementType === 'Node'
-          ? 'StbNode'
-          : `Stb${elementType}`;
+    const TAG_NAME_OVERRIDES = { Axis: 'StbParallelAxis', Node: 'StbNode', ShearWall: 'StbWall' };
+    const tagName = TAG_NAME_OVERRIDES[elementType] || `Stb${elementType}`;
 
     // モデルAの要素を取得試行
     if (idA && docA) {
@@ -1004,12 +1112,23 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
             : '';
       const parentInfoStr = `${jd.parent_element_type || ''} ID:${jd.parent_element_id || ''} ${posLabel}`;
       const jointId = jointMeshData?.jointId || extractJointIdFromMeshId(idA || idB);
+      const jointBody = `継手 ID:${jointId} (${parentInfoStr})`;
+      const jointDisplaySide = resolveElementInfoModelSide({
+        hasPrimaryA: !!jointMeshDataA,
+        hasPrimaryB: !!jointMeshDataB,
+        modelSource,
+        hasModelA,
+        hasModelB,
+      });
 
-      title = `継手 ID:${jointId} (${parentInfoStr})`;
+      title =
+        jointMeshDataA && jointMeshDataB
+          ? `比較: ${jointBody}`
+          : buildSingleModelTitle(jointDisplaySide, jointBody);
       title += ' <span style="color: orange; font-size: var(--font-size-sm);">[XML未検出]</span>';
 
       // メッシュデータのみで簡易表示
-      showJointMeshDataOnly(panel, title, contentDiv, jointMeshDataA, jointMeshDataB);
+      showJointMeshDataOnly(panel, title, contentDiv, jointMeshDataA, jointMeshDataB, modelSource);
       return;
     }
 
@@ -1022,7 +1141,10 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
 
   // タイトル設定（XSDスキーマ状況を含む）
   let schemaInfo = '';
-  const schemaElementName = actualElementType === 'Node' ? 'StbNode' : `Stb${actualElementType}`;
+  // 実際のXMLタグ名を優先してスキーマ名を決定（例: StbColumn_RC, StbColumn_S）
+  const actualTagName = nodeA?.tagName || nodeB?.tagName;
+  const schemaElementName =
+    actualTagName || (actualElementType === 'Node' ? 'StbNode' : `Stb${actualElementType}`);
 
   if (isSchemaLoaded()) {
     const attrCount = getAllAttributeNames(schemaElementName).length;
@@ -1092,15 +1214,28 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
 
   const evaluationBadge = generateEvaluationBadge();
   const displayId = nodeA?.getAttribute('id') || nodeB?.getAttribute('id') || idA || idB;
+  const displayModelSide = resolveElementInfoModelSide({
+    hasPrimaryA: !!nodeA,
+    hasPrimaryB: !!nodeB,
+    modelSource,
+    hasModelA,
+    hasModelB,
+  });
 
   if (nodeA && nodeB) {
     const idADisplay = nodeA.getAttribute('id') || idA;
     const idBDisplay = nodeB.getAttribute('id') || idB;
     title = `比較: ${actualElementType}${parentInfo} (A: ${idADisplay}, B: ${idBDisplay})${typeNote}${schemaInfo}${evaluationBadge}`;
   } else if (nodeA) {
-    title = `モデル A: ${actualElementType}${parentInfo} (ID: ${displayId})${typeNote}${schemaInfo}${evaluationBadge}`;
+    title = buildSingleModelTitle(
+      displayModelSide,
+      `${actualElementType}${parentInfo} (ID: ${displayId})${typeNote}${schemaInfo}${evaluationBadge}`,
+    );
   } else {
-    title = `モデル B: ${actualElementType}${parentInfo} (ID: ${displayId})${typeNote}${schemaInfo}${evaluationBadge}`;
+    title = buildSingleModelTitle(
+      displayModelSide,
+      `${actualElementType}${parentInfo} (ID: ${displayId})${typeNote}${schemaInfo}${evaluationBadge}`,
+    );
   }
 
   // showInfoを呼び出して情報を表示（継手の場合は親部材情報も渡す）
@@ -1143,8 +1278,19 @@ eventBus.on(ImportanceEvents.SETTINGS_CHANGED, () => {
   refreshElementInfoPanel();
 });
 
-// グローバル関数として登録（index.htmlのonclick属性から呼び出せるように）
-window.exportElementInfoAsJson = exportElementInfoAsJson;
+// DOM初期化後にイベントリスナーを設定（window.*グローバル汚染の解消）
+function initExportJsonButton() {
+  const exportJsonBtn = document.getElementById('exportElementInfoJsonBtn');
+  if (exportJsonBtn) {
+    exportJsonBtn.addEventListener('click', exportElementInfoAsJson);
+  }
+}
+// ESM module は deferred のため DOMContentLoaded 後に実行されるが、念のため安全に初期化
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initExportJsonButton);
+} else {
+  initExportJsonButton();
+}
 
 // エクスポート（互換性維持）
 export { setElementInfoProviders, toggleEditMode, exportModifications, clearModifications };

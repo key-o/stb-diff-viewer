@@ -9,11 +9,12 @@
  */
 
 import { floatingWindowManager } from './floatingWindowManager.js';
-import { getState } from '../../app/globalState.js';
+import { getState } from '../../data/state/globalState.js';
 import { formatXml } from '../../common-stb/export/xmlFormatter.js';
 import { showSuccess, showWarning } from '../common/toast.js';
 import { createLogger } from '../../utils/logger.js';
 import { escapeHtml } from '../../utils/htmlUtils.js';
+import { eventBus, EditEvents } from '../../data/events/index.js';
 
 const log = createLogger('ui:panels:xmlViewer');
 
@@ -86,6 +87,15 @@ export function initializeXmlViewer() {
     const isCollapsed = node.classList.toggle('collapsed');
     btn.textContent = isCollapsed ? '▶' : '▼';
     btn.title = isCollapsed ? '展開する' : '折りたたむ';
+  });
+
+  // 編集イベントリスナー: 表示中のモデルが編集された場合にXMLを再表示
+  eventBus.on(EditEvents.ATTRIBUTE_CHANGED, ({ modelSource }) => {
+    const isViewerVisible = floatingWindowManager.isVisible('xml-viewer-float');
+    const editedModel = modelSource === 'modelA' ? 'A' : 'B';
+    if (isViewerVisible && currentModel === editedModel) {
+      renderXml();
+    }
   });
 
   log.info('XMLビューアパネルを初期化しました');

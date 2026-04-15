@@ -8,7 +8,7 @@
  */
 
 import { IMPORTANCE_LEVELS } from '../../constants/importanceLevels.js';
-import { getState, setState } from '../globalState.js';
+import { getState, setState } from '../../data/state/globalState.js';
 
 /**
  * 重要度設定の統計情報を収集する

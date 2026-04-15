@@ -11,6 +11,7 @@ import {
 } from '../../config/toleranceConfig.js';
 import { createLogger } from '../../utils/logger.js';
 import { storageHelper } from '../../utils/storageHelper.js';
+import { eventBus, SettingsEvents } from '../../data/events/index.js';
 
 const STORAGE_KEY = 'toleranceConfig';
 
@@ -350,10 +351,8 @@ function applySettingsFromUI() {
 
   logger.info('Tolerance settings applied', newConfig);
 
-  // 設定適用後のコールバックを実行（再比較など）
-  if (window.toleranceSettingsChanged) {
-    window.toleranceSettingsChanged(newConfig);
-  }
+  // 設定適用後のコールバックを実行（eventBus経由で再比較など）
+  eventBus.emit(SettingsEvents.CHANGED, { type: 'tolerance', config: newConfig });
 
   // 通知
   showNotification('✓ 許容差設定を適用しました', 'success');
@@ -369,10 +368,8 @@ function resetToDefaults() {
   loadSettingsToUI();
   logger.info('Settings reset to defaults');
 
-  // リセット後も再比較を実行
-  if (window.toleranceSettingsChanged) {
-    window.toleranceSettingsChanged(config);
-  }
+  // リセット後も再比較を実行（eventBus経由）
+  eventBus.emit(SettingsEvents.CHANGED, { type: 'tolerance', config });
 
   showNotification('🔄 デフォルト設定に戻しました', 'info');
 }

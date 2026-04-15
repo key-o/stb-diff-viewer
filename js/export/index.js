@@ -51,3 +51,4 @@ export { buildReportHtml } from './report/reportHtmlBuilder.js';
 
 // API 連携
 export { IFCConverter, IFCConverterUI } from './api/ifcConverter.js';
+

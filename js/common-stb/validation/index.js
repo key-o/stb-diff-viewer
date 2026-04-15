@@ -54,7 +54,7 @@ export {
   validateRepairAndExport,
   createExportConfig,
   getExportSummary,
-} from '../export/stb/stbExporter.js';
+} from '../export/stbExporter.js';
 
 // UI連携 (ValidationManager経由)
 export {

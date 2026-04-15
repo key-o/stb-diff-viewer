@@ -69,7 +69,7 @@ async function restoreClippingState(state) {
   }
 }
 
-/**
+/*
  * 全階をDXFエクスポート（階連続出力）
  * 各階ごとにDXFファイルを生成し、選択したフォルダに一括保存します。
  * @param {Array<string>} selectedElementTypes - 選択された要素タイプ
@@ -78,17 +78,20 @@ async function restoreClippingState(state) {
  * @returns {Promise<boolean>} 成功/失敗
  */
 export async function exportAllStoriesToDxf(selectedElementTypes, options = {}) {
+  const batchOptions = /** @type {any} */ (options);
   const stories = getCurrentStoriesInternal();
   if (!stories || stories.length === 0) {
     eventBus.emit(ToastEvents.SHOW_WARNING, { message: '階データがありません' });
     return false;
   }
 
-  const downloadDelay = options.downloadDelay || 100;
-  const includeLabels = options.includeLabels !== undefined ? options.includeLabels : true;
-  const includeAxes = options.includeAxes !== undefined ? options.includeAxes : true;
-  const includeLevels = options.includeLevels !== undefined ? options.includeLevels : false;
-  const labelHeight = options.labelHeight || 200;
+  const downloadDelay = batchOptions.downloadDelay || 100;
+  const includeLabels =
+    batchOptions.includeLabels !== undefined ? batchOptions.includeLabels : true;
+  const includeAxes = batchOptions.includeAxes !== undefined ? batchOptions.includeAxes : true;
+  const includeLevels =
+    batchOptions.includeLevels !== undefined ? batchOptions.includeLevels : false;
+  const labelHeight = batchOptions.labelHeight || 200;
 
   const baseFilename = getLoadedFilenameInternal();
 
@@ -157,7 +160,7 @@ export async function exportAllStoriesToDxf(selectedElementTypes, options = {}) 
   }
 }
 
-/**
+/*
  * 全通り芯に沿ってDXFエクスポート（断面連続出力）
  * 各通り芯ごとにDXFファイルを生成し、選択したフォルダに一括保存します。
  * @param {Array<string>} selectedElementTypes - 選択された要素タイプ
@@ -172,6 +175,7 @@ export async function exportAlongAllAxesToDxf(
   axisDirection = 'X',
   options = {},
 ) {
+  const batchOptions = /** @type {any} */ (options);
   const axesData = getCurrentAxesDataInternal();
   if (!axesData) {
     eventBus.emit(ToastEvents.SHOW_WARNING, { message: '通り芯データがありません' });
@@ -186,11 +190,13 @@ export async function exportAlongAllAxesToDxf(
     return false;
   }
 
-  const downloadDelay = options.downloadDelay || 100;
-  const includeLabels = options.includeLabels !== undefined ? options.includeLabels : true;
-  const includeAxes = options.includeAxes !== undefined ? options.includeAxes : true;
-  const includeLevels = options.includeLevels !== undefined ? options.includeLevels : true;
-  const labelHeight = options.labelHeight || 200;
+  const downloadDelay = batchOptions.downloadDelay || 100;
+  const includeLabels =
+    batchOptions.includeLabels !== undefined ? batchOptions.includeLabels : true;
+  const includeAxes = batchOptions.includeAxes !== undefined ? batchOptions.includeAxes : true;
+  const includeLevels =
+    batchOptions.includeLevels !== undefined ? batchOptions.includeLevels : true;
+  const labelHeight = batchOptions.labelHeight || 200;
 
   const baseFilename = getLoadedFilenameInternal();
 
@@ -208,8 +214,8 @@ export async function exportAlongAllAxesToDxf(
 
   // options.directoryHandle が指定済みの場合はフォルダ選択をスキップ
   let directoryHandle;
-  if ('directoryHandle' in options) {
-    directoryHandle = options.directoryHandle;
+  if ('directoryHandle' in batchOptions) {
+    directoryHandle = batchOptions.directoryHandle;
   } else {
     const { handle, cancelled } = await pickDirectoryHandle();
     if (cancelled) return false;
@@ -268,7 +274,7 @@ export async function exportAlongAllAxesToDxf(
   }
 }
 
-/**
+/*
  * 両方向の通り芯に沿ってDXFエクスポート
  * X軸とY軸両方の通り芯についてエクスポートします。
  * フォルダ選択ダイアログは一度だけ表示され、X・Y両方向で共有されます。
@@ -283,7 +289,7 @@ export async function exportAlongAllAxesBothDirections(selectedElementTypes, opt
   const { handle: directoryHandle, cancelled } = await pickDirectoryHandle();
   if (cancelled) return false;
 
-  const mergedOptions = { ...options, directoryHandle };
+  const mergedOptions = /** @type {any} */ ({ ...options, directoryHandle });
 
   const xSuccess = await exportAlongAllAxesToDxf(selectedElementTypes, 'X', mergedOptions);
 

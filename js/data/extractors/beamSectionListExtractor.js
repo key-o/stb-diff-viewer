@@ -622,7 +622,7 @@ function extractMainBarInfo(mainBarElement) {
  * @param {number} order - order値
  * @returns {Object|null} スターラップ情報
  */
-function extractStirrupInfo(simpleBarElement, _order) {
+function extractStirrupInfo(simpleBarElement, order) {
   if (!simpleBarElement) {
     return null;
   }
@@ -678,7 +678,7 @@ function extractStirrupInfo(simpleBarElement, _order) {
  * @param {number} order - order値
  * @returns {Object|null} 腹筋情報
  */
-function extractWebBarInfo(simpleBarElement, _order) {
+function extractWebBarInfo(simpleBarElement, order) {
   if (!simpleBarElement) {
     return null;
   }
