@@ -27,6 +27,15 @@ export function setupDevelopmentTools() {
     },
   );
 
+  if (window.envConfig?.features?.devTools) {
+    Promise.all([
+      import('../../diagnostics/geometryInspector.js'),
+      import('../../diagnostics/geometryMismatchAnalyzer.js'),
+    ]).catch((error) => {
+      log.warn('デバッグ用ダイアグノスティックモジュールの読み込みに失敗しました', error);
+    });
+  }
+
   // テストページからのメッセージ受信処理
   window.addEventListener('message', (event) => {
     if (event.data && event.data.action === 'testPlacementLinesToggle') {

@@ -361,7 +361,7 @@ export function extractConcreteDimensions(element, config) {
  * @param {Object} config - 抽出設定
  * @returns {Object|null} 寸法データ { length_pile, D, t, diameter, profile_hint, pile_type, segments }
  */
-export function extractSteelPileDimensions(element, config) {
+export function extractSteelPileDimensions(element, _config) {
   const tagName = element.tagName || element.localName;
 
   // StbSecPile_S以外は処理しない
@@ -499,7 +499,7 @@ export function extractSteelPileDimensions(element, config) {
  * @param {Object} config - 抽出設定
  * @returns {Object|null} 寸法データ { length_pile, D, diameter, profile_hint, pile_type, segments }
  */
-export function extractPileProductDimensions(element, config) {
+export function extractPileProductDimensions(element, _config) {
   const tagName = element.tagName || element.localName;
 
   // StbSecPileProduct以外は処理しない

@@ -136,8 +136,8 @@ const ELEMENT_SETTINGS = [
   },
   {
     type: 'ShearWall',
-    label: '\u8010\u9707\u58c1 (StbWall)',
-    jpName: '\u8010\u9707\u58c1',
+    label: '耐震壁 (StbWall)',
+    jpName: '耐震壁',
     solidType: 'checkbox',
     displayId: 'toggleShearWallView',
     solidId: 'toggleShearWall3DView',

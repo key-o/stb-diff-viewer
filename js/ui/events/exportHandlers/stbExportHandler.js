@@ -9,7 +9,12 @@
  */
 
 import { showSuccess, showError, showWarning } from '../../common/toast.js';
-import { downloadBlob } from '../../../utils/downloadHelper.js';
+import { getState } from '../../../data/state/globalState.js';
+import {
+  downloadStbFile,
+  ensureStbExtension,
+  requestStbSaveFileHandle,
+} from '../../../common-stb/export/xmlFormatter.js';
 import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('ui:events:exportHandlers:stbExportHandler');
@@ -24,6 +29,52 @@ function normalizeVersion(version) {
   if (v === '202' || v === '2.0' || v.startsWith('2.0.')) return '2.0.2';
   if (v === '210' || v === '2.1' || v.startsWith('2.1.')) return '2.1.0';
   return v;
+}
+
+/**
+ * バージョン文字列をファイル名用トークンに変換
+ * @param {string} version - バージョン文字列
+ * @returns {string} ファイル名用トークン
+ */
+function versionToFilenameToken(version) {
+  const normalized = normalizeVersion(version);
+  if (normalized === '2.0.2') return 'v202';
+  if (normalized === '2.1.0') return 'v210';
+  if (normalized === '2.1.1') return 'v211';
+  return normalized ? `v${normalized.replace(/\D/g, '')}` : '';
+}
+
+/**
+ * 正規表現用に文字列をエスケープ
+ * @param {string} value - エスケープ対象
+ * @returns {string} エスケープ済み文字列
+ */
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * 既知の入力ファイル拡張子を取り除く
+ * @param {string} filename - 元ファイル名
+ * @returns {string} 拡張子を除いたファイル名
+ */
+function stripKnownSourceExtension(filename) {
+  return String(filename || '').replace(/\.(stb|xml|ifc)$/i, '');
+}
+
+/**
+ * STB出力のデフォルトファイル名を生成
+ * @param {string|null|undefined} sourceName - 元ファイル名
+ * @param {string} targetVersion - 出力STBバージョン
+ * @returns {string} デフォルトファイル名
+ */
+export function buildDefaultStbExportFilename(sourceName, targetVersion) {
+  const baseStem = stripKnownSourceExtension(sourceName || 'stb_export').trim() || 'stb_export';
+  const token = versionToFilenameToken(targetVersion);
+  if (!token) return `${baseStem}.stb`;
+
+  const hasToken = new RegExp(`(^|[_-])${escapeRegExp(token)}([_-]|$)`, 'i').test(baseStem);
+  return `${hasToken ? baseStem : `${baseStem}_${token}`}.stb`;
 }
 
 /**
@@ -55,9 +106,6 @@ async function handleStbExport() {
     const targetVersion = versionSelect?.value || '2.1.0';
     const targetModel = targetSelect?.value || 'auto';
 
-    const { getState } = await import('../../../data/state/globalState.js');
-    const { exportStbDocument } = await import('../../../export/stb/stbExporter.js');
-
     const docA = getState('models.documentA');
     const docB = getState('models.documentB');
     const fileA = getState('files.originalFileA');
@@ -84,14 +132,24 @@ async function handleStbExport() {
 
     let filename = filenameInput?.value?.trim();
     if (!filename) {
-      if (sourceFile?.name) {
-        filename = sourceFile.name.replace(/\.stb$/i, '');
-      } else {
-        filename = 'stb_export';
-      }
+      filename = buildDefaultStbExportFilename(sourceFile?.name, targetVersion);
     }
 
-    filename = filename.endsWith('.stb') ? filename : `${filename}.stb`;
+    filename = ensureStbExtension(filename);
+
+    const saveFileResult = await requestStbSaveFileHandle(filename);
+    if (saveFileResult.status === 'canceled') {
+      showWarning('STB出力をキャンセルしました。');
+      return;
+    }
+    if (saveFileResult.status === 'error') {
+      log.warn(
+        '[STB Export] 保存ダイアログの初期化に失敗したため通常ダウンロードに切り替えます:',
+        saveFileResult.error,
+      );
+    }
+
+    const saveFileHandle = saveFileResult.handle;
 
     // 元のSTBファイルが利用可能な場合、バージョン変換ルールを適用
     const isStbSource = sourceFile && /\.(stb|xml)$/i.test(sourceFile.name);
@@ -103,8 +161,7 @@ async function handleStbExport() {
       if (currentVersion && normalizeVersion(currentVersion) !== normalizeVersion(targetVersion)) {
         const result = await convert(xmlContent, targetVersion);
         if (result.converted) {
-          const blob = new Blob([result.xml], { type: 'application/xml' });
-          downloadBlob(blob, filename);
+          await downloadStbFile(result.xml, filename, { fileHandle: saveFileHandle });
           const warnCount = result.summary?.warnings || 0;
           const msg =
             warnCount > 0
@@ -137,7 +194,8 @@ async function handleStbExport() {
       showWarning(`スキーマ違反 ${schemaErrors.length} 件が検出されました（出力は続行します）`);
     }
 
-    exportStbDocument(sourceDoc, { filename, targetVersion });
+    const { exportStbDocument } = await import('../../../export/stb/stbExporter.js');
+    await exportStbDocument(sourceDoc, { filename, targetVersion, fileHandle: saveFileHandle });
     showSuccess(`出力しました: ${filename}`);
   } catch (error) {
     log.error('STB出力エラー:', error);

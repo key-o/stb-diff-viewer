@@ -367,14 +367,63 @@ export function addOrderToSrcBeamFiguresTo210(stbRoot) {
   }
 }
 
+// Context-aware reverse rename maps (resolve multi-source collisions by container type)
+const BEAM_FIGURE_RC_MAP = {
+  StbSecBeamStraight: 'StbSecBeam_RC_Straight',
+  StbSecBeamHaunch: 'StbSecBeam_RC_Haunch',
+  StbSecBeamTaper: 'StbSecBeam_RC_Taper',
+};
+const BEAM_FIGURE_SRC_MAP = {
+  StbSecBeamStraight: 'StbSecBeam_SRC_Straight',
+  StbSecBeamHaunch: 'StbSecBeam_SRC_Haunch',
+  StbSecBeamTaper: 'StbSecBeam_SRC_Taper',
+};
+const BAR_COL_RC_MAP = {
+  StbSecBarColumnRectSame: 'StbSecBarColumn_RC_RectSame',
+  StbSecBarColumnRectNotSame: 'StbSecBarColumn_RC_RectNotSame',
+  StbSecBarColumnCircleSame: 'StbSecBarColumn_RC_CircleSame',
+  StbSecBarColumnCircleNotSame: 'StbSecBarColumn_RC_CircleNotSame',
+};
+const BAR_COL_SRC_MAP = {
+  StbSecBarColumnRectSame: 'StbSecBarColumn_SRC_RectSame',
+  StbSecBarColumnRectNotSame: 'StbSecBarColumn_SRC_RectNotSame',
+  StbSecBarColumnCircleSame: 'StbSecBarColumn_SRC_CircleSame',
+  StbSecBarColumnCircleNotSame: 'StbSecBarColumn_SRC_CircleNotSame',
+};
+
+// Beam bar arrangement reverse maps (avoid SSRC collision)
+const BAR_BEAM_RC_MAP = {
+  StbSecBarBeamSimple: 'StbSecBarBeam_RC_Same',
+  StbSecBarBeamComplex: 'StbSecBarBeam_RC_ThreeTypes',
+};
+const BAR_BEAM_SRC_MAP = {
+  StbSecBarBeamSimple: 'StbSecBarBeam_SRC_Same',
+  StbSecBarBeamComplex: 'StbSecBarBeam_SRC_ThreeTypes',
+};
+// SRC steel column shape: context-dependent on Same/NotSame container
+const STEEL_COL_SRC_SAME_MAP = {
+  StbSecSteelColumn_SRC_ShapeH: 'StbSecColumn_SRC_SameShapeH',
+  StbSecSteelColumn_SRC_ShapeBox: 'StbSecColumn_SRC_SameShapeBox',
+  StbSecSteelColumn_SRC_ShapePipe: 'StbSecColumn_SRC_SameShapePipe',
+  StbSecSteelColumn_SRC_ShapeCross1: 'StbSecColumn_SRC_SameShapeCross', // Cross1 -> Cross（数字なし）に修正
+  StbSecSteelColumn_SRC_ShapeCross2: 'StbSecColumn_SRC_SameShapeCross2',
+  StbSecSteelColumn_SRC_ShapeT: 'StbSecColumn_SRC_SameShapeT',
+};
+const STEEL_COL_SRC_NOTSAME_MAP = {
+  StbSecSteelColumn_SRC_ShapeH: 'StbSecColumn_SRC_NotSameShapeH',
+  StbSecSteelColumn_SRC_ShapeBox: 'StbSecColumn_SRC_NotSameShapeBox',
+  StbSecSteelColumn_SRC_ShapePipe: 'StbSecColumn_SRC_NotSameShapePipe',
+  StbSecSteelColumn_SRC_ShapeCross1: 'StbSecColumn_SRC_NotSameShapeCross',
+  StbSecSteelColumn_SRC_ShapeT: 'StbSecColumn_SRC_NotSameShapeT',
+};
+
 /**
- * Rename elements from v2.1.0 to v2.0.2
+ * Rename elements from v2.1.0 to v2.0.2 (context-aware to resolve multi-source collisions)
  * @param {object} stbRoot - ST-Bridge root element
  */
 export function renameElementsTo202(stbRoot) {
   let renameCount = 0;
 
-  // Get StbSections element
   const root = getStbRoot(stbRoot);
   const rootData = Array.isArray(root) ? root[0] : root;
   const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
@@ -383,83 +432,91 @@ export function renameElementsTo202(stbRoot) {
     return;
   }
 
-  const MAP = ELEMENT_RENAME_MAP_210_TO_202;
-
-  // Process RC Column sections
+  // RC Column sections
   const columnRc = sections['StbSecColumn_RC'];
   if (columnRc) {
     columnRc.forEach((section) => {
       const figure = section['StbSecFigureColumn_RC']?.[0];
-      if (figure) renameCount += applyRenames(figure, MAP);
+      if (figure) {
+        renameCount += applyRenames(figure, ELEMENT_RENAME_MAP_210_TO_202);
+      }
+      const barArr = section['StbSecBarArrangementColumn_RC']?.[0];
+      if (barArr) renameCount += applyRenames(barArr, BAR_COL_RC_MAP);
     });
   }
 
-  // Process SRC Column sections
+  // SRC Column sections
   const columnSrc = sections['StbSecColumn_SRC'];
   if (columnSrc) {
     columnSrc.forEach((section) => {
-      // SRC-specific figure elements use different target names
       const figure = section['StbSecFigureColumn_SRC']?.[0];
       if (figure) {
         if (figure['StbSecColumnRect']) {
           renameKey(figure, 'StbSecColumnRect', 'StbSecColumn_SRC_Rect');
           renameCount++;
-          logger.debug('Renamed: StbSecColumnRect -> StbSecColumn_SRC_Rect');
         }
         if (figure['StbSecColumnCircle']) {
           renameKey(figure, 'StbSecColumnCircle', 'StbSecColumn_SRC_Circle');
           renameCount++;
-          logger.debug('Renamed: StbSecColumnCircle -> StbSecColumn_SRC_Circle');
         }
       }
 
       const steelFigure = section['StbSecSteelFigureColumn_SRC']?.[0];
       if (steelFigure) {
-        const containers = [
-          steelFigure['StbSecSteelColumn_SRC_Same']?.[0],
-          ...(steelFigure['StbSecSteelColumn_SRC_NotSame'] || []),
-          ...(steelFigure['StbSecSteelColumn_SRC_ThreeTypes'] || []),
-        ];
-        containers.forEach((c) => {
-          if (c) renameCount += applyRenames(c, MAP);
+        (steelFigure['StbSecSteelColumn_SRC_Same'] || []).forEach((c) => {
+          if (c) renameCount += applyRenames(c, STEEL_COL_SRC_SAME_MAP);
+        });
+        (steelFigure['StbSecSteelColumn_SRC_NotSame'] || []).forEach((c) => {
+          if (c) renameCount += applyRenames(c, STEEL_COL_SRC_NOTSAME_MAP);
+        });
+        (steelFigure['StbSecSteelColumn_SRC_ThreeTypes'] || []).forEach((c) => {
+          // ThreeTypes uses NotSame-like names
+          if (c) renameCount += applyRenames(c, STEEL_COL_SRC_NOTSAME_MAP);
         });
       }
 
-      const barArrangement = section['StbSecBarArrangementColumn_SRC']?.[0];
-      if (barArrangement) renameCount += applyRenames(barArrangement, MAP);
+      const barArr = section['StbSecBarArrangementColumn_SRC']?.[0];
+      if (barArr) renameCount += applyRenames(barArr, BAR_COL_SRC_MAP);
     });
   }
 
-  // Process RC Beam sections
+  // RC Beam sections — use RC-specific maps to avoid SSRC/SRC collision
   const beamRc = sections['StbSecBeam_RC'];
   if (beamRc) {
     beamRc.forEach((section) => {
-      const figure = section['StbSecFigureBeam_RC']?.[0];
-      if (figure) renameCount += applyRenames(figure, MAP);
+      (section['StbSecFigureBeam_RC'] || []).forEach((figure) => {
+        renameCount += applyRenames(figure, BEAM_FIGURE_RC_MAP);
+      });
+      (section['StbSecBarArrangementBeam_RC'] || []).forEach((barArr) => {
+        renameCount += applyRenames(barArr, BAR_BEAM_RC_MAP);
+      });
     });
   }
 
-  // Process SRC Beam sections
+  // SRC Beam sections — use SRC-specific maps to avoid SSRC collision
   const beamSrc = sections['StbSecBeam_SRC'];
   if (beamSrc) {
     beamSrc.forEach((section) => {
-      const figure = section['StbSecFigureBeam_SRC']?.[0];
-      if (figure) renameCount += applyRenames(figure, MAP);
+      (section['StbSecFigureBeam_SRC'] || []).forEach((figure) => {
+        renameCount += applyRenames(figure, BEAM_FIGURE_SRC_MAP);
+      });
 
-      const steelFigure = section['StbSecSteelFigureBeam_SRC']?.[0];
-      if (steelFigure) {
+      (section['StbSecSteelFigureBeam_SRC'] || []).forEach((steelFigure) => {
+        if (!steelFigure) return;
+        renameCount += applyRenames(steelFigure, ELEMENT_RENAME_MAP_210_TO_202);
         const containers = [
           steelFigure['StbSecSteelBeam_SRC_Same']?.[0],
           ...(steelFigure['StbSecSteelBeam_SRC_NotSame'] || []),
           ...(steelFigure['StbSecSteelBeam_SRC_ThreeTypes'] || []),
         ];
         containers.forEach((c) => {
-          if (c) renameCount += applyRenames(c, MAP);
+          if (c) renameCount += applyRenames(c, ELEMENT_RENAME_MAP_210_TO_202);
         });
-      }
+      });
 
-      const barArrangement = section['StbSecBarArrangementBeam_SRC']?.[0];
-      if (barArrangement) renameCount += applyRenames(barArrangement, MAP);
+      (section['StbSecBarArrangementBeam_SRC'] || []).forEach((barArr) => {
+        renameCount += applyRenames(barArr, BAR_BEAM_SRC_MAP);
+      });
     });
   }
 
@@ -505,6 +562,77 @@ export function renameCommonElementsTo210(stbRoot) {
 
   if (renameCount > 0) {
     logger.info(`StbCommon element renaming complete: ${renameCount} elements renamed`);
+  }
+}
+
+/**
+ * Element rename mapping: v2.1.0 -> v2.1.1 (typo fixes)
+ */
+export const ELEMENT_RENAME_MAP_210_TO_211 = {
+  StbConnectionSpecStiffner: 'StbConnectionSpecStiffener',
+  StbConnectionStiffner: 'StbConnectionStiffener',
+  StbStiffners: 'StbStiffeners',
+  StbStiffner: 'StbStiffener',
+  'StbSecBuild-HAssymmetric': 'StbSecBuild-HAsymmetric',
+};
+
+export const ELEMENT_RENAME_MAP_211_TO_210 = Object.fromEntries(
+  Object.entries(ELEMENT_RENAME_MAP_210_TO_211).map(([k, v]) => [v, k]),
+);
+
+/**
+ * Walk the entire STB tree and apply element renames from a flat map.
+ * This is used for 2.1.x typo-fix renames that can appear anywhere in the document.
+ * @param {object} node - Current XML node
+ * @param {object} map - Rename map { oldName: newName }
+ * @returns {number} Number of renames performed
+ */
+function walkAndRename(node, map) {
+  if (!node || typeof node !== 'object') return 0;
+  let count = 0;
+
+  for (const [oldName, newName] of Object.entries(map)) {
+    if (Object.prototype.hasOwnProperty.call(node, oldName)) {
+      renameKey(node, oldName, newName);
+      count++;
+      logger.debug(`Renamed element: ${oldName} -> ${newName}`);
+    }
+  }
+
+  for (const key of Object.keys(node)) {
+    if (key === '$' || key === '_') continue;
+    const child = node[key];
+    if (Array.isArray(child)) {
+      child.forEach((item) => {
+        count += walkAndRename(item, map);
+      });
+    } else if (child && typeof child === 'object') {
+      count += walkAndRename(child, map);
+    }
+  }
+
+  return count;
+}
+
+/**
+ * Rename elements with typo fixes from v2.1.0 to v2.1.1
+ * @param {object} stbRoot - ST-Bridge root element
+ */
+export function renameElementsTo211(stbRoot) {
+  const count = walkAndRename(stbRoot, ELEMENT_RENAME_MAP_210_TO_211);
+  if (count > 0) {
+    logger.info(`Element renaming (2.1.0->2.1.1) complete: ${count} elements renamed`);
+  }
+}
+
+/**
+ * Rename elements with typo fixes from v2.1.1 to v2.1.0
+ * @param {object} stbRoot - ST-Bridge root element
+ */
+export function renameElementsTo210from211(stbRoot) {
+  const count = walkAndRename(stbRoot, ELEMENT_RENAME_MAP_211_TO_210);
+  if (count > 0) {
+    logger.info(`Element renaming (2.1.1->2.1.0) complete: ${count} elements renamed`);
   }
 }
 

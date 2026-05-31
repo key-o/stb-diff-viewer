@@ -29,6 +29,7 @@ export const VIEW_MODE_CHECKBOX_IDS = {
  * @type {Set<string>}
  */
 export const REDRAW_REQUIRED_ELEMENT_TYPES = new Set([
+  'Node',
   'Column',
   'Girder',
   'Beam',

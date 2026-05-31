@@ -29,7 +29,7 @@ import { injectElementInfoService } from '../../viewer/services/elementInfoAdapt
 import { initializeValidationPanel } from '../../ui/panels/validationPanelIntegration.js';
 import { initializeXmlViewer } from '../../ui/panels/xmlViewer.js';
 import { getState } from '../../data/state/globalState.js';
-import { convertComparisonResultsForTree } from './initializationUtils.js';
+import { convertComparisonResultsForTree } from '../../data/converters/comparison-to-tree.js';
 import { handleTreeElementSelection } from './eventHandlers.js';
 import {
   initColumnSectionListPanel,
@@ -88,6 +88,12 @@ export function initializeSharedPanels() {
 
   import('../../ui/panels/element-info/index.js').then((elementInfo) => {
     injectElementInfoService(elementInfo);
+    if (typeof elementInfo.initializeEditModeButton === 'function') {
+      elementInfo.initializeEditModeButton();
+    }
+    if (typeof elementInfo.initializeExportJsonButton === 'function') {
+      elementInfo.initializeExportJsonButton();
+    }
     log.info('要素情報サービスが注入されました');
   });
 

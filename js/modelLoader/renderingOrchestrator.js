@@ -131,7 +131,7 @@ export function registerElementsToRegistry() {
  * @param {Object} globalData - Global data
  * @returns {Object} Rendering result for this element type
  */
-function renderElementType(elementType, comparisonResult, modelBounds, globalData) {
+function renderElementType(elementType, comparisonResult, modelBounds, _globalData) {
   const group = elementGroups[elementType];
   if (!group) {
     throw new Error(`Element group not found for type: ${elementType}`);
@@ -216,6 +216,8 @@ export function renderAuxiliaryElements(globalData, renderingResults, modelBound
   // Render axes
   if (axesData && (axesData.xAxes.length > 0 || axesData.yAxes.length > 0)) {
     try {
+      const dimCheckbox =
+        typeof document !== 'undefined' ? document.getElementById('showAxisDimensions') : null;
       const axisLabels = drawAxes(
         axesData,
         stories,
@@ -223,6 +225,7 @@ export function renderAuxiliaryElements(globalData, renderingResults, modelBound
         modelBounds,
         true,
         getActiveCamera(),
+        { showDimensions: dimCheckbox ? dimCheckbox.checked : false },
       );
       renderingResults.nodeLabels.push(...axisLabels);
     } catch (error) {

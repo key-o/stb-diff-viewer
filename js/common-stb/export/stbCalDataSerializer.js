@@ -64,20 +64,38 @@ const KIND_TO_STB = {
 export function serializeCalDataToXml(doc, calData) {
   if (!doc || !calData) return null;
 
-  const { loadCases, memberLoads, loadArrangements } = calData;
-  if ((!loadCases || loadCases.length === 0) && (!memberLoads || memberLoads.length === 0)) {
+  const { loadCondition, loadCases, memberLoads, loadArrangements, slabFinishDefs } = calData;
+  const hasLiveloads = loadCondition?.liveloads?.length > 0;
+  const hasSlabFinishes = slabFinishDefs?.length > 0;
+  if (
+    !hasLiveloads &&
+    !hasSlabFinishes &&
+    (!loadCases || loadCases.length === 0) &&
+    (!memberLoads || memberLoads.length === 0)
+  ) {
     return null;
   }
 
-  // 譁・ｭ怜・ ID 竊・謨ｰ蛟､ ID 縺ｮ繝槭ャ繝斐Φ繧ｰ繧呈ｧ狗ｯ・
   const idMap = _buildIdMap(loadCases, memberLoads);
 
-  // StbCalData 隕∫ｴ繝・Μ繝ｼ繧呈ｧ狗ｯ・
   const calDataEl = _createNsEl(doc, 'StbCalData');
 
-  // StbCalLoad 竊・StbCalLoadCases + StbCalAdditionalLoads
+  // StbCalCommon → StbCalLoadCondition（積載荷重テーブル）
+  if (hasLiveloads) {
+    const commonEl = _createNsEl(doc, 'StbCalCommon');
+    commonEl.appendChild(_serializeLoadCondition(doc, loadCondition));
+    calDataEl.appendChild(commonEl);
+  }
+
+  // StbCalLoad（仕上げ定義 + 荷重ケース + 部材荷重）
+  // スキーマ順: StbCalFinish > StbCalLoadCases > StbCalAdditionalLoads
   const calLoadEl = _createNsEl(doc, 'StbCalLoad');
   let hasContent = false;
+
+  if (hasSlabFinishes) {
+    calLoadEl.appendChild(_serializeCalFinish(doc, slabFinishDefs));
+    hasContent = true;
+  }
 
   if (loadCases && loadCases.length > 0) {
     const casesEl = _serializeLoadCases(doc, loadCases, idMap);
@@ -103,10 +121,85 @@ export function serializeCalDataToXml(doc, calData) {
     }
   }
 
-  // DOM 縺ｫ謖ｿ蜈･・・tbModel 縺ｮ蠕後ヾtbAnaModels 縺ｮ蜑搾ｼ・
   _insertCalDataElement(doc, calDataEl);
 
   return calDataEl;
+}
+
+function _serializeLoadCondition(doc, loadCondition) {
+  const condEl = _createNsEl(doc, 'StbCalLoadCondition');
+  const liveloads = loadCondition?.liveloads || [];
+  if (liveloads.length === 0) return condEl;
+
+  const liveloadsEl = _createNsEl(doc, 'StbCalLiveloads');
+  const isStb20 = _isStb20Document(doc);
+  liveloads.forEach((ll, index) => {
+    const id = _positiveIntegerId(ll.id, index + 1);
+    const el = _createNsEl(doc, 'StbCalLiveload');
+    el.setAttribute('id', String(id));
+    if (!isStb20) {
+      el.setAttribute('code', ll.code || `LL${id}`);
+      el.setAttribute('type', _normalizeLiveloadType(ll.type));
+    } else {
+      el.setAttribute('type', String(_nonNegativeIntegerType(ll.type)));
+    }
+    if (ll.name) el.setAttribute('name', ll.name);
+    el.setAttribute('liveload_slab', String(ll.slabLoad ?? 0));
+    el.setAttribute('liveload_beam', String(ll.beamLoad ?? 0));
+    el.setAttribute('liveload_frame', String(ll.frameLoad ?? 0));
+    el.setAttribute('liveload_seismic', String(ll.seismicLoad ?? 0));
+    liveloadsEl.appendChild(el);
+  });
+  condEl.appendChild(liveloadsEl);
+  return condEl;
+}
+
+/**
+ * StbCalFinish > StbCalMemberFinishes_RC > StbCalSlabFinish_RC* をシリアライズ
+ * @param {XMLDocument} doc
+ * @param {Array<{id: number, weight: number}>} slabFinishDefs
+ */
+function _serializeCalFinish(doc, slabFinishDefs) {
+  const finishEl = _createNsEl(doc, 'StbCalFinish');
+  const memberFinishesEl = _createNsEl(doc, 'StbCalMemberFinishes_RC');
+  for (const def of slabFinishDefs) {
+    const el = _createNsEl(doc, 'StbCalSlabFinish_RC');
+    el.setAttribute('id', String(def.id));
+    el.setAttribute('weight', String(def.weight));
+    memberFinishesEl.appendChild(el);
+  }
+  finishEl.appendChild(memberFinishesEl);
+  return finishEl;
+}
+
+function _isStb20Document(doc) {
+  const version = doc?.documentElement?.getAttribute('version') || '';
+  return version.startsWith('2.0');
+}
+
+function _positiveIntegerId(rawId, fallback) {
+  const parsed = Number.parseInt(String(rawId ?? '').replace(/\D+/g, ''), 10);
+  return parsed > 0 ? parsed : fallback;
+}
+
+function _normalizeLiveloadType(type) {
+  const value = String(type || '').toUpperCase();
+  const valid = new Set([
+    'HABITABLEROOMS',
+    'OFFICES',
+    'CLASSROOMS',
+    'STORES',
+    'MEETINGROOMS_FIXEDSEATING',
+    'MEETINGROOMS_OTHERSEATS',
+    'AUTOMOBILEGARAGES',
+    'INPUT_VALUES',
+  ]);
+  return valid.has(value) ? value : 'INPUT_VALUES';
+}
+
+function _nonNegativeIntegerType(type) {
+  const parsed = Number.parseInt(type, 10);
+  return parsed >= 0 ? parsed : 0;
 }
 
 // 笏笏 ID 繝槭ャ繝斐Φ繧ｰ 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
@@ -207,13 +300,15 @@ function _serializeMemberLoads(doc, memberLoads, idMap) {
 // 笏笏 StbCalLoadArrangements 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 
 function _serializeLoadArrangements(doc, arrangements, idMap) {
-  const { columns, girders, beams } = arrangements;
+  const { columns, girders, beams, slabFinishes, slabLiveloads } = arrangements;
 
   const hasColumns = columns && columns.size > 0;
   const hasGirders = girders && girders.size > 0;
   const hasBeams = beams && beams.size > 0;
+  const hasSlabLiveloads = slabLiveloads && slabLiveloads.size > 0;
+  const hasSlabFinishes = slabFinishes && slabFinishes.size > 0;
 
-  if (!hasColumns && !hasGirders && !hasBeams) return null;
+  if (!hasColumns && !hasGirders && !hasBeams && !hasSlabLiveloads && !hasSlabFinishes) return null;
 
   const arrEl = _createNsEl(doc, 'StbCalLoadArrangements');
 
@@ -226,8 +321,47 @@ function _serializeLoadArrangements(doc, arrangements, idMap) {
   if (hasBeams) {
     _serializeMemberLoadArrangements(doc, arrEl, beams, 'Beam', idMap);
   }
+  // スキーマ順: StbCalSlabLiveLoadArr → StbCalSlabFinish_RC_Arr
+  if (hasSlabLiveloads) {
+    _serializeSlabLiveLoadArrangements(doc, arrEl, slabLiveloads);
+  }
+  if (hasSlabFinishes) {
+    _serializeSlabFinishArrangements(doc, arrEl, slabFinishes);
+  }
 
   return arrEl;
+}
+
+/**
+ * StbCalSlabLiveLoadArr をシリアライズ（liveloadId → slabId[]）
+ */
+function _serializeSlabLiveLoadArrangements(doc, parentEl, slabLiveloads) {
+  for (const [liveloadId, slabIds] of slabLiveloads) {
+    const arrEl = _createNsEl(doc, 'StbCalSlabLiveLoadArr');
+    const listEl = _createNsEl(doc, 'StbCalSlabLiveLoadList');
+    listEl.textContent = String(liveloadId);
+    arrEl.appendChild(listEl);
+    const memListEl = _createNsEl(doc, 'StbCalSlabLiveLoadMemList');
+    memListEl.textContent = slabIds.join(' ');
+    arrEl.appendChild(memListEl);
+    parentEl.appendChild(arrEl);
+  }
+}
+
+/**
+ * StbCalSlabFinish_RC_Arr をシリアライズ（finishId → slabId[]）
+ */
+function _serializeSlabFinishArrangements(doc, parentEl, slabFinishes) {
+  for (const [finishId, slabIds] of slabFinishes) {
+    const arrEl = _createNsEl(doc, 'StbCalSlabFinish_RC_Arr');
+    const listEl = _createNsEl(doc, 'StbCalSlabFinish_RC_LoadList');
+    listEl.textContent = String(finishId);
+    arrEl.appendChild(listEl);
+    const memListEl = _createNsEl(doc, 'StbCalSlabFinish_RC_MemList');
+    memListEl.textContent = slabIds.join(' ');
+    arrEl.appendChild(memListEl);
+    parentEl.appendChild(arrEl);
+  }
 }
 
 /**

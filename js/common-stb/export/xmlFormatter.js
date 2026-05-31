@@ -5,7 +5,16 @@
  * @module common/stb/export/xmlFormatter
  */
 
-import { downloadBlob } from '../../utils/downloadHelper.js';
+import { downloadBlob, requestSaveFileHandle, saveBlob } from '../../utils/downloadHelper.js';
+
+export const STB_SAVE_FILE_TYPES = [
+  {
+    description: 'ST-Bridge ファイル',
+    accept: {
+      'application/xml': ['.stb'],
+    },
+  },
+];
 
 /**
  * XMLを読みやすい形式にフォーマット
@@ -51,16 +60,53 @@ export function formatXml(xmlString) {
 }
 
 /**
+ * STBファイル名として拡張子を保証
+ * @param {string} filename - ファイル名
+ * @returns {string} .stb 拡張子を持つファイル名
+ */
+export function ensureStbExtension(filename) {
+  const name = String(filename || '').trim() || 'export.stb';
+  if (/\.stb$/i.test(name)) return name;
+  if (/\.[^./\\]+$/.test(name)) return name.replace(/\.[^./\\]+$/, '.stb');
+  return `${name}.stb`;
+}
+
+/**
+ * STB保存ダイアログ用オプションを取得
+ * @param {string} filename - 推奨ファイル名
+ * @returns {Object} showSaveFilePicker オプション
+ */
+export function getStbSavePickerOptions(filename) {
+  return {
+    suggestedName: ensureStbExtension(filename),
+    types: STB_SAVE_FILE_TYPES,
+    excludeAcceptAllOption: false,
+  };
+}
+
+/**
+ * STB保存先ファイルハンドルを取得
+ * @param {string} filename - 推奨ファイル名
+ * @returns {Promise<{status: 'selected' | 'unsupported' | 'canceled' | 'error', handle: FileSystemFileHandle|null, error?: Error}>}
+ */
+export function requestStbSaveFileHandle(filename) {
+  return requestSaveFileHandle(getStbSavePickerOptions(filename));
+}
+
+/**
  * STBファイルとしてダウンロード
  * @param {string} xmlContent - XML内容
  * @param {string} filename - ファイル名
+ * @param {Object} [options] - 保存オプション
+ * @param {FileSystemFileHandle|null} [options.fileHandle] - 保存先ファイルハンドル
+ * @returns {Promise<boolean>} 保存可否
  */
-export function downloadStbFile(xmlContent, filename) {
+export async function downloadStbFile(xmlContent, filename, options = {}) {
   // ファイル名の拡張子を.stbに確保
-  const stbFilename = filename.endsWith('.stb') ? filename : filename.replace(/\.[^.]*$/, '.stb');
+  const stbFilename = ensureStbExtension(filename);
 
   const blob = new Blob([xmlContent], { type: 'application/xml' });
-  downloadBlob(blob, stbFilename);
+  return saveBlob(blob, stbFilename, options);
 }
 
 /**

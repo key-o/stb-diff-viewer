@@ -18,6 +18,52 @@
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('app:globalState');
+
+function createEmptySectionMaps() {
+  return {
+    columnSections: new Map(),
+    postSections: new Map(),
+    girderSections: new Map(),
+    beamSections: new Map(),
+    braceSections: new Map(),
+    pileSections: new Map(),
+    footingSections: new Map(),
+    foundationColumnSections: new Map(),
+    foundationcolumnSections: new Map(),
+    slabSections: new Map(),
+    wallSections: new Map(),
+    parapetSections: new Map(),
+    isolatingDeviceSections: new Map(),
+    isolatingdeviceSections: new Map(),
+    dampingDeviceSections: new Map(),
+    dampingdeviceSections: new Map(),
+    undefinedSections: new Map(),
+  };
+}
+
+function createEmptyElementData() {
+  return {
+    columnElements: [],
+    postElements: [],
+    girderElements: [],
+    beamElements: [],
+    braceElements: [],
+    isolatingDeviceElements: [],
+    dampingDeviceElements: [],
+    frameDampingDeviceElements: [],
+    pileElements: [],
+    footingElements: [],
+    foundationColumnElements: [],
+    slabElements: [],
+    wallElements: [],
+    parapetElements: [],
+    openingElements: [],
+    jointElements: [],
+    stripFootingElements: [],
+    undefinedElements: [],
+  };
+}
+
 class ApplicationState {
   constructor() {
     this.state = {
@@ -40,31 +86,20 @@ class ApplicationState {
         // IFC変換用: 生の座標データ（THREE.Vector3変換前）
         nodeMapRawA: new Map(),
         nodeMapRawB: new Map(),
-        sectionMaps: {
-          columnSections: new Map(),
-          girderSections: new Map(),
-          beamSections: new Map(),
-          braceSections: new Map(),
-          isolatingDeviceSections: new Map(),
-          dampingDeviceSections: new Map(),
-        },
+        sectionMaps: createEmptySectionMaps(),
         // 鋼材断面データ（IFC変換で再利用）
         steelSections: new Map(),
         // 要素データ（IFC変換で再利用）
-        elementData: {
-          columnElements: [],
-          girderElements: [],
-          beamElements: [],
-          braceElements: [],
-          isolatingDeviceElements: [],
-          dampingDeviceElements: [],
-          frameDampingDeviceElements: [],
-        },
+        elementData: createEmptyElementData(),
         modelsLoaded: false,
         // STBバージョン情報
         stbVersionA: null, // '2.0.2' | '2.1.0' | 'unknown'
         stbVersionB: null, // '2.0.2' | '2.1.0' | 'unknown'
         activeXsdVersion: null, // 現在アクティブなXSDバージョン
+        versionInfo: null,
+        stories: [],
+        axesData: { xAxes: [], yAxes: [] },
+        modelBounds: null,
       },
 
       // UI関連
@@ -339,25 +374,17 @@ class ApplicationState {
         calDataB: null,
         nodeMapRawA: new Map(),
         nodeMapRawB: new Map(),
-        sectionMaps: {
-          columnSections: new Map(),
-          girderSections: new Map(),
-          beamSections: new Map(),
-          braceSections: new Map(),
-          isolatingDeviceSections: new Map(),
-          dampingDeviceSections: new Map(),
-        },
+        sectionMaps: createEmptySectionMaps(),
         steelSections: new Map(),
-        elementData: {
-          columnElements: [],
-          girderElements: [],
-          beamElements: [],
-          braceElements: [],
-          isolatingDeviceElements: [],
-          dampingDeviceElements: [],
-          frameDampingDeviceElements: [],
-        },
+        elementData: createEmptyElementData(),
         modelsLoaded: false,
+        stbVersionA: null,
+        stbVersionB: null,
+        activeXsdVersion: null,
+        versionInfo: null,
+        stories: [],
+        axesData: { xAxes: [], yAxes: [] },
+        modelBounds: null,
       },
       ui: {
         nodeLabels: [],

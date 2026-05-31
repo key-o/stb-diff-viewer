@@ -18,8 +18,12 @@ import {
 } from '../../viewer/index.js';
 import {
   setupInteractionListeners,
-  getSelectedCenter,
+  getInteractionManagerServices,
 } from '../controllers/interactionController.js';
+import {
+  installInteractionManager,
+  getSelectedCenter,
+} from '../../viewer/interaction/interactionManager.js';
 import {
   setupViewModeListeners,
   setupCameraModeListeners,
@@ -41,7 +45,6 @@ import { clearClippingPlanes } from '../../viewer/index.js';
 import { getState, setState, registerGlobalFunction } from '../../data/state/globalState.js';
 import { viewerEventBridge } from '../../viewer/services/viewerEventBridge.js';
 import { initializeGlobalMessenger } from '../moduleMessaging.js';
-import { IFCConverter, IFCConverterUI } from '../../export/api/ifcConverter.js';
 import { initializeImportanceManager, getImportanceManager } from '../importanceManager.js';
 import { notify } from '../controllers/notificationController.js';
 import { normalizeSectionData } from '../sectionEquivalenceEngine.js';
@@ -52,6 +55,16 @@ import { initializeViewCube } from '../../ui/viewer3d/viewCube/ViewCube.js';
 import { CAMERA_ORTHOGRAPHIC } from '../../config/renderingConstants.js';
 import { renderElementSettingsRows } from '../../ui/panels/elementSettingsTable.js';
 import { setModelLoaderDependencies } from '../../modelLoader/loaderDependencies.js';
+import {
+  initMeasurementManager,
+  isMeasurementModeActive,
+  getMeasurementStep,
+  handleMeasurementClick,
+  enterMeasurementMode,
+  exitMeasurementMode,
+  deleteMeasurement,
+} from '../../viewer/measurement/measurementManager.js';
+import { initMeasurementUI } from '../../ui/measurement/measurementUIController.js';
 
 const log = createLogger('appInitializationHelpers');
 
@@ -92,14 +105,10 @@ export function registerAppGlobals(scheduleRender) {
  * @param {boolean} rendererInitialized - レンダラー初期化フラグ
  */
 export function initializeApplicationServices(rendererInitialized) {
-  const ifcConverter = new IFCConverter();
-  new IFCConverterUI(ifcConverter);
-  window.ifcConverter = ifcConverter;
-  log.info('IFC変換機能を初期化しました');
-
   setState('rendering.rendererInitialized', rendererInitialized);
   setState('rendering.scene', scene);
   setState('elementGroups', elementGroups);
+  installInteractionManager(getInteractionManagerServices());
 
   initializeGlobalMessenger();
   viewerEventBridge.initialize();
@@ -134,7 +143,19 @@ export function initializeApplicationServices(rendererInitialized) {
 export function initializeRuntimeUI(scheduleRender) {
   setupUIEventListeners();
   setupViewportResizeHandler(camera);
-  setupInteractionListeners(scheduleRender);
+
+  initMeasurementManager();
+  setupInteractionListeners(scheduleRender, {
+    getMeasurementModeActive: isMeasurementModeActive,
+    dispatchToMeasurementManager: handleMeasurementClick,
+    getMeasurementStep,
+  });
+  initMeasurementUI({
+    enter: enterMeasurementMode,
+    exit: exitMeasurementMode,
+    deleteById: deleteMeasurement,
+  });
+
   setupViewModeListeners(scheduleRender);
   setupCameraModeListeners(scheduleRender);
   initDepth2DClippingUI();

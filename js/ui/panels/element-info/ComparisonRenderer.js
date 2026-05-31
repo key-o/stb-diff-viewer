@@ -167,6 +167,12 @@ export function generateTableStyles(showSingleColumn) {
         border-bottom: 1px solid var(--border-color); padding: 6px 8px; text-align: left; vertical-align: top;
         word-wrap: break-word;
     }
+    /* スティッキーヘッダー */
+    .unified-comparison-table thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
     .unified-comparison-table th { background-color: var(--bg-secondary); font-weight: var(--font-weight-semibold); color: var(--text-heading); }
 
     /* 要素名の行 */

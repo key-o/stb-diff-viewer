@@ -13,8 +13,11 @@ import { getState } from '../../data/state/globalState.js';
 import { formatXml } from '../../common-stb/export/xmlFormatter.js';
 import { showSuccess, showWarning } from '../common/toast.js';
 import { createLogger } from '../../utils/logger.js';
-import { escapeHtml } from '../../utils/htmlUtils.js';
 import { eventBus, EditEvents } from '../../data/events/index.js';
+import {
+  getElementDefinitionForVersion,
+  isVersionLoaded,
+} from '../../common-stb/import/parser/jsonSchemaLoader.js';
 
 const log = createLogger('ui:panels:xmlViewer');
 
@@ -25,6 +28,29 @@ let lastRawXml = '';
 let errorMarkEls = [];
 /** @type {number} 現在フォーカス中のマークインデックス（-1 = 未選択） */
 let errorMarkIndex = -1;
+
+const CATEGORY_LABELS = {
+  schema: 'XSD',
+  mvd: 'MVD',
+  structure: '構造',
+  reference: '参照',
+  data: 'データ',
+  geometry: '形状',
+  duplicate: '重複',
+};
+
+const SEVERITY_RANK = {
+  error: 3,
+  warning: 2,
+  info: 1,
+};
+
+function normalizeModelSource(modelSource) {
+  if (!modelSource) return null;
+  if (modelSource === 'A' || modelSource === 'modelA') return 'A';
+  if (modelSource === 'B' || modelSource === 'modelB') return 'B';
+  return null;
+}
 
 /**
  * XMLビューアパネルを初期化します
@@ -92,7 +118,8 @@ export function initializeXmlViewer() {
   // 編集イベントリスナー: 表示中のモデルが編集された場合にXMLを再表示
   eventBus.on(EditEvents.ATTRIBUTE_CHANGED, ({ modelSource }) => {
     const isViewerVisible = floatingWindowManager.isVisible('xml-viewer-float');
-    const editedModel = modelSource === 'modelA' ? 'A' : 'B';
+    const editedModel = normalizeModelSource(modelSource);
+    if (!editedModel) return;
     if (isViewerVisible && currentModel === editedModel) {
       renderXml();
     }
@@ -106,8 +133,147 @@ export function initializeXmlViewer() {
  */
 function clearValidationStatus() {
   const status = document.getElementById('xml-validation-status');
-  if (status) status.textContent = '';
+  if (status) {
+    status.textContent = '';
+    status.className = 'xml-validation-status';
+    status.title = '';
+  }
   resetErrorNavigation();
+}
+
+function getCurrentModelVersion() {
+  return getState(`models.stbVersion${currentModel}`) || '2.0.2';
+}
+
+function getSchemaContext() {
+  const version = getCurrentModelVersion();
+  return {
+    version,
+    loaded: isVersionLoaded(version),
+  };
+}
+
+function updateSchemaStatus(schemaContext) {
+  const schemaStatus = document.getElementById('xml-schema-status');
+  if (!schemaStatus) return;
+
+  if (!schemaContext.loaded) {
+    schemaStatus.textContent = 'XSD定義色分け: スキーマ未ロード';
+    schemaStatus.className = 'xml-validation-status xml-schema-status has-warning';
+    schemaStatus.title = `バージョン ${schemaContext.version} のスキーマが未ロードのため、要素のXSD定義判定は未表示です`;
+    return;
+  }
+
+  schemaStatus.textContent = `XSD定義色分け: ${schemaContext.version}`;
+  schemaStatus.className = 'xml-validation-status xml-schema-status ok';
+  schemaStatus.title = `要素名を XSD定義済み / XSD未定義 で色分け表示中（version: ${schemaContext.version}）`;
+}
+
+function getCategoryLabel(category) {
+  return CATEGORY_LABELS[String(category || '').toLowerCase()] || String(category || 'other');
+}
+
+function getIssueCategoryClass(category) {
+  const normalized = String(category || 'other')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '');
+  return `xml-mark-cat-${normalized || 'other'}`;
+}
+
+function pickPrimaryIssue(issues) {
+  if (!Array.isArray(issues) || issues.length === 0) return null;
+  return [...issues].sort((a, b) => {
+    const bySeverity = (SEVERITY_RANK[b?.severity] || 0) - (SEVERITY_RANK[a?.severity] || 0);
+    if (bySeverity !== 0) return bySeverity;
+    const aCategory = String(a?.category || '');
+    const bCategory = String(b?.category || '');
+    return aCategory.localeCompare(bCategory);
+  })[0];
+}
+
+function formatIssueTitle(issues, schemaStateText = '') {
+  if (!Array.isArray(issues) || issues.length === 0) {
+    return schemaStateText;
+  }
+
+  const maxLines = 8;
+  const lines = issues.slice(0, maxLines).map((issue) => {
+    const severity = String(issue?.severity || 'info').toUpperCase();
+    const category = getCategoryLabel(issue?.category);
+    const message = issue?.message || '(詳細なし)';
+    return `[${severity}/${category}] ${message}`;
+  });
+
+  if (issues.length > maxLines) {
+    lines.push(`... 他 ${issues.length - maxLines} 件`);
+  }
+
+  return schemaStateText ? `${schemaStateText}\n${lines.join('\n')}` : lines.join('\n');
+}
+
+function summarizeIssues(issues) {
+  const total = issues.length;
+  const errorCount = issues.filter((i) => i?.severity === 'error').length;
+  const warningCount = issues.filter((i) => i?.severity === 'warning').length;
+  const infoCount = issues.filter((i) => i?.severity === 'info').length;
+  const schemaCount = issues.filter(
+    (i) => String(i?.category || '').toLowerCase() === 'schema',
+  ).length;
+  const mvdCount = issues.filter((i) => String(i?.category || '').toLowerCase() === 'mvd').length;
+
+  if (total === 0) {
+    return {
+      text: '問題は検出されませんでした',
+      className: 'xml-validation-status ok',
+      title: 'バリデーション結果: 問題なし',
+    };
+  }
+
+  const className =
+    errorCount > 0 ? 'xml-validation-status has-error' : 'xml-validation-status has-warning';
+  const text = `問題 ${total}件 (Error:${errorCount} Warning:${warningCount} Info:${infoCount}) / XSD:${schemaCount} MVD:${mvdCount}`;
+  return {
+    text,
+    className,
+    title: text,
+  };
+}
+
+function getElementSchemaState(el, schemaContext) {
+  const version = schemaContext?.version || getCurrentModelVersion();
+  if (!schemaContext?.loaded) {
+    return {
+      known: null,
+      title: `XSD定義判定: スキーマ未ロード (version: ${version})`,
+    };
+  }
+
+  const elementName = el.localName || el.tagName;
+  const known = Boolean(getElementDefinitionForVersion(version, elementName));
+  return {
+    known,
+    title: known
+      ? `XSD定義済み: <${elementName}> (version: ${version})`
+      : `XSD未定義: <${elementName}> (version: ${version})`,
+  };
+}
+
+function appendTagName(container, el, schemaContext) {
+  const state = getElementSchemaState(el, schemaContext);
+  const tagName = document.createElement('span');
+  tagName.className = 'xml-tag-name';
+  if (state.known === true) tagName.classList.add('xml-tag-xsd-known');
+  if (state.known === false) tagName.classList.add('xml-tag-xsd-unknown');
+  tagName.title = state.title;
+  tagName.textContent = el.tagName;
+  container.appendChild(tagName);
+  return state;
+}
+
+function appendTagClose(container, el, schemaContext) {
+  container.appendChild(document.createTextNode('</'));
+  appendTagName(container, el, schemaContext);
+  container.appendChild(document.createTextNode('>'));
 }
 
 /**
@@ -208,9 +374,11 @@ function renderXml() {
   const pre = document.getElementById('xml-viewer-pre');
   if (!pre) return;
 
+  const schemaContext = getSchemaContext();
+  updateSchemaStatus(schemaContext);
+
   const doc = getState(currentModel === 'A' ? 'models.documentA' : 'models.documentB');
   if (!doc) {
-    pre.innerHTML = '';
     pre.textContent = `(モデル${currentModel}は未読み込みです)`;
     lastRawXml = '';
     return;
@@ -218,7 +386,7 @@ function renderXml() {
 
   const raw = new XMLSerializer().serializeToString(doc);
   lastRawXml = formatXml(raw);
-  pre.innerHTML = renderDomTree(doc);
+  pre.replaceChildren(renderDomTree(doc, new Map(), schemaContext));
 }
 
 /**
@@ -255,15 +423,17 @@ async function runValidationAndMark() {
 
     const issues = await collectIssues(doc, validationType);
     const errorMap = buildErrorMap(issues);
+    const schemaContext = getSchemaContext();
+    updateSchemaStatus(schemaContext);
 
-    pre.innerHTML = renderDomTree(doc, errorMap);
+    pre.replaceChildren(renderDomTree(doc, errorMap, schemaContext));
     collectAndInitNavigation();
 
-    const errorCount = issues.filter((i) => i.severity === 'error').length;
-    const warnCount = issues.filter((i) => i.severity === 'warning').length;
     if (statusEl) {
-      statusEl.textContent = '';
-      statusEl.className = 'xml-validation-status';
+      const summary = summarizeIssues(issues);
+      statusEl.textContent = summary.text;
+      statusEl.className = summary.className;
+      statusEl.title = summary.title;
     }
 
     log.info(`バリデーション完了: ${issues.length}件の問題を検出`);
@@ -341,115 +511,142 @@ function buildErrorMap(issues) {
 // ─── DOM ベースのツリーレンダリング ──────────────────────────────────────────
 
 /**
- * XML DocumentをインタラクティブなツリーのHTML文字列に変換します
+ * XML Document をインタラクティブなツリーの DocumentFragment に変換します
  * @param {Document} doc
  * @param {Map<string, Array>} [errorMap]
- * @returns {string} innerHTML用HTML文字列
+ * @returns {DocumentFragment}
  */
-function renderDomTree(doc, errorMap = new Map()) {
-  const out = [];
-  out.push('<span class="xml-line">&lt;?xml version="1.0" encoding="utf-8"?&gt;</span>');
-  renderDomNode(doc.documentElement, 0, errorMap, out);
-  return out.join('');
+function renderDomTree(doc, errorMap = new Map(), schemaContext = getSchemaContext()) {
+  const fragment = document.createDocumentFragment();
+  const headerLine = document.createElement('span');
+  headerLine.className = 'xml-line';
+  headerLine.textContent = '<?xml version="1.0" encoding="utf-8"?>';
+  fragment.appendChild(headerLine);
+  renderDomNode(doc.documentElement, 0, errorMap, fragment, schemaContext);
+  return fragment;
 }
 
 /**
- * 単一のDOM要素ノードをHTML文字列として出力します（再帰）
+ * 単一の DOM 要素ノードを子ノードとして親に追加します（再帰）
  * @param {Element} el
  * @param {number} depth
  * @param {Map<string, Array>} errorMap
- * @param {string[]} out
+ * @param {Node} parent
  */
-function renderDomNode(el, depth, errorMap, out) {
+function renderDomNode(el, depth, errorMap, parent, schemaContext) {
   const indent = '  '.repeat(depth);
   const elementChildren = Array.from(el.childNodes).filter((n) => n.nodeType === 1);
 
   if (elementChildren.length === 0) {
-    // 葉ノード: インライン表示
     const text = el.textContent.trim();
-    const tagOpen = buildTagHtml(el, errorMap);
-    const closeTag = `&lt;/${escapeHtml(el.tagName)}&gt;`;
-    const content = text
-      ? `${tagOpen}${escapeHtml(text)}${closeTag}`
-      : tagOpen.replace(/&gt;(<\/mark>)?$/, (_, mark) => `/&gt;${mark || ''}`);
-    out.push(`<span class="xml-line">${escapeHtml(indent)}${content}</span>`);
-  } else {
-    // 親ノード: 折りたたみ可能
-    const childCount = elementChildren.length;
-    const tagOpen = buildTagHtml(el, errorMap);
-    const closeTag = `&lt;/${escapeHtml(el.tagName)}&gt;`;
+    const line = document.createElement('span');
+    line.className = 'xml-line';
+    line.appendChild(document.createTextNode(indent));
 
-    out.push('<span class="xml-node">');
-    out.push(
-      `<span class="xml-line">` +
-        `<button class="xml-fold-btn" title="折りたたむ">▼</button>` +
-        `${escapeHtml(indent)}${tagOpen}` +
-        `<span class="xml-ellipsis"> …${childCount}要素…</span>` +
-        `</span>`,
-    );
-    out.push('<span class="xml-children">');
-    for (const child of elementChildren) {
-      renderDomNode(child, depth + 1, errorMap, out);
+    if (text) {
+      appendTagOpen(line, el, errorMap, false, schemaContext);
+      line.appendChild(document.createTextNode(text));
+      appendTagClose(line, el, schemaContext);
+    } else {
+      appendTagOpen(line, el, errorMap, true, schemaContext);
     }
-    out.push('</span>');
-    out.push(`<span class="xml-line">${escapeHtml(indent)}${closeTag}</span>`);
-    out.push('</span>');
+    parent.appendChild(line);
+    return;
   }
+
+  // 親ノード: 折りたたみ可能
+  const node = document.createElement('span');
+  node.className = 'xml-node';
+
+  const headerLine = document.createElement('span');
+  headerLine.className = 'xml-line';
+
+  const foldBtn = document.createElement('button');
+  foldBtn.className = 'xml-fold-btn';
+  foldBtn.title = '折りたたむ';
+  foldBtn.textContent = '▼';
+  headerLine.appendChild(foldBtn);
+
+  headerLine.appendChild(document.createTextNode(indent));
+  appendTagOpen(headerLine, el, errorMap, false, schemaContext);
+
+  const ellipsis = document.createElement('span');
+  ellipsis.className = 'xml-ellipsis';
+  ellipsis.textContent = ` …${elementChildren.length}要素…`;
+  headerLine.appendChild(ellipsis);
+
+  node.appendChild(headerLine);
+
+  const childrenContainer = document.createElement('span');
+  childrenContainer.className = 'xml-children';
+  for (const child of elementChildren) {
+    renderDomNode(child, depth + 1, errorMap, childrenContainer, schemaContext);
+  }
+  node.appendChild(childrenContainer);
+
+  const closeLine = document.createElement('span');
+  closeLine.className = 'xml-line';
+  closeLine.appendChild(document.createTextNode(indent));
+  appendTagClose(closeLine, el, schemaContext);
+  node.appendChild(closeLine);
+
+  parent.appendChild(node);
 }
 
 /**
- * 要素の開始タグHTMLを構築します（属性のバリデーションマーク付き）
+ * 要素の開始タグを DOM ノードとして親に追加します（属性のバリデーションマーク付き）
+ * @param {Node} container
  * @param {Element} el
  * @param {Map<string, Array>} errorMap
- * @returns {string}
+ * @param {boolean} selfClosing
  */
-function buildTagHtml(el, errorMap) {
-  const tagName = escapeHtml(el.tagName);
-  // DOM element ref でルックアップ（ID なし同型要素の誤ハイライトを防ぐ）。
-  // issue.element が設定されていない旧形式のフォールバックとして文字列キーも保持する。
+function appendTagOpen(container, el, errorMap, selfClosing, schemaContext) {
   const idAttr = el.getAttribute('id');
   const issues =
     errorMap.get(el) ?? errorMap.get(`${el.localName || el.tagName}|${idAttr ?? ''}`) ?? [];
 
-  // 属性のエラーマップを構築
-  const attrIssueMap = new Map(issues.filter((i) => i.attribute).map((i) => [i.attribute, i]));
-  const elemIssues = issues.filter((i) => !i.attribute);
-
-  // 属性 HTML を構築
-  let attrsHtml = '';
-  for (const attr of Array.from(el.attributes)) {
-    const attrIssue = attrIssueMap.get(attr.name);
-    const nameHtml = escapeHtml(attr.name);
-    const valHtml = escapeHtml(attr.value);
-    if (attrIssue) {
-      const tooltip = escapeAttr(`[${attrIssue.severity}] ${attrIssue.message}`);
-      attrsHtml += ` ${nameHtml}="<mark class="xml-mark-${attrIssue.severity}" title="${tooltip}">${valHtml}</mark>"`;
-    } else {
-      attrsHtml += ` ${nameHtml}="${valHtml}"`;
+  const attrIssueMap = new Map();
+  for (const issue of issues) {
+    if (!issue?.attribute) continue;
+    const key = issue.attribute;
+    if (!attrIssueMap.has(key)) {
+      attrIssueMap.set(key, []);
     }
+    attrIssueMap.get(key).push(issue);
   }
+  const elemIssues = issues.filter((i) => !i.attribute);
+  const schemaState = getElementSchemaState(el, schemaContext);
 
-  let tagHtml = `&lt;${tagName}${attrsHtml}&gt;`;
+  // 開始タグの中身を構築（<tag attr="val" ...>）
+  const tagFragment = document.createDocumentFragment();
+  tagFragment.appendChild(document.createTextNode('<'));
+  appendTagName(tagFragment, el, schemaContext);
+  for (const attr of Array.from(el.attributes)) {
+    tagFragment.appendChild(document.createTextNode(` ${attr.name}="`));
+    const attrIssues = attrIssueMap.get(attr.name) || [];
+    const attrIssue = pickPrimaryIssue(attrIssues);
+    if (attrIssue && attrIssues.length > 0) {
+      const mark = document.createElement('mark');
+      mark.className = `xml-mark-${attrIssue.severity} ${getIssueCategoryClass(attrIssue.category)}`;
+      mark.title = formatIssueTitle(attrIssues, schemaState.title);
+      mark.textContent = attr.value;
+      tagFragment.appendChild(mark);
+    } else {
+      tagFragment.appendChild(document.createTextNode(attr.value));
+    }
+    tagFragment.appendChild(document.createTextNode('"'));
+  }
+  tagFragment.appendChild(document.createTextNode(selfClosing ? '/>' : '>'));
 
-  // 要素レベルのエラーがある場合は開始タグ全体をラップ
   if (elemIssues.length > 0) {
-    const maxSeverity = elemIssues.some((i) => i.severity === 'error')
-      ? 'error'
-      : elemIssues.some((i) => i.severity === 'warning')
-        ? 'warning'
-        : 'info';
-    const tooltip = escapeAttr(elemIssues.map((i) => `[${i.severity}] ${i.message}`).join('\n'));
-    tagHtml = `<mark class="xml-mark-${maxSeverity}" title="${tooltip}">${tagHtml}</mark>`;
+    const primaryIssue = pickPrimaryIssue(elemIssues);
+    const severity = primaryIssue?.severity || 'info';
+    const mark = document.createElement('mark');
+    mark.className = `xml-mark-${severity} ${getIssueCategoryClass(primaryIssue?.category)}`;
+    mark.title = formatIssueTitle(elemIssues, schemaState.title);
+    mark.appendChild(tagFragment);
+    container.appendChild(mark);
+  } else {
+    container.appendChild(tagFragment);
   }
-
-  return tagHtml;
-}
-
-/**
- * HTML属性値として安全にエスケープします
- * @param {string} str
- * @returns {string}
- */
-function escapeAttr(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }

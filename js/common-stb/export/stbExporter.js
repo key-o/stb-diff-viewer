@@ -43,6 +43,7 @@ const _log = createLogger('common-stb:export:stbExporter');
  * @typedef {Object} ExportStbDocumentOptions
  * @property {string} [filename]
  * @property {string|null} [targetVersion]
+ * @property {FileSystemFileHandle|null} [fileHandle]
  */
 
 /**
@@ -51,6 +52,7 @@ const _log = createLogger('common-stb:export:stbExporter');
  * @property {Object|null} [validationReport]
  * @property {Object|null} [repairReport]
  * @property {boolean} [includeReport]
+ * @property {FileSystemFileHandle|null} [fileHandle]
  */
 
 // ======================================================================
@@ -160,7 +162,7 @@ export async function exportModifiedStb(originalDoc, modifications, filename = '
     const formattedXml = formatXml(xmlString);
 
     // ファイルとしてダウンロード
-    downloadStbFile(formattedXml, filename);
+    await downloadStbFile(formattedXml, filename);
 
     logger.debug(`STB file exported successfully as ${filename}`);
     return true;
@@ -174,11 +176,11 @@ export async function exportModifiedStb(originalDoc, modifications, filename = '
  * STBドキュメントを指定バージョンでエクスポート
  * @param {Document} doc - XMLドキュメント
  * @param {ExportStbDocumentOptions} [options] - オプション
- * @returns {boolean} 成功可否
+ * @returns {Promise<boolean>} 成功可否
  */
-export function exportStbDocument(doc, options = {}) {
+export async function exportStbDocument(doc, options = {}) {
   try {
-    const { filename = 'export.stb', targetVersion = null } = options;
+    const { filename = 'export.stb', targetVersion = null, fileHandle = null } = options;
     const exportDoc = /** @type {Document} */ (doc.cloneNode(true));
 
     if (targetVersion) {
@@ -189,7 +191,7 @@ export function exportStbDocument(doc, options = {}) {
     const xmlString = serializer.serializeToString(exportDoc);
     const formattedXml = formatXml(xmlString);
 
-    downloadStbFile(formattedXml, filename);
+    await downloadStbFile(formattedXml, filename, { fileHandle });
     return true;
   } catch (error) {
     logger.error('Error exporting STB document:', error);
@@ -360,15 +362,16 @@ export function generateModificationReport(modifications) {
  *
  * @param {Document} doc - エクスポートするXMLドキュメント
  * @param {ExportValidatedStbOptions} [options] - エクスポートオプション
- * @returns {boolean} 成功可否
+ * @returns {Promise<boolean>} 成功可否
  */
-export function exportValidatedStb(doc, options = {}) {
+export async function exportValidatedStb(doc, options = {}) {
   try {
     const {
       filename = 'validated.stb',
       validationReport = null,
       repairReport = null,
       includeReport = false,
+      fileHandle = null,
     } = options;
 
     // XMLを文字列にシリアライズ
@@ -379,7 +382,7 @@ export function exportValidatedStb(doc, options = {}) {
     const formattedXml = formatXml(xmlString);
 
     // ファイルとしてダウンロード
-    downloadStbFile(formattedXml, filename);
+    await downloadStbFile(formattedXml, filename, { fileHandle });
 
     // レポートを含める場合は別ファイルとしてダウンロード
     if (includeReport && (validationReport || repairReport)) {
@@ -462,7 +465,7 @@ export async function validateRepairAndExport(
     const revalidation = validateStbDocument(repairedDoc);
 
     // エクスポート
-    const success = exportValidatedStb(repairedDoc, {
+    const success = await exportValidatedStb(repairedDoc, {
       filename,
       validationReport: revalidation,
       repairReport,

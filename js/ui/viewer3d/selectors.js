@@ -31,19 +31,16 @@ export function updateStorySelector() {
 
   const stories = getCurrentStories();
 
-  // Clear existing options except the first "All Stories" option
-  const allOption = storySelector.querySelector('option[value="all"]');
-  storySelector.innerHTML = '';
-
-  if (allOption) {
-    storySelector.appendChild(allOption);
-  } else {
-    // Create "All Stories" option if it doesn't exist
-    const allStoriesOption = document.createElement('option');
-    allStoriesOption.value = 'all';
-    allStoriesOption.textContent = '全ての階';
-    storySelector.appendChild(allStoriesOption);
-  }
+  // Keep (or recreate) the "All Stories" option, discard the rest
+  const allOption =
+    storySelector.querySelector('option[value="all"]') ??
+    (() => {
+      const o = document.createElement('option');
+      o.value = 'all';
+      o.textContent = '全ての階';
+      return o;
+    })();
+  storySelector.replaceChildren(allOption);
 
   // Add story options
   stories.forEach((story) => {
@@ -81,25 +78,21 @@ function updateXAxisSelector(xAxes) {
     return;
   }
 
-  // Clear existing options except "All" option
-  const allOption = xAxisSelector.querySelector('option[value="all"]');
-  xAxisSelector.innerHTML = '';
-
-  if (allOption) {
-    xAxisSelector.appendChild(allOption);
-  } else {
-    // Create "All X-Axes" option
-    const allXOption = document.createElement('option');
-    allXOption.value = 'all';
-    allXOption.textContent = '全てのX軸';
-    xAxisSelector.appendChild(allXOption);
-  }
+  const allOption =
+    xAxisSelector.querySelector('option[value="all"]') ??
+    (() => {
+      const o = document.createElement('option');
+      o.value = 'all';
+      o.textContent = '全てのX軸';
+      return o;
+    })();
+  xAxisSelector.replaceChildren(allOption);
 
   // Add X-axis options
   xAxes.forEach((axis) => {
     const option = document.createElement('option');
     option.value = axis.id;
-    option.textContent = `${axis.name} (X: ${axis.distance}mm)`;
+    option.textContent = getAxisOptionText(axis, 'X');
     xAxisSelector.appendChild(option);
   });
 
@@ -117,30 +110,36 @@ function updateYAxisSelector(yAxes) {
     return;
   }
 
-  // Clear existing options except "All" option
-  const allOption = yAxisSelector.querySelector('option[value="all"]');
-  yAxisSelector.innerHTML = '';
-
-  if (allOption) {
-    yAxisSelector.appendChild(allOption);
-  } else {
-    // Create "All Y-Axes" option
-    const allYOption = document.createElement('option');
-    allYOption.value = 'all';
-    allYOption.textContent = '全てのY軸';
-    yAxisSelector.appendChild(allYOption);
-  }
+  const allOption =
+    yAxisSelector.querySelector('option[value="all"]') ??
+    (() => {
+      const o = document.createElement('option');
+      o.value = 'all';
+      o.textContent = '全てのY軸';
+      return o;
+    })();
+  yAxisSelector.replaceChildren(allOption);
 
   // Add Y-axis options
   yAxes.forEach((axis) => {
     const option = document.createElement('option');
     option.value = axis.id;
-    option.textContent = `${axis.name} (Y: ${axis.distance}mm)`;
+    option.textContent = getAxisOptionText(axis, 'Y');
     yAxisSelector.appendChild(option);
   });
 
   // Set default selection
   yAxisSelector.value = 'all';
+}
+
+function getAxisOptionText(axis, axisType) {
+  if (axis.axisKind === 'arc') {
+    return `${axis.name} (R: ${axis.radius}mm)`;
+  }
+  if (axis.axisKind === 'radial') {
+    return `${axis.name} (${axis.angle}deg)`;
+  }
+  return `${axis.name} (${axisType}: ${axis.distance}mm)`;
 }
 
 /**

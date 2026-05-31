@@ -16,6 +16,9 @@
 const STB_NAMESPACE = 'https://www.building-smart.or.jp/dl';
 
 import { createLogger } from '../../../utils/logger.js';
+import { parseStbExtensions } from '../../stbExtensions.js';
+
+export { parseStbExtensions };
 
 const _log = createLogger('common-stb:parser:stbXmlParser');
 
@@ -44,43 +47,6 @@ export function setLogger(customLogger) {
  */
 export function getLogger() {
   return logger;
-}
-
-// --- StbExtensions パーサー ---
-/**
- * StbExtensionsからSS7拡張プロパティを読み込む
- * @param {Document} doc - XML ドキュメント
- * @param {string} objectName - 対象オブジェクト名 (e.g. 'StbNode', 'StbGirder')
- * @returns {Map<string, Object>} id → { key: value, ... } マップ
- */
-const _stbExtCache = new WeakMap();
-export function parseStbExtensions(doc, objectName) {
-  // ドキュメント単位でキャッシュ
-  if (!_stbExtCache.has(doc)) {
-    const allExtMap = new Map();
-    const extObjects = doc.getElementsByTagName('StbExtObject');
-    for (let i = 0; i < extObjects.length; i++) {
-      const extObj = extObjects[i];
-      const objName = extObj.getAttribute('object_name');
-      const idObj = extObj.getAttribute('id_object');
-      if (!objName || !idObj) continue;
-
-      const props = {};
-      const propEls = extObj.getElementsByTagName('StbExtProperty');
-      for (let j = 0; j < propEls.length; j++) {
-        const key = propEls[j].getAttribute('key');
-        const value = propEls[j].getAttribute('value');
-        if (key) props[key] = value || '';
-      }
-
-      if (!allExtMap.has(objName)) allExtMap.set(objName, new Map());
-      allExtMap.get(objName).set(idObj, props);
-    }
-    _stbExtCache.set(doc, allExtMap);
-  }
-
-  const cached = _stbExtCache.get(doc);
-  return cached.get(objectName) || new Map();
 }
 
 // --- 要素パース関数 (汎用) ---
@@ -254,6 +220,31 @@ export function parseAxes(doc, options = {}) {
   const { includeNodeIds = false } = options;
   const xAxes = [];
   const yAxes = [];
+  const arcAxes = [];
+  const radialAxes = [];
+
+  const collectNodeIds = (axis) => {
+    const nodeIds = [];
+    const nodeList = axis.getElementsByTagName('StbNodeIdList')[0];
+    if (nodeList) {
+      const idElements = Array.from(nodeList.getElementsByTagName('StbNodeId'));
+      for (const idEl of idElements) {
+        const nid = idEl.getAttribute('id');
+        if (nid) nodeIds.push(nid);
+      }
+    }
+    return nodeIds;
+  };
+
+  const pushAxisByGroup = (axisData, groupName) => {
+    const isXGroup = groupName === 'X' || groupName?.endsWith('_X');
+    const isYGroup = groupName === 'Y' || groupName?.endsWith('_Y');
+    if (isXGroup) {
+      xAxes.push(axisData);
+    } else if (isYGroup) {
+      yAxes.push(axisData);
+    }
+  };
 
   // <StbParallelAxes> 要素をすべて取得
   const parallelAxesElements = parseElements(doc, 'StbParallelAxes');
@@ -265,11 +256,6 @@ export function parseAxes(doc, options = {}) {
     const originX = parseFloat(parallelAxes.getAttribute('X')) || 0;
     const originY = parseFloat(parallelAxes.getAttribute('Y')) || 0;
     const angle = parseFloat(parallelAxes.getAttribute('angle')) || 0;
-
-    // group_nameからX/Y軸を判定
-    // "X", "Y" に加えて "_X", "_Y" で終わる場合も対応
-    const isXGroup = groupName === 'X' || groupName.endsWith('_X');
-    const isYGroup = groupName === 'Y' || groupName.endsWith('_Y');
 
     // <StbParallelAxis> 要素を取得
     const axisElements = parallelAxes.getElementsByTagName
@@ -296,6 +282,7 @@ export function parseAxes(doc, options = {}) {
       const axisData = {
         id,
         name,
+        axisKind: 'parallel',
         distance,
         // 実際の座標位置を追加
         x: actualX,
@@ -307,27 +294,107 @@ export function parseAxes(doc, options = {}) {
 
       // オプション: StbNodeIdList 内の節点IDを取得
       if (includeNodeIds) {
-        const nodeIds = [];
-        const nodeList = axis.getElementsByTagName('StbNodeIdList')[0];
-        if (nodeList) {
-          const idElements = Array.from(nodeList.getElementsByTagName('StbNodeId'));
-          for (const idEl of idElements) {
-            const nid = idEl.getAttribute('id');
-            if (nid) nodeIds.push(nid);
-          }
-        }
-        axisData.node_ids = nodeIds;
+        axisData.node_ids = collectNodeIds(axis);
       }
 
       if (name && !isNaN(distance)) {
-        if (isXGroup) {
-          xAxes.push(axisData);
-        } else if (isYGroup) {
-          yAxes.push(axisData);
-        }
+        pushAxisByGroup(axisData, groupName);
       } else {
         logger.warn(
           `[Data] 軸: 無効なデータをスキップ (ID=${axis.getAttribute('id')}, Name=${name}, Distance=${axis.getAttribute('distance')})`,
+        );
+      }
+    }
+  }
+
+  // <StbArcAxes> 要素をすべて取得
+  const arcAxesElements = parseElements(doc, 'StbArcAxes');
+  for (let i = 0; i < arcAxesElements.length; i++) {
+    const arcAxesElement = arcAxesElements[i];
+    const groupName = arcAxesElement.getAttribute('group_name');
+    const originX = parseFloat(arcAxesElement.getAttribute('X')) || 0;
+    const originY = parseFloat(arcAxesElement.getAttribute('Y')) || 0;
+    const startAngle = parseFloat(arcAxesElement.getAttribute('start_angle'));
+    const endAngle = parseFloat(arcAxesElement.getAttribute('end_angle'));
+    const axisElements = arcAxesElement.getElementsByTagName
+      ? Array.from(arcAxesElement.getElementsByTagName('StbArcAxis'))
+      : [];
+
+    for (let j = 0; j < axisElements.length; j++) {
+      const axis = axisElements[j];
+      const id = axis.getAttribute('id') || `${groupName}_arc_${j}`;
+      const name = axis.getAttribute('name');
+      const radius = parseFloat(axis.getAttribute('radius'));
+
+      const axisData = {
+        id,
+        name,
+        axisKind: 'arc',
+        distance: radius,
+        radius,
+        originX,
+        originY,
+        startAngle,
+        endAngle,
+      };
+
+      if (includeNodeIds) {
+        axisData.node_ids = collectNodeIds(axis);
+      }
+
+      if (
+        name &&
+        Number.isFinite(radius) &&
+        Number.isFinite(startAngle) &&
+        Number.isFinite(endAngle)
+      ) {
+        arcAxes.push(axisData);
+        pushAxisByGroup(axisData, groupName);
+      } else {
+        logger.warn(
+          `[Data] 円弧軸: 無効なデータをスキップ (ID=${axis.getAttribute('id')}, Name=${name}, Radius=${axis.getAttribute('radius')})`,
+        );
+      }
+    }
+  }
+
+  // <StbRadialAxes> 要素をすべて取得
+  const radialAxesElements = parseElements(doc, 'StbRadialAxes');
+  for (let i = 0; i < radialAxesElements.length; i++) {
+    const radialAxesElement = radialAxesElements[i];
+    const groupName = radialAxesElement.getAttribute('group_name');
+    const originX = parseFloat(radialAxesElement.getAttribute('X')) || 0;
+    const originY = parseFloat(radialAxesElement.getAttribute('Y')) || 0;
+    const axisElements = radialAxesElement.getElementsByTagName
+      ? Array.from(radialAxesElement.getElementsByTagName('StbRadialAxis'))
+      : [];
+
+    for (let j = 0; j < axisElements.length; j++) {
+      const axis = axisElements[j];
+      const id = axis.getAttribute('id') || `${groupName}_radial_${j}`;
+      const name = axis.getAttribute('name');
+      const angle = parseFloat(axis.getAttribute('angle'));
+
+      const axisData = {
+        id,
+        name,
+        axisKind: 'radial',
+        distance: angle,
+        angle,
+        originX,
+        originY,
+      };
+
+      if (includeNodeIds) {
+        axisData.node_ids = collectNodeIds(axis);
+      }
+
+      if (name && Number.isFinite(angle)) {
+        radialAxes.push(axisData);
+        pushAxisByGroup(axisData, groupName);
+      } else {
+        logger.warn(
+          `[Data] 放射軸: 無効なデータをスキップ (ID=${axis.getAttribute('id')}, Name=${name}, Angle=${axis.getAttribute('angle')})`,
         );
       }
     }
@@ -337,9 +404,11 @@ export function parseAxes(doc, options = {}) {
   xAxes.sort((a, b) => a.distance - b.distance);
   yAxes.sort((a, b) => a.distance - b.distance);
 
-  logger.log(`[Load] 軸情報読込完了: X軸${xAxes.length}本, Y軸${yAxes.length}本`);
+  logger.log(
+    `[Load] 軸情報読込完了: X軸${xAxes.length}本, Y軸${yAxes.length}本, 円弧${arcAxes.length}本, 放射${radialAxes.length}本`,
+  );
 
-  return { xAxes, yAxes };
+  return { xAxes, yAxes, arcAxes, radialAxes };
 }
 
 // --- ノード所属情報ルックアップ構築関数 ---

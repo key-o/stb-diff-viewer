@@ -415,10 +415,10 @@ class SectionTreeView extends BaseTreeView {
 
     // 検索ハイライトを適用
     if (searchPattern && searchPattern.pattern) {
+      sectionName.appendChild(highlightSearchMatch(sectionId, searchPattern));
       if (displayName !== sectionId) {
-        sectionName.innerHTML = `${highlightSearchMatch(sectionId, searchPattern)}: ${highlightSearchMatch(displayName, searchPattern)}`;
-      } else {
-        sectionName.innerHTML = highlightSearchMatch(sectionId, searchPattern);
+        sectionName.appendChild(document.createTextNode(': '));
+        sectionName.appendChild(highlightSearchMatch(displayName, searchPattern));
       }
     } else {
       sectionName.textContent = `${sectionId}${displayName !== sectionId ? `: ${displayName}` : ''}`;
@@ -435,7 +435,7 @@ class SectionTreeView extends BaseTreeView {
       const typeText = sectionData.section_type || sectionData.kind || '';
       // 検索ハイライトを適用
       if (searchPattern && searchPattern.pattern) {
-        sectionType.innerHTML = highlightSearchMatch(typeText, searchPattern);
+        sectionType.appendChild(highlightSearchMatch(typeText, searchPattern));
       } else {
         sectionType.textContent = typeText;
       }

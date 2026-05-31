@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
 import { OrbitLikeControlsShim, MinimalControls } from '../controls/orbitLikeControlsShim.js';
 import { getFrustumCuller } from '../rendering/FrustumCuller.js';
+import { getLabelVisibilityCuller } from '../annotations/labelVisibilityCuller.js';
 
 const log = createLogger('viewer/core/core');
 
@@ -264,6 +265,7 @@ export function setSkipControlsUpdate(skip) {
 
 // フラスタムカリングの有効/無効フラグ
 let frustumCullingEnabled = false;
+let labelVisibilityCullingProvider = null;
 
 /**
  * フラスタムカリングの有効/無効を設定
@@ -281,6 +283,16 @@ export function setFrustumCullingEnabled(enabled) {
  */
 export function isFrustumCullingEnabled() {
   return frustumCullingEnabled;
+}
+
+/**
+ * ラベルカリング用のラベル取得プロバイダーを設定する。
+ * viewer 層から ui 層へ直接依存しないための注入口。
+ * @param {{getLabels: Function}|null} provider
+ */
+export function setLabelVisibilityCullingProvider(provider) {
+  labelVisibilityCullingProvider =
+    provider && typeof provider.getLabels === 'function' ? provider : null;
 }
 
 // --- AR/XRセッション状態 ---
@@ -357,6 +369,10 @@ export function animate(controls, scene, camera) {
     }
 
     if (shouldRender) {
+      if (labelVisibilityCullingProvider) {
+        const labels = labelVisibilityCullingProvider.getLabels();
+        getLabelVisibilityCuller().cullLabels(labels, renderCamera);
+      }
       renderer.render(scene, renderCamera);
       renderRequested = false;
     }

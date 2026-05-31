@@ -73,6 +73,7 @@ function extractLabelInformation(labels) {
     parentGroup: label.parent,
     originalElement: label.userData.originalElement,
     visible: label.visible,
+    baseVisible: label.userData.labelBaseVisible ?? label.visible,
   }));
 }
 
@@ -141,7 +142,8 @@ function createUpdatedLabels(labelInfo) {
       sprite.userData.originalElement = info.originalElement;
 
       // 表示状態を復元
-      sprite.visible = info.visible;
+      sprite.userData.labelBaseVisible = info.baseVisible;
+      sprite.visible = info.baseVisible;
 
       // 親グループに追加
       if (info.parentGroup) {
@@ -197,10 +199,12 @@ function buildReplacementLabel(originalLabel, labelText, elementType, elementDat
     return originalLabel;
   }
 
-  replacement.visible = originalLabel.visible;
+  const baseVisible = originalLabel.userData?.labelBaseVisible ?? originalLabel.visible;
+  replacement.visible = baseVisible;
   replacement.userData = {
     ...replacement.userData,
     ...originalLabel.userData,
+    labelBaseVisible: baseVisible,
     originalElement: elementData || originalLabel.userData.originalElement,
   };
 

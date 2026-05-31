@@ -1,0 +1,474 @@
+/**
+ * 重要度パネル - 階層リスト・テーブル・ツリー
+ *
+ * 統計表、一括操作セクション、カテゴリーリスト、重要度テーブル、ツリーノード
+ */
+
+/* ========================================
+   統計パネル
+   ======================================== */
+
+#importance-statistics-panel {
+  width: 500px;
+  max-height: 80vh;
+}
+
+.statistics-summary {
+  margin-bottom: 20px;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-radius: var(--border-radius-lg);
+  border: 1px solid #eee;
+  background: white;
+}
+
+.card-icon {
+  font-size: var(--font-size-xl);
+  margin-right: 12px;
+}
+
+.card-content {
+  flex: 1;
+}
+
+.card-value {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: #333;
+}
+
+.card-label {
+  font-size: var(--font-size-sm);
+  color: #666;
+  margin-top: 2px;
+}
+
+.statistics-details,
+.statistics-by-type,
+.statistics-charts {
+  margin-bottom: 20px;
+}
+
+.details-header,
+.type-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.details-header h4,
+.type-header h4 {
+  margin: 0;
+  font-size: var(--font-size-base);
+  color: #333;
+}
+
+.details-header select {
+  font-size: var(--font-size-sm);
+  padding: 2px 6px;
+  border: 1px solid #ddd;
+  border-radius: var(--border-radius-sm);
+}
+
+.statistics-table {
+  overflow-x: auto;
+}
+
+.statistics-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.statistics-table th,
+.statistics-table td {
+  padding: 6px 8px;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+}
+
+.statistics-table th {
+  background: #f8f9fa;
+  font-weight: var(--font-weight-bold);
+  color: #555;
+}
+
+.statistics-table .importance-cell {
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.importance-indicator {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid #ccc;
+}
+
+.chart-container {
+  text-align: center;
+}
+
+.chart-container h4 {
+  margin: 0 0 12px 0;
+  font-size: var(--font-size-base);
+  color: #333;
+}
+
+.filter-statistics {
+  border-top: 1px solid #eee;
+  padding-top: 16px;
+}
+
+.filter-statistics h4 {
+  margin: 0 0 12px 0;
+  font-size: var(--font-size-base);
+  color: #333;
+}
+
+.filter-stats-content {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.filter-stat {
+  text-align: center;
+  padding: var(--spacing-sm);
+  background: #f8f9fa;
+  border-radius: var(--border-radius);
+}
+
+.filter-stat .stat-label {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: #666;
+  margin-bottom: 2px;
+}
+
+.filter-stat .stat-value {
+  display: block;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-bold);
+  color: #333;
+}
+
+.type-statistics-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: var(--font-size-sm);
+}
+
+.type-name {
+  font-weight: var(--font-weight-bold);
+  color: #555;
+}
+
+.type-stats {
+  display: flex;
+  gap: 12px;
+  color: #666;
+}
+
+/* ========================================
+   一括操作パネル - セクションコンテンツ
+   ======================================== */
+
+.operation-section {
+  margin-bottom: 20px;
+  border: 1px solid #eee;
+  border-radius: var(--border-radius-lg);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-sm) 12px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+
+.section-header h4 {
+  margin: 0;
+  font-size: var(--font-size-base);
+  color: #333;
+}
+
+.expand-button {
+  background: none;
+  border: none;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  color: #666;
+}
+
+.section-content {
+  padding: 12px;
+}
+
+.operation-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.operation-row:last-child {
+  margin-bottom: 0;
+}
+
+.operation-row label {
+  font-size: var(--font-size-sm);
+  color: #555;
+  min-width: 80px;
+}
+
+.operation-row select,
+.operation-row input {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  padding: 4px 6px;
+  border: 1px solid #ddd;
+  border-radius: var(--border-radius-sm);
+}
+
+.operation-row button {
+  padding: 4px 12px;
+  font-size: var(--font-size-sm);
+  border: 1px solid #007bff;
+  border-radius: var(--border-radius-sm);
+  background: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+.operation-row button:hover {
+  background: #0056b3;
+}
+
+.preview-results {
+  margin-top: 12px;
+  padding: var(--spacing-sm);
+  background: #f8f9fa;
+  border-radius: var(--border-radius);
+  font-size: var(--font-size-sm);
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.preview-item {
+  padding: 4px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.preview-item:last-child {
+  border-bottom: none;
+}
+
+/* ========================================
+   Refined Layout - テーブル・ツリー
+   ======================================== */
+
+/* Table View */
+.importance-table-container {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0;
+}
+
+.importance-table {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.unified-comparison-table {
+  table-layout: fixed;
+}
+
+.importance-table th,
+.importance-table td {
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+  word-wrap: break-word;
+}
+
+.importance-table th {
+  background-color: var(--bg-secondary);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-heading);
+}
+
+.importance-table th.sortable-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.importance-table th.sortable-header.active {
+  background-color: #eef2f7;
+}
+
+.importance-table .sortable-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.importance-table .sort-indicator {
+  font-size: var(--font-size-xs);
+  color: #6b7280;
+  line-height: 1;
+}
+
+.importance-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Tree View */
+.importance-tree-root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+}
+
+.importance-tree-node {
+  border: 1px solid #e5e7eb;
+  border-radius: var(--border-radius-lg);
+  background: #fff;
+}
+
+.importance-tree-node + .importance-tree-node {
+  margin-top: 2px;
+}
+
+.importance-tree-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) 10px;
+  cursor: default;
+  list-style: none;
+  user-select: none;
+  background: #f8f9fb;
+  border-radius: var(--border-radius-lg) var(--border-radius-lg) 0 0;
+}
+
+.importance-tree-summary .importance-toggle-btn {
+  margin-right: 5px;
+  display: inline-block;
+  width: 1em;
+  text-align: center;
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  color: #666;
+  user-select: none;
+}
+
+.tree-node-name {
+  font-weight: var(--font-weight-semibold);
+  color: #1f2937;
+}
+
+.tree-node-count {
+  margin-left: auto;
+  min-width: 24px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #374151;
+  font-size: var(--font-size-sm);
+}
+
+.importance-tree-content {
+  padding: 0 8px 8px 10px;
+}
+
+.importance-tree-node .importance-tree-node {
+  border-color: #eef1f5;
+}
+
+.importance-table-compact {
+  font-size: var(--font-size-sm);
+  border: 1px solid #eef1f5;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+}
+
+.importance-table-compact td {
+  padding: 6px 10px;
+}
+
+.importance-table-compact tr:last-child td {
+  border-bottom: none;
+}
+
+.importance-path-row.element-row > td:first-child {
+  background-color: #f0f8ff;
+  font-weight: var(--font-weight-bold);
+}
+
+.importance-path-row.attribute-row > td:first-child {
+  color: #666;
+}
+
+/* Column width definitions */
+.importance-table th.mvd-col,
+.importance-table td.mvd-col {
+  width: 180px;
+  min-width: 160px;
+}
+
+.importance-table th.param-name-col,
+.importance-table td.param-name-col {
+  width: auto;
+  min-width: 220px;
+}
+
+.importance-table td.param-name-col {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.importance-table th.xsd-required-col,
+.importance-table td.xsd-required-col {
+  width: 92px;
+  min-width: 92px;
+  text-align: center;
+}
+
+.importance-table th.effective-col,
+.importance-table td.effective-col {
+  width: 130px;
+  min-width: 120px;
+}

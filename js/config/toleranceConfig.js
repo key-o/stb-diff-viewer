@@ -4,9 +4,13 @@
  * このファイルは、要素比較時の許容差設定を管理します：
  * - 基準点(StbNode)座標の許容差
  * - オフセット値の許容差
+ * - 回転角の許容差（度単位）
+ * - 配置要素比較モード（段階1～3）
  * - 許容差機能の有効/無効切り替え
  * - 厳密モード（完全一致のみ）の設定
  */
+
+import { DEFAULT_PLACEMENT_COMPARISON_MODE } from './comparisonKeyConfig.js';
 
 /**
  * 許容差設定のデフォルト値
@@ -27,8 +31,14 @@ export const DEFAULT_TOLERANCE_CONFIG = {
     z: 5.0,
   },
 
+  // 回転角の許容差 (度)
+  rotate: 0.5,
+
   // 属性値の数値比較しきい値（rotate, offset_X 等の数値属性に適用）
   attributeNumericTolerance: 0.001,
+
+  // 配置要素比較モード（PLACEMENT_COMPARISON_MODE 参照）
+  placementComparisonMode: DEFAULT_PLACEMENT_COMPARISON_MODE,
 
   // 許容差機能の有効/無効
   enabled: true,
@@ -78,6 +88,10 @@ export function setToleranceConfig(config) {
     };
   }
 
+  if (typeof config.rotate === 'number') {
+    currentToleranceConfig.rotate = config.rotate;
+  }
+
   if (typeof config.enabled === 'boolean') {
     currentToleranceConfig.enabled = config.enabled;
   }
@@ -89,6 +103,10 @@ export function setToleranceConfig(config) {
   if (typeof config.attributeNumericTolerance === 'number') {
     currentToleranceConfig.attributeNumericTolerance = config.attributeNumericTolerance;
   }
+
+  if (typeof config.placementComparisonMode === 'string') {
+    currentToleranceConfig.placementComparisonMode = config.placementComparisonMode;
+  }
 }
 
 /**
@@ -98,9 +116,11 @@ export function resetToleranceConfig() {
   currentToleranceConfig = {
     basePoint: { ...DEFAULT_TOLERANCE_CONFIG.basePoint },
     offset: { ...DEFAULT_TOLERANCE_CONFIG.offset },
+    rotate: DEFAULT_TOLERANCE_CONFIG.rotate,
     enabled: DEFAULT_TOLERANCE_CONFIG.enabled,
     strictMode: DEFAULT_TOLERANCE_CONFIG.strictMode,
     attributeNumericTolerance: DEFAULT_TOLERANCE_CONFIG.attributeNumericTolerance,
+    placementComparisonMode: DEFAULT_TOLERANCE_CONFIG.placementComparisonMode,
   };
 }
 

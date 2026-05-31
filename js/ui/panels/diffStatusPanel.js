@@ -97,10 +97,10 @@ export class DiffStatusPanel {
 
     if (legendContainer) {
       // 凡例を生成して挿入（コンテナ自体は残し、中身だけ生成）
-      const legendItems = DIFF_CATEGORIES.sort((a, b) => a.order - b.order)
-        .map((cat) => renderer.renderCategoryItem(cat))
-        .join('\n');
-      legendContainer.innerHTML = legendItems;
+      const items = DIFF_CATEGORIES.sort((a, b) => a.order - b.order).map((cat) =>
+        renderer.renderCategoryItem(cat),
+      );
+      legendContainer.replaceChildren(...items);
       log.info('[Event] 差分フィルタ凡例を動的生成しました');
     }
   }

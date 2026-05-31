@@ -112,29 +112,37 @@ function convertSPileSectionsTo210(stbRoot) {
   sPiles.forEach((pile) => {
     const pileId = pile['$']?.id || 'unknown';
 
-    // Check if already has v2.1.0 structure
-    if (pile['StbSecPile_S_Conventional']) return;
+    // Check if already has correct v2.1.0 structure
+    const existingConv = pile['StbSecPile_S_Conventional']?.[0];
+    const hasValidConv = existingConv && Object.keys(existingConv).some((k) => k !== '$');
+    if (hasValidConv) return;
 
-    // Collect all v2.0.2 child elements
-    const children = {};
+    // Collect figure and shape elements (v2.0.2 direct children)
+    const figureElements = pile['StbSecFigurePile_S'];
     const childElementNames = [
       'StbSecPile_S_Straight',
       'StbSecPile_S_Rotational',
       'StbSecPile_S_Taper',
     ];
 
-    childElementNames.forEach((name) => {
-      if (pile[name]) {
-        children[name] = pile[name];
-        delete pile[name];
-      }
-    });
+    // Build Conventional wrapper:
+    // If StbSecFigurePile_S exists, wrap it; otherwise wrap direct shape children
+    const conventional = { $: {} };
 
-    // Create the Conventional wrapper structure
-    const conventional = {
-      $: {},
-      ...children,
-    };
+    if (figureElements) {
+      conventional['StbSecFigurePile_S'] = figureElements;
+      delete pile['StbSecFigurePile_S'];
+    } else {
+      childElementNames.forEach((name) => {
+        if (pile[name]) {
+          conventional[name] = pile[name];
+          delete pile[name];
+        }
+      });
+    }
+
+    // Remove any empty placeholder Conventional wrapper
+    delete pile['StbSecPile_S_Conventional'];
 
     pile['StbSecPile_S_Conventional'] = [conventional];
 
@@ -167,19 +175,23 @@ function convertPrecastPileSectionsTo210(stbRoot) {
     const pileId = pile['$']?.id || 'unknown';
     const pileAttrs = { ...pile['$'] };
 
-    // Collect and rename v2.0.2 child elements
+    // Collect and rename v2.0.2 child elements from StbSecFigurePileProduct
+    const figureProduct = pile['StbSecFigurePileProduct']?.[0] || pile;
     const renamedChildren = {};
 
     Object.entries(PRECAST_PILE_RENAME_MAP).forEach(([oldName, newName]) => {
-      if (pile[oldName]) {
+      if (figureProduct[oldName]) {
+        renamedChildren[newName] = figureProduct[oldName];
+      } else if (pile[oldName]) {
         renamedChildren[newName] = pile[oldName];
       }
     });
 
-    // Create the Conventional wrapper structure
+    // v2.1.0+: StbSecPilePrecastConventional > StbSecFigurePilePrecast > StbSecPilePrecast_*
+    const figurePrecast = { $: {}, ...renamedChildren };
     const conventional = {
       $: {},
-      ...renamedChildren,
+      StbSecFigurePilePrecast: [figurePrecast],
     };
 
     convertedCount++;
@@ -191,9 +203,20 @@ function convertPrecastPileSectionsTo210(stbRoot) {
     };
   });
 
-  // Replace StbSecPileProduct with StbSecPilePrecast
+  // Replace StbSecPileProduct with StbSecPilePrecast.
+  // Rebuild sections object to ensure StbSecPilePrecast comes before StbSecSteel
+  // (XSD requires this order in StbSections sequence).
   delete sections['StbSecPileProduct'];
-  sections['StbSecPilePrecast'] = precastPiles;
+
+  if (sections['StbSecSteel']) {
+    // Insert StbSecPilePrecast before StbSecSteel by rebuilding key order
+    const steelValue = sections['StbSecSteel'];
+    delete sections['StbSecSteel'];
+    sections['StbSecPilePrecast'] = precastPiles;
+    sections['StbSecSteel'] = steelValue;
+  } else {
+    sections['StbSecPilePrecast'] = precastPiles;
+  }
 
   if (convertedCount > 0) {
     logger.info(
@@ -288,18 +311,24 @@ function convertSPileSectionsTo202(stbRoot) {
 
     if (!conventional) return;
 
-    // Extract child elements from Conventional wrapper
     const childElementNames = [
       'StbSecPile_S_Straight',
       'StbSecPile_S_Rotational',
       'StbSecPile_S_Taper',
     ];
 
-    childElementNames.forEach((name) => {
-      if (conventional[name]) {
-        pile[name] = conventional[name];
-      }
-    });
+    // v2.1.0+: children may be wrapped in StbSecFigurePile_S
+    const figureWrapper = conventional['StbSecFigurePile_S']?.[0];
+    const source = figureWrapper ?? conventional;
+
+    // Restore StbSecFigurePile_S as direct child (v2.0.2 structure)
+    if (figureWrapper) {
+      pile['StbSecFigurePile_S'] = [figureWrapper];
+    } else {
+      childElementNames.forEach((name) => {
+        if (source[name]) pile[name] = source[name];
+      });
+    }
 
     // Remove v2.1.0 structure
     delete pile['StbSecPile_S_Conventional'];
@@ -344,21 +373,23 @@ function convertPrecastPileSectionsTo202(stbRoot) {
       return pile;
     }
 
-    // Collect and reverse rename v2.1.0 child elements
+    // v2.1.0+: renamed elements live inside StbSecFigurePilePrecast
+    const figurePrecast = conventional['StbSecFigurePilePrecast']?.[0] ?? conventional;
     const renamedChildren = {};
 
     Object.entries(PRECAST_PILE_RENAME_MAP).forEach(([oldName, newName]) => {
-      if (conventional[newName]) {
-        renamedChildren[oldName] = conventional[newName];
+      if (figurePrecast[newName]) {
+        renamedChildren[oldName] = figurePrecast[newName];
       }
     });
 
     convertedCount++;
     logger.debug(`Converted precast pile section ${pileId} to v2.0.2 format`);
 
+    // v2.0.2 structure: StbSecPileProduct > StbSecFigurePileProduct > StbSecPileProduct_*
     return {
       $: pileAttrs,
-      ...renamedChildren,
+      StbSecFigurePileProduct: [{ $: {}, ...renamedChildren }],
     };
   });
 

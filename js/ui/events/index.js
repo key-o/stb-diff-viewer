@@ -15,6 +15,7 @@
 // --- 各モジュールからのエクスポート ---
 import {
   setupModelVisibilityListeners,
+  teardownModelVisibilityListeners,
   toggleModelAVisibility,
   toggleModelBVisibility,
   getModelVisibilityStatus,
@@ -22,6 +23,7 @@ import {
 
 import {
   setupSelectorChangeListeners,
+  teardownSelectorChangeListeners,
   redrawAxesAtStory,
   resetAllSelectors,
   getSelectorStatus,
@@ -29,6 +31,7 @@ import {
 
 import {
   setupLabelToggleListeners,
+  teardownLabelToggleListeners,
   setupLabelContentListener,
 } from './labelVisibilityListeners.js';
 
@@ -38,10 +41,15 @@ import {
   setupReportExportListener,
 } from './exportListeners.js';
 
-import { setupClippingRangeListeners, setupClippingButtonListeners } from './clippingListeners.js';
+import {
+  setupClippingRangeListeners,
+  setupClippingButtonListeners,
+  teardownClippingListeners,
+} from './clippingListeners.js';
 
 import {
   setupAccordionListeners,
+  teardownAccordionListeners,
   expandAllAccordions,
   collapseAllAccordions,
   getAccordionSectionCount,
@@ -81,6 +89,21 @@ export function setupUIEventListeners() {
     setupMasterToggleListeners();
   } catch (error) {
     log.error('UIイベントリスナーの設定中にエラーが発生しました:', error);
+  }
+}
+
+/**
+ * Teardown all UI event listeners
+ */
+export function teardownUIEventListeners() {
+  try {
+    teardownModelVisibilityListeners();
+    teardownSelectorChangeListeners();
+    teardownLabelToggleListeners();
+    teardownAccordionListeners();
+    teardownClippingListeners();
+  } catch (error) {
+    log.error('UIイベントリスナーの解除中にエラーが発生しました:', error);
   }
 }
 

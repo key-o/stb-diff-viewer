@@ -14,6 +14,7 @@
 export const SOURCE_TYPES = Object.freeze({
   STB: 'stb',
   IFC: 'ifc',
+  SS7_CSV: 'ss7csv',
 });
 
 /**
@@ -36,6 +37,7 @@ export const IMPORT_STAGES = Object.freeze({
  * @property {string} sourceType - インポート元種別 (SOURCE_TYPES)
  * @property {string|null} [ifcSchema] - IFCスキーマ名 (IFC読み込み時のみ)
  * @property {Object|null} [calData] - 計算データ
+ * @property {string|null} [originalText] - 元テキスト
  */
 
 /**
@@ -62,6 +64,7 @@ export function createImportMetadata(sourceType, extra = {}) {
     sourceType,
     ifcSchema: null,
     calData: null,
+    originalText: null,
     ...extra,
   };
 }

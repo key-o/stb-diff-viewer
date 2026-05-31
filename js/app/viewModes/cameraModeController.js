@@ -41,11 +41,15 @@ function emitAxisRedraw(targetStoryId, is2DMode) {
   const labelCheckbox = document.getElementById('toggleLabel-Axis');
   const labelToggle = labelCheckbox ? labelCheckbox.checked : true;
 
+  const dimCheckbox = document.getElementById('showAxisDimensions');
+  const showDimensions = dimCheckbox ? dimCheckbox.checked : false;
+
   eventBus.emit(AxisEvents.REDRAW_REQUESTED, {
     axesData,
     stories,
     modelBounds,
     labelToggle,
+    showDimensions,
     targetStoryId,
     is2DMode,
   });

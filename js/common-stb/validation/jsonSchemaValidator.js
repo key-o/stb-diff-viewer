@@ -272,6 +272,13 @@ function validateChildRelationships(element, elementName, elementId, version, is
     }
   };
 
+  // choiceGroup未指定でもsequenceOrderが付与されている子要素は、
+  // 親要素内で順序を検証する。
+  const directSequenceMembers = allowedChildren.filter(
+    (c) => c.choiceGroup === null && c.sequenceOrder !== null && c.sequenceOrder !== undefined,
+  );
+  checkSequenceOrder(directSequenceMembers, 'non-choice sequenceOrder');
+
   for (const [, members] of choiceGroups) {
     // sequenceGroup ごとにメンバーをグループ化（null = 直接の choice 枝）
     const seqGroups = new Map(); // sequenceGroupId -> childDef[]
@@ -316,10 +323,7 @@ function validateChildRelationships(element, elementName, elementId, version, is
     }
 
     for (const { sgMembers, sgId } of presentSeqGroups) {
-      checkSequenceOrder(
-        sgMembers,
-        `sequenceGroup '${sgId || 'default'}'`,
-      );
+      checkSequenceOrder(sgMembers, `sequenceGroup '${sgId || 'default'}'`);
     }
 
     // choiceGroup 全体として必須か（いずれかのメンバーが minOccurs > 0）
@@ -397,8 +401,8 @@ function validateChildRelationships(element, elementName, elementId, version, is
   }
 
   // choiceGroup 以外の sequenceOrder 定義がある場合の順序チェック
-  const directSequenceMembers = allowedChildren.filter((childDef) => !childDef.choiceGroup);
-  checkSequenceOrder(directSequenceMembers, 'direct children');
+  const nonChoiceSequenceMembers = allowedChildren.filter((childDef) => !childDef.choiceGroup);
+  checkSequenceOrder(nonChoiceSequenceMembers, 'direct children');
 
   // choiceGroup に属さない必須/個数制約チェック
   for (const childDef of allowedChildren) {

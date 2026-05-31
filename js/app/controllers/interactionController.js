@@ -25,7 +25,12 @@ import {
   elementGroups,
 } from '../../viewer/index.js';
 import { getState } from '../../data/state/globalState.js';
-import { eventBus, SelectionEvents, InteractionEvents } from '../../data/events/index.js';
+import {
+  eventBus,
+  SelectionEvents,
+  InteractionEvents,
+  ToastEvents,
+} from '../../data/events/index.js';
 import { CAMERA_CONTROLS } from '../../config/renderingConstants.js';
 
 // レイキャスト用オブジェクト
@@ -42,9 +47,84 @@ function isCommonViewerReady() {
 let selectedObjects = [];
 /** @type {Map<THREE.Object3D, THREE.Material|THREE.Material[]>} */
 const originalMaterials = new Map();
+/** @type {THREE.Object3D[]} */
+let pendingSelectionCandidates = [];
+let pendingSelectionCandidateIndex = 0;
+const pendingSelectionPointer = {
+  clientX: 0,
+  clientY: 0,
+  hasValue: false,
+  isInsideCanvas: false,
+};
+let pendingSelectionPreviewObject = null;
+let pendingSelectionPreviewMaterial = null;
+/** @type {{line: THREE.Material|null, sprite: THREE.Material|null, mesh: THREE.Material|null, meshSrcConcrete: THREE.Material|null}} */
+const selectionCandidateMaterialCache = {
+  line: null,
+  sprite: null,
+  mesh: null,
+  meshSrcConcrete: null,
+};
+let interactionScheduleRender = null;
+let isInteractionListenersBound = false;
+let boundInteractionCanvasElement = null;
+/** @type {(event: MouseEvent) => void | null} */
+let handleCanvasMouseEnterRef = null;
+/** @type {(event: MouseEvent) => void | null} */
+let handleCanvasMouseMoveRef = null;
+/** @type {() => void | null} */
+let handleCanvasMouseLeaveRef = null;
+/** @type {(event: MouseEvent) => void | null} */
+let handleCanvasClickRef = null;
+/** @type {(event: PointerEvent) => void | null} */
+let handleCanvasContextMenuRef = null;
+/** @type {(event: MouseEvent) => void | null} */
+let handleWindowMouseMoveRef = null;
+/** @type {() => void | null} */
+let handleWindowMouseUpRef = null;
+/** @type {(event: KeyboardEvent) => void | null} */
+let handleWindowKeyDownRef = null;
+/** @type {() => void | null} */
+let handleWindowBlurRef = null;
+/** @type {(event: MouseEvent) => void | null} */
+let handleCanvasMouseDownRef = null;
+/** @type {() => void | null} */
+let handleControlsEndRef = null;
+let lastTabSelectionCycleAt = 0;
+const TAB_KEY_DEBOUNCE_MS = 16;
+const TAB_KEY_REQUEST_ANIMATION_FRAME_THROTTLE_MS = 16;
+const TAB_KEY_PRESS_QUEUE_MAX = 12;
+const TAB_CANDIDATE_MESSAGE_COOLDOWN_MS = 120;
+const TAB_CANDIDATE_MESSAGE_IDLE_DELAY_MS = 180;
+let lastPendingSelectionCandidateMessageKey = '';
+let lastPendingSelectionCandidateMessageAt = 0;
+let pendingSelectionCandidateAnnouncementTimerId = null;
+let pendingTabDirectionDelta = 0;
+let tabSelectionCycleFrameId = null;
+let isTabSelectionCycleScheduled = false;
+let isTabSelectionCycleRaf = false;
+let isTabSelectionCycleRunning = false;
 
 // 選択数上限
 const MAX_SELECTION_COUNT = 100;
+
+// Tab選択サイクリングの候補数上限（安定性のため）
+const MAX_SELECTION_CANDIDATES = 10;
+const TAB_SELECTION_CYCLE_CANDIDATE_LIMIT = 3;
+
+// ホバー時のレイキャストのスロットリング間隔（ms）
+const HOVER_RAYCAST_INTERVAL_MS = 50;
+let lastHoverRaycastTime = 0;
+
+// 測定モード中のhoverハイライト色
+const MEASUREMENT_HOVER_COLOR_IDLE = 0xff8800; // オレンジ（1点目待ち）
+const MEASUREMENT_HOVER_COLOR_FIRST_PICKED = 0x00bb55; // グリーン（2点目待ち）
+/** @type {THREE.Object3D|null} */
+let measurementHoverObject = null;
+/** @type {THREE.Material|THREE.Material[]|null} */
+let measurementHoverOriginalMaterial = null;
+/** @type {THREE.Material|null} */
+let measurementHoverPreviewMaterial = null;
 
 // 回転中心ヘルパー球体のジオメトリパラメータ
 const ORBIT_CENTER_RADIUS_MM = 150;
@@ -147,12 +227,207 @@ export function getSelectedObjects() {
   return [...selectedObjects];
 }
 
+/**
+ * interactionManager向けに依存性注入で使用する操作ハンドラを返す
+ * @returns {Object} interactionManagerに渡すサービス群
+ */
+export function getInteractionManagerServices() {
+  return {
+    getSelectedCenter,
+    getSelectedObjects,
+    createOrUpdateOrbitCenterHelper,
+    hideOrbitCenterHelper,
+    resetSelection,
+  };
+}
+
+function clearPendingSelectionCandidates() {
+  clearPendingSelectionCandidateAnnouncement();
+  pendingSelectionCandidates = [];
+  pendingSelectionCandidateIndex = 0;
+  lastPendingSelectionCandidateMessageKey = '';
+  lastPendingSelectionCandidateMessageAt = 0;
+}
+
+function clearPendingSelectionCandidateAnnouncement() {
+  if (pendingSelectionCandidateAnnouncementTimerId === null) {
+    return;
+  }
+
+  clearTimeout(pendingSelectionCandidateAnnouncementTimerId);
+  pendingSelectionCandidateAnnouncementTimerId = null;
+}
+
+function clearPendingSelectionPreview() {
+  if (!pendingSelectionPreviewObject) {
+    return false;
+  }
+
+  if (pendingSelectionPreviewMaterial) {
+    try {
+      pendingSelectionPreviewObject.material = pendingSelectionPreviewMaterial;
+    } catch (error) {
+      logger.warn(`${WarnCategory.UI} 選択候補プレビュー復元に失敗`, error);
+    }
+  }
+
+  pendingSelectionPreviewObject = null;
+  pendingSelectionPreviewMaterial = null;
+  return true;
+}
+
+function clearPendingSelectionInteraction(scheduleRender) {
+  clearPendingSelectionCandidates();
+  cancelPendingTabSelectionCycle();
+  if (clearPendingSelectionPreview() && scheduleRender) {
+    scheduleRender();
+  }
+}
+
+function cancelPendingTabSelectionCycle() {
+  clearPendingSelectionCandidateAnnouncement();
+  if (tabSelectionCycleFrameId !== null) {
+    if (isTabSelectionCycleRaf && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(tabSelectionCycleFrameId);
+    } else if (typeof clearTimeout === 'function') {
+      clearTimeout(tabSelectionCycleFrameId);
+    }
+    tabSelectionCycleFrameId = null;
+  }
+  pendingTabDirectionDelta = 0;
+  isTabSelectionCycleScheduled = false;
+  isTabSelectionCycleRaf = false;
+  isTabSelectionCycleRunning = false;
+}
+
+function scheduleTabSelectionCycleFrame(scheduleRender) {
+  if (isTabSelectionCycleScheduled) {
+    return;
+  }
+
+  isTabSelectionCycleScheduled = true;
+  if (typeof requestAnimationFrame === 'function') {
+    isTabSelectionCycleRaf = true;
+    tabSelectionCycleFrameId = requestAnimationFrame(() =>
+      executeTabSelectionCycle(scheduleRender),
+    );
+    return;
+  }
+
+  isTabSelectionCycleRaf = false;
+  tabSelectionCycleFrameId = window.setTimeout(
+    () => executeTabSelectionCycle(scheduleRender),
+    TAB_KEY_REQUEST_ANIMATION_FRAME_THROTTLE_MS,
+  );
+}
+
+function executeTabSelectionCycle(scheduleRender) {
+  tabSelectionCycleFrameId = null;
+  isTabSelectionCycleScheduled = false;
+  isTabSelectionCycleRaf = false;
+
+  if (isTabSelectionCycleRunning) {
+    return;
+  }
+
+  isTabSelectionCycleRunning = true;
+  try {
+    if (pendingTabDirectionDelta === 0) {
+      return;
+    }
+
+    if (pendingSelectionPointer.isInsideCanvas && pendingSelectionCandidates.length > 1) {
+      const candidateCount = pendingSelectionCandidates.length;
+      const queuedDelta = pendingTabDirectionDelta;
+      if (queuedDelta === 0) {
+        return;
+      }
+      pendingTabDirectionDelta = 0;
+
+      const normalizedDelta = queuedDelta % candidateCount;
+      if (normalizedDelta === 0) {
+        return;
+      }
+
+      const nextIndex =
+        (((pendingSelectionCandidateIndex + normalizedDelta) % candidateCount) + candidateCount) %
+        candidateCount;
+      if (nextIndex !== pendingSelectionCandidateIndex) {
+        pendingSelectionCandidateIndex = nextIndex;
+        syncPendingSelectionPreview(scheduleRender);
+        schedulePendingSelectionCandidateAnnouncement();
+      }
+
+      if (pendingTabDirectionDelta !== 0) {
+        scheduleTabSelectionCycleFrame(scheduleRender);
+      }
+    } else {
+      pendingTabDirectionDelta = 0;
+      lastPendingSelectionCandidateMessageKey = '';
+    }
+  } finally {
+    isTabSelectionCycleRunning = false;
+  }
+}
+
+function requestTabSelectionCycle(reverse, scheduleRender) {
+  const step = typeof reverse === 'boolean' && reverse ? -1 : 1;
+  pendingTabDirectionDelta = Math.max(
+    -TAB_KEY_PRESS_QUEUE_MAX,
+    Math.min(TAB_KEY_PRESS_QUEUE_MAX, pendingTabDirectionDelta + step),
+  );
+  scheduleTabSelectionCycleFrame(scheduleRender);
+}
+
+function updatePendingSelectionPointer(event, isInsideCanvas = true) {
+  if (!event || typeof event.clientX !== 'number' || typeof event.clientY !== 'number') {
+    return false;
+  }
+
+  const didMove =
+    !pendingSelectionPointer.hasValue ||
+    pendingSelectionPointer.clientX !== event.clientX ||
+    pendingSelectionPointer.clientY !== event.clientY ||
+    pendingSelectionPointer.isInsideCanvas !== isInsideCanvas;
+
+  pendingSelectionPointer.clientX = event.clientX;
+  pendingSelectionPointer.clientY = event.clientY;
+  pendingSelectionPointer.hasValue = true;
+  pendingSelectionPointer.isInsideCanvas = isInsideCanvas;
+
+  return didMove;
+}
+
+export function getNextSelectionCandidateIndex(currentIndex, candidateCount, options = {}) {
+  const { reverse = false } = options;
+  if (!Number.isFinite(candidateCount) || candidateCount <= 0) {
+    return -1;
+  }
+  if (candidateCount === 1) {
+    return 0;
+  }
+
+  const normalizedIndex = Number.isFinite(currentIndex)
+    ? ((Math.trunc(currentIndex) % candidateCount) + candidateCount) % candidateCount
+    : 0;
+
+  return reverse
+    ? (normalizedIndex - 1 + candidateCount) % candidateCount
+    : (normalizedIndex + 1) % candidateCount;
+}
+
 // 左ボタン押下中かどうか
 let isPointerDownLeft = false;
 // ドラッグ開始判定用の押下座標
 const pointerDownPos = { x: 0, y: 0 };
 // このドラッグ中に適用済みか
 let appliedThisDrag = false;
+// 右ボタン押下中かどうか
+let isPointerDownRight = false;
+// 右クリックドラッグ開始判定用の押下座標
+const rightPointerDownPos = { x: 0, y: 0 };
+// 右クリックドラッグが発生したか（contextmenu 抑制用）
+let appliedThisRightDrag = false;
 // ドラッグ判定のピクセル閾値
 const DRAG_APPLY_THRESHOLD_PX = CAMERA_CONTROLS.DRAG_THRESHOLD_PX;
 
@@ -176,6 +451,9 @@ function deselectSingleObject(obj) {
  * 選択状態をリセット（全選択解除）
  */
 export function resetSelection(scheduleRender) {
+  clearPendingSelectionPreview();
+  clearPendingSelectionCandidates();
+
   // common/viewerモードの場合はアダプター経由で選択解除
   if (isCommonViewerReady()) {
     getState('viewer.adapter').clearSelection();
@@ -213,6 +491,381 @@ export function resetSelection(scheduleRender) {
  * 単一オブジェクトをハイライト（選択リストに追加）
  * @param {THREE.Object3D} obj
  */
+function createHighlightMaterial(obj, colorMode = 'highlight') {
+  let highlightMat = null;
+  if (obj instanceof THREE.Line) {
+    highlightMat = colorManager.getMaterial(colorMode, { isLine: true });
+  } else if (obj instanceof THREE.Sprite) {
+    highlightMat = colorManager.getMaterial(colorMode, { isSprite: true });
+  } else if (obj instanceof THREE.Mesh) {
+    highlightMat = colorManager.getMaterial(colorMode, { isLine: false });
+  }
+
+  if (colorMode === 'selectionCandidate' && highlightMat?.isMaterial) {
+    if (obj instanceof THREE.Line) {
+      if (!selectionCandidateMaterialCache.line) {
+        selectionCandidateMaterialCache.line = highlightMat;
+      }
+      highlightMat = selectionCandidateMaterialCache.line;
+    } else if (obj instanceof THREE.Sprite) {
+      if (!selectionCandidateMaterialCache.sprite) {
+        selectionCandidateMaterialCache.sprite = highlightMat;
+      }
+      highlightMat = selectionCandidateMaterialCache.sprite;
+    } else if (obj instanceof THREE.Mesh && obj.userData?.isSRCConcrete === true) {
+      if (!selectionCandidateMaterialCache.meshSrcConcrete) {
+        const srcConcreteMaterial = highlightMat.clone();
+        srcConcreteMaterial.transparent = true;
+        srcConcreteMaterial.opacity = 0.14;
+        srcConcreteMaterial.depthWrite = false;
+        selectionCandidateMaterialCache.meshSrcConcrete = srcConcreteMaterial;
+      }
+      highlightMat = selectionCandidateMaterialCache.meshSrcConcrete;
+    } else {
+      if (!selectionCandidateMaterialCache.mesh) {
+        selectionCandidateMaterialCache.mesh = highlightMat;
+      }
+      highlightMat = selectionCandidateMaterialCache.mesh;
+    }
+    if (!highlightMat.userData.isSelectionPreviewMaterial) {
+      highlightMat.userData = { ...highlightMat.userData, isSelectionPreviewMaterial: true };
+    }
+  }
+
+  return highlightMat;
+}
+
+function applyHighlightMaterial(obj, colorMode = 'highlight') {
+  const highlightMat = createHighlightMaterial(obj, colorMode);
+  if (!highlightMat || !obj?.material) {
+    return false;
+  }
+
+  obj.material = highlightMat;
+  return true;
+}
+
+function syncPendingSelectionPreview(scheduleRender) {
+  const candidate = pendingSelectionCandidates[pendingSelectionCandidateIndex] || null;
+  if (pendingSelectionPreviewObject === candidate) {
+    return false;
+  }
+
+  const didClear = clearPendingSelectionPreview();
+  let didApply = false;
+
+  if (candidate) {
+    // Axis/Story はhoverプレビューをスキップ（Tab候補としては保持）
+    const candidateType = candidate?.userData?.elementType;
+    const isAxisOrStory = candidateType === 'Axis' || candidateType === 'Story';
+    if (!isAxisOrStory) {
+      // 既に選択済み（ハイライト適用済み）の場合、現在のマテリアル（ハイライト）を保存。
+      // これにより、プレビュー解除時にハイライトマテリアルに正しく戻る。
+      // 注意: 選択解除はその後 originalMaterials から真の元マテリアルを復元する。
+      pendingSelectionPreviewObject = candidate;
+      pendingSelectionPreviewMaterial = candidate.material;
+      didApply = applyHighlightMaterial(candidate, 'selectionCandidate');
+      if (!didApply) {
+        pendingSelectionPreviewObject = null;
+        pendingSelectionPreviewMaterial = null;
+      }
+    }
+  }
+
+  if ((didClear || didApply) && scheduleRender) {
+    scheduleRender();
+  }
+
+  return didClear || didApply;
+}
+
+function handleInteractionCanvasMouseEnter(event) {
+  if (!interactionScheduleRender) {
+    return;
+  }
+
+  updatePendingSelectionPointer(event);
+  refreshPendingSelectionCandidates(null, event);
+  syncPendingSelectionPreview(interactionScheduleRender);
+}
+
+/**
+ * 測定モード中のhoverハイライトを更新する（ステップに応じて色を変える）
+ * @param {THREE.Object3D|null} object
+ */
+function syncMeasurementHoverPreview(object) {
+  // 前のhoverオブジェクトを復元
+  if (measurementHoverObject && measurementHoverObject !== object) {
+    clearMeasurementHoverPreview();
+  }
+
+  if (!object || object === measurementHoverObject || !object.material) {
+    if (interactionScheduleRender) interactionScheduleRender();
+    return;
+  }
+
+  const step = getMeasurementStep ? getMeasurementStep() : 'idle';
+  const color =
+    step === 'firstPicked' ? MEASUREMENT_HOVER_COLOR_FIRST_PICKED : MEASUREMENT_HOVER_COLOR_IDLE;
+
+  measurementHoverObject = object;
+  measurementHoverOriginalMaterial = object.material;
+
+  let mat;
+  if (object instanceof THREE.Line) {
+    mat = new THREE.LineBasicMaterial({ color, depthTest: false });
+  } else if (object instanceof THREE.Mesh) {
+    mat = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0.75,
+      depthTest: false,
+    });
+  } else {
+    measurementHoverObject = null;
+    measurementHoverOriginalMaterial = null;
+    return;
+  }
+  object.material = mat;
+  measurementHoverPreviewMaterial = mat;
+  if (interactionScheduleRender) interactionScheduleRender();
+}
+
+/** 測定モードのhoverハイライトをクリアして元マテリアルに戻す */
+function clearMeasurementHoverPreview() {
+  if (measurementHoverObject && measurementHoverOriginalMaterial !== null) {
+    try {
+      measurementHoverObject.material = measurementHoverOriginalMaterial;
+    } catch (error) {
+      logger.warn(`${WarnCategory.UI} 測定hoverプレビューのマテリアル復元に失敗`, error);
+    }
+  }
+
+  if (measurementHoverPreviewMaterial) {
+    measurementHoverPreviewMaterial.dispose();
+  }
+
+  measurementHoverObject = null;
+  measurementHoverOriginalMaterial = null;
+  measurementHoverPreviewMaterial = null;
+}
+
+function handleInteractionCanvasMouseMove(event) {
+  if (!interactionScheduleRender) {
+    return;
+  }
+
+  updatePendingSelectionPointer(event);
+  const now = performance.now();
+  if (now - lastHoverRaycastTime < HOVER_RAYCAST_INTERVAL_MS) {
+    return;
+  }
+
+  lastHoverRaycastTime = now;
+
+  if (getMeasurementModeActive && getMeasurementModeActive()) {
+    const intersects = performRaycast(pendingSelectionPointer) || [];
+    const hit = intersects.find((i) => i.object?.userData?.elementType !== 'Measurement');
+    syncMeasurementHoverPreview(hit?.object || null);
+    return;
+  }
+
+  // 測定モード解除直後にhoverが残らないようクリア
+  if (measurementHoverObject) clearMeasurementHoverPreview();
+
+  refreshPendingSelectionCandidates(null, event);
+  syncPendingSelectionPreview(interactionScheduleRender);
+}
+
+function handleInteractionCanvasMouseLeave() {
+  if (!interactionScheduleRender) {
+    return;
+  }
+
+  pendingSelectionPointer.isInsideCanvas = false;
+  clearMeasurementHoverPreview();
+  clearPendingSelectionInteraction(interactionScheduleRender);
+}
+
+function handleInteractionCanvasClick(event) {
+  if (!interactionScheduleRender) {
+    return;
+  }
+
+  // mousedown からの移動距離が閾値以上の場合はドラッグ操作なので選択・測定をスキップ
+  // （mouseup 後に click が発火するため appliedThisDrag は使えない）
+  const clickDx = event.clientX - pointerDownPos.x;
+  const clickDy = event.clientY - pointerDownPos.y;
+  if (Math.hypot(clickDx, clickDy) >= DRAG_APPLY_THRESHOLD_PX) {
+    return;
+  }
+
+  if (getMeasurementModeActive && getMeasurementModeActive()) {
+    clearMeasurementHoverPreview();
+    const intersects = performRaycast(event);
+    if (intersects && intersects.length > 0) {
+      const hit = intersects.find((i) => i.object?.userData?.elementType !== 'Measurement');
+      if (hit && dispatchToMeasurementManager) {
+        dispatchToMeasurementManager(hit);
+      }
+    }
+    return;
+  }
+
+  processElementSelection(event, interactionScheduleRender);
+}
+
+function handleInteractionCanvasContextMenu(event) {
+  if (!interactionScheduleRender) {
+    return;
+  }
+
+  event.preventDefault();
+
+  // 右クリックドラッグ（カメラ操作）後はメニューを表示しない
+  if (appliedThisRightDrag) {
+    appliedThisRightDrag = false;
+    return;
+  }
+  appliedThisRightDrag = false;
+
+  handleContextMenu(event, interactionScheduleRender);
+}
+
+function handleInteractionCanvasMouseDown(event) {
+  if (!interactionScheduleRender) {
+    return;
+  }
+
+  if (event.button === 0) {
+    isPointerDownLeft = true;
+    appliedThisDrag = false;
+    pointerDownPos.x = event.clientX;
+    pointerDownPos.y = event.clientY;
+  } else if (event.button === 2) {
+    isPointerDownRight = true;
+    appliedThisRightDrag = false;
+    rightPointerDownPos.x = event.clientX;
+    rightPointerDownPos.y = event.clientY;
+  }
+}
+
+function handleInteractionWindowMouseMove(event) {
+  if (!interactionScheduleRender) {
+    return;
+  }
+
+  if (isPointerDownLeft && !appliedThisDrag) {
+    const dx = event.clientX - pointerDownPos.x;
+    const dy = event.clientY - pointerDownPos.y;
+    if (Math.hypot(dx, dy) >= DRAG_APPLY_THRESHOLD_PX) {
+      appliedThisDrag = true;
+      if (interactionScheduleRender) {
+        interactionScheduleRender();
+      }
+    }
+  }
+
+  if (isPointerDownRight && !appliedThisRightDrag) {
+    const dx = event.clientX - rightPointerDownPos.x;
+    const dy = event.clientY - rightPointerDownPos.y;
+    if (Math.hypot(dx, dy) >= DRAG_APPLY_THRESHOLD_PX) {
+      appliedThisRightDrag = true;
+    }
+  }
+}
+
+function handleInteractionWindowMouseUp(event) {
+  if (event.button === 0) {
+    isPointerDownLeft = false;
+    appliedThisDrag = false;
+  } else if (event.button === 2) {
+    isPointerDownRight = false;
+    // appliedThisRightDrag は contextmenu ハンドラーが使うため、そこでリセット
+  }
+}
+
+function handleInteractionWindowKeyDown(event) {
+  handleSelectionKeyDown(event, interactionScheduleRender);
+}
+
+function handleInteractionWindowBlur() {
+  if (!interactionScheduleRender) {
+    return;
+  }
+
+  clearPendingSelectionInteraction(interactionScheduleRender);
+}
+
+function clearInteractionListeners() {
+  cancelPendingTabSelectionCycle();
+  if (!isInteractionListenersBound) {
+    return;
+  }
+
+  if (boundInteractionCanvasElement) {
+    if (handleCanvasMouseEnterRef) {
+      boundInteractionCanvasElement.removeEventListener(
+        'mouseenter',
+        handleCanvasMouseEnterRef,
+        false,
+      );
+      boundInteractionCanvasElement.removeEventListener(
+        'mousemove',
+        handleCanvasMouseMoveRef,
+        false,
+      );
+      boundInteractionCanvasElement.removeEventListener(
+        'mouseleave',
+        handleCanvasMouseLeaveRef,
+        false,
+      );
+      boundInteractionCanvasElement.removeEventListener('click', handleCanvasClickRef, false);
+      boundInteractionCanvasElement.removeEventListener(
+        'contextmenu',
+        handleCanvasContextMenuRef,
+        false,
+      );
+      boundInteractionCanvasElement.removeEventListener(
+        'mousedown',
+        handleCanvasMouseDownRef,
+        false,
+      );
+    }
+  }
+
+  if (handleWindowMouseMoveRef) {
+    window.removeEventListener('mousemove', handleWindowMouseMoveRef, false);
+  }
+  if (handleWindowMouseUpRef) {
+    window.removeEventListener('mouseup', handleWindowMouseUpRef, false);
+  }
+  if (handleWindowKeyDownRef) {
+    window.removeEventListener('keydown', handleWindowKeyDownRef, true);
+  }
+  if (handleWindowBlurRef) {
+    window.removeEventListener('blur', handleWindowBlurRef, false);
+  }
+  if (controls && typeof controls.removeEventListener === 'function' && handleControlsEndRef) {
+    controls.removeEventListener('end', handleControlsEndRef);
+  }
+
+  isInteractionListenersBound = false;
+  boundInteractionCanvasElement = null;
+  handleCanvasMouseEnterRef = null;
+  handleCanvasMouseMoveRef = null;
+  handleCanvasMouseLeaveRef = null;
+  handleCanvasClickRef = null;
+  handleCanvasContextMenuRef = null;
+  handleWindowMouseMoveRef = null;
+  handleWindowMouseUpRef = null;
+  handleWindowKeyDownRef = null;
+  handleWindowBlurRef = null;
+  handleCanvasMouseDownRef = null;
+  handleControlsEndRef = null;
+  interactionScheduleRender = null;
+}
+
 function highlightObject(obj) {
   // 元のマテリアルを保存
   if (Array.isArray(obj.material)) {
@@ -224,25 +877,7 @@ function highlightObject(obj) {
     originalMaterials.set(obj, obj.material.clone());
   }
 
-  // ハイライトマテリアルを適用
-  let highlightMat = null;
-  if (obj instanceof THREE.Line) {
-    highlightMat = colorManager.getMaterial('highlight', { isLine: true });
-  } else if (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) {
-    highlightMat = colorManager.getMaterial('highlight', { isLine: false });
-    if (obj.userData?.isSRCConcrete === true && highlightMat?.isMaterial) {
-      // SRCのRC外殻は選択時も半透明を維持し、内部鉄骨を視認しやすくする
-      highlightMat = highlightMat.clone();
-      highlightMat.transparent = true;
-      highlightMat.opacity = 0.22;
-      highlightMat.depthWrite = false;
-    }
-  }
-
-  if (highlightMat && obj.material) {
-    obj.material = highlightMat;
-  }
-
+  applyHighlightMaterial(obj, 'highlight');
   selectedObjects.push(obj);
 }
 
@@ -533,6 +1168,48 @@ function performRaycast(event) {
   return raycaster.intersectObjects(scene.children, true);
 }
 
+export function collectSelectionCandidates(intersects, options = {}) {
+  const { includeAxisStory = true } = options;
+  const lineCandidates = [];
+  const meshOrSpriteCandidates = [];
+  const axisOrStoryCandidates = [];
+  const seenObjects = new Set();
+
+  for (const intersect of Array.isArray(intersects) ? intersects : []) {
+    const obj = intersect?.object;
+    const userData = obj?.userData;
+    const elementType = userData?.elementType || userData?.stbNodeType;
+    const groupVisible = elementType ? elementGroups[elementType]?.visible : false;
+
+    if (!obj || !elementType || !groupVisible || !obj.visible || isPointClipped(intersect?.point)) {
+      continue;
+    }
+    if (seenObjects.has(obj)) {
+      continue;
+    }
+    seenObjects.add(obj);
+
+    const isAxisOrStory = elementType === 'Axis' || elementType === 'Story';
+    if (isAxisOrStory) {
+      if (includeAxisStory) {
+        axisOrStoryCandidates.push(obj);
+      }
+      continue;
+    }
+
+    if (obj instanceof THREE.Line) {
+      lineCandidates.push(obj);
+    } else if (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) {
+      meshOrSpriteCandidates.push(obj);
+    }
+  }
+
+  const merged = [...lineCandidates, ...meshOrSpriteCandidates, ...axisOrStoryCandidates];
+  return merged.length > MAX_SELECTION_CANDIDATES
+    ? merged.slice(0, MAX_SELECTION_CANDIDATES)
+    : merged;
+}
+
 /**
  * 交差点がレンダラーのクリッピング平面によって切り取られているか判定する
  * @param {THREE.Vector3} point - 交差点のワールド座標
@@ -555,36 +1232,166 @@ function isPointClipped(point) {
  * @returns {THREE.Object3D|null} 選択すべきオブジェクト
  */
 function findBestIntersection(intersects) {
-  let lineObject = null;
-  let meshOrSpriteObject = null;
-  let axisOrStoryObject = null;
+  return collectSelectionCandidates(intersects, { includeAxisStory: false })[0] || null;
+}
 
-  for (const intersect of intersects) {
-    const obj = intersect.object;
-    if (obj.userData && obj.userData.elementType) {
-      const elementType = obj.userData.elementType;
-      const groupVisible = elementGroups[elementType] && elementGroups[elementType].visible;
-
-      if (groupVisible && obj.visible && !isPointClipped(intersect.point)) {
-        if (obj instanceof THREE.Line && !lineObject) {
-          lineObject = obj;
-          break;
-        } else if (
-          (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) &&
-          elementType !== 'Axis' &&
-          elementType !== 'Story' &&
-          !meshOrSpriteObject
-        ) {
-          meshOrSpriteObject = obj;
-        } else if ((elementType === 'Axis' || elementType === 'Story') && !axisOrStoryObject) {
-          axisOrStoryObject = obj;
-        }
-      }
-    }
+function refreshPendingSelectionCandidates(intersects = null, event = null) {
+  let didPointerMove = false;
+  if (event) {
+    didPointerMove = updatePendingSelectionPointer(event);
   }
 
-  return lineObject || meshOrSpriteObject || axisOrStoryObject;
+  if (!pendingSelectionPointer.isInsideCanvas || !pendingSelectionPointer.hasValue) {
+    clearPendingSelectionCandidates();
+    return [];
+  }
+
+  const currentCandidate = pendingSelectionCandidates[pendingSelectionCandidateIndex] || null;
+  const currentIntersects = intersects || performRaycast(pendingSelectionPointer) || [];
+  const nextCandidates = collectSelectionCandidates(currentIntersects, {
+    includeAxisStory: true,
+  }).slice(0, TAB_SELECTION_CYCLE_CANDIDATE_LIMIT);
+
+  pendingSelectionCandidates = nextCandidates;
+  if (nextCandidates.length === 0) {
+    pendingSelectionCandidateIndex = 0;
+    return nextCandidates;
+  }
+
+  if (didPointerMove) {
+    pendingSelectionCandidateIndex = 0;
+    lastPendingSelectionCandidateMessageKey = '';
+    return nextCandidates;
+  }
+
+  const preservedIndex = currentCandidate ? nextCandidates.indexOf(currentCandidate) : -1;
+  pendingSelectionCandidateIndex = preservedIndex >= 0 ? preservedIndex : 0;
+
+  return nextCandidates;
 }
+
+function buildPendingSelectionCandidateMessage(candidate, candidateIndex, candidateCount) {
+  const userData = candidate?.userData || {};
+  const elementType =
+    normalizeSelectedElementType(userData) ||
+    userData.elementType ||
+    userData.stbNodeType ||
+    'Unknown';
+  const { idA, idB } = getElementIds(userData);
+  const elementId = idA || idB || userData.elementId || userData.id || '-';
+  const modelSource =
+    userData.modelSource === 'matched'
+      ? 'A/B'
+      : normalizeSelectionModelSide(userData.modelSource) || userData.modelSource || '-';
+
+  return `選択候補 ${candidateIndex + 1}/${candidateCount}: ${elementType} ${elementId} [${modelSource}]`;
+}
+
+function announcePendingSelectionCandidate() {
+  const candidate = pendingSelectionCandidates[pendingSelectionCandidateIndex];
+  if (!candidate) {
+    return;
+  }
+
+  const now = performance.now();
+  if (now - lastPendingSelectionCandidateMessageAt < TAB_CANDIDATE_MESSAGE_COOLDOWN_MS) {
+    return;
+  }
+
+  const userData = candidate?.userData || {};
+  const candidateMessageKey = `${pendingSelectionCandidateIndex}|${
+    userData.elementIdA || userData.elementId || userData.id || '-'
+  }|${userData.elementIdB || userData.elementId || userData.id || '-'}|${
+    userData.elementType || userData.stbNodeType || 'Unknown'
+  }`;
+  if (candidateMessageKey === lastPendingSelectionCandidateMessageKey) {
+    return;
+  }
+  lastPendingSelectionCandidateMessageKey = candidateMessageKey;
+  lastPendingSelectionCandidateMessageAt = now;
+
+  eventBus.emit(ToastEvents.SHOW_INFO, {
+    message: buildPendingSelectionCandidateMessage(
+      candidate,
+      pendingSelectionCandidateIndex,
+      pendingSelectionCandidates.length,
+    ),
+    options: {
+      duration: 1500,
+      closable: false,
+    },
+  });
+}
+
+function schedulePendingSelectionCandidateAnnouncement() {
+  clearPendingSelectionCandidateAnnouncement();
+  pendingSelectionCandidateAnnouncementTimerId = window.setTimeout(() => {
+    pendingSelectionCandidateAnnouncementTimerId = null;
+    announcePendingSelectionCandidate();
+  }, TAB_CANDIDATE_MESSAGE_IDLE_DELAY_MS);
+}
+
+export function cyclePendingSelectionCandidate(options = {}, scheduleRender = null) {
+  const { reverse = false } = options;
+  const candidateCount = pendingSelectionCandidates.length;
+  // 既存の候補をそのまま使用（レイキャストを再実行しない）
+  if (candidateCount <= 1) {
+    return false;
+  }
+
+  const nextIndex = getNextSelectionCandidateIndex(pendingSelectionCandidateIndex, candidateCount, {
+    reverse,
+  });
+  // 無効な結果（候補数異常時の -1）に対する防御
+  if (nextIndex < 0 || nextIndex >= candidateCount) {
+    pendingSelectionCandidateIndex = 0;
+  } else {
+    pendingSelectionCandidateIndex = nextIndex;
+  }
+  syncPendingSelectionPreview(scheduleRender);
+  announcePendingSelectionCandidate();
+  return true;
+}
+
+function handleSelectionKeyDown(event, scheduleRender) {
+  const target = event.target;
+  if (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    target?.isContentEditable
+  ) {
+    return;
+  }
+
+  // Tab: ブラウザのフォーカス移動を抑制（隠れた要素の巡回によるフリーズ防止）
+  // キャンバス上では候補サイクリング、キャンバス外では単にフォーカス移動を抑制
+  if (event.key === 'Tab') {
+    const now = performance.now();
+    if (now - lastTabSelectionCycleAt < TAB_KEY_DEBOUNCE_MS) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (!pendingSelectionCandidates.length) {
+      lastPendingSelectionCandidateMessageKey = '';
+    }
+    lastTabSelectionCycleAt = now;
+    requestTabSelectionCycle(event.shiftKey, scheduleRender);
+    return;
+  }
+
+  // Escape: プレビュー/候補をキャンセル
+  if (event.key === 'Escape' && pendingSelectionCandidates.length > 0) {
+    clearPendingSelectionInteraction(scheduleRender);
+    return;
+  }
+}
+
+// 候補のクリアは Escape, mouseleave, click で行う。
 
 /**
  * Ctrl/Meta+クリックによる複数選択を処理（トグル動作）
@@ -738,6 +1545,7 @@ function clearElementInfoPanel() {
  */
 function processElementSelection(event, scheduleRender) {
   event.preventDefault();
+  updatePendingSelectionPointer(event);
 
   const intersects = performRaycast(event);
   if (!intersects) return;
@@ -747,10 +1555,19 @@ function processElementSelection(event, scheduleRender) {
 
   // Ctrlなしの場合は既存の選択を解除
   if (!isMultiSelectMode) {
-    resetSelection();
+    resetSelection(scheduleRender);
   }
 
-  const objectToSelect = findBestIntersection(intersects);
+  // プレ選択候補がある場合は現在の候補を使用、なければレイキャストから取得
+  const candidates = refreshPendingSelectionCandidates(intersects, event);
+  const objectToSelect =
+    candidates.length > 0
+      ? candidates[pendingSelectionCandidateIndex] || candidates[0]
+      : findBestIntersection(intersects);
+
+  // クリック確定後はプレビュー状態と候補をクリア
+  clearPendingSelectionPreview();
+  clearPendingSelectionCandidates();
 
   if (objectToSelect && objectToSelect.userData) {
     const userData = objectToSelect.userData;
@@ -786,92 +1603,74 @@ function processElementSelection(event, scheduleRender) {
 
 /** @type {Function|null} */
 let contextMenuActionCallback = null;
+/** @type {Function|null} */
+let getMeasurementModeActive = null;
+/** @type {Function|null} */
+let dispatchToMeasurementManager = null;
+/** @type {Function|null} 現在のステップ（'idle'|'firstPicked'）を返す */
+let getMeasurementStep = null;
 
 /**
  * インタラクションイベントリスナーを設定
  * @param {Function} scheduleRender - 再描画要求関数
  * @param {Object} [options] - オプション
  * @param {Function} [options.onContextMenuAction] - コンテキストメニューアクションのコールバック
+ * @param {Function} [options.getMeasurementModeActive] - 測定モード判定関数
+ * @param {Function} [options.dispatchToMeasurementManager] - 測定クリック委譲関数
+ * @param {Function} [options.getMeasurementStep] - 現在の測定ステップを返す関数
  */
 export function setupInteractionListeners(scheduleRender, options = {}) {
+  clearInteractionListeners();
+  interactionScheduleRender = scheduleRender;
   contextMenuActionCallback = options.onContextMenuAction || null;
+  getMeasurementModeActive = options.getMeasurementModeActive || null;
+  dispatchToMeasurementManager = options.dispatchToMeasurementManager || null;
+  getMeasurementStep = options.getMeasurementStep || null;
 
-  // コンテキストメニューを初期化
+  // 繧ｳ繝ｳ繝・く繧ｹ繝医Γ繝九Η繝ｼ繧ｪ蜿ｨ繧ｯ繧ｹ繧ｻ繝ｫ縺吶ｋ
   eventBus.emit(InteractionEvents.INIT_CONTEXT_MENU);
 
   const canvasElement = document.getElementById('three-canvas');
-  if (canvasElement) {
-    canvasElement.addEventListener(
-      'click',
-      (event) => {
-        processElementSelection(event, scheduleRender);
-      },
-      false,
-    );
-
-    // 右クリックイベント（コンテキストメニュー）
-    canvasElement.addEventListener(
-      'contextmenu',
-      (event) => {
-        event.preventDefault();
-        handleContextMenu(event, scheduleRender);
-      },
-      false,
-    );
-
-    // 左ボタン押下でドラッグの可能性を記録
-    canvasElement.addEventListener(
-      'mousedown',
-      (event) => {
-        if (event.button !== 0) return; // 左:0
-        isPointerDownLeft = true;
-        appliedThisDrag = false;
-        pointerDownPos.x = event.clientX;
-        pointerDownPos.y = event.clientY;
-      },
-      false,
-    );
-
-    // 実際にドラッグが始まったら（閾値超え）
-    window.addEventListener(
-      'mousemove',
-      (event) => {
-        if (!isPointerDownLeft || appliedThisDrag) {
-          return;
-        }
-        const dx = event.clientX - pointerDownPos.x;
-        const dy = event.clientY - pointerDownPos.y;
-        const distance = Math.hypot(dx, dy);
-
-        if (distance >= DRAG_APPLY_THRESHOLD_PX) {
-          // ドラッグ開始時には何もしない（クリック時に設定済み）
-          appliedThisDrag = true;
-          if (scheduleRender) scheduleRender();
-        }
-      },
-      false,
-    );
-
-    // ドラッグ終了でフラグをリセット
-    window.addEventListener(
-      'mouseup',
-      () => {
-        isPointerDownLeft = false;
-        appliedThisDrag = false;
-      },
-      false,
-    );
-
-    // 操作開始/終了のフック
-    if (controls && typeof controls.addEventListener === 'function') {
-      // 操作終了時にフラグをリセット
-      controls.addEventListener('end', () => {
-        appliedThisDrag = false;
-      });
-    }
-  } else {
+  if (!canvasElement) {
     logger.error('Canvas element not found for click listener.');
+    return;
   }
+
+  handleCanvasMouseEnterRef = handleInteractionCanvasMouseEnter;
+  handleCanvasMouseMoveRef = handleInteractionCanvasMouseMove;
+  handleCanvasMouseLeaveRef = handleInteractionCanvasMouseLeave;
+  handleCanvasClickRef = handleInteractionCanvasClick;
+  handleCanvasContextMenuRef = handleInteractionCanvasContextMenu;
+  handleCanvasMouseDownRef = handleInteractionCanvasMouseDown;
+  handleWindowMouseMoveRef = handleInteractionWindowMouseMove;
+  handleWindowMouseUpRef = handleInteractionWindowMouseUp;
+  handleWindowKeyDownRef = handleInteractionWindowKeyDown;
+  handleWindowBlurRef = handleInteractionWindowBlur;
+
+  canvasElement.addEventListener('mouseenter', handleCanvasMouseEnterRef, false);
+  canvasElement.addEventListener('mousemove', handleCanvasMouseMoveRef, false);
+  canvasElement.addEventListener('mouseleave', handleCanvasMouseLeaveRef, false);
+  canvasElement.addEventListener('click', handleCanvasClickRef, false);
+  canvasElement.addEventListener('contextmenu', handleCanvasContextMenuRef, false);
+  canvasElement.addEventListener('mousedown', handleCanvasMouseDownRef, false);
+
+  window.addEventListener('mousemove', handleWindowMouseMoveRef, false);
+  window.addEventListener('mouseup', handleWindowMouseUpRef, false);
+  // キャプチャフェーズで登録: ブラウザのTab移動処理より先にpreventDefaultが確実に効き、
+  // 大量のフォーカス可能要素がある場合のフリーズを防ぐ
+  window.addEventListener('keydown', handleWindowKeyDownRef, true);
+  window.addEventListener('blur', handleWindowBlurRef, false);
+
+  if (controls && typeof controls.addEventListener === 'function') {
+    handleControlsEndRef = () => {
+      appliedThisDrag = false;
+      appliedThisRightDrag = false;
+    };
+    controls.addEventListener('end', handleControlsEndRef);
+  }
+
+  isInteractionListenersBound = true;
+  boundInteractionCanvasElement = canvasElement;
 }
 
 /**

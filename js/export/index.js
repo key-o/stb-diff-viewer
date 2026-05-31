@@ -48,7 +48,3 @@ export { generateReport } from './report/reportGenerator.js';
 export { collectReportData } from './report/reportDataCollector.js';
 export { captureCurrentView, captureMultipleViews } from './report/reportScreenshot.js';
 export { buildReportHtml } from './report/reportHtmlBuilder.js';
-
-// API 連携
-export { IFCConverter, IFCConverterUI } from './api/ifcConverter.js';
-

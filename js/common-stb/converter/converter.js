@@ -5,20 +5,27 @@
 import { parseXml, buildXml, deepClone } from './utils/xml-helper.js';
 import logger from './utils/converter-logger.js';
 import { getVersion, getRootElement } from './rules/type1-value-changes.js';
-import convert202to210 from './v202-to-v210.js';
-import convert210to202 from './v210-to-v202.js';
+import convert202to211 from './v202-to-v211.js';
+import convert211to202 from './v211-to-v202.js';
 
 /**
- * Convert STB XML content to a different version
+ * Convert STB XML content to a different version.
+ *
+ * Supported paths:
+ *   2.0.2 -> 2.1.1  (direct)
+ *   2.1.1 -> 2.0.2  (direct)
+ *   2.1.0 -> 2.0.2  (treated as 2.1.1 input)
+ *   2.1.0 -> 2.1.1  (version label update only — no schema diff)
+ *   2.1.1 -> 2.1.0  (version label update only — no schema diff)
+ *
  * @param {string} xmlContent - STB XML content
- * @param {string} targetVersion - Target version ('2.0.2', '2.1.0', or '2.1.1')
+ * @param {string} targetVersion - Target version string
  * @param {object} options - Conversion options
  * @returns {Promise<object>} Conversion result
  */
 export async function convert(xmlContent, targetVersion, options = {}) {
   logger.clear();
 
-  // Parse XML
   let stbRoot;
   try {
     stbRoot = await parseXml(xmlContent);
@@ -26,7 +33,6 @@ export async function convert(xmlContent, targetVersion, options = {}) {
     throw new Error(`Failed to parse XML: ${error.message}`);
   }
 
-  // Get current version
   const currentVersion = getVersion(stbRoot);
   if (!currentVersion) {
     throw new Error('Could not determine STB version');
@@ -35,13 +41,11 @@ export async function convert(xmlContent, targetVersion, options = {}) {
   logger.info(`Input version: ${currentVersion}`);
   logger.info(`Target version: ${targetVersion}`);
 
-  // Validate target version
   const normalizedTarget = normalizeVersion(targetVersion);
   if (!['2.0.2', '2.1.0', '2.1.1'].includes(normalizedTarget)) {
     throw new Error(`Unsupported target version: ${targetVersion}. Supported: 2.0.2, 2.1.0, 2.1.1`);
   }
 
-  // Check if conversion is needed
   const normalizedCurrent = normalizeVersion(currentVersion);
   if (normalizedCurrent === normalizedTarget) {
     logger.info('Source and target versions are the same. No conversion needed.');
@@ -52,19 +56,21 @@ export async function convert(xmlContent, targetVersion, options = {}) {
     };
   }
 
-  // Perform conversion
   let convertedRoot;
-  if (is21xVersion(normalizedCurrent) && is21xVersion(normalizedTarget)) {
+
+  if (is21x(normalizedCurrent) && is21x(normalizedTarget)) {
+    // 2.1.0 <-> 2.1.1: only the version label differs
     convertedRoot = deepClone(stbRoot);
     setVersion(convertedRoot, normalizedTarget);
-  } else if (normalizedTarget === '2.1.0' || normalizedTarget === '2.1.1') {
-    convertedRoot = convert202to210(stbRoot, options);
+  } else if (is21x(normalizedTarget)) {
+    // 2.0.2 -> 2.1.x: run full 202->211 pipeline, then set requested label
+    convertedRoot = convert202to211(stbRoot, options);
     setVersion(convertedRoot, normalizedTarget);
   } else {
-    convertedRoot = convert210to202(stbRoot, options);
+    // 2.1.x -> 2.0.2: treat any 2.1.x input as 2.1.1 for reverse conversion
+    convertedRoot = convert211to202(stbRoot, options);
   }
 
-  // Build output XML
   const outputXml = buildXml(convertedRoot);
 
   return {
@@ -77,41 +83,27 @@ export async function convert(xmlContent, targetVersion, options = {}) {
 }
 
 /**
- * Normalize version string
- * @param {string} version - Version string
- * @returns {string} Normalized version
+ * Normalize version string to canonical form
+ * @param {string} version
+ * @returns {string}
  */
 function normalizeVersion(version) {
   const v = version.toLowerCase().replace(/^v/, '');
-
-  // Handle shorthand versions
-  if (v === '202' || v === '2.0' || v.startsWith('2.0.')) {
-    return '2.0.2';
-  }
-  if (v === '211' || v === '2.1.1') {
-    return '2.1.1';
-  }
-  if (v === '210' || v === '2.1' || v.startsWith('2.1.')) {
-    return '2.1.0';
-  }
-
+  if (v === '202' || v === '2.0' || v.startsWith('2.0.')) return '2.0.2';
+  if (v === '211' || v === '2.1.1') return '2.1.1';
+  if (v === '210' || v === '2.1' || v.startsWith('2.1.')) return '2.1.0';
   return v;
 }
 
-/**
- * Check whether the normalized version is STB 2.1.x
- * @param {string} version - Normalized version string
- * @returns {boolean} True for 2.1.0 or 2.1.1
- */
-function is21xVersion(version) {
+/** @param {string} version - normalized */
+function is21x(version) {
   return version === '2.1.0' || version === '2.1.1';
 }
 
 /**
- * Update the root version attribute without applying schema changes.
- * Used for 2.1.0 <-> 2.1.1 where only the minor version label changes.
- * @param {object} stbRoot - Parsed STB XML object
- * @param {string} version - Target version
+ * Overwrite the root version attribute without other schema changes.
+ * @param {object} stbRoot
+ * @param {string} version
  */
 function setVersion(stbRoot, version) {
   const root = getRootElement(stbRoot);
@@ -130,8 +122,8 @@ function setVersion(stbRoot, version) {
 
 /**
  * Detect STB version from XML content
- * @param {string} xmlContent - STB XML content
- * @returns {Promise<string|null>} Version string or null
+ * @param {string} xmlContent
+ * @returns {Promise<string|null>}
  */
 export async function detectVersion(xmlContent) {
   try {
@@ -144,8 +136,8 @@ export async function detectVersion(xmlContent) {
 
 /**
  * Validate STB XML structure
- * @param {string} xmlContent - STB XML content
- * @returns {Promise<object>} Validation result
+ * @param {string} xmlContent
+ * @returns {Promise<object>}
  */
 export async function validate(xmlContent) {
   const errors = [];
@@ -154,7 +146,6 @@ export async function validate(xmlContent) {
   try {
     const stbRoot = await parseXml(xmlContent);
 
-    // Check root element
     const root = getRootElement(stbRoot);
     if (!root) {
       errors.push('Missing ST-Bridge root element');
@@ -162,7 +153,6 @@ export async function validate(xmlContent) {
     }
     const rootData = Array.isArray(root.element) ? root.element[0] : root.element;
 
-    // Check version
     const version = getVersion(stbRoot);
     if (!version) {
       warnings.push('Missing version attribute');
@@ -170,9 +160,7 @@ export async function validate(xmlContent) {
       warnings.push(`Unsupported version: ${version}`);
     }
 
-    // Check required elements
-    const model = rootData?.['StbModel'];
-    if (!model) {
+    if (!rootData?.['StbModel']) {
       errors.push('Missing StbModel element');
     }
   } catch (error) {

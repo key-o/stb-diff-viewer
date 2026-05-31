@@ -25,6 +25,52 @@ import { createLogger } from '../../../utils/logger.js';
 
 const log = createLogger('commonDataCollector');
 
+function hasEntries(mapLike) {
+  return mapLike && typeof mapLike.size === 'number' && mapLike.size > 0;
+}
+
+/**
+ * globalState上のキャッシュから、単一モデルの構造データだけを安全に取得する。
+ *
+ * models.elementData / models.sectionMaps は共有キャッシュなので、A/B両方が読み込まれている
+ * 比較状態では nodeMapRawA と B側 elementData のような不整合を避けるため使用しない。
+ *
+ * @param {Function} getState - globalState getter
+ * @returns {Object|null}
+ */
+export function getCachedStructureData(getState) {
+  const modelADocument = getState('models.documentA');
+  const modelBDocument = getState('models.documentB');
+
+  if (modelADocument && modelBDocument) {
+    return null;
+  }
+
+  const modelKey = modelADocument ? 'A' : modelBDocument ? 'B' : null;
+  if (!modelKey) return null;
+
+  const cachedNodeMap = getState(`models.nodeMapRaw${modelKey}`);
+  const cachedSteelSections = getState('models.steelSections');
+  const cachedElementData = getState('models.elementData');
+  const cachedSectionMaps = getState('models.sectionMaps');
+
+  if (
+    !hasEntries(cachedNodeMap) ||
+    !cachedSteelSections ||
+    !cachedElementData ||
+    !cachedSectionMaps
+  ) {
+    return null;
+  }
+
+  return {
+    nodeMap: cachedNodeMap,
+    steelSections: cachedSteelSections,
+    elementData: cachedElementData,
+    sectionMaps: cachedSectionMaps,
+  };
+}
+
 /**
  * globalStateからパース済み構造データを取得、なければXMLから抽出
  * @returns {Promise<Object>} 構造データ {nodeMap, steelSections, elementData, sectionMaps}
@@ -32,28 +78,8 @@ const log = createLogger('commonDataCollector');
 export async function getOrParseStructureData() {
   const { getState } = await import('../../../data/state/globalState.js');
 
-  // globalStateからパース済みデータを確認
-  const cachedNodeMap = getState('models.nodeMapRawA') || getState('models.nodeMapRawB');
-  const cachedSteelSections = getState('models.steelSections');
-  const cachedElementData = getState('models.elementData');
-  const cachedSectionMaps = getState('models.sectionMaps');
-
-  // パース済みデータが利用可能か確認
-  const hasCachedData =
-    cachedNodeMap &&
-    cachedNodeMap.size > 0 &&
-    cachedSteelSections &&
-    cachedElementData &&
-    cachedSectionMaps;
-
-  if (hasCachedData) {
-    return {
-      nodeMap: cachedNodeMap,
-      steelSections: cachedSteelSections,
-      elementData: cachedElementData,
-      sectionMaps: cachedSectionMaps,
-    };
-  }
+  const cachedData = getCachedStructureData(getState);
+  if (cachedData) return cachedData;
 
   // フォールバック: XMLから抽出
   const modelADocument = getState('models.documentA');

@@ -31,6 +31,7 @@ export {
   redrawParapetsForViewMode,
   redrawJointsForViewMode,
   redrawUndefinedElementsForViewMode,
+  redrawNodesForViewMode,
   redrawElementByType,
 } from './elementRedrawer.js';
 

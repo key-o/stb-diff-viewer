@@ -11,24 +11,9 @@
 import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
 import { camera, controls, scene } from '../core/core.js';
+import { getSelectedObjects } from '../interaction/interactionManager.js';
 
 const log = createLogger('viewer:camera');
-
-// Lazy reference to app/interaction module to break circular dependency:
-// app/interaction → viewer/index → cameraFitter → app/interaction
-let _interactionModule = null;
-
-/**
- * app/interaction モジュールを遅延取得する。
- * 初回呼び出し時にdynamic importを発火し、以降はキャッシュを返す。
- * 呼び出し時点では app/controllers/interactionController.js は既にロード済みのため即座に解決される。
- */
-async function _getInteractionModule() {
-  if (!_interactionModule) {
-    _interactionModule = await import('../../app/controllers/interactionController.js');
-  }
-  return _interactionModule;
-}
 
 /**
  * モデル全体のバウンディングボックスに合わせてカメラの位置とターゲットを調整する。
@@ -242,13 +227,10 @@ export function fitCameraToModel(options = {}) {
  * @param {number} [options.padding=2.0] - パディング係数
  * @returns {boolean} 成功した場合true
  */
-export async function focusOnSelected(options = {}) {
+export function focusOnSelected(options = {}) {
   const { enableTransition = true, padding = 2.0 } = options;
 
-  // Dynamic import to avoid circular dependency:
-  // app/interaction → viewer/index → cameraFitter → app/interaction
-  const interactionModule = await _getInteractionModule();
-  const selectedObjects = interactionModule.getSelectedObjects();
+  const selectedObjects = getSelectedObjects();
   if (selectedObjects.length === 0) {
     log.warn('No element selected');
     return false;

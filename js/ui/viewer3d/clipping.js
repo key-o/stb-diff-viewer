@@ -143,6 +143,11 @@ export async function applyAxisClip(axisType, axisId = null, customRange = null)
     return;
   }
 
+  if (selectedAxis.axisKind && selectedAxis.axisKind !== 'parallel') {
+    showWarning('円弧軸・放射軸の通り芯クリップは未対応です。');
+    return;
+  }
+
   // Save camera state before first clipping
   if (!currentClippingState.type) {
     await saveCameraState();
@@ -359,6 +364,7 @@ export function getAxisClipBounds(axisType, axisId, range) {
   const axes = axisType === 'X' ? axesData.xAxes : axesData.yAxes;
   const selectedAxis = axes.find((axis) => axis.id === axisId);
   if (!selectedAxis) return null;
+  if (selectedAxis.axisKind && selectedAxis.axisKind !== 'parallel') return null;
   return calculateAxisBoundsWithRange(selectedAxis, axisType, axes, range);
 }
 

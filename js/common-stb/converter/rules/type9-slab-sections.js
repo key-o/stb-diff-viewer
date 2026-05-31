@@ -124,3 +124,93 @@ export function convertSlabSectionsTo210(stbRoot) {
 }
 
 export default convertSlabSectionsTo210;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v2.1.0 → v2.0.2 reverse conversion
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SLAB_FIGURE_RENAME_MAP_REVERSE = Object.fromEntries(
+  Object.entries(SLAB_FIGURE_RENAME_MAP).map(([k, v]) => [v, k]),
+);
+
+// Bar arrangement child element reverse rename map
+const SLAB_BAR_RENAME_MAP_REVERSE = {
+  StbSecBarSlab_RC_ConventionalStandard: 'StbSecBarSlab_RC_Standard',
+  StbSecBarSlab_RC_Conventional2Way: 'StbSecBarSlab_RC_2Way',
+  StbSecBarSlab_RC_Conventional1Way1: 'StbSecBarSlab_RC_1Way1',
+  StbSecBarSlab_RC_Conventional1Way2: 'StbSecBarSlab_RC_1Way2',
+};
+
+/**
+ * Convert RC slab sections from v2.1.0 back to v2.0.2 structure.
+ * Removes StbSecSlab_RC_Conventional wrapper and restores original element names.
+ * @param {object} stbRoot - ST-Bridge root element
+ */
+export function convertSlabSectionsTo202(stbRoot) {
+  const root = getStbRoot(stbRoot);
+  if (!root) return;
+  const rootData = Array.isArray(root) ? root[0] : root;
+  const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
+  if (!sections) return;
+
+  const slabRCElements = sections['StbSecSlab_RC'];
+  if (!slabRCElements || !Array.isArray(slabRCElements)) return;
+
+  let convertedCount = 0;
+
+  slabRCElements.forEach((slabElement) => {
+    const conventional = slabElement['StbSecSlab_RC_Conventional']?.[0];
+    if (!conventional) return;
+
+    // Extract figure element and restore v2.0.2 names
+    const figureConv = conventional['StbSecFigureSlab_RC_Conventional'];
+    if (figureConv && Array.isArray(figureConv)) {
+      figureConv.forEach((fig) => {
+        // Convert StbSecSlab_RC_ConventionalTaper (single element with base_depth/tip_depth)
+        // back to two StbSecSlab_RC_Taper elements (pos="BASE"/"TIP" + depth) required by v2.0.2
+        if (fig['StbSecSlab_RC_ConventionalTaper']) {
+          const taperArr = Array.isArray(fig['StbSecSlab_RC_ConventionalTaper'])
+            ? fig['StbSecSlab_RC_ConventionalTaper']
+            : [fig['StbSecSlab_RC_ConventionalTaper']];
+          const taperSrc = taperArr[0] ?? {};
+          const baseDepth = taperSrc['$']?.['base_depth'] ?? taperSrc['base_depth'];
+          const tipDepth = taperSrc['$']?.['tip_depth'] ?? taperSrc['tip_depth'];
+          fig['StbSecSlab_RC_Taper'] = [
+            { $: { pos: 'BASE', depth: baseDepth } },
+            { $: { pos: 'TIP', depth: tipDepth } },
+          ];
+          delete fig['StbSecSlab_RC_ConventionalTaper'];
+        }
+
+        // Reverse rename remaining figure children: ConventionalStraight → Straight etc.
+        // (excludes ConventionalTaper which has already been handled above)
+        for (const [oldName, newName] of Object.entries(SLAB_FIGURE_RENAME_MAP_REVERSE)) {
+          if (oldName !== 'StbSecSlab_RC_ConventionalTaper' && fig[oldName]) {
+            renameKey(fig, oldName, newName);
+          }
+        }
+      });
+      // v2.0.2 uses StbSecFigureSlab_RC (not _Conventional)
+      slabElement['StbSecFigureSlab_RC'] = figureConv;
+    }
+
+    // Extract bar arrangement and restore v2.0.2 names
+    const barArrConv = conventional['StbSecBarArrangementSlab_RC_Conventional'];
+    if (barArrConv) {
+      barArrConv.forEach((barArr) => {
+        for (const [oldName, newName] of Object.entries(SLAB_BAR_RENAME_MAP_REVERSE)) {
+          if (barArr[oldName]) renameKey(barArr, oldName, newName);
+        }
+      });
+      slabElement['StbSecBarArrangementSlab_RC'] = barArrConv;
+    }
+
+    // Remove Conventional wrapper
+    delete slabElement['StbSecSlab_RC_Conventional'];
+    convertedCount++;
+  });
+
+  if (convertedCount > 0) {
+    logger.info(`RC Slab sections: Reverted ${convertedCount} slabs to v2.0.2 format`);
+  }
+}

@@ -28,7 +28,7 @@ import { ModelEvents, AxisEvents, FinalizationEvents } from '../constants/eventT
  * @param {Object} cameraControls - Camera and controls objects
  * @returns {Promise<Object>} Finalization result
  */
-export async function finalizeVisualization(finalizationData, scheduleRender, cameraControls) {
+export async function finalizeVisualization(finalizationData, scheduleRender, _cameraControls) {
   const {
     nodeLabels,
     stories,

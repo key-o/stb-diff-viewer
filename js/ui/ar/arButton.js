@@ -6,7 +6,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { arSessionManager } from '../../viewer/ar/arSessionManager.js';
+import { arSessionManager } from '../../viewer/index.js';
 
 const log = createLogger('ui/ar/arButton');
 
@@ -78,10 +78,10 @@ async function _handleArButtonClick() {
 
 /**
  * AR空間でのタップ処理（モデル配置）
- * @param {Event} e
+ * @param {Event} _e
  * @private
  */
-function _handleArTap(e) {
+function _handleArTap(_e) {
   if (!arSessionManager.isActive) {
     const canvas = document.getElementById('three-canvas');
     if (canvas) {

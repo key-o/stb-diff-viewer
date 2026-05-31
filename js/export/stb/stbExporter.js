@@ -60,6 +60,18 @@ setDynamicImportPaths({
   validator: '../validation/stbValidator.js',
 });
 
+function normalizeExportOptions(filenameOrOptions, options) {
+  if (filenameOrOptions && typeof filenameOrOptions === 'object') {
+    return filenameOrOptions;
+  }
+
+  if (typeof filenameOrOptions === 'string') {
+    return { ...(options || {}), filename: filenameOrOptions };
+  }
+
+  return options || {};
+}
+
 // イベント発行ラッパー: メインのエクスポート関数にイベント通知を追加
 async function exportModifiedStb(originalDoc, modifications, filename) {
   eventBus.emit(ExportEvents.STARTED, { type: 'stb', fileName: filename });
@@ -73,11 +85,12 @@ async function exportModifiedStb(originalDoc, modifications, filename) {
   }
 }
 
-async function exportStbDocument(doc, filename, options) {
-  eventBus.emit(ExportEvents.STARTED, { type: 'stb', fileName: filename });
+async function exportStbDocument(doc, filenameOrOptions, options) {
+  const exportOptions = normalizeExportOptions(filenameOrOptions, options);
+  eventBus.emit(ExportEvents.STARTED, { type: 'stb', fileName: exportOptions.filename });
   try {
-    const result = await _exportStbDocument(doc, filename, options);
-    eventBus.emit(ExportEvents.COMPLETED, { type: 'stb', fileName: filename });
+    const result = await _exportStbDocument(doc, exportOptions);
+    eventBus.emit(ExportEvents.COMPLETED, { type: 'stb', fileName: exportOptions.filename });
     return result;
   } catch (error) {
     eventBus.emit(ExportEvents.ERROR, { type: 'stb', error });
@@ -85,11 +98,12 @@ async function exportStbDocument(doc, filename, options) {
   }
 }
 
-async function exportValidatedStb(doc, filename, options) {
-  eventBus.emit(ExportEvents.STARTED, { type: 'stb', fileName: filename });
+async function exportValidatedStb(doc, filenameOrOptions, options) {
+  const exportOptions = normalizeExportOptions(filenameOrOptions, options);
+  eventBus.emit(ExportEvents.STARTED, { type: 'stb', fileName: exportOptions.filename });
   try {
-    const result = await _exportValidatedStb(doc, filename, options);
-    eventBus.emit(ExportEvents.COMPLETED, { type: 'stb', fileName: filename });
+    const result = await _exportValidatedStb(doc, exportOptions);
+    eventBus.emit(ExportEvents.COMPLETED, { type: 'stb', fileName: exportOptions.filename });
     return result;
   } catch (error) {
     eventBus.emit(ExportEvents.ERROR, { type: 'stb', error });

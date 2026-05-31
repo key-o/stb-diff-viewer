@@ -1,12 +1,12 @@
-/**
- * @fileoverview 要素動的更新モジュール
+﻿/**
+ * @fileoverview 隕∫ｴ蜍慕噪譖ｴ譁ｰ繝｢繧ｸ繝･繝ｼ繝ｫ
  *
- * このモジュールは、個別要素のジオメトリをリアルタイムで更新する機能を提供します:
- * - 特定要素のメッシュ検索
- * - ジオメトリの再生成と置き換え
- * - XMLドキュメントとの同期
+ * 縺薙・繝｢繧ｸ繝･繝ｼ繝ｫ縺ｯ縲∝句挨隕∫ｴ縺ｮ繧ｸ繧ｪ繝｡繝医Μ繧偵Μ繧｢繝ｫ繧ｿ繧､繝縺ｧ譖ｴ譁ｰ縺吶ｋ讖溯・繧呈署萓帙＠縺ｾ縺・
+ * - 迚ｹ螳夊ｦ∫ｴ縺ｮ繝｡繝・す繝･讀懃ｴ｢
+ * - 繧ｸ繧ｪ繝｡繝医Μ縺ｮ蜀咲函謌舌→鄂ｮ縺肴鋤縺・
+ * - XML繝峨く繝･繝｡繝ｳ繝医→縺ｮ蜷梧悄
  *
- * 編集機能とジオメトリ表示の統合を実現します。
+ * 邱ｨ髮・ｩ溯・縺ｨ繧ｸ繧ｪ繝｡繝医Μ陦ｨ遉ｺ縺ｮ邨ｱ蜷医ｒ螳溽樟縺励∪縺吶・
  */
 
 import * as THREE from 'three';
@@ -15,45 +15,45 @@ import { getViewerState } from './stateProvider.js';
 
 const logger = createLogger('ElementUpdater');
 import { elementGroups } from './core/core.js';
-import { ProfileBasedColumnGenerator } from './geometry/ProfileBasedColumnGenerator.js';
-import { ProfileBasedPostGenerator } from './geometry/ProfileBasedPostGenerator.js';
-import { ProfileBasedBeamGenerator } from './geometry/ProfileBasedBeamGenerator.js';
-import { ProfileBasedBraceGenerator } from './geometry/ProfileBasedBraceGenerator.js';
-import { IsolatingDeviceGenerator } from './geometry/IsolatingDeviceGenerator.js';
-import { DampingDeviceGenerator } from './geometry/DampingDeviceGenerator.js';
-import { PileGenerator } from './geometry/PileGenerator.js';
-import { FootingGenerator } from './geometry/FootingGenerator.js';
+import { ProfileBasedColumnGenerator } from './geometry/generators/ProfileBasedColumnGenerator.js';
+import { ProfileBasedPostGenerator } from './geometry/generators/ProfileBasedPostGenerator.js';
+import { ProfileBasedBeamGenerator } from './geometry/generators/ProfileBasedBeamGenerator.js';
+import { ProfileBasedBraceGenerator } from './geometry/generators/ProfileBasedBraceGenerator.js';
+import { IsolatingDeviceGenerator } from './geometry/generators/IsolatingDeviceGenerator.js';
+import { DampingDeviceGenerator } from './geometry/generators/DampingDeviceGenerator.js';
+import { PileGenerator } from './geometry/generators/PileGenerator.js';
+import { FootingGenerator } from './geometry/generators/FootingGenerator.js';
 import { extractAllSections } from '../common-stb/import/extractor/sectionExtractor.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
 
 /**
- * グループ内から特定の要素IDを持つメッシュを検索
- * @param {THREE.Group} group - 検索対象グループ
- * @param {string} elementId - 要素ID
- * @param {string} modelSource - "modelA" または "modelB" または "matched"
- * @returns {THREE.Mesh|null} 見つかったメッシュ、または null
+ * 繧ｰ繝ｫ繝ｼ繝怜・縺九ｉ迚ｹ螳壹・隕∫ｴID繧呈戟縺､繝｡繝・す繝･繧呈､懃ｴ｢
+ * @param {THREE.Group} group - 讀懃ｴ｢蟇ｾ雎｡繧ｰ繝ｫ繝ｼ繝・
+ * @param {string} elementId - 隕∫ｴID
+ * @param {string} modelSource - "modelA" 縺ｾ縺溘・ "modelB" 縺ｾ縺溘・ "matched"
+ * @returns {THREE.Mesh|null} 隕九▽縺九▲縺溘Γ繝・す繝･縲√∪縺溘・ null
  */
 function findMeshByElementId(group, elementId, modelSource) {
   if (!group || !group.children) return null;
 
   for (const child of group.children) {
     if (child.userData) {
-      // モデルAの要素を探す
+      // 繝｢繝・ΝA縺ｮ隕∫ｴ繧呈爾縺・
       if (modelSource === 'modelA' && child.userData.elementIdA === elementId) {
         return child;
       }
-      // モデルBの要素を探す
+      // 繝｢繝・ΝB縺ｮ隕∫ｴ繧呈爾縺・
       if (modelSource === 'modelB' && child.userData.elementIdB === elementId) {
         return child;
       }
-      // マッチした要素（両方のIDを持つ）
+      // 繝槭ャ繝√＠縺溯ｦ∫ｴ・井ｸ｡譁ｹ縺ｮID繧呈戟縺､・・
       if (
         modelSource === 'matched' &&
         (child.userData.elementIdA === elementId || child.userData.elementIdB === elementId)
       ) {
         return child;
       }
-      // 単一要素（elementIdを持つ）
+      // 蜊倅ｸ隕∫ｴ・・lementId繧呈戟縺､・・
       if (child.userData.elementId === elementId) {
         return child;
       }
@@ -64,11 +64,11 @@ function findMeshByElementId(group, elementId, modelSource) {
 }
 
 /**
- * XMLドキュメントから要素データを取得
- * @param {Document} doc - XMLドキュメント
- * @param {string} elementType - 要素タイプ（"Column", "Beam"等）
- * @param {string} elementId - 要素ID
- * @returns {Element|null} XML要素
+ * XML繝峨く繝･繝｡繝ｳ繝医°繧芽ｦ∫ｴ繝・・繧ｿ繧貞叙蠕・
+ * @param {Document} doc - XML繝峨く繝･繝｡繝ｳ繝・
+ * @param {string} elementType - 隕∫ｴ繧ｿ繧､繝暦ｼ・Column", "Beam"遲会ｼ・
+ * @param {string} elementId - 隕∫ｴID
+ * @returns {Element|null} XML隕∫ｴ
  */
 function getElementFromDocument(doc, elementType, elementId) {
   if (!doc) return null;
@@ -78,9 +78,9 @@ function getElementFromDocument(doc, elementType, elementId) {
 }
 
 /**
- * ノードマップを取得（XMLドキュメントから構築）
- * @param {Document} doc - XMLドキュメント
- * @returns {Map<string, THREE.Vector3>} ノードマップ
+ * 繝弱・繝峨・繝・・繧貞叙蠕暦ｼ・ML繝峨く繝･繝｡繝ｳ繝医°繧画ｧ狗ｯ会ｼ・
+ * @param {Document} doc - XML繝峨く繝･繝｡繝ｳ繝・
+ * @returns {Map<string, THREE.Vector3>} 繝弱・繝峨・繝・・
  */
 function buildNodeMapFromDocument(doc) {
   const nodeMap = new Map();
@@ -101,15 +101,15 @@ function buildNodeMapFromDocument(doc) {
 }
 
 /**
- * 特定要素のジオメトリを再生成
- * @param {string} elementType - "Column", "Beam", "Pile"等
- * @param {string} elementId - 要素ID
- * @param {string} modelSource - "modelA" または "modelB"
- * @returns {Promise<boolean>} 更新成功可否
+ * 迚ｹ螳夊ｦ∫ｴ縺ｮ繧ｸ繧ｪ繝｡繝医Μ繧貞・逕滓・
+ * @param {string} elementType - "Column", "Beam", "Pile"遲・
+ * @param {string} elementId - 隕∫ｴID
+ * @param {string} modelSource - "modelA" 縺ｾ縺溘・ "modelB"
+ * @returns {Promise<boolean>} 譖ｴ譁ｰ謌仙粥蜿ｯ蜷ｦ
  */
 export async function regenerateElementGeometry(elementType, elementId, modelSource = 'modelA') {
   try {
-    // 1. グループとドキュメントを取得
+    // 1. 繧ｰ繝ｫ繝ｼ繝励→繝峨く繝･繝｡繝ｳ繝医ｒ蜿門ｾ・
     const group = elementGroups[elementType];
     if (!group) {
       logger.error(`Element group not found: ${elementType}`);
@@ -125,12 +125,12 @@ export async function regenerateElementGeometry(elementType, elementId, modelSou
       return false;
     }
 
-    // 2. 古いメッシュを削除
+    // 2. 蜿､縺・Γ繝・す繝･繧貞炎髯､
     const oldMesh = findMeshByElementId(group, elementId, modelSource);
     if (oldMesh) {
       group.remove(oldMesh);
 
-      // ジオメトリとマテリアルを破棄
+      // 繧ｸ繧ｪ繝｡繝医Μ縺ｨ繝槭ユ繝ｪ繧｢繝ｫ繧堤ｴ譽・
       if (oldMesh.geometry) oldMesh.geometry.dispose();
       if (oldMesh.material) {
         if (Array.isArray(oldMesh.material)) {
@@ -141,18 +141,18 @@ export async function regenerateElementGeometry(elementType, elementId, modelSou
       }
     }
 
-    // 3. XMLから更新された要素データを取得
+    // 3. XML縺九ｉ譖ｴ譁ｰ縺輔ｌ縺溯ｦ∫ｴ繝・・繧ｿ繧貞叙蠕・
     const elementNode = getElementFromDocument(doc, elementType, elementId);
     if (!elementNode) {
       logger.error(`Element not found in document: ${elementId}`);
       return false;
     }
 
-    // 4. 必要なデータを構築
+    // 4. 蠢・ｦ√↑繝・・繧ｿ繧呈ｧ狗ｯ・
     const nodeMap = buildNodeMapFromDocument(doc);
     const sections = extractAllSections(doc);
 
-    // 5. 要素タイプに応じてジオメトリを生成
+    // 5. 隕∫ｴ繧ｿ繧､繝励↓蠢懊§縺ｦ繧ｸ繧ｪ繝｡繝医Μ繧堤函謌・
     const newMesh = await generateMeshForElement(elementType, elementNode, nodeMap, sections);
 
     if (!newMesh) {
@@ -160,10 +160,10 @@ export async function regenerateElementGeometry(elementType, elementId, modelSou
       return false;
     }
 
-    // 6. 新しいメッシュをグループに追加
+    // 6. 譁ｰ縺励＞繝｡繝・す繝･繧偵げ繝ｫ繝ｼ繝励↓霑ｽ蜉
     group.add(newMesh);
 
-    // 7. レンダリング更新をリクエスト
+    // 7. 繝ｬ繝ｳ繝繝ｪ繝ｳ繧ｰ譖ｴ譁ｰ繧偵Μ繧ｯ繧ｨ繧ｹ繝・
     scheduleRender();
 
     return true;
@@ -174,15 +174,15 @@ export async function regenerateElementGeometry(elementType, elementId, modelSou
 }
 
 /**
- * 要素タイプに応じてメッシュを生成
- * @param {string} elementType - 要素タイプ
- * @param {Element} elementNode - XML要素ノード
- * @param {Map} nodeMap - ノードマップ
- * @param {Object} sections - 断面データ
- * @returns {Promise<THREE.Mesh|null>} 生成されたメッシュ
+ * 隕∫ｴ繧ｿ繧､繝励↓蠢懊§縺ｦ繝｡繝・す繝･繧堤函謌・
+ * @param {string} elementType - 隕∫ｴ繧ｿ繧､繝・
+ * @param {Element} elementNode - XML隕∫ｴ繝弱・繝・
+ * @param {Map} nodeMap - 繝弱・繝峨・繝・・
+ * @param {Object} sections - 譁ｭ髱｢繝・・繧ｿ
+ * @returns {Promise<THREE.Mesh|null>} 逕滓・縺輔ｌ縺溘Γ繝・す繝･
  */
 async function generateMeshForElement(elementType, elementNode, nodeMap, sections) {
-  // 要素データをオブジェクトに変換
+  // 隕∫ｴ繝・・繧ｿ繧偵が繝悶ず繧ｧ繧ｯ繝医↓螟画鋤
   const elementData = xmlNodeToObject(elementNode);
 
   try {
@@ -223,14 +223,14 @@ async function generateMeshForElement(elementType, elementNode, nodeMap, section
 }
 
 /**
- * XML要素ノードをJavaScriptオブジェクトに変換
- * @param {Element} node - XML要素ノード
- * @returns {Object} 変換されたオブジェクト
+ * XML隕∫ｴ繝弱・繝峨ｒJavaScript繧ｪ繝悶ず繧ｧ繧ｯ繝医↓螟画鋤
+ * @param {Element} node - XML隕∫ｴ繝弱・繝・
+ * @returns {Object} 螟画鋤縺輔ｌ縺溘が繝悶ず繧ｧ繧ｯ繝・
  */
 function xmlNodeToObject(node) {
   const obj = {};
 
-  // 全属性を取得
+  // 蜈ｨ螻樊ｧ繧貞叙蠕・
   Array.from(node.attributes).forEach((attr) => {
     obj[attr.name] = attr.value;
   });
@@ -239,7 +239,7 @@ function xmlNodeToObject(node) {
 }
 
 /**
- * 柱メッシュを生成
+ * 譟ｱ繝｡繝・す繝･繧堤函謌・
  */
 function generateColumnMesh(columnData, nodeMap, sections) {
   const meshes = ProfileBasedColumnGenerator.createColumnMeshes(
@@ -255,7 +255,7 @@ function generateColumnMesh(columnData, nodeMap, sections) {
 }
 
 /**
- * ポストメッシュを生成
+ * 繝昴せ繝医Γ繝・す繝･繧堤函謌・
  */
 function generatePostMesh(postData, nodeMap, sections) {
   const meshes = ProfileBasedPostGenerator.createPostMeshes(
@@ -271,10 +271,10 @@ function generatePostMesh(postData, nodeMap, sections) {
 }
 
 /**
- * 梁メッシュを生成
+ * 譴√Γ繝・す繝･繧堤函謌・
  */
 function generateBeamMesh(beamData, nodeMap, sections, elementType) {
-  // elementType に応じて適切な断面マップを選択
+  // elementType 縺ｫ蠢懊§縺ｦ驕ｩ蛻・↑譁ｭ髱｢繝槭ャ繝励ｒ驕ｸ謚・
   const sectionMap =
     elementType === 'Girder'
       ? sections.girderSections || sections.beamSections
@@ -293,7 +293,7 @@ function generateBeamMesh(beamData, nodeMap, sections, elementType) {
 }
 
 /**
- * ブレースメッシュを生成
+ * 繝悶Ξ繝ｼ繧ｹ繝｡繝・す繝･繧堤函謌・
  */
 function generateBraceMesh(braceData, nodeMap, sections) {
   const meshes = ProfileBasedBraceGenerator.createBraceMeshes(
@@ -309,7 +309,7 @@ function generateBraceMesh(braceData, nodeMap, sections) {
 }
 
 /**
- * 免震装置メッシュを生成
+ * 蜈埼怫陬・ｽｮ繝｡繝・す繝･繧堤函謌・
  */
 function generateIsolatingDeviceMesh(deviceData, nodeMap, sections) {
   const meshes = IsolatingDeviceGenerator.createIsolatingDeviceMeshes(
@@ -325,7 +325,7 @@ function generateIsolatingDeviceMesh(deviceData, nodeMap, sections) {
 }
 
 /**
- * 制振装置メッシュを生成
+ * 蛻ｶ謖ｯ陬・ｽｮ繝｡繝・す繝･繧堤函謌・
  */
 function generateDampingDeviceMesh(deviceData, nodeMap, sections) {
   const meshes = DampingDeviceGenerator.createDampingDeviceMeshes(
@@ -341,7 +341,7 @@ function generateDampingDeviceMesh(deviceData, nodeMap, sections) {
 }
 
 /**
- * 杭メッシュを生成
+ * 譚ｭ繝｡繝・す繝･繧堤函謌・
  */
 function generatePileMesh(pileData, nodeMap, sections) {
   const meshes = PileGenerator.createPileMeshes(
@@ -356,7 +356,7 @@ function generatePileMesh(pileData, nodeMap, sections) {
 }
 
 /**
- * 基礎メッシュを生成
+ * 蝓ｺ遉弱Γ繝・す繝･繧堤函謌・
  */
 function generateFootingMesh(footingData, nodeMap, sections) {
   const meshes = FootingGenerator.createFootingMeshes(
@@ -371,10 +371,10 @@ function generateFootingMesh(footingData, nodeMap, sections) {
 }
 
 /**
- * 複数要素のジオメトリを一括再生成
- * @param {Array<{elementType: string, elementId: string}>} elements - 要素リスト
- * @param {string} modelSource - "modelA" または "modelB"
- * @returns {Promise<Object>} 更新結果の統計
+ * 隍・焚隕∫ｴ縺ｮ繧ｸ繧ｪ繝｡繝医Μ繧剃ｸ諡ｬ蜀咲函謌・
+ * @param {Array<{elementType: string, elementId: string}>} elements - 隕∫ｴ繝ｪ繧ｹ繝・
+ * @param {string} modelSource - "modelA" 縺ｾ縺溘・ "modelB"
+ * @returns {Promise<Object>} 譖ｴ譁ｰ邨先棡縺ｮ邨ｱ險・
  */
 export async function regenerateMultipleElements(elements, modelSource = 'modelA') {
   const results = {

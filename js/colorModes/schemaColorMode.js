@@ -313,6 +313,7 @@ function focusOnSchemaErrorElement(elementId, elementType) {
 
   if (targetObject) {
     // 要素を選択
+    // eslint-disable-next-line import/no-restricted-paths
     import('../app/controllers/interactionController.js').then(({ selectElement3D }) => {
       selectElement3D(targetObject, scheduleRender);
     });

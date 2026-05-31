@@ -78,7 +78,7 @@ export function setColorMode(mode) {
   updateColorModeUI();
 
   // モデルが読み込まれているかチェック（data層のglobalState経由）
-  const modelsLoaded = !!(getState('models.modelADocument') || getState('models.modelBDocument'));
+  const modelsLoaded = !!(getState('models.documentA') || getState('models.documentB'));
 
   if (!modelsLoaded) {
     // UI要素の表示状態を更新

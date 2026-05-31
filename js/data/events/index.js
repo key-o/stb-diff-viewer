@@ -43,5 +43,6 @@ export {
   LoadingIndicatorEvents,
   FinalizationEvents,
   LabelEvents,
+  MeasurementEvents,
   isValidEventType,
 } from '../../constants/eventTypes.js';

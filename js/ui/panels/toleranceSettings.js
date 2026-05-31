@@ -88,6 +88,46 @@ function createToleranceSettingsHTML() {
         </div>
       </div>
 
+      <!-- 回転角許容差設定 -->
+      <div class="tolerance-section">
+        <h5 class="tolerance-subsection-title">🔄 回転角（Rotate）の許容差</h5>
+        <div class="tolerance-axis-group">
+          <div class="tolerance-axis-item">
+            <label for="tolerance-rotate">回転角:</label>
+            <input type="number" id="tolerance-rotate" class="tolerance-input"
+                   min="0" max="360" step="0.1" value="${DEFAULT_TOLERANCE_CONFIG.rotate}" />
+            <span class="tolerance-unit">度</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 配置要素比較モード -->
+      <div class="tolerance-section">
+        <h5 class="tolerance-subsection-title">📐 配置要素比較モード</h5>
+        <p class="tolerance-description">
+          線状要素（梁・柱など）の比較方法を選択します：
+        </p>
+        <div class="tolerance-mode-group">
+          <div class="tolerance-mode-item">
+            <label for="placement-mode-select">比較モード:</label>
+            <select id="placement-mode-select" class="tolerance-select">
+              <option value="nodePositionOnly">
+                📍 ノード位置のみ（高速）
+              </option>
+              <option value="nodePositionWithOffset">
+                📍 + オフセット（標準）
+              </option>
+              <option value="placementPositionComplete">
+                📍 + オフセット + 回転角（精密）
+              </option>
+            </select>
+          </div>
+          <div class="tolerance-mode-description">
+            <small id="placement-mode-description"></small>
+          </div>
+        </div>
+      </div>
+
       <!-- 属性値数値しきい値 -->
       <div class="tolerance-section">
         <h5 class="tolerance-subsection-title">🔢 属性値の数値しきい値</h5>
@@ -257,6 +297,57 @@ function injectToleranceStyles() {
     .tolerance-actions .btn-secondary:hover {
       background: #545b62;
     }
+
+    .tolerance-mode-group {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 4px;
+      border: 1px solid #dee2e6;
+    }
+
+    .tolerance-mode-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .tolerance-mode-item label {
+      min-width: 100px;
+      font-size: var(--font-size-sm);
+      font-weight: var(--font-weight-medium);
+      color: #495057;
+    }
+
+    .tolerance-select {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid #ced4da;
+      border-radius: 3px;
+      font-size: var(--font-size-sm);
+      background: white;
+      cursor: pointer;
+    }
+
+    .tolerance-select:focus {
+      outline: none;
+      border-color: #007bff;
+      box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+    }
+
+    .tolerance-mode-description {
+      margin-top: 8px;
+      padding: 8px;
+      background: #e7f3ff;
+      border-left: 3px solid #007bff;
+      border-radius: 2px;
+    }
+
+    .tolerance-mode-description small {
+      color: #0056b3;
+      font-size: var(--font-size-xs);
+      line-height: 1.4;
+    }
   `;
   document.head.appendChild(style);
 }
@@ -308,11 +399,24 @@ function loadSettingsToUI() {
   document.getElementById('tolerance-offset-y').value = config.offset.y;
   document.getElementById('tolerance-offset-z').value = config.offset.z;
 
+  // 回転角許容差
+  const rotateElement = document.getElementById('tolerance-rotate');
+  if (rotateElement) {
+    rotateElement.value = config.rotate;
+  }
+
   // 属性値数値しきい値
   document.getElementById('tolerance-attribute-numeric').value = config.attributeNumericTolerance;
 
   // 厳密モード
   document.getElementById('tolerance-strict-mode').checked = config.strictMode;
+
+  // 配置要素比較モード
+  const modeSelect = document.getElementById('placement-mode-select');
+  if (modeSelect) {
+    modeSelect.value = config.placementComparisonMode;
+    updatePlacementModeDescription(config.placementComparisonMode);
+  }
 
   // 厳密モードが有効な場合は許容差入力を無効化
   updateInputStates();
@@ -340,9 +444,11 @@ function applySettingsFromUI() {
       y: parseFloat(document.getElementById('tolerance-offset-y').value),
       z: parseFloat(document.getElementById('tolerance-offset-z').value),
     },
+    rotate: parseFloat(document.getElementById('tolerance-rotate').value),
     attributeNumericTolerance: parseFloat(
       document.getElementById('tolerance-attribute-numeric').value,
     ),
+    placementComparisonMode: document.getElementById('placement-mode-select').value,
   };
 
   // 設定を適用
@@ -392,6 +498,7 @@ function updateInputStates() {
     'tolerance-offset-x',
     'tolerance-offset-y',
     'tolerance-offset-z',
+    'tolerance-rotate',
     'tolerance-attribute-numeric',
   ];
 
@@ -408,6 +515,23 @@ function updateInputStates() {
   if (strictModeCheckbox) {
     strictModeCheckbox.disabled = !enabled;
     strictModeCheckbox.parentElement.style.opacity = enabled ? '1' : '0.5';
+  }
+}
+
+/**
+ * 配置要素比較モードの説明を更新
+ */
+function updatePlacementModeDescription(mode) {
+  const descriptions = {
+    nodePositionOnly: '基準ノード(id_node_start/end)の座標のみで比較。最も高速です（後方互換）',
+    nodePositionWithOffset:
+      '基準ノード座標＋オフセット値を合算した位置で比較。標準的な配置位置比較です',
+    placementPositionComplete: '基準ノード座標＋オフセット値＋回転角すべてを考慮した正確な比較です',
+  };
+
+  const descriptionEl = document.getElementById('placement-mode-description');
+  if (descriptionEl) {
+    descriptionEl.textContent = descriptions[mode] || '';
   }
 }
 
@@ -437,6 +561,14 @@ function setupEventListeners() {
   const strictModeCheckbox = document.getElementById('tolerance-strict-mode');
   if (strictModeCheckbox) {
     strictModeCheckbox.addEventListener('change', updateInputStates);
+  }
+
+  // 配置要素比較モードセレクト
+  const modeSelect = document.getElementById('placement-mode-select');
+  if (modeSelect) {
+    modeSelect.addEventListener('change', (e) => {
+      updatePlacementModeDescription(e.target.value);
+    });
   }
 
   logger.debug('Event listeners set up');

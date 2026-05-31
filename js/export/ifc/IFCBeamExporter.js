@@ -37,19 +37,19 @@ export class IFCBeamExporter extends IFCExporterBase {
     this._ensureInitialized();
     const w = this.writer;
 
-    // Validate beamData
-    if (!beamData || typeof beamData !== 'object' || Array.isArray(beamData)) {
-      const error = new TypeError('beamData must be a non-null object');
-      log.error('Validation failed:', error);
+    // 共通バリデーション
+    const validation = this._validateLinearElementData(beamData, '梁', {
+      point1: 'startPoint',
+      point2: 'endPoint',
+    });
+
+    if (!validation.isValid) {
+      log.error(`[IFC Export] 梁をスキップ: ${validation.error}`);
       return null;
     }
 
     const {
       name = 'Beam',
-      startPoint,
-      endPoint,
-      profile,
-      rotation = 0,
       placementMode = 'center',
       sectionHeight = 0,
       isSRC = false,
@@ -61,50 +61,6 @@ export class IFCBeamExporter extends IFCExporterBase {
     // Validate name
     if (typeof name !== 'string') {
       log.warn(`[IFC Export] beamData.name must be a string, using default "Beam"`);
-    }
-
-    // 必須パラメータのチェック
-    if (!startPoint || !endPoint || !profile) {
-      const error = new Error(
-        'Required parameters missing: startPoint, endPoint, and profile are required',
-      );
-      log.error(`[IFC Export] 梁 "${name}" をスキップ:`, error);
-      return null;
-    }
-
-    // Validate point objects
-    if (
-      typeof startPoint !== 'object' ||
-      typeof startPoint.x !== 'number' ||
-      typeof startPoint.y !== 'number' ||
-      typeof startPoint.z !== 'number'
-    ) {
-      const error = new TypeError('startPoint must be an object with numeric x, y, z properties');
-      log.error(`[IFC Export] 梁 "${name}" をスキップ:`, error);
-      return null;
-    }
-
-    if (
-      typeof endPoint !== 'object' ||
-      typeof endPoint.x !== 'number' ||
-      typeof endPoint.y !== 'number' ||
-      typeof endPoint.z !== 'number'
-    ) {
-      const error = new TypeError('endPoint must be an object with numeric x, y, z properties');
-      log.error(`[IFC Export] 梁 "${name}" をスキップ:`, error);
-      return null;
-    }
-
-    // Validate profile
-    if (typeof profile !== 'object' || !profile.type) {
-      const error = new TypeError('profile must be an object with a type property');
-      log.error(`[IFC Export] 梁 "${name}" をスキップ:`, error);
-      return null;
-    }
-
-    // Validate rotation
-    if (typeof rotation !== 'number' || !isFinite(rotation)) {
-      log.warn(`[IFC Export] 梁 "${name}": rotation must be a finite number, using 0`);
     }
 
     // Validate placementMode
@@ -121,19 +77,12 @@ export class IFCBeamExporter extends IFCExporterBase {
       );
     }
 
-    // 梁の長さを計算 (mm)
+    const { point1: startPoint, point2: endPoint, profile, length, rotation } = validation;
+
+    // 梁の方向ベクトル
     const dx = endPoint.x - startPoint.x;
     const dy = endPoint.y - startPoint.y;
     const dz = endPoint.z - startPoint.z;
-    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-    // 長さが0の場合はスキップ
-    if (length < 1e-6) {
-      log.warn(`[IFC Export] 梁 "${name}" をスキップ: 長さが0です`);
-      return null;
-    }
-
-    // 梁の方向ベクトル
     const dirX = dx / length;
     const dirY = dy / length;
     const dirZ = dz / length;
@@ -520,84 +469,31 @@ export class IFCBeamExporter extends IFCExporterBase {
     this._ensureInitialized();
     const w = this.writer;
 
-    // Validate columnData
-    if (!columnData || typeof columnData !== 'object' || Array.isArray(columnData)) {
-      const error = new TypeError('columnData must be a non-null object');
-      log.error('Validation failed:', error);
+    // 共通バリデーション
+    const validation = this._validateLinearElementData(columnData, '柱', {
+      point1: 'bottomPoint',
+      point2: 'topPoint',
+    });
+
+    if (!validation.isValid) {
+      log.error(`[IFC Export] 柱をスキップ: ${validation.error}`);
       return null;
     }
 
     const {
       name = 'Column',
-      bottomPoint,
-      topPoint,
-      profile,
-      rotation = 0,
       isReferenceDirection = true,
       isSRC = false,
       steelProfile = null,
       kindStructure = 'S',
     } = columnData;
 
-    // 必須パラメータのチェック
-    if (!bottomPoint || !topPoint || !profile) {
-      const error = new Error(
-        'Required parameters missing: bottomPoint, topPoint, and profile are required',
-      );
-      log.error(`[IFC Export] 柱 "${name}" をスキップ:`, error);
-      return null;
-    }
-
-    // Validate point objects
-    if (
-      typeof bottomPoint !== 'object' ||
-      typeof bottomPoint.x !== 'number' ||
-      typeof bottomPoint.y !== 'number' ||
-      typeof bottomPoint.z !== 'number'
-    ) {
-      const error = new TypeError('bottomPoint must be an object with numeric x, y, z properties');
-      log.error(`[IFC Export] 柱 "${name}" をスキップ:`, error);
-      return null;
-    }
-
-    if (
-      typeof topPoint !== 'object' ||
-      typeof topPoint.x !== 'number' ||
-      typeof topPoint.y !== 'number' ||
-      typeof topPoint.z !== 'number'
-    ) {
-      const error = new TypeError('topPoint must be an object with numeric x, y, z properties');
-      log.error(`[IFC Export] 柱 "${name}" をスキップ:`, error);
-      return null;
-    }
-
-    // Validate profile
-    if (typeof profile !== 'object' || !profile.type) {
-      const error = new TypeError('profile must be an object with a type property');
-      log.error(`[IFC Export] 柱 "${name}" をスキップ:`, error);
-      return null;
-    }
-
-    // Validate rotation
-    if (typeof rotation !== 'number' || !isFinite(rotation)) {
-      log.warn(`[IFC Export] 柱 "${name}": rotation must be a finite number, using 0`);
-    }
-
     // Validate isReferenceDirection
     if (typeof isReferenceDirection !== 'boolean') {
       log.warn(`[IFC Export] 柱 "${name}": isReferenceDirection must be a boolean, using true`);
     }
 
-    // 柱の長さを計算 (mm)
-    const dx = topPoint.x - bottomPoint.x;
-    const dy = topPoint.y - bottomPoint.y;
-    const dz = topPoint.z - bottomPoint.z;
-    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-    if (length < 1e-6) {
-      log.warn(`[IFC Export] 柱 "${name}" をスキップ: 長さが0です`);
-      return null;
-    }
+    const { point1: bottomPoint, profile, length, rotation } = validation;
 
     // プロファイルを作成（Position は null）
     const profileId = this._createProfileId(profile, true);
@@ -728,34 +624,21 @@ export class IFCBeamExporter extends IFCExporterBase {
   addPost(postData) {
     this._ensureInitialized();
     const w = this.writer;
-    const {
-      name = 'Post',
-      bottomPoint,
-      topPoint,
-      profile,
-      rotation = 0,
-      isReferenceDirection = true,
-      kindStructure = 'S',
-    } = postData;
 
-    // 必須パラメータのチェック
-    if (!bottomPoint || !topPoint || !profile) {
-      log.warn(
-        `[IFC Export] 間柱 "${name}" をスキップ: 必須パラメータ（bottomPoint, topPoint, profile）が不足しています`,
-      );
+    // 共通バリデーション
+    const validation = this._validateLinearElementData(postData, '間柱', {
+      point1: 'bottomPoint',
+      point2: 'topPoint',
+    });
+
+    if (!validation.isValid) {
+      log.error(`[IFC Export] 間柱をスキップ: ${validation.error}`);
       return null;
     }
 
-    // 間柱の長さを計算 (mm)
-    const dx = topPoint.x - bottomPoint.x;
-    const dy = topPoint.y - bottomPoint.y;
-    const dz = topPoint.z - bottomPoint.z;
-    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const { name = 'Post', isReferenceDirection = true, kindStructure = 'S' } = postData;
 
-    if (length < 1e-6) {
-      log.warn(`[IFC Export] 間柱 "${name}" をスキップ: 長さが0です`);
-      return null;
-    }
+    const { point1: bottomPoint, profile, length, rotation } = validation;
 
     // プロファイルを作成（Position は null）
     const profileId = this._createProfileId(profile, true);
@@ -868,78 +751,25 @@ export class IFCBeamExporter extends IFCExporterBase {
     this._ensureInitialized();
     const w = this.writer;
 
-    // Validate braceData
-    if (!braceData || typeof braceData !== 'object' || Array.isArray(braceData)) {
-      const error = new TypeError('braceData must be a non-null object');
-      log.error('Validation failed:', error);
+    // 共通バリデーション
+    const validation = this._validateLinearElementData(braceData, 'ブレース', {
+      point1: 'startPoint',
+      point2: 'endPoint',
+    });
+
+    if (!validation.isValid) {
+      log.error(`[IFC Export] ブレースをスキップ: ${validation.error}`);
       return null;
     }
 
-    const {
-      name = 'Brace',
-      startPoint,
-      endPoint,
-      profile,
-      rotation = 0,
-      kindStructure = 'S',
-    } = braceData;
+    const { name = 'Brace', kindStructure = 'S' } = braceData;
 
-    // 必須パラメータのチェック
-    if (!startPoint || !endPoint || !profile) {
-      const error = new Error(
-        'Required parameters missing: startPoint, endPoint, and profile are required',
-      );
-      log.error(`[IFC Export] ブレース "${name}" をスキップ:`, error);
-      return null;
-    }
+    const { point1: startPoint, point2: endPoint, profile, length, rotation } = validation;
 
-    // Validate point objects
-    if (
-      typeof startPoint !== 'object' ||
-      typeof startPoint.x !== 'number' ||
-      typeof startPoint.y !== 'number' ||
-      typeof startPoint.z !== 'number'
-    ) {
-      const error = new TypeError('startPoint must be an object with numeric x, y, z properties');
-      log.error(`[IFC Export] ブレース "${name}" をスキップ:`, error);
-      return null;
-    }
-
-    if (
-      typeof endPoint !== 'object' ||
-      typeof endPoint.x !== 'number' ||
-      typeof endPoint.y !== 'number' ||
-      typeof endPoint.z !== 'number'
-    ) {
-      const error = new TypeError('endPoint must be an object with numeric x, y, z properties');
-      log.error(`[IFC Export] ブレース "${name}" をスキップ:`, error);
-      return null;
-    }
-
-    // Validate profile
-    if (typeof profile !== 'object' || !profile.type) {
-      const error = new TypeError('profile must be an object with a type property');
-      log.error(`[IFC Export] ブレース "${name}" をスキップ:`, error);
-      return null;
-    }
-
-    // Validate rotation
-    if (typeof rotation !== 'number' || !isFinite(rotation)) {
-      log.warn(`[IFC Export] ブレース "${name}": rotation must be a finite number, using 0`);
-    }
-
-    // ブレースの長さを計算 (mm)
+    // ブレースの方向ベクトル（正規化）
     const dx = endPoint.x - startPoint.x;
     const dy = endPoint.y - startPoint.y;
     const dz = endPoint.z - startPoint.z;
-    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-    if (length < 1e-6) {
-      log.warn(`[IFC Export] ブレース "${name}" をスキップ: 長さが0です`);
-      return null;
-    }
-
-    // ブレースの方向ベクトル（正規化）
     const dirX = dx / length;
     const dirY = dy / length;
     const dirZ = dz / length;
@@ -1038,6 +868,112 @@ export class IFCBeamExporter extends IFCExporterBase {
     this._addToStorey(braceId, braceZ);
 
     return braceId;
+  }
+
+  /**
+   * 線形要素データのバリデーション（梁・柱・ブレース共通）
+   * @private
+   * @param {Object} data - バリデーション対象オブジェクト
+   * @param {string} elementType - 要素型の日本語名（例: '梁', '柱', 'ブレース'）
+   * @param {Object} pointFieldNames - ポイントフィールド名
+   * @param {string} pointFieldNames.point1 - 第1ポイントのフィールド名（例: 'startPoint'）
+   * @param {string} pointFieldNames.point2 - 第2ポイントのフィールド名（例: 'endPoint'）
+   * @returns {Object} バリデーション結果
+   * @returns {boolean} result.isValid - バリデーション成功フラグ
+   * @returns {string} [result.error] - エラーメッセージ（失敗時）
+   * @returns {Object} [result.point1] - 第1ポイント（成功時）
+   * @returns {Object} [result.point2] - 第2ポイント（成功時）
+   * @returns {Object} [result.profile] - プロファイル（成功時）
+   * @returns {number} [result.length] - ポイント間の距離（成功時）
+   * @returns {number} [result.rotation] - 回転値（成功時）
+   */
+  _validateLinearElementData(data, elementType, pointFieldNames) {
+    // Step 1: データオブジェクト自体のチェック
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return {
+        isValid: false,
+        error: `${elementType}データは null でないオブジェクトである必要があります`,
+      };
+    }
+
+    const point1Name = pointFieldNames.point1;
+    const point2Name = pointFieldNames.point2;
+    const point1 = data[point1Name];
+    const point2 = data[point2Name];
+    const profile = data.profile;
+
+    // Step 2: 必須パラメータのチェック
+    if (!point1 || !point2 || !profile) {
+      return {
+        isValid: false,
+        error: `${elementType}の必須パラメータが不足しています: ${point1Name}, ${point2Name}, profile`,
+      };
+    }
+
+    // Step 3: ポイント1のオブジェクト妥当性チェック
+    if (
+      typeof point1 !== 'object' ||
+      typeof point1.x !== 'number' ||
+      typeof point1.y !== 'number' ||
+      typeof point1.z !== 'number'
+    ) {
+      return {
+        isValid: false,
+        error: `${elementType}の${point1Name}は数値プロパティ x, y, z を持つオブジェクトである必要があります`,
+      };
+    }
+
+    // Step 4: ポイント2のオブジェクト妥当性チェック
+    if (
+      typeof point2 !== 'object' ||
+      typeof point2.x !== 'number' ||
+      typeof point2.y !== 'number' ||
+      typeof point2.z !== 'number'
+    ) {
+      return {
+        isValid: false,
+        error: `${elementType}の${point2Name}は数値プロパティ x, y, z を持つオブジェクトである必要があります`,
+      };
+    }
+
+    // Step 5: プロファイルのオブジェクト妥当性チェック
+    if (typeof profile !== 'object' || !profile.type) {
+      return {
+        isValid: false,
+        error: `${elementType}のプロファイルはtype プロパティを持つオブジェクトである必要があります`,
+      };
+    }
+
+    // Step 6: 回転値のチェック
+    const rotation = data.rotation ?? 0;
+    if (typeof rotation !== 'number' || !isFinite(rotation)) {
+      return {
+        isValid: false,
+        error: `${elementType}の回転値は有限数である必要があります`,
+      };
+    }
+
+    // Step 7: ポイント間の距離計算と0チェック
+    const dx = point2.x - point1.x;
+    const dy = point2.y - point1.y;
+    const dz = point2.z - point1.z;
+    const length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+    if (length < 1e-6) {
+      return {
+        isValid: false,
+        error: `${elementType}の長さが0です`,
+      };
+    }
+
+    return {
+      isValid: true,
+      point1,
+      point2,
+      profile,
+      length,
+      rotation,
+    };
   }
 
   /**

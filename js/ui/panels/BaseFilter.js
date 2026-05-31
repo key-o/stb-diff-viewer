@@ -105,7 +105,7 @@ export class BaseFilter {
    * @param {THREE.Object3D} element
    * @returns {string}
    */
-  _getFilterValueFromElement(element) {
+  _getFilterValueFromElement(_element) {
     throw new Error('_getFilterValueFromElement must be implemented');
   }
 

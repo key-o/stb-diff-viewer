@@ -15,9 +15,51 @@
 import { createLogger } from '../../utils/logger.js';
 import { getElementRedrawConfig } from '../../config/elementRedrawConfig.js';
 import { redrawElementForViewMode } from './elementRedrawCore.js';
+import { getState } from '../../data/state/globalState.js';
+import { eventBus, LabelEvents } from '../../data/events/index.js';
+import { drawNodes, elementGroups, labelDisplayManager } from '../../viewer/index.js';
 
 // ロガー
 const log = createLogger('elementRedrawer');
+
+/**
+ * 節点を再描画する。
+ *
+ * Node は立体/線表示モードを持たないため、通常の elementRedrawConfig ではなく
+ * 比較結果から直接 drawNodes を呼び出す。これにより、初回ロード時に Node ラベルが
+ * 未生成でも、ラベルチェックボックスの ON/OFF でラベルを作成・削除できる。
+ *
+ * @param {Function} scheduleRender - 再描画要求関数
+ */
+export function redrawNodesForViewMode(scheduleRender) {
+  const comparisonResults = getState('comparisonResults');
+  const comparisonResult =
+    comparisonResults instanceof Map ? comparisonResults.get('Node') : comparisonResults?.Node;
+  const group = elementGroups.Node;
+
+  if (!comparisonResult || !group) {
+    log.warn('Cannot redraw Node: comparison result or group not found');
+    if (scheduleRender) scheduleRender();
+    return;
+  }
+
+  eventBus.emit(LabelEvents.REMOVE_BY_TYPE, 'Node');
+
+  labelDisplayManager.syncWithCheckbox('Node');
+  const createLabels = labelDisplayManager.isLabelVisible('Node');
+  const modelBounds = getState('models.modelBounds');
+  const createdLabels = drawNodes(comparisonResult, group, createLabels, modelBounds);
+
+  const nodeDisplayCheckbox = document.getElementById('toggleNodeView');
+  group.visible = nodeDisplayCheckbox ? nodeDisplayCheckbox.checked : true;
+
+  if (createdLabels.length > 0) {
+    eventBus.emit(LabelEvents.ADD_LABELS, createdLabels);
+  }
+
+  eventBus.emit(LabelEvents.UPDATE_VISIBILITY);
+  if (scheduleRender) scheduleRender();
+}
 
 // ============================================================================
 // ファクトリーパターンによる要素再描画関数の統一

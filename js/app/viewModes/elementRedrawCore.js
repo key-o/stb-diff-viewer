@@ -24,11 +24,17 @@ import { eventBus, LabelEvents } from '../../data/events/index.js';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
 import {
   compareElements,
-  lineElementKeyExtractor,
+  compareElementsWithTolerance,
+  lineElementKeyExtractorV2,
   polyElementKeyExtractor,
+  polyElementKeyExtractorV2,
   createAttributeComparator,
 } from '../../common-stb/comparison/index.js';
-import { COMPARISON_KEY_TYPE } from '../../config/comparisonKeyConfig.js';
+import {
+  COMPARISON_KEY_TYPE,
+  PLACEMENT_COMPARISON_MODE,
+} from '../../config/comparisonKeyConfig.js';
+import { getToleranceConfig } from '../../config/toleranceConfig.js';
 import comparisonKeyManager from '../comparisonKeyManager.js';
 import {
   normalizeComparisonResult,
@@ -291,17 +297,33 @@ function drawPolyModeElements(config, modelContext, group) {
   const elementsB = applyElementFilter(config, parseElements(modelBDocument, stbTagName));
 
   const comparisonKeyType = comparisonKeyManager.getKeyType();
+  const toleranceConfig = getToleranceConfig();
+  const placementMode = toleranceConfig.placementComparisonMode;
+  const useV2 =
+    placementMode &&
+    placementMode !== PLACEMENT_COMPARISON_MODE.NODE_POSITION_ONLY &&
+    Object.values(PLACEMENT_COMPARISON_MODE).includes(placementMode);
+  const useTolerance = toleranceConfig.enabled && !toleranceConfig.strictMode;
   const comparisonOptions = {
     classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
   };
-  const rawPolyResult = compareElements(
-    elementsA,
-    elementsB,
-    nodeMapA,
-    nodeMapB,
-    (el, nm) => polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType),
-    comparisonOptions,
-  );
+  const keyExtractor = (el, nm) =>
+    useV2
+      ? polyElementKeyExtractorV2(el, nm, 'StbNodeIdOrder', placementMode, comparisonKeyType)
+      : polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType);
+
+  const rawPolyResult = useTolerance
+    ? compareElementsWithTolerance(
+        elementsA,
+        elementsB,
+        nodeMapA,
+        nodeMapB,
+        keyExtractor,
+        toleranceConfig,
+        comparisonKeyType,
+        comparisonOptions,
+      )
+    : compareElements(elementsA, elementsB, nodeMapA, nodeMapB, keyExtractor, comparisonOptions);
 
   const comparisonResult = normalizeComparisonResult(rawPolyResult);
 
@@ -355,17 +377,44 @@ function drawLineModeElements(config, modelContext, group) {
   const elementsA = applyElementFilter(config, parseElements(modelADocument, stbTagName));
   const elementsB = applyElementFilter(config, parseElements(modelBDocument, stbTagName));
   const comparisonKeyType = comparisonKeyManager.getKeyType();
+  const toleranceConfig = getToleranceConfig();
+  const placementComparisonMode = toleranceConfig.placementComparisonMode;
+
+  const useTolerance = toleranceConfig.enabled && !toleranceConfig.strictMode;
   const comparisonOptions = {
     classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
   };
-  const rawLineResult = compareElements(
-    elementsA,
-    elementsB,
-    nodeMapA,
-    nodeMapB,
-    (el, nm) => lineElementKeyExtractor(el, nm, nodeStartAttr, nodeEndAttr, comparisonKeyType),
-    comparisonOptions,
-  );
+
+  // V2 キー抽出関数を使用（配置要素比較モード対応）
+  const lineKeyExtractor = (el, nm) =>
+    lineElementKeyExtractorV2(
+      el,
+      nm,
+      nodeStartAttr,
+      nodeEndAttr,
+      placementComparisonMode,
+      comparisonKeyType,
+    );
+
+  const rawLineResult = useTolerance
+    ? compareElementsWithTolerance(
+        elementsA,
+        elementsB,
+        nodeMapA,
+        nodeMapB,
+        lineKeyExtractor,
+        toleranceConfig,
+        comparisonKeyType,
+        comparisonOptions,
+      )
+    : compareElements(
+        elementsA,
+        elementsB,
+        nodeMapA,
+        nodeMapB,
+        lineKeyExtractor,
+        comparisonOptions,
+      );
 
   const comparisonResult = normalizeComparisonResult(rawLineResult);
 
@@ -404,6 +453,13 @@ function drawLineModeElements(config, modelContext, group) {
 function runSolidModeComparison(config, stbDataA, stbDataB, elementType) {
   const { nodeStartAttr, nodeEndAttr } = config;
   const comparisonKeyType = comparisonKeyManager.getKeyType();
+  const toleranceConfig = getToleranceConfig();
+  const placementComparisonMode = toleranceConfig.placementComparisonMode;
+  const useV2 =
+    placementComparisonMode &&
+    placementComparisonMode !== PLACEMENT_COMPARISON_MODE.NODE_POSITION_ONLY &&
+    Object.values(PLACEMENT_COMPARISON_MODE).includes(placementComparisonMode);
+  const useTolerance = toleranceConfig.enabled && !toleranceConfig.strictMode;
   const elementsA = getFilteredStbElements(stbDataA, config);
   const elementsB = getFilteredStbElements(stbDataB, config);
 
@@ -415,10 +471,25 @@ function runSolidModeComparison(config, stbDataA, stbDataB, elementType) {
     elementType === 'FrameDampingDevice'
   ) {
     baseExtractor = (el, nm) =>
-      polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType);
+      useV2
+        ? polyElementKeyExtractorV2(
+            el,
+            nm,
+            'StbNodeIdOrder',
+            placementComparisonMode,
+            comparisonKeyType,
+          )
+        : polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType);
   } else {
     baseExtractor = (el, nm) =>
-      lineElementKeyExtractor(el, nm, nodeStartAttr, nodeEndAttr, comparisonKeyType);
+      lineElementKeyExtractorV2(
+        el,
+        nm,
+        nodeStartAttr,
+        nodeEndAttr,
+        placementComparisonMode,
+        comparisonKeyType,
+      );
   }
 
   // 元のJSオブジェクトをdata.elementに保持するラッパー
@@ -437,14 +508,25 @@ function runSolidModeComparison(config, stbDataA, stbDataB, elementType) {
     classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
   };
 
-  const rawComparisonResult = compareElements(
-    elementsA,
-    elementsB,
-    stbDataA.nodes,
-    stbDataB.nodes,
-    keyExtractor,
-    comparisonOptions,
-  );
+  const rawComparisonResult = useTolerance
+    ? compareElementsWithTolerance(
+        elementsA,
+        elementsB,
+        stbDataA.nodes,
+        stbDataB.nodes,
+        keyExtractor,
+        toleranceConfig,
+        comparisonKeyType,
+        comparisonOptions,
+      )
+    : compareElements(
+        elementsA,
+        elementsB,
+        stbDataA.nodes,
+        stbDataB.nodes,
+        keyExtractor,
+        comparisonOptions,
+      );
 
   // Normalize to canonical 5-category format
   const comparisonResult = normalizeComparisonResult(rawComparisonResult);

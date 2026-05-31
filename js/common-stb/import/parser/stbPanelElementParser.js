@@ -41,9 +41,9 @@ export function extractSlabElements(xmlDoc) {
         const nodeId = offsetEl.getAttribute('id_node');
         if (nodeId) {
           offsets.set(nodeId, {
-            x: parseFloat(offsetEl.getAttribute('offset_X')) || 0,
-            y: parseFloat(offsetEl.getAttribute('offset_Y')) || 0,
-            z: parseFloat(offsetEl.getAttribute('offset_Z')) || 0,
+            offset_X: parseFloat(offsetEl.getAttribute('offset_X')) || 0,
+            offset_Y: parseFloat(offsetEl.getAttribute('offset_Y')) || 0,
+            offset_Z: parseFloat(offsetEl.getAttribute('offset_Z')) || 0,
           });
         }
       }
@@ -62,6 +62,13 @@ export function extractSlabElements(xmlDoc) {
         node_ids: nodeIds,
         offsets: offsets,
       };
+      const slabExtMap = parseStbExtensions(slabEl.ownerDocument, 'StbSlab');
+      const slabExtProps = slabExtMap.get(id);
+      if (slabExtProps) {
+        for (const [key, value] of Object.entries(slabExtProps)) {
+          if (key.startsWith('ss7_')) elementData[key] = value;
+        }
+      }
       slabElementsData.push(elementData);
     } else {
       logger.warn(`[Data] 床: 必須属性またはノードが不足 (id=${id}, nodes=${nodeIds.length})`);
@@ -102,9 +109,9 @@ export function extractWallElements(xmlDoc) {
         const nodeId = offsetEl.getAttribute('id_node');
         if (nodeId) {
           offsets.set(nodeId, {
-            x: parseFloat(offsetEl.getAttribute('offset_X')) || 0,
-            y: parseFloat(offsetEl.getAttribute('offset_Y')) || 0,
-            z: parseFloat(offsetEl.getAttribute('offset_Z')) || 0,
+            offset_X: parseFloat(offsetEl.getAttribute('offset_X')) || 0,
+            offset_Y: parseFloat(offsetEl.getAttribute('offset_Y')) || 0,
+            offset_Z: parseFloat(offsetEl.getAttribute('offset_Z')) || 0,
           });
         }
       }

@@ -146,8 +146,11 @@ function performLabelVisibilityUpdate() {
     if (label && label.userData) {
       const shouldBeVisible = calculateLabelVisibility(label);
 
-      if (label.visible !== shouldBeVisible) {
-        label.visible = shouldBeVisible;
+      if (
+        label.userData.labelBaseVisible !== shouldBeVisible ||
+        label.visible !== shouldBeVisible
+      ) {
+        setLabelBaseVisibility(label, shouldBeVisible);
         if (shouldBeVisible) {
           visibleCount++;
         } else {
@@ -179,8 +182,8 @@ function updateLabelVisibilityForType(elementType) {
   const isVisible = isLabelTypeVisible(elementType);
 
   typeLabels.forEach((label) => {
-    if (label.visible !== isVisible) {
-      label.visible = isVisible;
+    if (label.userData.labelBaseVisible !== isVisible || label.visible !== isVisible) {
+      setLabelBaseVisibility(label, isVisible);
     }
   });
 
@@ -192,6 +195,12 @@ function updateLabelVisibilityForType(elementType) {
 
   // 再描画をリクエスト
   scheduleRender();
+}
+
+function setLabelBaseVisibility(label, visible) {
+  if (!label?.userData) return;
+  label.userData.labelBaseVisible = visible;
+  label.visible = visible;
 }
 
 /**

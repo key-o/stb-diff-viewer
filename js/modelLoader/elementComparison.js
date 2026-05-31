@@ -25,13 +25,15 @@ import {
   compareElementsWithImportance,
   compareElementsWithTolerance,
   lineElementKeyExtractor,
+  lineElementKeyExtractorV2,
   polyElementKeyExtractor,
+  polyElementKeyExtractorV2,
   nodeElementKeyExtractor,
 } from '../common-stb/comparison/comparator.js';
 import { createAttributeComparator } from '../common-stb/comparison/attributeComparator.js';
 import { getLoaderNormalizeSectionData, getLoaderImportanceManager } from './loaderDependencies.js';
 import { SUPPORTED_ELEMENTS } from '../constants/elementTypes.js';
-import { COMPARISON_KEY_TYPE } from '../config/comparisonKeyConfig.js';
+import { COMPARISON_KEY_TYPE, PLACEMENT_COMPARISON_MODE } from '../config/comparisonKeyConfig.js';
 import { getToleranceConfig } from '../config/toleranceConfig.js';
 import { filterWallsByViewerElementType } from '../common-stb/walls/wallClassification.js';
 
@@ -55,6 +57,12 @@ const SECTION_MAP_KEY_BY_ELEMENT_TYPE = {
 
 const extractedSectionsCache = new WeakMap();
 const storyAxisLookupCache = new WeakMap();
+
+const WALL_TYPE_ALIASES = new Set(['ShearWall', 'StbShearWall']);
+
+export function normalizeComparisonElementType(elementType) {
+  return WALL_TYPE_ALIASES.has(elementType) ? 'Wall' : elementType;
+}
 
 function getCachedExtractedSections(document) {
   if (!document) return null;
@@ -204,8 +212,18 @@ export function processElementComparison(modelData, selectedElementTypes, option
     options,
   };
 
+  const normalizedSelectedElementTypes = new Set(
+    Array.isArray(selectedElementTypes)
+      ? selectedElementTypes.map((elementType) => normalizeComparisonElementType(elementType))
+      : [],
+  );
+
   for (const elementType of SUPPORTED_ELEMENTS) {
-    const isSelected = selectedElementTypes.includes(elementType);
+    if (normalizeComparisonElementType(elementType) !== elementType) {
+      continue;
+    }
+
+    const isSelected = normalizedSelectedElementTypes.has(elementType);
     const result = compareSingleElementTypeInternal(elementType, isSelected, comparisonContext);
     comparisonResults.set(elementType, result);
   }
@@ -250,7 +268,11 @@ export function recompareSingleElementType(elementType, modelData, options = {})
     options,
   };
 
-  return compareSingleElementTypeInternal(elementType, true, comparisonContext);
+  return compareSingleElementTypeInternal(
+    normalizeComparisonElementType(elementType),
+    true,
+    comparisonContext,
+  );
 }
 
 // Axis の XML タグ名は 'StbParallelAxis'（'StbAxis' ではない）
@@ -532,22 +554,52 @@ function compareElementsByType(
     return null;
   };
 
+  // 配置比較モード: Mode 2/3 が設定されていれば V2 extractor を使用
+  const placementMode = toleranceConfig?.placementComparisonMode;
+  const useV2 =
+    placementMode &&
+    placementMode !== PLACEMENT_COMPARISON_MODE.NODE_POSITION_ONLY &&
+    Object.values(PLACEMENT_COMPARISON_MODE).includes(placementMode);
+
   const createLineExtractor = (startAttr, endAttr) => {
-    return (element, nodeMap) =>
-      lineElementKeyExtractor(element, nodeMap, startAttr, endAttr, comparisonKeyType, {
+    return (element, nodeMap) => {
+      const options = {
         sectionSignatureResolver: (targetElement) =>
           resolveSectionSignature(targetElement, nodeMap),
         storyAxisLookup: resolveStoryAxisLookup(nodeMap),
-      });
+      };
+      return useV2
+        ? lineElementKeyExtractorV2(
+            element,
+            nodeMap,
+            startAttr,
+            endAttr,
+            placementMode,
+            comparisonKeyType,
+            options,
+          )
+        : lineElementKeyExtractor(element, nodeMap, startAttr, endAttr, comparisonKeyType, options);
+    };
   };
 
   const createPolyExtractor = (nodeOrderTag = 'StbNodeIdOrder') => {
-    return (element, nodeMap) =>
-      polyElementKeyExtractor(element, nodeMap, nodeOrderTag, comparisonKeyType, {
+    return (element, nodeMap) => {
+      const options = {
         sectionSignatureResolver: (targetElement) =>
           resolveSectionSignature(targetElement, nodeMap),
         storyAxisLookup: resolveStoryAxisLookup(nodeMap),
-      });
+      };
+      return useV2
+        ? polyElementKeyExtractorV2(
+            element,
+            nodeMap,
+            nodeOrderTag,
+            placementMode,
+            comparisonKeyType,
+            options,
+          )
+        : polyElementKeyExtractor(element, nodeMap, nodeOrderTag, comparisonKeyType, options);
+    };
   };
 
   try {

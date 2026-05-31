@@ -9,20 +9,27 @@
 import { getStoryClipBounds, getAxisClipBounds } from '../viewer3d/clipping.js';
 import { toggleSectionBox, activateSectionBoxForBounds } from '../viewer3d/sectionBox.js';
 
+/** @type {Array<{el: EventTarget, event: string, handler: Function}>} */
+let _clippingListeners = [];
+
+function _addListener(el, event, handler) {
+  if (!el) return;
+  el.addEventListener(event, handler);
+  _clippingListeners.push({ el, event, handler });
+}
+
 /**
  * Setup clipping range slider listeners
  */
 export function setupClippingRangeListeners() {
-  // Story clipping range slider
   const storyRangeSlider = document.getElementById('storyClipRange');
   const storyRangeValue = document.getElementById('storyRangeValue');
 
   if (storyRangeSlider && storyRangeValue) {
-    storyRangeSlider.addEventListener('input', (event) => {
+    _addListener(storyRangeSlider, 'input', (event) => {
       const rangeValue = parseInt(event.target.value);
       storyRangeValue.textContent = (rangeValue / 1000).toFixed(1);
 
-      // スライダー変更時にSectionBoxを直接更新
       const storySelector = document.getElementById('storySelector');
       if (storySelector) {
         const bounds = getStoryClipBounds(storySelector.value, rangeValue);
@@ -33,12 +40,11 @@ export function setupClippingRangeListeners() {
     });
   }
 
-  // X-axis clipping range slider
   const xAxisRangeSlider = document.getElementById('xAxisClipRange');
   const xAxisRangeValue = document.getElementById('xAxisRangeValue');
 
   if (xAxisRangeSlider && xAxisRangeValue) {
-    xAxisRangeSlider.addEventListener('input', (event) => {
+    _addListener(xAxisRangeSlider, 'input', (event) => {
       const rangeValue = parseInt(event.target.value);
       xAxisRangeValue.textContent = (rangeValue / 1000).toFixed(1);
 
@@ -52,12 +58,11 @@ export function setupClippingRangeListeners() {
     });
   }
 
-  // Y-axis clipping range slider
   const yAxisRangeSlider = document.getElementById('yAxisClipRange');
   const yAxisRangeValue = document.getElementById('yAxisRangeValue');
 
   if (yAxisRangeSlider && yAxisRangeValue) {
-    yAxisRangeSlider.addEventListener('input', (event) => {
+    _addListener(yAxisRangeSlider, 'input', (event) => {
       const rangeValue = parseInt(event.target.value);
       yAxisRangeValue.textContent = (rangeValue / 1000).toFixed(1);
 
@@ -76,11 +81,18 @@ export function setupClippingRangeListeners() {
  * Setup clipping button listeners
  */
 export function setupClippingButtonListeners() {
-  // Section box toggle button
   const sectionBoxButton = document.getElementById('toggleSectionBoxButton');
-  if (sectionBoxButton) {
-    sectionBoxButton.addEventListener('click', () => {
-      toggleSectionBox();
-    });
+  _addListener(sectionBoxButton, 'click', () => {
+    toggleSectionBox();
+  });
+}
+
+/**
+ * Teardown all clipping listeners
+ */
+export function teardownClippingListeners() {
+  for (const { el, event, handler } of _clippingListeners) {
+    el.removeEventListener(event, handler);
   }
+  _clippingListeners = [];
 }

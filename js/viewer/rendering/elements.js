@@ -23,6 +23,7 @@ import {
 } from '../../common-stb/validation/validationManager.js';
 
 const log = createLogger('viewer:elements');
+const LINE_ELEMENT_LABEL_OFFSET_MM = 150;
 
 /**
  * 要素から id_section 属性を取得する
@@ -506,7 +507,7 @@ function processMatchedLineItem(
 export function drawLineElements(comparisonResult, group, elementType, labelToggle, modelBounds) {
   disposeAndClearGroup(group);
   const createdLabels = [];
-  const labelOffsetAmount = 150;
+  const labelOffsetAmount = LINE_ELEMENT_LABEL_OFFSET_MM;
 
   log.info(`Drawing line elements for ${elementType}:`, {
     matched: comparisonResult.matched.length,

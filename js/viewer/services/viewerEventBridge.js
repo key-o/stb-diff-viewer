@@ -64,6 +64,7 @@ class ViewerEventBridge {
     labelToggle,
     targetStoryId,
     is2DMode: providedIs2DMode,
+    showDimensions,
   }) {
     const axisGroup = elementGroups['Axis'];
     if (!axisGroup) {
@@ -85,6 +86,7 @@ class ViewerEventBridge {
     drawAxes(axesData, stories, axisGroup, modelBounds, labelToggle, null, {
       targetStoryId: targetStoryId === 'all' ? null : targetStoryId,
       is2DMode,
+      showDimensions: showDimensions === true,
     });
 
     eventBus.emit(AxisEvents.REDRAW_COMPLETED);

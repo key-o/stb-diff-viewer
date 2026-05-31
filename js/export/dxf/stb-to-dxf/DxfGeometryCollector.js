@@ -241,8 +241,13 @@ export function collectAxisLines(camera, clippingState = null) {
   let inFrustumCount = 0;
 
   group.traverse((child) => {
-    // THREE.Line オブジェクトを収集
-    if (child.isLine && child.visible && child.userData.elementType === 'Axis') {
+    // THREE.Line オブジェクトを収集（寸法線は除外）
+    if (
+      child.isLine &&
+      child.visible &&
+      child.userData.elementType === 'Axis' &&
+      !child.userData.isDimension
+    ) {
       const geometry = child.geometry;
       const positions = geometry.attributes.position;
 

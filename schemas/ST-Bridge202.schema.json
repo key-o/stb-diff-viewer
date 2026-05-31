@@ -1358,7 +1358,8 @@
         "rotate": {
           "type": "number",
           "exclusiveMaximum": 360,
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "id_section": {
           "type": "integer",
@@ -1414,13 +1415,15 @@
           "enum": [
             "FIX",
             "PIN"
-          ]
+          ],
+          "default": "FIX"
         },
         "condition_top": {
           "enum": [
             "FIX",
             "PIN"
-          ]
+          ],
+          "default": "FIX"
         },
         "joint_top": {
           "type": "number",
@@ -1435,14 +1438,16 @@
             "BOLT",
             "WBOLT",
             "WELD"
-          ]
+          ],
+          "default": "WELD"
         },
         "kind_joint_bottom": {
           "enum": [
             "BOLT",
             "WBOLT",
             "WELD"
-          ]
+          ],
+          "default": "WELD"
         },
         "joint_id_top": {
           "type": "integer",
@@ -1563,7 +1568,8 @@
         "rotate": {
           "type": "number",
           "exclusiveMaximum": 360,
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "id_section": {
           "type": "integer",
@@ -1619,13 +1625,15 @@
           "enum": [
             "FIX",
             "PIN"
-          ]
+          ],
+          "default": "FIX"
         },
         "condition_top": {
           "enum": [
             "FIX",
             "PIN"
-          ]
+          ],
+          "default": "FIX"
         },
         "joint_top": {
           "type": "number",
@@ -1640,14 +1648,16 @@
             "BOLT",
             "WBOLT",
             "WELD"
-          ]
+          ],
+          "default": "WELD"
         },
         "kind_joint_bottom": {
           "enum": [
             "BOLT",
             "WBOLT",
             "WELD"
-          ]
+          ],
+          "default": "WELD"
         },
         "joint_id_top": {
           "type": "integer",
@@ -1708,7 +1718,8 @@
         "rotate": {
           "type": "number",
           "exclusiveMaximum": 360,
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "id_section": {
           "type": "integer",
@@ -1778,13 +1789,15 @@
           "enum": [
             "FIX",
             "PIN"
-          ]
+          ],
+          "default": "FIX"
         },
         "condition_end": {
           "enum": [
             "FIX",
             "PIN"
-          ]
+          ],
+          "default": "FIX"
         },
         "haunch_start": {
           "type": "number",
@@ -1806,41 +1819,47 @@
           "enum": [
             "SLOPE",
             "DROP"
-          ]
+          ],
+          "default": "SLOPE"
         },
         "kind_haunch_end": {
           "enum": [
             "SLOPE",
             "DROP"
-          ]
+          ],
+          "default": "SLOPE"
         },
         "type_haunch_H": {
           "enum": [
             "BOTH",
             "RIGHT",
             "LEFT"
-          ]
+          ],
+          "default": "BOTH"
         },
         "type_haunch_V": {
           "enum": [
             "BOTH",
             "TOP",
             "BOTTOM"
-          ]
+          ],
+          "default": "BOTH"
         },
         "kind_joint_start": {
           "enum": [
             "BOLT",
             "WBOLT",
             "WELD"
-          ]
+          ],
+          "default": "WELD"
         },
         "kind_joint_end": {
           "enum": [
             "BOLT",
             "WBOLT",
             "WELD"
-          ]
+          ],
+          "default": "WELD"
         },
         "joint_id_start": {
           "type": "integer",
@@ -1937,7 +1956,8 @@
         "rotate": {
           "type": "number",
           "exclusiveMaximum": 360,
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "id_section": {
           "type": "integer",
@@ -2007,13 +2027,15 @@
           "enum": [
             "FIX",
             "PIN"
-          ]
+          ],
+          "default": "FIX"
         },
         "condition_end": {
           "enum": [
             "FIX",
             "PIN"
-          ]
+          ],
+          "default": "FIX"
         },
         "haunch_start": {
           "type": "number",
@@ -2035,41 +2057,47 @@
           "enum": [
             "SLOPE",
             "DROP"
-          ]
+          ],
+          "default": "SLOPE"
         },
         "kind_haunch_end": {
           "enum": [
             "SLOPE",
             "DROP"
-          ]
+          ],
+          "default": "SLOPE"
         },
         "type_haunch_H": {
           "enum": [
             "BOTH",
             "RIGHT",
             "LEFT"
-          ]
+          ],
+          "default": "BOTH"
         },
         "type_haunch_V": {
           "enum": [
             "BOTH",
             "TOP",
             "BOTTOM"
-          ]
+          ],
+          "default": "BOTH"
         },
         "kind_joint_start": {
           "enum": [
             "BOLT",
             "WBOLT",
             "WELD"
-          ]
+          ],
+          "default": "WELD"
         },
         "kind_joint_end": {
           "enum": [
             "BOLT",
             "WBOLT",
             "WELD"
-          ]
+          ],
+          "default": "WELD"
         },
         "joint_id_start": {
           "type": "integer",
@@ -2131,7 +2159,8 @@
         "rotate": {
           "type": "number",
           "exclusiveMaximum": 360,
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "id_section": {
           "type": "integer",
@@ -2166,19 +2195,22 @@
           "enum": [
             "FIX",
             "PIN"
-          ]
+          ],
+          "default": "FIX"
         },
         "condition_end": {
           "enum": [
             "FIX",
             "PIN"
-          ]
+          ],
+          "default": "FIX"
         },
         "feature_brace": {
           "enum": [
             "TENSION",
             "TENSIONANDCOMPRESSION"
-          ]
+          ],
+          "default": "TENSION"
         },
         "joint_start": {
           "type": "number",
@@ -2193,14 +2225,16 @@
             "BOLT",
             "WBOLT",
             "WELD"
-          ]
+          ],
+          "default": "WELD"
         },
         "kind_joint_end": {
           "enum": [
             "BOLT",
             "WBOLT",
             "WELD"
-          ]
+          ],
+          "default": "WELD"
         },
         "joint_id_start": {
           "type": "integer",
@@ -2441,7 +2475,8 @@
           "enum": [
             "WALL_NORMAL",
             "WALL_SHEAR"
-          ]
+          ],
+          "default": "WALL_NORMAL"
         },
         "slit_upper": {
           "type": "number",
@@ -2466,7 +2501,8 @@
           ]
         },
         "isPress": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         }
       },
       "required": [
@@ -2582,7 +2618,8 @@
         "rotate": {
           "type": "number",
           "exclusiveMaximum": 360,
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "id_section": {
           "type": "integer",
@@ -2808,7 +2845,8 @@
         "rotate": {
           "type": "number",
           "exclusiveMaximum": 360,
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "offset_Z": {
           "type": "number"
@@ -3239,7 +3277,8 @@
           "enum": [
             "COLUMN",
             "POST"
-          ]
+          ],
+          "default": "COLUMN"
         },
         "strength_concrete": {
           "type": "string"
@@ -3354,10 +3393,12 @@
             "DIR_X",
             "DIR_Y",
             "DIR_XY"
-          ]
+          ],
+          "default": "NONE"
         },
         "isSpiral": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "center_start_X": {
           "type": "number",
@@ -3837,10 +3878,12 @@
           "enum": [
             "COLUMN",
             "POST"
-          ]
+          ],
+          "default": "COLUMN"
         },
         "isReferenceDirection": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "true"
         }
       },
       "required": [
@@ -3886,7 +3929,8 @@
             "EXPOSE",
             "EMBEDDED",
             "WRAP"
-          ]
+          ],
+          "default": "NONE"
         },
         "joint_id_top": {
           "type": "integer",
@@ -4014,7 +4058,8 @@
             "90",
             "180",
             "270"
-          ]
+          ],
+          "default": "0"
         },
         "height_mortar": {
           "type": "number",
@@ -4081,35 +4126,43 @@
         },
         "C1_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C1_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C2_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C2_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C3_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C3_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C4_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C4_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "t": {
           "type": "number",
@@ -4124,11 +4177,13 @@
         },
         "offset_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "offset_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         }
       },
       "required": [
@@ -4215,7 +4270,8 @@
         },
         "A2": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "B1": {
           "type": "number",
@@ -4223,7 +4279,8 @@
         },
         "B2": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "t": {
           "type": "number",
@@ -4282,7 +4339,8 @@
           "enum": [
             "COLUMN",
             "POST"
-          ]
+          ],
+          "default": "COLUMN"
         },
         "strength_concrete": {
           "type": "string"
@@ -4421,10 +4479,12 @@
             "DIR_X",
             "DIR_Y",
             "DIR_XY"
-          ]
+          ],
+          "default": "NONE"
         },
         "isSpiral": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "center_start_X": {
           "type": "number",
@@ -4858,7 +4918,8 @@
             "UNEMBEDDED",
             "UNEMBEDDED2",
             "EMBEDDED"
-          ]
+          ],
+          "default": "NONE"
         },
         "joint_id_top": {
           "type": "integer",
@@ -5621,7 +5682,8 @@
             "90",
             "180",
             "270"
-          ]
+          ],
+          "default": "0"
         },
         "height_mortar": {
           "type": "number",
@@ -5688,35 +5750,43 @@
         },
         "C1_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C1_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C2_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C2_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C3_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C3_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C4_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C4_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "t": {
           "type": "number",
@@ -5731,11 +5801,13 @@
         },
         "offset_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "offset_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         }
       },
       "required": [
@@ -5822,7 +5894,8 @@
         },
         "A2": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "B1": {
           "type": "number",
@@ -5830,7 +5903,8 @@
         },
         "B2": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "t": {
           "type": "number",
@@ -5889,13 +5963,15 @@
           "enum": [
             "COLUMN",
             "POST"
-          ]
+          ],
+          "default": "COLUMN"
         },
         "strength_concrete": {
           "type": "string"
         },
         "isReferenceDirection": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "true"
         }
       },
       "required": [
@@ -5940,7 +6016,8 @@
             "NONE",
             "EXPOSE",
             "EMBEDDED"
-          ]
+          ],
+          "default": "NONE"
         }
       },
       "additionalProperties": false,
@@ -6051,7 +6128,8 @@
             "90",
             "180",
             "270"
-          ]
+          ],
+          "default": "0"
         },
         "height_mortar": {
           "type": "number",
@@ -6118,35 +6196,43 @@
         },
         "C1_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C1_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C2_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C2_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C3_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C3_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C4_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "C4_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "t": {
           "type": "number",
@@ -6161,11 +6247,13 @@
         },
         "offset_X": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "offset_Y": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         }
       },
       "required": [
@@ -6252,7 +6340,8 @@
         },
         "A2": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "B1": {
           "type": "number",
@@ -6260,7 +6349,8 @@
         },
         "B2": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "t": {
           "type": "number",
@@ -6319,16 +6409,20 @@
           "enum": [
             "GIRDER",
             "BEAM"
-          ]
+          ],
+          "default": "GIRDER"
         },
         "isFoundation": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "isCanti": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "isOutin": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "strength_concrete": {
           "type": "string"
@@ -6942,13 +7036,16 @@
           "enum": [
             "GIRDER",
             "BEAM"
-          ]
+          ],
+          "default": "GIRDER"
         },
         "isCanti": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "isOutin": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         }
       },
       "required": [
@@ -7188,16 +7285,20 @@
           "enum": [
             "GIRDER",
             "BEAM"
-          ]
+          ],
+          "default": "GIRDER"
         },
         "isFoundation": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "isCanti": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "isOutin": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "strength_concrete": {
           "type": "string"
@@ -7997,7 +8098,8 @@
           "enum": [
             "VERTICAL",
             "HORIZONTAL"
-          ]
+          ],
+          "default": "VERTICAL"
         }
       },
       "required": [
@@ -8147,13 +8249,16 @@
           "type": "string"
         },
         "isFoundation": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "isEarthen": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "isCanti": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "strength_concrete": {
           "type": "string"
@@ -9214,7 +9319,8 @@
             "TOP_START",
             "MIDDLE",
             "BOTTOM_END"
-          ]
+          ],
+          "default": "ALL"
         },
         "strength": {
           "type": "string"
@@ -9977,7 +10083,8 @@
           "exclusiveMinimum": 0
         },
         "isSpiral": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         }
       },
       "additionalProperties": false,
@@ -11259,7 +11366,8 @@
           "exclusiveMinimum": 0
         },
         "isTipline": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "true"
         }
       },
       "additionalProperties": false,
@@ -12112,7 +12220,8 @@
         },
         "clearance": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "10"
         }
       },
       "required": [
@@ -12126,7 +12235,8 @@
       "type": "object",
       "properties": {
         "isZigzag": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "nf": {
           "type": "integer",
@@ -12381,11 +12491,13 @@
         },
         "offset_T": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "clearance": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "10"
         }
       },
       "required": [
@@ -12399,7 +12511,8 @@
       "type": "object",
       "properties": {
         "isZigzag": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "nf": {
           "type": "integer",
@@ -12567,7 +12680,8 @@
       "type": "object",
       "properties": {
         "isZigzag": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "nf": {
           "type": "integer",
@@ -12787,7 +12901,8 @@
         },
         "clearance": {
           "type": "number",
-          "minimum": 0
+          "minimum": 0,
+          "default": "10"
         }
       },
       "required": [
@@ -12801,7 +12916,8 @@
       "type": "object",
       "properties": {
         "isZigzag": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "nf": {
           "type": "integer",
@@ -12969,7 +13085,8 @@
       "type": "object",
       "properties": {
         "isZigzag": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "false"
         },
         "nf": {
           "type": "integer",
@@ -13420,7 +13537,8 @@
           "type": "number"
         },
         "importance": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         },
         "soil": {
           "enum": [
@@ -13457,7 +13575,8 @@
           "type": "number"
         },
         "reduction_coefficient": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         },
         "velocity_pressure": {
           "type": "number"
@@ -13588,7 +13707,8 @@
           "type": "string"
         },
         "isInclude": {
-          "type": "boolean"
+          "type": "boolean",
+          "default": "true"
         }
       },
       "required": [
@@ -13669,7 +13789,8 @@
         "rotate": {
           "type": "number",
           "exclusiveMaximum": 360,
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "id_section": {
           "type": "integer",
@@ -13777,7 +13898,8 @@
         "rotate": {
           "type": "number",
           "exclusiveMaximum": 360,
-          "minimum": 0
+          "minimum": 0,
+          "default": "0"
         },
         "id_section": {
           "type": "integer",
@@ -13857,27 +13979,31 @@
           "enum": [
             "SLOPE",
             "DROP"
-          ]
+          ],
+          "default": "SLOPE"
         },
         "kind_haunch_end": {
           "enum": [
             "SLOPE",
             "DROP"
-          ]
+          ],
+          "default": "SLOPE"
         },
         "type_haunch_H": {
           "enum": [
             "BOTH",
             "RIGHT",
             "LEFT"
-          ]
+          ],
+          "default": "BOTH"
         },
         "type_haunch_V": {
           "enum": [
             "BOTH",
             "TOP",
             "BOTTOM"
-          ]
+          ],
+          "default": "BOTTOM"
         }
       },
       "required": [
@@ -14073,7 +14199,8 @@
           ]
         },
         "finishing_weight": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "covering_type": {
           "enum": [
@@ -14091,7 +14218,8 @@
           "type": "number"
         },
         "load_ratio": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         }
       },
       "required": [
@@ -14235,7 +14363,8 @@
           ]
         },
         "finishing_weight": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "covering_type": {
           "enum": [
@@ -14253,7 +14382,8 @@
           "type": "number"
         },
         "load_ratio": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         }
       },
       "required": [
@@ -14455,7 +14585,8 @@
           ]
         },
         "weight": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "covering_unit_weight": {
           "type": "number"
@@ -14498,7 +14629,8 @@
           ]
         },
         "weight": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "covering_unit_weight": {
           "type": "number"
@@ -14541,7 +14673,8 @@
           ]
         },
         "weight": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "covering_unit_weight": {
           "type": "number"
@@ -14717,13 +14850,15 @@
             "LOCAL",
             "GLOBAL",
             "PROJECTION"
-          ]
+          ],
+          "default": "LOCAL"
         },
         "direction_load": {
           "enum": [
             "X",
             "Y"
-          ]
+          ],
+          "default": "X"
         },
         "description": {
           "type": "string"
@@ -14769,7 +14904,8 @@
             "LOCAL",
             "GLOBAL",
             "PROJECTION"
-          ]
+          ],
+          "default": "LOCAL"
         },
         "description": {
           "type": "string"
@@ -14802,22 +14938,28 @@
           "type": "string"
         },
         "P1": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "P2": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "P3": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "P4": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "P5": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "P6": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "description": {
           "type": "string"
@@ -14862,22 +15004,28 @@
           "type": "number"
         },
         "P1": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "P2": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "P3": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "P4": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "P5": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "P6": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "description": {
           "type": "string"
@@ -15173,7 +15321,8 @@
           "type": "number"
         },
         "lateral_coefficient": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         },
         "height": {
           "type": "number"
@@ -15533,28 +15682,32 @@
             "FIX",
             "PIN",
             "SPRING"
-          ]
+          ],
+          "default": "FIX"
         },
         "bottom_Y": {
           "enum": [
             "FIX",
             "PIN",
             "SPRING"
-          ]
+          ],
+          "default": "FIX"
         },
         "top_X": {
           "enum": [
             "FIX",
             "PIN",
             "SPRING"
-          ]
+          ],
+          "default": "FIX"
         },
         "top_Y": {
           "enum": [
             "FIX",
             "PIN",
             "SPRING"
-          ]
+          ],
+          "default": "FIX"
         },
         "bottom_spring_X": {
           "type": "number"
@@ -15590,14 +15743,16 @@
             "FIX",
             "PIN",
             "SPRING"
-          ]
+          ],
+          "default": "FIX"
         },
         "end": {
           "enum": [
             "FIX",
             "PIN",
             "SPRING"
-          ]
+          ],
+          "default": "FIX"
         },
         "start_spring": {
           "type": "number"
@@ -15646,16 +15801,20 @@
           "pattern": "^[0-9a-f]{32}$"
         },
         "bottom_X": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "bottom_Y": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "top_X": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "top_Y": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         }
       },
       "required": [
@@ -15675,10 +15834,12 @@
           "pattern": "^[0-9a-f]{32}$"
         },
         "start": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "end": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         }
       },
       "required": [
@@ -15721,16 +15882,20 @@
           "pattern": "^[0-9a-f]{32}$"
         },
         "bottom_X": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "bottom_Y": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "top_X": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "top_Y": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         }
       },
       "required": [
@@ -15750,10 +15915,12 @@
           "pattern": "^[0-9a-f]{32}$"
         },
         "start": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "end": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         }
       },
       "required": [
@@ -15820,22 +15987,28 @@
           "pattern": "^[0-9a-f]{32}$"
         },
         "A": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "As_X": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "As_Y": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "I_X": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "I_Y": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "J": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         }
       },
       "required": [
@@ -15855,19 +16028,24 @@
           "pattern": "^[0-9a-f]{32}$"
         },
         "A": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "As_Y": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "As_Z": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "I_Y": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "I_Z": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         }
       },
       "required": [
@@ -15887,13 +16065,16 @@
           "pattern": "^[0-9a-f]{32}$"
         },
         "A": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "As": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "I": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         }
       },
       "required": [
@@ -15913,10 +16094,12 @@
           "pattern": "^[0-9a-f]{32}$"
         },
         "A": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "i": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         }
       },
       "required": [
@@ -15936,13 +16119,16 @@
           "pattern": "^[0-9a-f]{32}$"
         },
         "t": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "E": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         },
         "G": {
-          "type": "number"
+          "type": "number",
+          "default": "0.0"
         }
       },
       "required": [
@@ -16001,22 +16187,28 @@
           "pattern": "^[0-9a-f]{32}$"
         },
         "ratio_axial_X": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         },
         "ratio_axial_Y": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         },
         "ratio_shear_X": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         },
         "ratio_shear_Y": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         },
         "ratio_bending_X": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         },
         "ratio_bending_Y": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         }
       },
       "required": [
@@ -16036,16 +16228,20 @@
           "pattern": "^[0-9a-f]{32}$"
         },
         "ratio_shear_Y": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         },
         "ratio_shear_Z": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         },
         "ratio_bending_Y": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         },
         "ratio_bending_Z": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         }
       },
       "required": [
@@ -16065,13 +16261,16 @@
           "pattern": "^[0-9a-f]{32}$"
         },
         "ratio_axial": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         },
         "ratio_shear": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         },
         "ratio_bending": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         }
       },
       "required": [
@@ -16091,7 +16290,8 @@
           "pattern": "^[0-9a-f]{32}$"
         },
         "ratio_axial": {
-          "type": "number"
+          "type": "number",
+          "default": "1.0"
         }
       },
       "required": [
@@ -16130,42 +16330,48 @@
             "FIX",
             "FREE",
             "SPRING"
-          ]
+          ],
+          "default": "FIX"
         },
         "e_Y": {
           "enum": [
             "FIX",
             "FREE",
             "SPRING"
-          ]
+          ],
+          "default": "FIX"
         },
         "e_Z": {
           "enum": [
             "FIX",
             "FREE",
             "SPRING"
-          ]
+          ],
+          "default": "FIX"
         },
         "r_X": {
           "enum": [
             "FIX",
             "FREE",
             "SPRING"
-          ]
+          ],
+          "default": "FIX"
         },
         "r_Y": {
           "enum": [
             "FIX",
             "FREE",
             "SPRING"
-          ]
+          ],
+          "default": "FIX"
         },
         "r_Z": {
           "enum": [
             "FIX",
             "FREE",
             "SPRING"
-          ]
+          ],
+          "default": "FIX"
         },
         "e_spring_X": {
           "type": "number"
@@ -18046,37 +18252,43 @@
           "enum": [
             "FIX",
             "FREE"
-          ]
+          ],
+          "default": "FREE"
         },
         "y": {
           "enum": [
             "FIX",
             "FREE"
-          ]
+          ],
+          "default": "FREE"
         },
         "z": {
           "enum": [
             "FIX",
             "FREE"
-          ]
+          ],
+          "default": "FREE"
         },
         "tx": {
           "enum": [
             "FIX",
             "FREE"
-          ]
+          ],
+          "default": "FREE"
         },
         "ty": {
           "enum": [
             "FIX",
             "FREE"
-          ]
+          ],
+          "default": "FREE"
         },
         "tz": {
           "enum": [
             "FIX",
             "FREE"
-          ]
+          ],
+          "default": "FREE"
         }
       },
       "additionalProperties": false
@@ -18297,7 +18509,8 @@
         "coord_angle": {
           "type": "number",
           "exclusiveMaximum": 360,
-          "minimum": 0
+          "minimum": 0,
+          "default": "0.0"
         }
       },
       "required": [

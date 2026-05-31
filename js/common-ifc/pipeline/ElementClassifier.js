@@ -13,6 +13,7 @@ import {
   STRUCTURAL_IFC_TYPES,
   IFC_TYPE_NAMES,
 } from '../mapping/IfcToStbTypeMap.js';
+import { RevitPropertyExtractor } from '../mapping/RevitPropertyExtractor.js';
 
 export class ElementClassifier {
   /**
@@ -51,6 +52,7 @@ export class ElementClassifier {
         const objectType = line.ObjectType?.value || null;
         const name = line.Name?.value || null;
         const materialName = materialMap.get(expressID) || null;
+        const revitProps = RevitPropertyExtractor.extractElementMetadata(line, materialName);
         const element = {
           expressID,
           ifcType,
@@ -58,10 +60,14 @@ export class ElementClassifier {
           name,
           globalId: line.GlobalId?.value || null,
           objectType,
+          typeName: revitProps.typeName,
+          typeSignature: revitProps.typeSignature,
+          materialName,
+          sectionHint: revitProps.sectionHint,
           description: line.Description?.value || null,
-          stbType: this._discriminateStbType(line, mapping),
+          stbType: this._discriminateStbType(line, mapping, revitProps),
           stbCategory: mapping.stbCategory,
-          kindStructure: this._extractKindStructure(objectType, name, materialName),
+          kindStructure: revitProps.kindStructure,
           placementRef: line.ObjectPlacement?.value ?? line.ObjectPlacement ?? null,
           representationRef: line.Representation?.value ?? line.Representation ?? null,
         };
@@ -81,18 +87,28 @@ export class ElementClassifier {
    *
    * @param {Object} line - web-ifc GetLine 結果
    * @param {Object} mapping - IFC_TO_STB_TYPE エントリ
+   * @param {Object} [revitProps]
    * @returns {string} STB要素タイプ名
    */
-  _discriminateStbType(line, mapping) {
+  _discriminateStbType(line, mapping, revitProps = null) {
     if (!mapping.alt) return mapping.default;
 
     const objectType = (line.ObjectType?.value || '').toLowerCase();
     const name = (line.Name?.value || '').toLowerCase();
     const predefinedType = line.PredefinedType?.value || '';
+    const textValues = [
+      line.ObjectType?.value || '',
+      line.Name?.value || '',
+      revitProps?.typeName || '',
+      revitProps?.typeSignature || '',
+    ];
 
     // Column vs Post vs FoundationColumn
     if (mapping.stbCategory === 'column') {
-      if (objectType.includes('foundationcolumn')) {
+      if (
+        objectType.includes('foundationcolumn') ||
+        RevitPropertyExtractor.isFoundationColumn(textValues)
+      ) {
         return 'StbFoundationColumn';
       }
       if (
@@ -100,6 +116,7 @@ export class ElementClassifier {
         objectType.includes('post') ||
         name.includes('間柱') ||
         name.includes('post') ||
+        RevitPropertyExtractor.isPost(textValues) ||
         predefinedType === '.USERDEFINED.' ||
         predefinedType === 'USERDEFINED'
       ) {
@@ -116,6 +133,7 @@ export class ElementClassifier {
         name.includes('小梁') ||
         name.includes('sub beam') ||
         name.includes('subbeam') ||
+        RevitPropertyExtractor.isSmallBeam(textValues) ||
         predefinedType === '.USERDEFINED.' ||
         predefinedType === 'USERDEFINED'
       ) {
@@ -142,31 +160,14 @@ export class ElementClassifier {
    * @returns {string} 'S' | 'RC' | 'SRC' | 'CFT'
    */
   _extractKindStructure(objectType, name, materialName) {
-    // 1. ObjectType が明示されていればそれを使用
     if (objectType) {
       const upper = objectType.toUpperCase();
-      if (upper === 'RC') return 'RC';
-      if (upper === 'SRC') return 'SRC';
-      if (upper === 'CFT') return 'CFT';
-      if (upper === 'S') return 'S';
       if (upper === 'UNDEFINED') return 'UNDEFINED';
     }
-
-    // 2. 要素名のプレフィックスから推定
-    //    Revit TypeName: RC_C_B:..., RC_B:..., S_C_H_roll:..., CFT_C_Box:..., SRC_C:...
-    if (name) {
-      const kind = ElementClassifier._kindFromNamePrefix(name);
-      if (kind) return kind;
-    }
-
-    // 3. 材料名から推定
-    if (materialName) {
-      const kind = ElementClassifier._kindFromMaterial(materialName);
-      if (kind) return kind;
-    }
-
-    // 4. デフォルト
-    return 'S';
+    return RevitPropertyExtractor.extractKindStructure(
+      [objectType, name].filter(Boolean),
+      materialName,
+    );
   }
 
   /**
@@ -175,14 +176,7 @@ export class ElementClassifier {
    * @returns {string|null}
    */
   static _kindFromNamePrefix(name) {
-    const upper = name.toUpperCase();
-    // CFT_ を SRC_ より先に判定（CFT_C_ のような形）
-    if (upper.startsWith('CFT_')) return 'CFT';
-    // SRC_ を RC_ より先に判定（SRC は RC を含むため）
-    if (upper.startsWith('SRC_')) return 'SRC';
-    if (upper.startsWith('RC_')) return 'RC';
-    if (upper.startsWith('S_')) return 'S';
-    return null;
+    return RevitPropertyExtractor.kindFromTypeName(name);
   }
 
   /**
@@ -192,12 +186,7 @@ export class ElementClassifier {
    * @returns {string|null}
    */
   static _kindFromMaterial(materialName) {
-    const upper = materialName.toUpperCase();
-    // コンクリート系: FC21, FC24, Fc30 など
-    if (/^FC\d/.test(upper)) return 'RC';
-    // 鉄骨系: SS400, SN400B, SM490A, STKR400, BCR295, BCP235 など
-    if (/^(SS|SN|SM|STKR|BCR|BCP)\d/.test(upper)) return 'S';
-    return null;
+    return RevitPropertyExtractor.kindFromMaterial(materialName);
   }
 
   /**
@@ -220,15 +209,7 @@ export class ElementClassifier {
       const materialRef = rel.RelatingMaterial?.value ?? rel.RelatingMaterial;
       if (!materialRef) continue;
 
-      let materialName = null;
-      try {
-        const material = this.api.GetLine(this.modelID, materialRef);
-        if (material?.Name?.value) {
-          materialName = material.Name.value;
-        }
-      } catch {
-        /* skip */
-      }
+      const materialName = this._resolveMaterialName(materialRef);
 
       if (!materialName) continue;
 
@@ -243,5 +224,59 @@ export class ElementClassifier {
     }
 
     return map;
+  }
+
+  _resolveMaterialName(materialRef, seen = new Set()) {
+    const materialId = materialRef?.value ?? materialRef;
+    if (!materialId || seen.has(materialId)) return null;
+    seen.add(materialId);
+
+    let material;
+    try {
+      material = this.api.GetLine(this.modelID, materialId);
+    } catch {
+      return null;
+    }
+
+    if (!material) return null;
+    if (material.Name?.value) return material.Name.value;
+
+    const nestedRefs = [];
+    const pushRef = (ref) => {
+      const id = ref?.value ?? ref;
+      if (id) nestedRefs.push(id);
+    };
+
+    pushRef(material.ForLayerSet);
+    pushRef(material.ForProfileSet);
+    pushRef(material.Material);
+
+    for (const collectionName of [
+      'Materials',
+      'MaterialLayers',
+      'MaterialProfiles',
+      'MaterialConstituents',
+    ]) {
+      const collection = material[collectionName];
+      if (!Array.isArray(collection)) continue;
+      for (const itemRef of collection) {
+        const itemId = itemRef?.value ?? itemRef;
+        if (!itemId) continue;
+        try {
+          const item = this.api.GetLine(this.modelID, itemId);
+          pushRef(item?.Material);
+          pushRef(itemId);
+        } catch {
+          pushRef(itemId);
+        }
+      }
+    }
+
+    for (const nestedRef of nestedRefs) {
+      const name = this._resolveMaterialName(nestedRef, seen);
+      if (name) return name;
+    }
+
+    return null;
   }
 }

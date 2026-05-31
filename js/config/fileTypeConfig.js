@@ -78,7 +78,7 @@ export const FILE_TYPE_DEFINITIONS = [
  */
 const FILE_VALIDATION_RULES = {
   maxFileSize: 100 * 1024 * 1024, // 100MB
-  allowedCategories: ['stb'], // 現在有効なファイルタイプID
+  allowedCategories: ['stb', 'ifc'],
   requireValidation: true,
   showWarningOnUnknownType: true,
 };

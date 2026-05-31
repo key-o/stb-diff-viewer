@@ -38,7 +38,9 @@ export function generateStbXml(data) {
   // -- StbNodes
   lines.push(`${indent(2)}<StbNodes>`);
   for (const n of data.nodes) {
-    lines.push(`${indent(3)}<StbNode id="${n.id}" X="${n.x}" Y="${n.y}" Z="${n.z}"/>`);
+    lines.push(
+      `${indent(3)}<StbNode id="${n.id}" X="${fmtNumber(n.x)}" Y="${fmtNumber(n.y)}" Z="${fmtNumber(n.z)}"/>`,
+    );
   }
   lines.push(`${indent(2)}</StbNodes>`);
 
@@ -46,7 +48,7 @@ export function generateStbXml(data) {
   lines.push(`${indent(2)}<StbStories>`);
   for (const s of data.stories) {
     lines.push(
-      `${indent(3)}<StbStory id="${s.id}" name="${escXml(s.name)}" height="${s.height}" kind="${s.kind}"/>`,
+      `${indent(3)}<StbStory id="${s.id}" name="${escXml(s.name)}" height="${fmtNumber(s.height)}" kind="${s.kind}"/>`,
     );
   }
   lines.push(`${indent(2)}</StbStories>`);
@@ -74,8 +76,8 @@ export function generateStbXml(data) {
       lines.push(
         `${indent(3)}<StbOpening id="${op.id}" name="${escXml(op.name || '')}" ` +
           `kind_member="WALL" id_member="${op.wallId}" ` +
-          `position_X="${op.positionX}" position_Y="${op.positionY}" ` +
-          `length_X="${op.width}" length_Y="${op.height}" rotate="${op.rotate || 0}"/>`,
+          `position_X="${fmtNumber(op.positionX)}" position_Y="${fmtNumber(op.positionY)}" ` +
+          `length_X="${fmtNumber(op.width)}" length_Y="${fmtNumber(op.height)}" rotate="${fmtNumber(op.rotate || 0)}"/>`,
       );
     }
     lines.push(`${indent(2)}</StbOpenings>`);
@@ -229,18 +231,18 @@ function memberAttrs(el, category) {
   attrs += ` kind_structure="${el.kindStructure || 'S'}"`;
 
   if (el.rotate) {
-    attrs += ` rotate="${el.rotate}"`;
+    attrs += ` rotate="${fmtNumber(el.rotate)}"`;
   }
 
   // ハンチ属性
   if (el.haunch?.sections) {
     const h = el.haunch.sections;
     if (h.haunchStart > 0) {
-      attrs += ` haunch_start="${h.haunchStart}"`;
+      attrs += ` haunch_start="${fmtNumber(h.haunchStart)}"`;
       if (h.kindStart) attrs += ` kind_haunch_start="${h.kindStart}"`;
     }
     if (h.haunchEnd > 0) {
-      attrs += ` haunch_end="${h.haunchEnd}"`;
+      attrs += ` haunch_end="${fmtNumber(h.haunchEnd)}"`;
       if (h.kindEnd) attrs += ` kind_haunch_end="${h.kindEnd}"`;
     }
   }
@@ -275,17 +277,17 @@ function pileAttrs(el) {
   let attrs = ` id="${el.id}" name="${escXml(el.name || '')}"`;
   if (el.pileFormat === '1node' && el.nodeSingle) {
     attrs += ` id_node="${el.nodeSingle}"`;
-    if (el.levelTop !== undefined) attrs += ` level_top="${el.levelTop}"`;
-    if (el.offsetX !== undefined) attrs += ` offset_X="${el.offsetX}"`;
-    if (el.offsetY !== undefined) attrs += ` offset_Y="${el.offsetY}"`;
+    if (el.levelTop !== undefined) attrs += ` level_top="${fmtNumber(el.levelTop)}"`;
+    if (el.offsetX !== undefined) attrs += ` offset_X="${fmtNumber(el.offsetX)}"`;
+    if (el.offsetY !== undefined) attrs += ` offset_Y="${fmtNumber(el.offsetY)}"`;
   } else {
     attrs += ` id_node_bottom="${el.nodeBottom || el.nodeStart}" id_node_top="${el.nodeTop || el.nodeEnd}"`;
   }
   if (el.sectionId) attrs += ` id_section="${el.sectionId}"`;
-  if (el.lengthAll !== undefined) attrs += ` length_all="${el.lengthAll}"`;
+  if (el.lengthAll !== undefined) attrs += ` length_all="${fmtNumber(el.lengthAll)}"`;
   attrs += ` kind_structure="${el.kindStructure || 'S'}"`;
   attrs += ` kind_pile="${el.kindPile || 'CAST_IN_PLACE'}"`;
-  if (el.rotate) attrs += ` rotate="${el.rotate}"`;
+  if (el.rotate) attrs += ` rotate="${fmtNumber(el.rotate)}"`;
   return attrs;
 }
 
@@ -296,10 +298,10 @@ function footingAttrs(el) {
   let attrs = ` id="${el.id}" name="${escXml(el.name || '')}"`;
   attrs += ` id_node="${el.nodeStart}"`;
   if (el.sectionId) attrs += ` id_section="${el.sectionId}"`;
-  if (el.rotate) attrs += ` rotate="${el.rotate}"`;
-  if (el.offsetX !== undefined) attrs += ` offset_X="${el.offsetX}"`;
-  if (el.offsetY !== undefined) attrs += ` offset_Y="${el.offsetY}"`;
-  if (el.levelBottom !== undefined) attrs += ` level_bottom="${el.levelBottom}"`;
+  if (el.rotate) attrs += ` rotate="${fmtNumber(el.rotate)}"`;
+  if (el.offsetX !== undefined) attrs += ` offset_X="${fmtNumber(el.offsetX)}"`;
+  if (el.offsetY !== undefined) attrs += ` offset_Y="${fmtNumber(el.offsetY)}"`;
+  if (el.levelBottom !== undefined) attrs += ` level_bottom="${fmtNumber(el.levelBottom)}"`;
   if (el.kindStructure) attrs += ` kind_structure="${el.kindStructure}"`;
   if (el.kindFooting) attrs += ` kind_footing="${el.kindFooting}"`;
   return attrs;
@@ -311,14 +313,14 @@ function footingAttrs(el) {
 function foundationColumnAttrs(el) {
   let attrs = ` id="${el.id}" name="${escXml(el.name || '')}"`;
   attrs += ` id_node="${el.nodeStart}"`;
-  if (el.rotate) attrs += ` rotate="${el.rotate}"`;
+  if (el.rotate) attrs += ` rotate="${fmtNumber(el.rotate)}"`;
   if (el.idSectionFD) attrs += ` id_section_FD="${el.idSectionFD}"`;
-  if (el.lengthFD) attrs += ` length_FD="${el.lengthFD}"`;
+  if (el.lengthFD) attrs += ` length_FD="${fmtNumber(el.lengthFD)}"`;
   if (el.idSectionWR) attrs += ` id_section_WR="${el.idSectionWR}"`;
-  if (el.lengthWR) attrs += ` length_WR="${el.lengthWR}"`;
-  if (el.offsetFDX !== undefined) attrs += ` offset_FD_X="${el.offsetFDX}"`;
-  if (el.offsetFDY !== undefined) attrs += ` offset_FD_Y="${el.offsetFDY}"`;
-  if (el.offsetZ !== undefined && el.offsetZ !== 0) attrs += ` offset_Z="${el.offsetZ}"`;
+  if (el.lengthWR) attrs += ` length_WR="${fmtNumber(el.lengthWR)}"`;
+  if (el.offsetFDX !== undefined) attrs += ` offset_FD_X="${fmtNumber(el.offsetFDX)}"`;
+  if (el.offsetFDY !== undefined) attrs += ` offset_FD_Y="${fmtNumber(el.offsetFDY)}"`;
+  if (el.offsetZ !== undefined && el.offsetZ !== 0) attrs += ` offset_Z="${fmtNumber(el.offsetZ)}"`;
   if (el.kindStructure) attrs += ` kind_structure="${el.kindStructure}"`;
   return attrs;
 }
@@ -339,7 +341,7 @@ function generateSections(lines, sections, elements, level) {
     for (const sec of steelSections) {
       const tag = getStbSecSteelTagName(sec.stbType);
       const paramStr = Object.entries(sec.params)
-        .map(([k, v]) => `${k}="${v}"`)
+        .map(([k, v]) => `${k}="${fmtNumber(v)}"`)
         .join(' ');
       lines.push(`${indent(level + 1)}<${tag} name="${escXml(sec.name)}" ${paramStr}/>`);
     }
@@ -483,7 +485,9 @@ function generateMemberSections(lines, elements, sections, level) {
  * @param {number} level - インデントレベル
  */
 function inferSectionKindStructure(elements, sec) {
-  const explicit = elements.find((el) => el.kindStructure && el.kindStructure !== 'UNDEFINED')?.kindStructure;
+  const explicit = elements.find(
+    (el) => el.kindStructure && el.kindStructure !== 'UNDEFINED',
+  )?.kindStructure;
   if (explicit) return explicit;
 
   if (['RECTANGLE', 'CIRCLE', 'PILE_RC'].includes(sec.stbType)) return 'RC';
@@ -493,7 +497,9 @@ function inferSectionKindStructure(elements, sec) {
 
 function generateSteelColumnSection(lines, sectionId, sec, level) {
   const indent = (l) => '  '.repeat(l);
-  lines.push(`${indent(level)}<StbSecColumn_S id="${sectionId}" name="Column-S-${sectionId}" floor="ALL">`);
+  lines.push(
+    `${indent(level)}<StbSecColumn_S id="${sectionId}" name="Column-S-${sectionId}" floor="ALL">`,
+  );
   lines.push(`${indent(level + 1)}<StbSecSteelFigureColumn_S>`);
   lines.push(
     `${indent(level + 2)}<StbSecSteelColumn_S_Same shape="${escXml(sec.name)}" direction_type="OTHER"/>`,
@@ -510,10 +516,10 @@ function generateRcColumnSection(lines, sectionId, sec, level) {
   lines.push(`${indent(level + 1)}<StbSecFigureColumn_RC>`);
 
   if (sec.stbType === 'CIRCLE') {
-    lines.push(`${indent(level + 2)}<StbSecColumn_RC_Circle D="${sec.params.D}"/>`);
+    lines.push(`${indent(level + 2)}<StbSecColumn_RC_Circle D="${fmtNumber(sec.params.D)}"/>`);
   } else {
     lines.push(
-      `${indent(level + 2)}<StbSecColumn_RC_Rect width_X="${sec.params.width_X}" width_Y="${sec.params.width_Y}"/>`,
+      `${indent(level + 2)}<StbSecColumn_RC_Rect width_X="${fmtNumber(sec.params.width_X)}" width_Y="${fmtNumber(sec.params.width_Y)}"/>`,
     );
   }
 
@@ -532,7 +538,7 @@ function generateRcFootingSection(lines, sectionId, sec, element, level) {
   );
   lines.push(`${indent(level + 1)}<StbSecFigureFoundation_RC>`);
   lines.push(
-    `${indent(level + 2)}<StbSecFoundation_RC_Rect width_X="${widthX}" width_Y="${widthY}" depth="${depth}"/>`,
+    `${indent(level + 2)}<StbSecFoundation_RC_Rect width_X="${fmtNumber(widthX)}" width_Y="${fmtNumber(widthY)}" depth="${fmtNumber(depth)}"/>`,
   );
   lines.push(`${indent(level + 1)}</StbSecFigureFoundation_RC>`);
   lines.push(`${indent(level + 1)}<StbSecBarArrangementFoundation_RC depth_cover_bottom="0.0"/>`);
@@ -544,15 +550,13 @@ function generateRcPileSection(lines, sectionId, sec, level) {
   const tagName = sec.pileTagName || 'StbSecPile_RC_Straight';
   const params = sec.params || {};
   const paramStr = Object.entries(params)
-    .map(([k, v]) => `${k}="${v}"`)
+    .map(([k, v]) => `${k}="${fmtNumber(v)}"`)
     .join(' ');
   lines.push(
     `${indent(level)}<StbSecPile_RC id="${sectionId}" name="${escXml(sec.name || `Pile-RC-${sectionId}`)}" strength_concrete="Fc21">`,
   );
   lines.push(`${indent(level + 1)}<StbSecFigurePile_RC>`);
-  lines.push(
-    `${indent(level + 2)}<${tagName}${paramStr ? ` ${paramStr}` : ''}/>`,
-  );
+  lines.push(`${indent(level + 2)}<${tagName}${paramStr ? ` ${paramStr}` : ''}/>`);
   lines.push(`${indent(level + 1)}</StbSecFigurePile_RC>`);
   lines.push(`${indent(level)}</StbSecPile_RC>`);
 }
@@ -568,12 +572,12 @@ function generateSteelPileSection(lines, sectionId, sec, element, level) {
   if (segments.length > 0) {
     for (const segment of segments) {
       lines.push(
-        `${indent(level + 2)}<StbSecPile_S_Straight id_order="${segment.id_order}" length_pile="${segment.length_pile}" D="${segment.D}" t="${segment.t}" strength="${escXml(segment.strength || '')}"/>`,
+        `${indent(level + 2)}<StbSecPile_S_Straight id_order="${segment.id_order}" length_pile="${fmtNumber(segment.length_pile)}" D="${fmtNumber(segment.D)}" t="${fmtNumber(segment.t)}" strength="${escXml(segment.strength || '')}"/>`,
       );
     }
   } else {
     lines.push(
-      `${indent(level + 2)}<StbSecPile_S_Straight id_order="1" length_pile="${sec.params.length_pile ?? lengthPile}" D="${sec.params.D}" t="${sec.params.t}" strength=""/>`,
+      `${indent(level + 2)}<StbSecPile_S_Straight id_order="1" length_pile="${fmtNumber(sec.params.length_pile ?? lengthPile)}" D="${fmtNumber(sec.params.D)}" t="${fmtNumber(sec.params.t)}" strength=""/>`,
     );
   }
   lines.push(`${indent(level + 1)}</StbSecFigurePile_S>`);
@@ -592,20 +596,40 @@ function generatePileProductSection(lines, sectionId, sec, level) {
   if (segments.length > 0) {
     for (const segment of segments) {
       const tagName = segment.tagName || 'StbSecPileProduct_PHC';
-      const attrs = [`id_order="${segment.id_order}"`, `length_pile="${segment.length_pile}"`];
+      const attrs = [
+        `id_order="${segment.id_order}"`,
+        `length_pile="${fmtNumber(segment.length_pile)}"`,
+      ];
 
       if (/Nodular_.*PRC/i.test(tagName)) {
-        attrs.push(`D1="${segment.D}"`, `D2="${segment.D}"`, `tc="${segment.t}"`);
+        attrs.push(
+          `D1="${fmtNumber(segment.D)}"`,
+          `D2="${fmtNumber(segment.D)}"`,
+          `tc="${fmtNumber(segment.t)}"`,
+        );
       } else if (/Nodular_/i.test(tagName)) {
-        attrs.push(`D1="${segment.D}"`, `D2="${segment.D}"`, `t="${segment.t}"`);
+        attrs.push(
+          `D1="${fmtNumber(segment.D)}"`,
+          `D2="${fmtNumber(segment.D)}"`,
+          `t="${fmtNumber(segment.t)}"`,
+        );
       } else if (/_ST$/i.test(tagName)) {
-        attrs.push(`D1="${segment.D}"`, `D2="${segment.D}"`, `t1="${segment.t}"`, `t2="${segment.t}"`);
+        attrs.push(
+          `D1="${fmtNumber(segment.D)}"`,
+          `D2="${fmtNumber(segment.D)}"`,
+          `t1="${fmtNumber(segment.t)}"`,
+          `t2="${fmtNumber(segment.t)}"`,
+        );
       } else if (/_SC$/i.test(tagName)) {
-        attrs.push(`D="${segment.D}"`, `tc="${segment.t}"`, `ts="${segment.ts ?? 0}"`);
+        attrs.push(
+          `D="${fmtNumber(segment.D)}"`,
+          `tc="${fmtNumber(segment.t)}"`,
+          `ts="${fmtNumber(segment.ts ?? 0)}"`,
+        );
       } else if (/_PRC$/i.test(tagName) || /_CPRC$/i.test(tagName)) {
-        attrs.push(`D="${segment.D}"`, `tc="${segment.t}"`);
+        attrs.push(`D="${fmtNumber(segment.D)}"`, `tc="${fmtNumber(segment.t)}"`);
       } else {
-        attrs.push(`D="${segment.D}"`, `t="${segment.t}"`);
+        attrs.push(`D="${fmtNumber(segment.D)}"`, `t="${fmtNumber(segment.t)}"`);
       }
 
       if (segment.kind) attrs.push(`kind="${escXml(segment.kind)}"`);
@@ -613,7 +637,7 @@ function generatePileProductSection(lines, sectionId, sec, level) {
     }
   } else {
     lines.push(
-      `${indent(level + 2)}<StbSecPileProduct_PHC id_order="1" length_pile="${sec.params.length_pile ?? 0}" D="${sec.params.D}" t="${sec.params.t ?? 0}"/>`,
+      `${indent(level + 2)}<StbSecPileProduct_PHC id_order="1" length_pile="${fmtNumber(sec.params.length_pile ?? 0)}" D="${fmtNumber(sec.params.D)}" t="${fmtNumber(sec.params.t ?? 0)}"/>`,
     );
   }
 
@@ -670,4 +694,15 @@ function escXml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
+}
+
+function fmtNumber(value) {
+  if (value === null || value === undefined || value === '') return value;
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return String(value);
+
+  const nearestInteger = Math.round(numeric);
+  if (Math.abs(numeric - nearestInteger) < 1e-9) return String(nearestInteger);
+
+  return String(Number(numeric.toFixed(6)));
 }

@@ -747,7 +747,8 @@ export class IfcToStbBrowserConverter {
   _buildPileAttrs(startPt, endPt, nodeStart, nodeEnd, length, pileMeta = null) {
     const isStartTop = startPt.z >= endPt.z;
     const elementMeta = pileMeta?.element || null;
-    const lengthAll = this._toFiniteNumber(elementMeta?.length_all) ?? Math.round(length * 100) / 100;
+    const lengthAll =
+      this._toFiniteNumber(elementMeta?.length_all) ?? Math.round(length * 100) / 100;
     const kindPile = elementMeta?.kind_pile || 'CAST_IN_PLACE';
 
     if (elementMeta?.format === '1node') {

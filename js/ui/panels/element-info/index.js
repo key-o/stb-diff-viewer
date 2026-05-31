@@ -4,20 +4,32 @@
  * element-info ディレクトリ内のモジュールを統合し、外部向けAPIを提供します。
  */
 
-// メインモジュールからエクスポート
 export {
   displayElementInfo,
   displayMultiSelectionSummary,
   refreshElementInfoPanel,
-  getCurrentSelectedElement,
-  setElementInfoProviders,
+  exportElementInfoAsJson,
+  initializeExportJsonButton,
+} from './ElementInfoController.js';
+
+export {
+  getCurrentEditingElement as getCurrentSelectedElement,
+  getCurrentEditingElement,
+  isEditMode,
+  getModifications,
+  editAttributeValue,
+  updateEditingSummary,
   toggleEditMode,
   exportModifications,
   clearModifications,
-} from './ElementInfoDisplay.js';
+  initializeEditModeButton,
+} from './EditMode.js';
 
-// サブモジュールの再エクスポート（必要に応じて使用）
-export { setElementInfoProviders as setProviders } from './ElementInfoProviders.js';
+export {
+  setElementInfoProviders,
+  setElementInfoProviders as setProviders,
+} from './ElementInfoProviders.js';
+
 export { getAttributeImportanceLevel, getImportanceCircleHtml } from './ImportanceColors.js';
 export {
   findSectionNode,
@@ -28,13 +40,6 @@ export {
   getAttributesMap,
   renderShapeWithSteelInfo,
 } from './SectionHelpers.js';
-export {
-  isEditMode,
-  getCurrentEditingElement,
-  getModifications,
-  editAttributeValue,
-  updateEditingSummary,
-} from './EditMode.js';
 export {
   renderComparisonRecursive,
   renderSectionInfo,

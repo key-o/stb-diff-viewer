@@ -27,7 +27,10 @@
  */
 
 import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../../constants/importanceLevels.js';
-import { COMPARISON_KEY_TYPE } from '../../config/comparisonKeyConfig.js';
+import {
+  COMPARISON_KEY_TYPE,
+  PLACEMENT_COMPARISON_MODE,
+} from '../../config/comparisonKeyConfig.js';
 import { getToleranceConfig } from '../../config/toleranceConfig.js';
 import { DEFAULT_PILE_LENGTH } from '../../config/geometryConfig.js';
 
@@ -39,6 +42,10 @@ import {
   getElementKey,
   getAttr,
   getNodeStoryAxisKey,
+  getLineElementKeyMode2,
+  getLineElementKeyMode3,
+  getPolyElementKeyPerVertexMode2,
+  getPolyElementKeyPerVertexMode3,
 } from './keyGenerator.js';
 
 // 比較戦略をインポート
@@ -667,6 +674,260 @@ export function compareElementsWithTolerance(
 }
 
 // --- バージョン対応比較関数 ---
+// ============================================
+// 配置要素比較 V2（Mode 2 & 3）キー抽出
+// ============================================
+
+/**
+ * 線分要素（Mode 2/3対応）からキーと関連データを抽出
+ * @param {Element} element - 線分要素
+ * @param {Map} nodeMap - ノードマップ
+ * @param {string} idStartAttr - 始点属性名
+ * @param {string} idEndAttr - 終点属性名
+ * @param {string} placementMode - 配置比較モード (NODE_POSITION_ONLY | NODE_POSITION_WITH_OFFSET | PLACEMENT_POSITION_COMPLETE)
+ * @param {string} [keyType] - 比較キータイプ
+ * @param {Object} [options={}] - オプション
+ * @returns {{key: string|null, data: object|null}}
+ */
+export function lineElementKeyExtractorV2(
+  element,
+  nodeMap,
+  idStartAttr,
+  idEndAttr,
+  placementMode,
+  keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+  options = {},
+) {
+  // Mode 1（NODE_POSITION_ONLY）またはモード未設定はMode 1の関数に委譲（後方互換）
+  if (
+    !placementMode ||
+    placementMode === PLACEMENT_COMPARISON_MODE.NODE_POSITION_ONLY ||
+    !Object.values(PLACEMENT_COMPARISON_MODE).includes(placementMode)
+  ) {
+    return lineElementKeyExtractor(element, nodeMap, idStartAttr, idEndAttr, keyType, options);
+  }
+
+  let startId = getAttr(element, idStartAttr);
+  let endId = getAttr(element, idEndAttr);
+  const elementId = getAttr(element, 'id');
+  let startCoords = nodeMap.get(startId);
+  let endCoords = nodeMap.get(endId);
+
+  // オフセット値を抽出
+  const startOffsetX = parseFloat(getAttr(element, 'offset_start_X')) || 0;
+  const startOffsetY = parseFloat(getAttr(element, 'offset_start_Y')) || 0;
+  const startOffsetZ = parseFloat(getAttr(element, 'offset_start_Z')) || 0;
+  const endOffsetX = parseFloat(getAttr(element, 'offset_end_X')) || 0;
+  const endOffsetY = parseFloat(getAttr(element, 'offset_end_Y')) || 0;
+  const endOffsetZ = parseFloat(getAttr(element, 'offset_end_Z')) || 0;
+  const rotate = getAttr(element, 'rotate') || 0;
+
+  const startOffset = { x: startOffsetX, y: startOffsetY, z: startOffsetZ };
+  const endOffset = { x: endOffsetX, y: endOffsetY, z: endOffsetZ };
+
+  // 座標取得失敗時の処理（1-node format等）
+  if ((!startCoords || !endCoords) && !startId && !endId) {
+    const idNode = getAttr(element, 'id_node');
+    const levelTop = getAttr(element, 'level_top');
+    const levelBottom = getAttr(element, 'level_bottom');
+
+    if (idNode && levelTop && nodeMap.has(idNode)) {
+      const topNode = nodeMap.get(idNode);
+      const offsetX = parseFloat(getAttr(element, 'offset_X')) || 0;
+      const offsetY = parseFloat(getAttr(element, 'offset_Y')) || 0;
+      const levelTopValue = parseFloat(levelTop);
+      const defaultPileLength = DEFAULT_PILE_LENGTH;
+
+      const topZ = topNode.z + levelTopValue;
+      endCoords = {
+        x: topNode.x + offsetX,
+        y: topNode.y + offsetY,
+        z: topZ,
+      };
+
+      startCoords = {
+        x: endCoords.x,
+        y: endCoords.y,
+        z: topZ - defaultPileLength,
+      };
+
+      startId = `${idNode}_bottom`;
+      endId = idNode;
+    } else if (idNode && levelBottom !== null && nodeMap.has(idNode)) {
+      const refNode = nodeMap.get(idNode);
+      const offsetX = parseFloat(getAttr(element, 'offset_X')) || 0;
+      const offsetY = parseFloat(getAttr(element, 'offset_Y')) || 0;
+      const levelBottomValue = parseFloat(levelBottom) || 0;
+
+      startCoords = {
+        x: refNode.x + offsetX,
+        y: refNode.y + offsetY,
+        z: levelBottomValue,
+      };
+
+      endCoords = {
+        x: refNode.x + offsetX,
+        y: refNode.y + offsetY,
+        z: refNode.z,
+      };
+
+      startId = `${idNode}_bottom`;
+      endId = idNode;
+    }
+  }
+
+  if (startCoords && endCoords) {
+    let key = null;
+
+    if (placementMode === PLACEMENT_COMPARISON_MODE.NODE_POSITION_WITH_OFFSET) {
+      key = getLineElementKeyMode2(startCoords, startOffset, endCoords, endOffset);
+    } else if (placementMode === PLACEMENT_COMPARISON_MODE.PLACEMENT_POSITION_COMPLETE) {
+      key = getLineElementKeyMode3(startCoords, startOffset, endCoords, endOffset, rotate);
+    }
+
+    if (key !== null) {
+      return {
+        key,
+        data: {
+          startCoords,
+          endCoords,
+          startOffset,
+          endOffset,
+          rotate,
+          id: elementId,
+          element,
+          rawElement: element,
+        },
+      };
+    }
+  }
+
+  return { key: null, data: null };
+}
+
+/**
+ * ポリゴン要素から StbSlabOffsetList / StbWallOffsetList を解析し、
+ * 「ノードID → {x,y,z} オフセット」のMapを返す。
+ *
+ * @param {Element} element - 床または壁のXML要素
+ * @returns {Map<string, {x: number, y: number, z: number}>}
+ */
+function extractPerVertexOffsetMap(element) {
+  const map = new Map();
+  if (!element || typeof element.getElementsByTagName !== 'function') return map;
+
+  // 床(StbSlabOffsetList) と 壁(StbWallOffsetList) の両方をサポート
+  for (const listTag of ['StbSlabOffsetList', 'StbWallOffsetList']) {
+    const lists = element.getElementsByTagName(listTag);
+    if (!lists || lists.length === 0) continue;
+
+    const itemTag = listTag.replace('List', ''); // StbSlabOffset / StbWallOffset
+    for (const list of Array.from(lists)) {
+      const items =
+        typeof list.getElementsByTagName === 'function' ? list.getElementsByTagName(itemTag) : [];
+      for (const item of Array.from(items)) {
+        const nodeId = getAttr(item, 'id_node');
+        if (!nodeId) continue;
+        map.set(String(nodeId), {
+          x: parseFloat(getAttr(item, 'offset_X')) || 0,
+          y: parseFloat(getAttr(item, 'offset_Y')) || 0,
+          z: parseFloat(getAttr(item, 'offset_Z')) || 0,
+        });
+      }
+    }
+  }
+  return map;
+}
+
+/**
+ * ポリゴン要素（Mode 2/3対応）からキーと関連データを抽出
+ *
+ * 床(StbSlab)・壁(StbWall) の StbSlabOffsetList / StbWallOffsetList を解析し、
+ * 「節点ごとのオフセット」を加算した最終頂点座標で比較キーを生成する。
+ * これにより、節点を移動した表現と、節点+オフセットで表現したものが
+ * 最終ジオメトリ的に等価であれば同一判定される。
+ *
+ * @param {Element} element - ポリゴン要素
+ * @param {Map} nodeMap - ノードマップ
+ * @param {string} nodeOrderTag - ノード順序タグ名
+ * @param {string} placementMode - 配置比較モード
+ * @param {string} [keyType] - 比較キータイプ
+ * @param {Object} [options={}] - オプション
+ * @returns {{key: string|null, data: object|null}}
+ */
+export function polyElementKeyExtractorV2(
+  element,
+  nodeMap,
+  nodeOrderTag,
+  placementMode,
+  keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+  options = {},
+) {
+  // Mode 1（NODE_POSITION_ONLY）またはモード未設定はMode 1の関数に委譲（後方互換）
+  if (
+    !placementMode ||
+    placementMode === PLACEMENT_COMPARISON_MODE.NODE_POSITION_ONLY ||
+    !Object.values(PLACEMENT_COMPARISON_MODE).includes(placementMode)
+  ) {
+    return polyElementKeyExtractor(element, nodeMap, nodeOrderTag, keyType, options);
+  }
+
+  const elementId = getAttr(element, 'id');
+  const name = getAttr(element, 'name');
+  const guid = getAttr(element, 'guid');
+
+  // ノード順序タグからノードIDリストを取得
+  const nodeOrderElems = element.getElementsByTagName(nodeOrderTag);
+  if (nodeOrderElems.length > 0) {
+    const nodeIds = Array.from(nodeOrderElems[0].children)
+      .map((child) => getAttr(child, 'ref'))
+      .filter((id) => id);
+
+    // 節点ごとオフセット (StbSlabOffsetList / StbWallOffsetList)
+    const offsetByNode = extractPerVertexOffsetMap(element);
+
+    // 厚さ（Mode 3で使用）
+    const thickness = getAttr(element, 'thickness') || 0;
+
+    // 各頂点座標を取得
+    const vertexCoordsList = nodeIds.map((nodeId) => nodeMap.get(nodeId)).filter((c) => c);
+
+    if (vertexCoordsList.length === nodeIds.length && vertexCoordsList.length > 0) {
+      const perVertexOffsets = nodeIds.map((nodeId) => offsetByNode.get(String(nodeId)) || null);
+
+      let key = null;
+      if (placementMode === PLACEMENT_COMPARISON_MODE.NODE_POSITION_WITH_OFFSET) {
+        key = getPolyElementKeyPerVertexMode2(vertexCoordsList, perVertexOffsets);
+      } else if (placementMode === PLACEMENT_COMPARISON_MODE.PLACEMENT_POSITION_COMPLETE) {
+        key = getPolyElementKeyPerVertexMode3(vertexCoordsList, perVertexOffsets, thickness);
+      }
+
+      if (key !== null) {
+        return {
+          key,
+          data: {
+            vertexCoordsList,
+            perVertexOffsets,
+            thickness,
+            id: elementId,
+            name: name || undefined,
+            guid: guid || undefined,
+            element,
+            rawElement: element,
+          },
+        };
+      }
+    } else {
+      log.warn(
+        `[Data] 面要素(V2): ノード座標不足 (id=${elementId}, nodes=${nodeIds.length}, found=${vertexCoordsList.length})`,
+      );
+    }
+  } else {
+    log.warn(`[Data] 面要素(V2): ノード順序タグが不足 (id=${elementId}, tag=${nodeOrderTag})`);
+  }
+
+  return { key: null, data: null };
+}
 
 /**
  * STBバージョン情報を保持するオブジェクト

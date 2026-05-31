@@ -5,9 +5,54 @@
  */
 
 import { validationController } from '../../app/controllers/validationController.js';
-import { escapeHtml as escapeHtmlUtil } from '../../utils/htmlUtils.js';
 import { createLogger } from '../../utils/logger.js';
 import { downloadBlob } from '../../utils/downloadHelper.js';
+
+/**
+ * 指定タグの要素を生成し、クラス・属性・子ノードを一括設定するヘルパー
+ * @param {string} tag
+ * @param {{className?: string, id?: string, text?: string, attrs?: Object<string, string>, children?: Array<Node|string>}} [opts]
+ * @returns {HTMLElement}
+ */
+function el(tag, opts = {}) {
+  const node = document.createElement(tag);
+  if (opts.className) node.className = opts.className;
+  if (opts.id) node.id = opts.id;
+  if (opts.text != null) node.textContent = opts.text;
+  if (opts.attrs) {
+    for (const [key, value] of Object.entries(opts.attrs)) {
+      node.setAttribute(key, value);
+    }
+  }
+  if (opts.children) {
+    for (const child of opts.children) {
+      if (child == null) continue;
+      node.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
+    }
+  }
+  return node;
+}
+
+/**
+ * `<label><input type="checkbox" id=...> ラベルテキスト</label>` を生成
+ */
+function checkboxLabel({ id, labelText, checked = false }) {
+  const input = el('input', { id, attrs: { type: 'checkbox' } });
+  if (checked) input.checked = true;
+  return el('label', { children: [input, ` ${labelText}`] });
+}
+
+/**
+ * `<label>ラベルテキスト<select>...</select></label>` を生成
+ */
+function selectLabel({ id, labelText, options }) {
+  const select = el('select', { id });
+  for (const [value, text] of options) {
+    const option = el('option', { text, attrs: { value } });
+    select.appendChild(option);
+  }
+  return el('label', { children: [`${labelText} `, select] });
+}
 
 const log = createLogger('ui:panels:validationPanel');
 
@@ -34,84 +79,177 @@ export class ValidationPanel {
    * 初期UIを描画
    */
   render() {
-    this.container.innerHTML = `
-      <div class="validation-panel">
-        <div class="validation-header">
-          <h3>ST-Bridge バリデーション</h3>
-          <div class="validation-actions">
-            <button id="btn-validate" class="btn-primary">バリデーション実行</button>
-            <button id="btn-repair" class="btn-secondary" disabled>自動修復</button>
-            <button id="btn-export" class="btn-success" disabled>エクスポート</button>
-          </div>
-        </div>
+    const header = el('div', {
+      className: 'validation-header',
+      children: [
+        el('h3', { text: 'ST-Bridge バリデーション' }),
+        el('div', {
+          className: 'validation-actions',
+          children: [
+            el('button', {
+              id: 'btn-validate',
+              className: 'btn-primary',
+              text: 'バリデーション実行',
+            }),
+            (() => {
+              const b = el('button', {
+                id: 'btn-repair',
+                className: 'btn-secondary',
+                text: '自動修復',
+              });
+              b.disabled = true;
+              return b;
+            })(),
+            (() => {
+              const b = el('button', {
+                id: 'btn-export',
+                className: 'btn-success',
+                text: 'エクスポート',
+              });
+              b.disabled = true;
+              return b;
+            })(),
+          ],
+        }),
+      ],
+    });
 
-        <div class="validation-options">
-          <label>
-            対象モデル
-            <select id="validation-target-model">
-              <option value="auto">自動（モデルA優先）</option>
-              <option value="A">モデルA</option>
-              <option value="B">モデルB</option>
-            </select>
-          </label>
-          <label><input type="checkbox" id="validation-opt-references" checked> 参照整合性</label>
-          <label><input type="checkbox" id="validation-opt-geometry" checked> 幾何チェック</label>
-          <label><input type="checkbox" id="validation-opt-include-info"> 情報レベルを含める</label>
-          <label>
-            MVDレベル
-            <select id="validation-opt-mvd-level">
-              <option value="">なし</option>
-              <option value="s2">S2（基本）</option>
-              <option value="s4">S4（詳細）</option>
-            </select>
-          </label>
-        </div>
+    const options = el('div', {
+      className: 'validation-options',
+      children: [
+        selectLabel({
+          id: 'validation-target-model',
+          labelText: '対象モデル',
+          options: [
+            ['auto', '自動（モデルA優先）'],
+            ['A', 'モデルA'],
+            ['B', 'モデルB'],
+          ],
+        }),
+        checkboxLabel({ id: 'validation-opt-references', labelText: '参照整合性', checked: true }),
+        checkboxLabel({ id: 'validation-opt-geometry', labelText: '幾何チェック', checked: true }),
+        checkboxLabel({ id: 'validation-opt-include-info', labelText: '情報レベルを含める' }),
+        selectLabel({
+          id: 'validation-opt-mvd-level',
+          labelText: 'MVDレベル',
+          options: [
+            ['', 'なし'],
+            ['s2', 'S2（基本）'],
+            ['s4', 'S4（詳細）'],
+          ],
+        }),
+      ],
+    });
 
-        <div class="validation-summary" id="validation-summary">
-          <p class="placeholder">ファイルを読み込んでバリデーションを実行してください</p>
-        </div>
+    const summary = el('div', {
+      id: 'validation-summary',
+      className: 'validation-summary',
+      children: [
+        el('p', {
+          className: 'placeholder',
+          text: 'ファイルを読み込んでバリデーションを実行してください',
+        }),
+      ],
+    });
 
-        <div class="validation-tabs">
-          <button class="tab-btn active" data-tab="issues">問題一覧</button>
-          <button class="tab-btn" data-tab="statistics">統計情報</button>
-          <button class="tab-btn" data-tab="report">レポート</button>
-        </div>
+    const tabs = el('div', {
+      className: 'validation-tabs',
+      children: [
+        el('button', {
+          className: 'tab-btn active',
+          text: '問題一覧',
+          attrs: { 'data-tab': 'issues' },
+        }),
+        el('button', {
+          className: 'tab-btn',
+          text: '統計情報',
+          attrs: { 'data-tab': 'statistics' },
+        }),
+        el('button', { className: 'tab-btn', text: 'レポート', attrs: { 'data-tab': 'report' } }),
+      ],
+    });
 
-        <div class="validation-content">
-          <div id="tab-issues" class="tab-content active">
-            <div class="issues-filter">
-              <label><input type="checkbox" id="filter-errors" checked> エラー</label>
-              <label><input type="checkbox" id="filter-warnings" checked> 警告</label>
-              <label><input type="checkbox" id="filter-info"> 情報</label>
-              <label><input type="checkbox" id="filter-repairable"> 修復可能のみ</label>
-            </div>
-            <div id="issues-list" class="issues-list">
-              <p class="placeholder">バリデーション結果がありません</p>
-            </div>
-          </div>
+    const issuesTab = el('div', {
+      id: 'tab-issues',
+      className: 'tab-content active',
+      children: [
+        el('div', {
+          className: 'issues-filter',
+          children: [
+            checkboxLabel({ id: 'filter-errors', labelText: 'エラー', checked: true }),
+            checkboxLabel({ id: 'filter-warnings', labelText: '警告', checked: true }),
+            checkboxLabel({ id: 'filter-info', labelText: '情報' }),
+            checkboxLabel({ id: 'filter-repairable', labelText: '修復可能のみ' }),
+          ],
+        }),
+        el('div', {
+          id: 'issues-list',
+          className: 'issues-list',
+          children: [el('p', { className: 'placeholder', text: 'バリデーション結果がありません' })],
+        }),
+      ],
+    });
 
-          <div id="tab-statistics" class="tab-content">
-            <div id="statistics-content">
-              <p class="placeholder">統計情報がありません</p>
-            </div>
-          </div>
+    const statsTab = el('div', {
+      id: 'tab-statistics',
+      className: 'tab-content',
+      children: [
+        el('div', {
+          id: 'statistics-content',
+          children: [el('p', { className: 'placeholder', text: '統計情報がありません' })],
+        }),
+      ],
+    });
 
-          <div id="tab-report" class="tab-content">
-            <div class="report-actions">
-              <button id="btn-download-report" class="btn-secondary" disabled>テキストダウンロード</button>
-            </div>
-            <pre id="report-content" class="report-content">レポートがありません</pre>
-          </div>
-        </div>
+    const reportTab = el('div', {
+      id: 'tab-report',
+      className: 'tab-content',
+      children: [
+        el('div', {
+          className: 'report-actions',
+          children: [
+            (() => {
+              const b = el('button', {
+                id: 'btn-download-report',
+                className: 'btn-secondary',
+                text: 'テキストダウンロード',
+              });
+              b.disabled = true;
+              return b;
+            })(),
+          ],
+        }),
+        el('pre', {
+          id: 'report-content',
+          className: 'report-content',
+          text: 'レポートがありません',
+        }),
+      ],
+    });
 
-        <div class="repair-options" id="repair-options" style="display: none;">
-          <h4>修復オプション</h4>
-          <label><input type="checkbox" id="opt-remove-invalid" checked> 無効な要素を削除</label>
-          <label><input type="checkbox" id="opt-use-defaults" checked> デフォルト値を使用</label>
-          <label><input type="checkbox" id="opt-skip-geometry"> 幾何学修復をスキップ</label>
-        </div>
-      </div>
-    `;
+    const content = el('div', {
+      className: 'validation-content',
+      children: [issuesTab, statsTab, reportTab],
+    });
+
+    const repairOptions = el('div', {
+      id: 'repair-options',
+      className: 'repair-options',
+      children: [
+        el('h4', { text: '修復オプション' }),
+        checkboxLabel({ id: 'opt-remove-invalid', labelText: '無効な要素を削除', checked: true }),
+        checkboxLabel({ id: 'opt-use-defaults', labelText: 'デフォルト値を使用', checked: true }),
+        checkboxLabel({ id: 'opt-skip-geometry', labelText: '幾何学修復をスキップ' }),
+      ],
+    });
+    repairOptions.style.display = 'none';
+
+    const panel = el('div', {
+      className: 'validation-panel',
+      children: [header, options, summary, tabs, content, repairOptions],
+    });
+
+    this.container.replaceChildren(panel);
 
     this.bindEvents();
     this.addStyles();
@@ -157,288 +295,11 @@ export class ValidationPanel {
   }
 
   /**
-   * スタイルを追加
+   * スタイルを追加する
+   * 注: スタイルは style/components/validation-panel.css に外部化されました
    */
   addStyles() {
-    if (document.getElementById('validation-panel-styles')) return;
-
-    const style = document.createElement('style');
-    style.id = 'validation-panel-styles';
-    style.textContent = `
-      .validation-panel {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background: #f8f9fa;
-        border-radius: 8px;
-        padding: 16px;
-        height: 100%;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-        box-sizing: border-box;
-      }
-
-      .validation-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 16px;
-      }
-
-      .validation-header h3 {
-        margin: 0;
-        font-size: var(--font-size-lg);
-        color: #333;
-      }
-
-      .validation-actions button {
-        margin-left: 8px;
-        padding: 8px 16px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: var(--font-size-base);
-      }
-
-      .btn-primary { background: #007bff; color: white; }
-      .btn-secondary { background: #6c757d; color: white; }
-      .btn-success { background: #28a745; color: white; }
-      .btn-primary:disabled, .btn-secondary:disabled, .btn-success:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      .validation-summary {
-        background: white;
-        padding: 12px;
-        border-radius: 4px;
-        margin-bottom: 16px;
-      }
-
-      .validation-summary.valid { border-left: 4px solid #28a745; }
-      .validation-summary.invalid { border-left: 4px solid #dc3545; }
-
-      .validation-options {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-        align-items: center;
-        margin-bottom: 12px;
-        font-size: var(--font-size-sm);
-      }
-
-      .validation-options label {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-
-      .validation-options select {
-        padding: 4px 6px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-      }
-
-      .summary-stats {
-        display: flex;
-        gap: 16px;
-        margin-top: 8px;
-      }
-
-      .stat-item {
-        font-size: var(--font-size-base);
-      }
-
-      .stat-item.error { color: #dc3545; }
-      .stat-item.warning { color: #ffc107; }
-      .stat-item.info { color: #17a2b8; }
-      .stat-item.repairable { color: #28a745; }
-
-      .validation-tabs {
-        display: flex;
-        border-bottom: 1px solid #dee2e6;
-        margin-bottom: 12px;
-      }
-
-      .validation-panel .tab-btn {
-        padding: 8px 16px;
-        border: none;
-        background: none;
-        color: #495057;
-        margin-top: 0;
-        cursor: pointer;
-        font-size: var(--font-size-base);
-        border-bottom: 2px solid transparent;
-      }
-
-      .validation-panel .tab-btn:hover {
-        color: #0056b3;
-        background: rgba(0, 123, 255, 0.08);
-      }
-
-      .validation-panel .tab-btn.active {
-        border-bottom-color: #007bff;
-        color: #007bff;
-        font-weight: 600;
-      }
-
-      .validation-content {
-        flex: 1;
-        min-height: 0;
-        overflow: hidden;
-        display: flex;
-        flex-direction: column;
-      }
-
-      .tab-content {
-        display: none;
-        flex: 1;
-        min-height: 0;
-        flex-direction: column;
-        overflow: hidden;
-      }
-
-      .tab-content.active {
-        display: flex;
-      }
-
-      .issues-filter {
-        flex-shrink: 0;
-        display: flex;
-        gap: 16px;
-        margin-bottom: 12px;
-        font-size: var(--font-size-base);
-      }
-
-      .issues-filter label {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-      }
-
-      .issues-list {
-        flex: 1;
-        min-height: 0;
-        overflow-y: auto;
-      }
-
-      .issue-item {
-        background: white;
-        padding: 12px;
-        border-radius: 4px;
-        margin-bottom: 8px;
-        border-left: 4px solid;
-      }
-
-      .issue-item.error { border-left-color: #dc3545; }
-      .issue-item.warning { border-left-color: #ffc107; }
-      .issue-item.info { border-left-color: #17a2b8; }
-
-      .issue-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 8px;
-      }
-
-      .issue-severity {
-        font-size: var(--font-size-sm);
-        padding: 2px 8px;
-        border-radius: 4px;
-        text-transform: uppercase;
-      }
-
-      .issue-severity.error { background: #f8d7da; color: #721c24; }
-      .issue-severity.warning { background: #fff3cd; color: #856404; }
-      .issue-severity.info { background: #d1ecf1; color: #0c5460; }
-
-      .issue-message {
-        font-size: var(--font-size-base);
-        color: #333;
-        margin-bottom: 4px;
-      }
-
-      .issue-details {
-        font-size: var(--font-size-sm);
-        color: #666;
-      }
-
-      .issue-xpath {
-        margin-top: 4px;
-        font-family: 'Consolas', 'Monaco', monospace;
-        font-size: 12px;
-        color: #495057;
-        word-break: break-all;
-      }
-
-      .issue-repair {
-        font-size: var(--font-size-sm);
-        color: #28a745;
-        margin-top: 4px;
-      }
-
-      #tab-report {
-        overflow-y: auto;
-      }
-
-      .report-content {
-        background: white;
-        padding: 12px;
-        border-radius: 4px;
-        font-size: var(--font-size-sm);
-        overflow: visible;
-        white-space: pre-wrap;
-        word-break: break-word;
-        box-sizing: border-box;
-      }
-
-      .placeholder {
-        color: #999;
-        font-style: italic;
-        text-align: center;
-        padding: 20px;
-      }
-
-      .repair-options {
-        background: #e9ecef;
-        padding: 12px;
-        border-radius: 4px;
-        margin-top: 16px;
-      }
-
-      .repair-options h4 {
-        margin: 0 0 8px 0;
-        font-size: var(--font-size-base);
-      }
-
-      .repair-options label {
-        display: block;
-        font-size: var(--font-size-sm);
-        margin: 4px 0;
-      }
-
-      #tab-statistics {
-        overflow-y: auto;
-      }
-
-      #statistics-content {
-        background: white;
-        padding: 12px;
-        border-radius: 4px;
-      }
-
-      .stat-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 4px 0;
-        border-bottom: 1px solid #eee;
-      }
-
-      .stat-row:last-child {
-        border-bottom: none;
-      }
-    `;
-
-    document.head.appendChild(style);
+    // スタイルは validation-panel.css で定義（index.html でリンク済み）
   }
 
   /**
@@ -512,17 +373,24 @@ export class ValidationPanel {
     const { valid, statistics } = this.validationReport;
 
     summary.className = `validation-summary ${valid ? 'valid' : 'invalid'}`;
-    summary.innerHTML = `
-      <div class="summary-title">
-        ${valid ? '✓ バリデーション成功' : '✗ 問題が検出されました'}
-      </div>
-      <div class="summary-stats">
-        <span class="stat-item error">エラー: ${statistics.errorCount}</span>
-        <span class="stat-item warning">警告: ${statistics.warningCount}</span>
-        <span class="stat-item info">情報: ${statistics.infoCount}</span>
-        <span class="stat-item repairable">修復可能: ${statistics.repairableCount}</span>
-      </div>
-    `;
+    summary.replaceChildren(
+      el('div', {
+        className: 'summary-title',
+        text: valid ? '✓ バリデーション成功' : '✗ 問題が検出されました',
+      }),
+      el('div', {
+        className: 'summary-stats',
+        children: [
+          el('span', { className: 'stat-item error', text: `エラー: ${statistics.errorCount}` }),
+          el('span', { className: 'stat-item warning', text: `警告: ${statistics.warningCount}` }),
+          el('span', { className: 'stat-item info', text: `情報: ${statistics.infoCount}` }),
+          el('span', {
+            className: 'stat-item repairable',
+            text: `修復可能: ${statistics.repairableCount}`,
+          }),
+        ],
+      }),
+    );
   }
 
   /**
@@ -559,38 +427,54 @@ export class ValidationPanel {
     });
 
     if (filteredIssues.length === 0) {
-      list.innerHTML = '<p class="placeholder">表示する問題がありません</p>';
+      list.replaceChildren(el('p', { className: 'placeholder', text: '表示する問題がありません' }));
       return;
     }
 
-    list.innerHTML = filteredIssues
-      .map(
-        (issue) => `
-      <div class="issue-item ${issue.severity}">
-        <div class="issue-header">
-          <span class="issue-severity ${issue.severity}">${issue.severity}</span>
-        </div>
-        <div class="issue-message">${this.escapeHtml(issue.message)}</div>
-        <div class="issue-details">
-          ${issue.elementType} ${issue.elementId ? `(ID: ${issue.elementId})` : ''}
-          ${issue.attribute ? `/ ${issue.attribute}` : ''}
-          ${
-            issue.idXPath || issue.xpath
-              ? `<div class="issue-xpath">XPath: ${this.escapeHtml(issue.idXPath || issue.xpath)}</div>`
-              : ''
-          }
-        </div>
-        ${
-          issue.repairable && issue.repairSuggestion
-            ? `
-          <div class="issue-repair">修復提案: ${this.escapeHtml(issue.repairSuggestion)}</div>
-        `
-            : ''
-        }
-      </div>
-    `,
-      )
-      .join('');
+    const items = filteredIssues.map((issue) => this._buildIssueItem(issue));
+    list.replaceChildren(...items);
+  }
+
+  /**
+   * 単一の issue 項目を DOM として構築
+   * @private
+   */
+  _buildIssueItem(issue) {
+    const header = el('div', {
+      className: 'issue-header',
+      children: [
+        el('span', { className: `issue-severity ${issue.severity}`, text: String(issue.severity) }),
+      ],
+    });
+
+    const message = el('div', { className: 'issue-message', text: String(issue.message ?? '') });
+
+    const detailsChildren = [];
+    const elementTypeText = issue.elementType ? String(issue.elementType) : '';
+    const elementIdSuffix = issue.elementId ? ` (ID: ${issue.elementId})` : '';
+    const attributeSuffix = issue.attribute ? ` / ${issue.attribute}` : '';
+    detailsChildren.push(
+      document.createTextNode(`${elementTypeText}${elementIdSuffix}${attributeSuffix}`),
+    );
+
+    const xpathValue = issue.idXPath || issue.xpath;
+    if (xpathValue) {
+      detailsChildren.push(el('div', { className: 'issue-xpath', text: `XPath: ${xpathValue}` }));
+    }
+
+    const children = [
+      header,
+      message,
+      el('div', { className: 'issue-details', children: detailsChildren }),
+    ];
+
+    if (issue.repairable && issue.repairSuggestion) {
+      children.push(
+        el('div', { className: 'issue-repair', text: `修復提案: ${issue.repairSuggestion}` }),
+      );
+    }
+
+    return el('div', { className: `issue-item ${issue.severity}`, children });
   }
 
   /**
@@ -601,50 +485,39 @@ export class ValidationPanel {
     if (!content || !this.validationReport) return;
 
     const { statistics } = this.validationReport;
-
-    let html = '<h4>要素別カウント</h4>';
+    const nodes = [el('h4', { text: '要素別カウント' })];
 
     const counts = Object.entries(statistics.elementCounts);
     if (counts.length > 0) {
-      html += counts
-        .map(
-          ([type, count]) => `
-        <div class="stat-row">
-          <span>${type}</span>
-          <span>${count}</span>
-        </div>
-      `,
-        )
-        .join('');
+      for (const [type, count] of counts) {
+        nodes.push(this._buildStatRow(String(type), String(count)));
+      }
     } else {
-      html += '<p>要素データがありません</p>';
+      nodes.push(el('p', { text: '要素データがありません' }));
     }
 
-    html += `
-      <h4 style="margin-top: 16px;">サマリー</h4>
-      <div class="stat-row">
-        <span>総要素数</span>
-        <span>${statistics.totalElements}</span>
-      </div>
-      <div class="stat-row">
-        <span>エラー</span>
-        <span>${statistics.errorCount}</span>
-      </div>
-      <div class="stat-row">
-        <span>警告</span>
-        <span>${statistics.warningCount}</span>
-      </div>
-      <div class="stat-row">
-        <span>情報</span>
-        <span>${statistics.infoCount}</span>
-      </div>
-      <div class="stat-row">
-        <span>修復可能</span>
-        <span>${statistics.repairableCount}</span>
-      </div>
-    `;
+    const summaryHeading = el('h4', { text: 'サマリー' });
+    summaryHeading.style.marginTop = '16px';
+    nodes.push(
+      summaryHeading,
+      this._buildStatRow('総要素数', String(statistics.totalElements)),
+      this._buildStatRow('エラー', String(statistics.errorCount)),
+      this._buildStatRow('警告', String(statistics.warningCount)),
+      this._buildStatRow('情報', String(statistics.infoCount)),
+      this._buildStatRow('修復可能', String(statistics.repairableCount)),
+    );
 
-    content.innerHTML = html;
+    content.replaceChildren(...nodes);
+  }
+
+  /**
+   * @private
+   */
+  _buildStatRow(label, value) {
+    return el('div', {
+      className: 'stat-row',
+      children: [el('span', { text: label }), el('span', { text: value })],
+    });
   }
 
   /**
@@ -768,13 +641,6 @@ export class ValidationPanel {
   }
 
   /**
-   * HTMLエスケープ
-   */
-  escapeHtml(text) {
-    return escapeHtmlUtil(text);
-  }
-
-  /**
    * パネルをクリア
    */
   clear() {
@@ -785,18 +651,24 @@ export class ValidationPanel {
     const summary = this.container.querySelector('#validation-summary');
     if (summary) {
       summary.className = 'validation-summary';
-      summary.innerHTML =
-        '<p class="placeholder">ファイルを読み込んでバリデーションを実行してください</p>';
+      summary.replaceChildren(
+        el('p', {
+          className: 'placeholder',
+          text: 'ファイルを読み込んでバリデーションを実行してください',
+        }),
+      );
     }
 
     const list = this.container.querySelector('#issues-list');
     if (list) {
-      list.innerHTML = '<p class="placeholder">バリデーション結果がありません</p>';
+      list.replaceChildren(
+        el('p', { className: 'placeholder', text: 'バリデーション結果がありません' }),
+      );
     }
 
     const stats = this.container.querySelector('#statistics-content');
     if (stats) {
-      stats.innerHTML = '<p class="placeholder">統計情報がありません</p>';
+      stats.replaceChildren(el('p', { className: 'placeholder', text: '統計情報がありません' }));
     }
 
     const report = this.container.querySelector('#report-content');

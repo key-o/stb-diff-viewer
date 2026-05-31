@@ -33,8 +33,10 @@ export function extractColumnElements(xmlDoc) {
 
     const offset_bottom_X = colEl.getAttribute('offset_bottom_X');
     const offset_bottom_Y = colEl.getAttribute('offset_bottom_Y');
+    const offset_bottom_Z = colEl.getAttribute('offset_bottom_Z');
     const offset_top_X = colEl.getAttribute('offset_top_X');
     const offset_top_Y = colEl.getAttribute('offset_top_Y');
+    const offset_top_Z = colEl.getAttribute('offset_top_Z');
 
     if (id && idNodeBottom && idNodeTop && idSection) {
       const elementData = {
@@ -48,8 +50,10 @@ export function extractColumnElements(xmlDoc) {
         rotate: rotate ? parseFloat(rotate) : 0,
         offset_bottom_X: offset_bottom_X ? parseFloat(offset_bottom_X) : 0,
         offset_bottom_Y: offset_bottom_Y ? parseFloat(offset_bottom_Y) : 0,
+        offset_bottom_Z: offset_bottom_Z ? parseFloat(offset_bottom_Z) : 0,
         offset_top_X: offset_top_X ? parseFloat(offset_top_X) : 0,
         offset_top_Y: offset_top_Y ? parseFloat(offset_top_Y) : 0,
+        offset_top_Z: offset_top_Z ? parseFloat(offset_top_Z) : 0,
       };
       columnElementsData.push(elementData);
     } else {
@@ -115,17 +119,12 @@ function extractBeamLikeElements(xmlDoc, elementType) {
       };
 
       // SS7原典配置情報（StbExtensionsから読み込み）
-      const girderExtMap = parseStbExtensions(el.ownerDocument, 'StbGirder');
-      const extProps = girderExtMap.get(id);
+      const memberExtMap = parseStbExtensions(el.ownerDocument, elementType);
+      const extProps = memberExtMap.get(id);
       if (extProps) {
-        if (extProps.ss7_story) data.ss7_story = extProps.ss7_story;
-        if (extProps.ss7_frame) data.ss7_frame = extProps.ss7_frame;
-        if (extProps.ss7_start) data.ss7_start = extProps.ss7_start;
-        if (extProps.ss7_end) data.ss7_end = extProps.ss7_end;
-        if (extProps.ss7_type) data.ss7_type = extProps.ss7_type;
-        if (extProps.ss7_xaxis) data.ss7_xaxis = extProps.ss7_xaxis;
-        if (extProps.ss7_yaxis) data.ss7_yaxis = extProps.ss7_yaxis;
-        if (extProps.ss7_direction) data.ss7_direction = extProps.ss7_direction;
+        for (const [key, value] of Object.entries(extProps)) {
+          if (key.startsWith('ss7_')) data[key] = value;
+        }
       }
 
       if (typeShape !== null) {
@@ -357,8 +356,10 @@ export function extractPostElements(xmlDoc) {
 
     const offset_bottom_X = postEl.getAttribute('offset_bottom_X');
     const offset_bottom_Y = postEl.getAttribute('offset_bottom_Y');
+    const offset_bottom_Z = postEl.getAttribute('offset_bottom_Z');
     const offset_top_X = postEl.getAttribute('offset_top_X');
     const offset_top_Y = postEl.getAttribute('offset_top_Y');
+    const offset_top_Z = postEl.getAttribute('offset_top_Z');
     const rotate = postEl.getAttribute('rotate');
 
     if (id && idNodeBottom && idNodeTop && idSection) {
@@ -371,8 +372,10 @@ export function extractPostElements(xmlDoc) {
         guid: guid || undefined,
         offset_bottom_X: offset_bottom_X ? parseFloat(offset_bottom_X) : 0,
         offset_bottom_Y: offset_bottom_Y ? parseFloat(offset_bottom_Y) : 0,
+        offset_bottom_Z: offset_bottom_Z ? parseFloat(offset_bottom_Z) : 0,
         offset_top_X: offset_top_X ? parseFloat(offset_top_X) : 0,
         offset_top_Y: offset_top_Y ? parseFloat(offset_top_Y) : 0,
+        offset_top_Z: offset_top_Z ? parseFloat(offset_top_Z) : 0,
         rotate: rotate ? parseFloat(rotate) : 0,
       };
       postElementsData.push(elementData);

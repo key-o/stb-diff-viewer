@@ -15,6 +15,9 @@ import {
   generateDataLossWarnings,
 } from './rules/type6-new-elements.js';
 import { convertJointsTo202 } from './rules/type7-joint-elements.js';
+import { convertBarArrangementTo202 } from './rules/type8-bar-arrangement.js';
+import { convertSlabSectionsTo202 } from './rules/type9-slab-sections.js';
+import { convertSrcBeamSteelSectionsTo202 } from './rules/type10-src-beam-steel-sections.js';
 import { convertPileSectionsTo202 } from './rules/type11-pile-sections.js';
 import { convertBasePlateSectionsTo202 } from './rules/type12-base-plate-sections.js';
 
@@ -63,6 +66,15 @@ export function convert210to202(stbRoot, options = {}) {
 
     // Type7: Joint element relocation (to old format)
     convertJointsTo202(result);
+
+    // Type8: Bar arrangement structure reverse conversion
+    convertBarArrangementTo202(result);
+
+    // Type9: RC Slab section structure reverse conversion
+    convertSlabSectionsTo202(result);
+
+    // Type10: SRC Beam steel section reverse conversion
+    convertSrcBeamSteelSectionsTo202(result);
 
     // Type11: Pile section structure changes (reverse conversion)
     convertPileSectionsTo202(result);

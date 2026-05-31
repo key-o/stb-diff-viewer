@@ -163,6 +163,56 @@ export function convertSrcBeamSteelSectionsTo210(stbRoot) {
         convertedCount++;
       }
 
+      // Convert StbSecSteelBeam_SRC_FiveTypes elements
+      // FiveTypes has no direct v2.1.0 equivalent; use CENTER (or first) as representative
+      // and convert to StbSecSteelBeam_SRC_Shape > StbSecSteelBeamStraight.
+      // Attributes are stored on the child element (StbSecBeam_SRC_SameShapeH etc.), not on '$'.
+      if (steelFigure['StbSecSteelBeam_SRC_FiveTypes']) {
+        const fiveTypesElements = steelFigure['StbSecSteelBeam_SRC_FiveTypes'];
+        const centerElement =
+          fiveTypesElements.find((e) => e?.['$']?.pos === 'CENTER') || fiveTypesElements[0];
+
+        if (centerElement) {
+          // FiveTypes attributes can be either:
+          // (a) directly on '$' (flat format): <StbSecSteelBeam_SRC_FiveTypes pos="CENTER" shape="..." .../>
+          // (b) on a child element (nested format): <StbSecSteelBeam_SRC_FiveTypes><StbSecBeam_SRC_SameShapeH shape=.../>
+          const directAttrs = centerElement['$'] || {};
+          let attrs = {};
+
+          if (directAttrs.shape) {
+            // Case (a): shape is directly on the element
+            attrs = {
+              shape: directAttrs.shape,
+              strength_main: directAttrs.strength_main || '',
+              ...(directAttrs.strength_web && { strength_web: directAttrs.strength_web }),
+            };
+          } else {
+            // Case (b): shape is on a child element
+            const childNames = [
+              'StbSecBeam_SRC_SameShapeH',
+              'StbSecBeam_SRC_SameShapeBox',
+              'StbSecBeam_SRC_SameShapePipe',
+              'StbSecBeam_SRC_SameShapeT',
+            ];
+            for (const childName of childNames) {
+              const childEl = centerElement[childName]?.[0]?.['$'];
+              if (childEl?.shape) {
+                attrs = {
+                  shape: childEl.shape,
+                  strength_main: childEl.strength_main || '',
+                  ...(childEl.strength_web && { strength_web: childEl.strength_web }),
+                };
+                break;
+              }
+            }
+          }
+          shapes.push(createStraightShape(orderIndex++, attrs));
+        }
+
+        delete steelFigure['StbSecSteelBeam_SRC_FiveTypes'];
+        convertedCount++;
+      }
+
       // Add converted shapes if any
       if (shapes.length > 0) {
         steelFigure['StbSecSteelBeam_SRC_Shape'] = shapes;
@@ -176,3 +226,91 @@ export function convertSrcBeamSteelSectionsTo210(stbRoot) {
 }
 
 export default convertSrcBeamSteelSectionsTo210;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v2.1.0 → v2.0.2 reverse conversion
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Convert SRC beam steel sections from v2.1.0 back to v2.0.2 format.
+ * StbSecSteelBeam_SRC_Shape > StbSecSteelBeamStraight/Taper
+ * → StbSecSteelBeam_SRC_Straight / StbSecSteelBeam_SRC_Taper (pair)
+ * @param {object} stbRoot - ST-Bridge root element
+ */
+export function convertSrcBeamSteelSectionsTo202(stbRoot) {
+  const root = getStbRoot(stbRoot);
+  if (!root) return;
+  const rootData = Array.isArray(root) ? root[0] : root;
+  const sections = rootData?.['StbModel']?.[0]?.['StbSections']?.[0];
+  if (!sections) return;
+
+  let convertedCount = 0;
+  const beamSrc = sections['StbSecBeam_SRC'];
+  if (!beamSrc) return;
+
+  beamSrc.forEach((section) => {
+    (section['StbSecSteelFigureBeam_SRC'] || []).forEach((steelFigure) => {
+      if (!steelFigure) return;
+      const shapes = steelFigure['StbSecSteelBeam_SRC_Shape'];
+      if (!shapes || shapes.length === 0) return;
+
+      const straights = [];
+      const taperStarts = [];
+      const taperEnds = [];
+
+      shapes.forEach((shape) => {
+        const straight = shape['StbSecSteelBeamStraight']?.[0];
+        const taper = shape['StbSecSteelBeamTaper']?.[0];
+
+        if (straight) {
+          const a = straight['$'] || {};
+          straights.push({
+            $: {
+              shape: a.shape || '',
+              strength_main: a.strength_main || '',
+              ...(a.strength_web && { strength_web: a.strength_web }),
+              ...(a.horizontal_offset && { horizontal_offset: a.horizontal_offset }),
+              ...(a.vertical_offset && { vertical_offset: a.vertical_offset }),
+            },
+          });
+          convertedCount++;
+        } else if (taper) {
+          const a = taper['$'] || {};
+          taperStarts.push({
+            $: {
+              pos: 'START',
+              shape: a.start_shape || '',
+              strength_main: a.strength_main || '',
+              ...(a.strength_web && { strength_web: a.strength_web }),
+              ...(a.start_horizontal_offset && { horizontal_offset: a.start_horizontal_offset }),
+              ...(a.start_vertical_offset && { vertical_offset: a.start_vertical_offset }),
+            },
+          });
+          taperEnds.push({
+            $: {
+              pos: 'END',
+              shape: a.end_shape || '',
+              strength_main: a.strength_main || '',
+              ...(a.strength_web && { strength_web: a.strength_web }),
+              ...(a.end_horizontal_offset && { horizontal_offset: a.end_horizontal_offset }),
+              ...(a.end_vertical_offset && { vertical_offset: a.end_vertical_offset }),
+            },
+          });
+          convertedCount++;
+        }
+      });
+
+      delete steelFigure['StbSecSteelBeam_SRC_Shape'];
+      if (straights.length > 0) steelFigure['StbSecSteelBeam_SRC_Straight'] = straights;
+      if (taperStarts.length > 0) {
+        steelFigure['StbSecSteelBeam_SRC_Taper'] = [...taperStarts, ...taperEnds];
+      }
+    });
+  });
+
+  if (convertedCount > 0) {
+    logger.info(
+      `SRC Beam steel sections: Reverted ${convertedCount} Shape elements to v2.0.2 format`,
+    );
+  }
+}

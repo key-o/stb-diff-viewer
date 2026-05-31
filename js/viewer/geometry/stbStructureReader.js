@@ -380,9 +380,12 @@ export function parseStbFile(xmlDoc, options = {}) {
     setStateInternal('models.sectionMaps.beamSections', beamSections);
     setStateInternal('models.sectionMaps.braceSections', braceSections);
     setStateInternal('models.sectionMaps.isolatingDeviceSections', isolatingDeviceSections);
+    setStateInternal('models.sectionMaps.isolatingdeviceSections', isolatingDeviceSections);
     setStateInternal('models.sectionMaps.dampingDeviceSections', dampingDeviceSections);
+    setStateInternal('models.sectionMaps.dampingdeviceSections', dampingDeviceSections);
     setStateInternal('models.sectionMaps.pileSections', pileSections);
     setStateInternal('models.sectionMaps.footingSections', footingSections);
+    setStateInternal('models.sectionMaps.foundationColumnSections', foundationColumnSections);
     setStateInternal('models.sectionMaps.foundationcolumnSections', foundationColumnSections);
     setStateInternal('models.sectionMaps.slabSections', slabSections);
     setStateInternal('models.sectionMaps.wallSections', wallSections);

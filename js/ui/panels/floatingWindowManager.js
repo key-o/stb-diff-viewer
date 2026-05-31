@@ -63,18 +63,39 @@ export class FloatingWindowManager {
     windowEl.id = windowId;
     windowEl.className = 'floating-window';
 
-    windowEl.innerHTML = `
-      <div class="float-window-header" id="${windowId}-header">
-        <span class="float-window-title">${icon} ${title}</span>
-        <div class="float-window-controls">
-          ${headerExtra}
-          <button class="float-window-btn" id="close-${windowId}-btn">✕</button>
-        </div>
-      </div>
-      <div class="float-window-content">
-        ${content}
-      </div>
-    `;
+    const headerEl = document.createElement('div');
+    headerEl.className = 'float-window-header';
+    headerEl.id = `${windowId}-header`;
+
+    const titleSpan = document.createElement('span');
+    titleSpan.className = 'float-window-title';
+    titleSpan.textContent = `${icon} ${title}`;
+    headerEl.appendChild(titleSpan);
+
+    const controls = document.createElement('div');
+    controls.className = 'float-window-controls';
+    if (headerExtra) {
+      const template = document.createElement('template');
+      template.innerHTML = headerExtra;
+      controls.appendChild(template.content);
+    }
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'float-window-btn';
+    closeBtn.id = `close-${windowId}-btn`;
+    closeBtn.textContent = '✕';
+    controls.appendChild(closeBtn);
+    headerEl.appendChild(controls);
+
+    const contentEl = document.createElement('div');
+    contentEl.className = 'float-window-content';
+    if (content) {
+      const template = document.createElement('template');
+      template.innerHTML = content;
+      contentEl.appendChild(template.content);
+    }
+
+    windowEl.appendChild(headerEl);
+    windowEl.appendChild(contentEl);
 
     document.body.appendChild(windowEl);
     return windowEl;
@@ -215,9 +236,11 @@ export class FloatingWindowManager {
 
     this.windows.set(windowId, windowInfo);
 
-    // 初期表示
+    // 初期表示、または非表示なら inert を付与
     if (autoShow) {
       this.showWindow(windowId);
+    } else if (!windowInfo.isVisible) {
+      windowElement.setAttribute('inert', '');
     }
 
     log.info(`FloatingWindowManager: ウィンドウ #${windowId} を登録しました`);
@@ -292,9 +315,10 @@ export class FloatingWindowManager {
       return;
     }
 
-    // hidden クラスを削除し visible を追加
+    // hidden クラスを削除し visible を追加、inert を解除
     windowInfo.element.classList.remove('hidden');
     windowInfo.element.classList.add('visible');
+    windowInfo.element.removeAttribute('inert');
     windowInfo.isVisible = true;
 
     // 表示時に前面へ
@@ -320,9 +344,10 @@ export class FloatingWindowManager {
       return;
     }
 
-    // visible クラスを削除し hidden を追加
+    // visible クラスを削除し hidden を追加、inert で内部要素のフォーカスを防止
     windowInfo.element.classList.remove('visible');
     windowInfo.element.classList.add('hidden');
+    windowInfo.element.setAttribute('inert', '');
     windowInfo.isVisible = false;
 
     // コールバック実行

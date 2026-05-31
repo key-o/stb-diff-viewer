@@ -9,6 +9,7 @@ import {
   setElementsLabelProvider,
   setElementInfoProviders,
   setClippingStateProvider,
+  setLabelVisibilityCullingProvider,
   setViewerStateProvider,
 } from '../../viewer/index.js';
 import { setDxfExporterProviders } from '../../export/index.js';
@@ -23,106 +24,119 @@ const log = createLogger('moduleInitializer');
  */
 export async function initializeRequiredModules(elementGroups) {
   // 統合ラベル管理システムを初期化
-  import('../../ui/viewer3d/unifiedLabelManager.js').then(
-    ({ initializeLabelManager, generateLabelText }) => {
-      initializeLabelManager();
-      log.info('統合ラベル管理システムが初期化されました');
+  try {
+    const [
+      { initializeLabelManager, generateLabelText },
+      { attachElementDataToLabel },
+      { createLabelSprite },
+    ] = await Promise.all([
+      import('../../ui/viewer3d/unifiedLabelManager.js'),
+      import('../../ui/viewer3d/labelRegeneration.js'),
+      import('../../viewer/annotations/labels.js'),
+    ]);
+    initializeLabelManager();
+    log.info('統合ラベル管理システムが初期化されました');
 
-      // viewer層へのラベルプロバイダー注入（逆依存解消）
-      Promise.all([
-        import('../../ui/viewer3d/labelRegeneration.js'),
-        import('../../viewer/annotations/labels.js'),
-      ]).then(([{ attachElementDataToLabel }, { createLabelSprite }]) => {
-        const labelProvider = {
-          generateLabelText,
-          attachElementDataToLabel,
-          createLabelSprite,
-        };
-        // batchedElements.js用
-        setLabelProvider(labelProvider);
-        // elements.js用
-        setElementsLabelProvider(labelProvider);
-        log.info('ラベルプロバイダーがviewer層に注入されました');
-      });
-    },
-  );
+    // viewer層へのラベルプロバイダー注入（逆依存解消）
+    const labelProvider = {
+      generateLabelText,
+      attachElementDataToLabel,
+      createLabelSprite,
+    };
+    // batchedElements.js用
+    setLabelProvider(labelProvider);
+    // elements.js用
+    setElementsLabelProvider(labelProvider);
+    log.info('ラベルプロバイダーがviewer層に注入されました');
+  } catch (error) {
+    log.warn('ラベル管理系モジュールの初期化に失敗しました:', error);
+  }
+
+  try {
+    const { getAllLabels } = await import('../../ui/state.js');
+    setLabelVisibilityCullingProvider({ getLabels: getAllLabels });
+    log.info('ラベルカリングプロバイダーがviewer層に注入されました');
+  } catch (error) {
+    log.warn('ラベルカリングプロバイダーの初期化に失敗しました:', error);
+  }
 
   // JSON Schemaを初期化
-  import('../../common-stb/import/parser/jsonSchemaLoader.js')
-    .then(({ initializeJsonSchemas }) => {
-      initializeJsonSchemas().then((success) => {
-        if (success) {
-          log.info('起動時にJSON Schemaが初期化されました');
-        } else {
-          log.warn('起動時のJSON Schema初期化に失敗しました');
-        }
-      });
-    })
-    .catch((error) => {
-      log.warn('JSON Schemaモジュールの読み込みに失敗しました:', error);
-    });
+  try {
+    const { initializeJsonSchemas } =
+      await import('../../common-stb/import/parser/jsonSchemaLoader.js');
+    const success = await initializeJsonSchemas();
+    if (success) {
+      log.info('起動時にJSON Schemaが初期化されました');
+    } else {
+      log.warn('起動時のJSON Schema初期化に失敗しました');
+    }
+  } catch (error) {
+    log.warn('JSON Schemaモジュールの読み込みまたは初期化に失敗しました:', error);
+  }
 
-  // clippingManagerへの状態プロバイダー注入（逆依存解消）
-  import('../../data/state/globalState.js').then(({ getState }) => {
-    setClippingStateProvider({ getState });
+  let globalStateModule;
+  try {
+    globalStateModule = await import('../../data/state/globalState.js');
+    setClippingStateProvider({ getState: globalStateModule.getState });
     log.info('clippingManager状態プロバイダーが注入されました');
-  });
 
-  // viewer層全体への状態プロバイダー注入（レイヤー依存違反解消）
-  import('../../data/state/globalState.js').then(({ getState, setState }) => {
-    setViewerStateProvider({ getState, setState });
+    // viewer層全体への状態プロバイダー注入（レイヤー依存違反解消）
+    setViewerStateProvider({
+      getState: globalStateModule.getState,
+      setState: globalStateModule.setState,
+    });
     log.info('viewer状態プロバイダーが注入されました');
-  });
+  } catch (error) {
+    log.warn('グローバル状態プロバイダーの初期化に失敗しました:', error);
+  }
 
   // elementInfoDisplayへの依存プロバイダー注入（逆依存解消）
-  Promise.all([
-    import('../../ui/panels/parameterEditor.js'),
-    import('../suggestionEngine.js'),
-    import('../../ui/panels/floatingWindow.js'),
-    import('../importanceManager.js'),
-    import('../sectionEquivalenceEngine.js'),
-    import('../../ui/viewer3d/labelRegeneration.js'),
-  ])
-    .then(
-      ([
-        { ParameterEditor },
-        { SuggestionEngine },
-        { floatingWindowManager },
-        { getImportanceManager },
-        { evaluateSectionEquivalence },
-        { updateLabelsForElement },
-      ]) => {
-        setElementInfoProviders({
-          parameterEditor: ParameterEditor,
-          suggestionEngine: SuggestionEngine,
-          floatingWindowManager,
-          getImportanceManager,
-          evaluateSectionEquivalence,
-          updateLabelsForElement,
-        });
-        log.info('elementInfoDisplayプロバイダーが注入されました');
-      },
-    )
-    .catch((error) => {
-      log.warn('elementInfoDisplayプロバイダーの初期化に失敗しました:', error);
+  try {
+    const [
+      { ParameterEditor },
+      { SuggestionEngine },
+      { floatingWindowManager },
+      { getImportanceManager },
+      { evaluateSectionEquivalence },
+      { updateLabelsForElement },
+    ] = await Promise.all([
+      import('../../ui/panels/parameterEditor.js'),
+      import('../suggestionEngine.js'),
+      import('../../ui/panels/floatingWindow.js'),
+      import('../importanceManager.js'),
+      import('../sectionEquivalenceEngine.js'),
+      import('../../ui/viewer3d/labelRegeneration.js'),
+    ]);
+    setElementInfoProviders({
+      parameterEditor: ParameterEditor,
+      suggestionEngine: SuggestionEngine,
+      floatingWindowManager,
+      getImportanceManager,
+      evaluateSectionEquivalence,
+      updateLabelsForElement,
     });
+    log.info('elementInfoDisplayプロバイダーが注入されました');
+  } catch (error) {
+    log.warn('elementInfoDisplayプロバイダーの初期化に失敗しました:', error);
+  }
 
   // DxfExporterへの依存プロバイダー注入（逆依存解消）
   // awaitで待機することで、フローティングウィンドウ表示時にプロバイダーが確実に設定されている
   try {
     const [
-      { getState },
-      { generateLabelText },
       { getCurrentClippingState, applyStoryClip, applyAxisClip, clearAllClippingPlanes },
       { getCurrentStories, getCurrentAxesData },
+      { generateLabelText },
     ] = await Promise.all([
-      import('../../data/state/globalState.js'),
-      import('../../ui/viewer3d/unifiedLabelManager.js'),
       import('../../ui/viewer3d/clipping.js'),
       import('../../ui/state.js'),
+      import('../../ui/viewer3d/unifiedLabelManager.js'),
     ]);
+    const stateModule = globalStateModule ?? (await import('../../data/state/globalState.js'));
+    const getStateForDxf = stateModule.getState;
+
     setDxfExporterProviders({
-      getState,
+      getState: getStateForDxf,
       generateLabelText,
       getCurrentClippingState,
       applyStoryClip,
@@ -136,8 +150,8 @@ export async function initializeRequiredModules(elementGroups) {
       getActiveCamera: getActiveCamera,
       getOrthographicCamera: () => orthographicCamera,
       getLoadedFilename: () => {
-        const fileA = getState('files.originalFileA');
-        const fileB = getState('files.originalFileB');
+        const fileA = getStateForDxf('files.originalFileA');
+        const fileB = getStateForDxf('files.originalFileB');
         return (fileA && fileA.name) || (fileB && fileB.name) || 'stb_export';
       },
     });

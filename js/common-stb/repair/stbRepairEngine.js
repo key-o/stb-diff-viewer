@@ -15,6 +15,7 @@
 
 import { parseElements } from '../import/parser/stbXmlParser.js';
 import { CATEGORY, getRepairableIssues } from '../validation/stbValidator.js';
+import { STB_TAG_NAMES } from '../../constants/elementTypes.js';
 
 /**
  * @typedef {Object} RepairResult
@@ -582,13 +583,13 @@ export class StbRepairEngine {
     };
 
     // 各要素タイプの参照チェック
-    checkAndRemove('StbColumn', ['id_node_bottom', 'id_node_top']);
-    checkAndRemove('StbPost', ['id_node_bottom', 'id_node_top']);
-    checkAndRemove('StbGirder', ['id_node_start', 'id_node_end']);
-    checkAndRemove('StbBeam', ['id_node_start', 'id_node_end']);
-    checkAndRemove('StbBrace', ['id_node_start', 'id_node_end']);
-    checkAndRemove('StbFoundationColumn', ['id_node_bottom', 'id_node_top']);
-    checkAndRemove('StbFooting', ['id_node']);
+    checkAndRemove(STB_TAG_NAMES.COLUMN, ['id_node_bottom', 'id_node_top']);
+    checkAndRemove(STB_TAG_NAMES.POST, ['id_node_bottom', 'id_node_top']);
+    checkAndRemove(STB_TAG_NAMES.GIRDER, ['id_node_start', 'id_node_end']);
+    checkAndRemove(STB_TAG_NAMES.BEAM, ['id_node_start', 'id_node_end']);
+    checkAndRemove(STB_TAG_NAMES.BRACE, ['id_node_start', 'id_node_end']);
+    checkAndRemove(STB_TAG_NAMES.FOUNDATION_COLUMN, ['id_node_bottom', 'id_node_top']);
+    checkAndRemove(STB_TAG_NAMES.FOOTING, ['id_node']);
 
     return results;
   }
@@ -650,12 +651,12 @@ export class StbRepairEngine {
       }
     };
 
-    checkAndRemove('StbColumn', 'id_node_bottom', 'id_node_top');
-    checkAndRemove('StbPost', 'id_node_bottom', 'id_node_top');
-    checkAndRemove('StbGirder', 'id_node_start', 'id_node_end');
-    checkAndRemove('StbBeam', 'id_node_start', 'id_node_end');
-    checkAndRemove('StbBrace', 'id_node_start', 'id_node_end');
-    checkAndRemove('StbFoundationColumn', 'id_node_bottom', 'id_node_top');
+    checkAndRemove(STB_TAG_NAMES.COLUMN, 'id_node_bottom', 'id_node_top');
+    checkAndRemove(STB_TAG_NAMES.POST, 'id_node_bottom', 'id_node_top');
+    checkAndRemove(STB_TAG_NAMES.GIRDER, 'id_node_start', 'id_node_end');
+    checkAndRemove(STB_TAG_NAMES.BEAM, 'id_node_start', 'id_node_end');
+    checkAndRemove(STB_TAG_NAMES.BRACE, 'id_node_start', 'id_node_end');
+    checkAndRemove(STB_TAG_NAMES.FOUNDATION_COLUMN, 'id_node_bottom', 'id_node_top');
 
     return results;
   }

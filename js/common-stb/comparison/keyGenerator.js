@@ -181,3 +181,192 @@ export function getElementKey(element, keyType, positionKeyGenerator) {
   // 位置ベースのキー生成（POSITION_BASED および STORY_AXIS_BASED のフォールバック）
   return positionKeyGenerator();
 }
+
+// ============================================
+// 配置要素比較モード: Mode 2 & 3 キー生成
+// ============================================
+
+/**
+ * 座標にオフセットを加算する（3軸）
+ * @param {{x: number, y: number, z: number}} coords - 基準座標
+ * @param {{x?: number, y?: number, z?: number}} offset - オフセット値
+ * @returns {{x: number, y: number, z: number}} オフセット後の座標
+ */
+export function addOffsetToCoords(coords, offset = {}) {
+  if (!coords) return null;
+  return {
+    x: coords.x + (offset?.x || 0),
+    y: coords.y + (offset?.y || 0),
+    z: coords.z + (offset?.z || 0),
+  };
+}
+
+/**
+ * 回転角をキー文字列にフォーマットする
+ * @param {number|string} rotate - 回転角（度）
+ * @param {number} [precision=PRECISION] - 小数桁数
+ * @returns {string} フォーマットされた回転角文字列
+ */
+export function formatRotateForKey(rotate, precision = PRECISION) {
+  const rotVal = parseFloat(rotate) || 0;
+  return rotVal.toFixed(precision);
+}
+
+/**
+ * 線分要素（ノード + オフセット）から比較キーを生成（Mode 2）
+ * @param {{x: number, y: number, z: number}} startCoords - 始点座標（ノード座標）
+ * @param {{x?: number, y?: number, z?: number}} startOffset - 始点オフセット (offset_start_X/Y/Z)
+ * @param {{x: number, y: number, z: number}} endCoords - 終点座標（ノード座標）
+ * @param {{x?: number, y?: number, z?: number}} endOffset - 終点オフセット (offset_end_X/Y/Z)
+ * @param {number} [precision=PRECISION] - キー生成に使用する小数点以下の桁数
+ * @returns {string|null} 生成されたキー文字列、または無効な座標の場合はnull
+ */
+export function getLineElementKeyMode2(
+  startCoords,
+  startOffset,
+  endCoords,
+  endOffset,
+  precision = PRECISION,
+) {
+  // オフセット適用後の絶対座標を計算
+  const startAbsCoords = addOffsetToCoords(startCoords, startOffset);
+  const endAbsCoords = addOffsetToCoords(endCoords, endOffset);
+
+  if (!startAbsCoords || !endAbsCoords) return null;
+
+  const startKey = getNodeCoordKey(startAbsCoords, precision);
+  const endKey = getNodeCoordKey(endAbsCoords, precision);
+
+  if (startKey === null || endKey === null) return null;
+  return [startKey, endKey].sort().join('|');
+}
+
+/**
+ * 線分要素（ノード + オフセット + 回転角）から比較キーを生成（Mode 3）
+ * @param {{x: number, y: number, z: number}} startCoords - 始点座標（ノード座標）
+ * @param {{x?: number, y?: number, z?: number}} startOffset - 始点オフセット
+ * @param {{x: number, y: number, z: number}} endCoords - 終点座標（ノード座標）
+ * @param {{x?: number, y?: number, z?: number}} endOffset - 終点オフセット
+ * @param {number|string} rotate - 回転角（度）
+ * @param {number} [precision=PRECISION] - キー生成に使用する小数点以下の桁数
+ * @returns {string|null} 生成されたキー文字列、または無効な座標の場合はnull
+ */
+export function getLineElementKeyMode3(
+  startCoords,
+  startOffset,
+  endCoords,
+  endOffset,
+  rotate,
+  precision = PRECISION,
+) {
+  // Mode 2 のキーを取得
+  const baseKey = getLineElementKeyMode2(startCoords, startOffset, endCoords, endOffset, precision);
+  if (baseKey === null) return null;
+
+  // 回転角を追加
+  const rotateKey = formatRotateForKey(rotate, precision);
+  return `${baseKey}|rot:${rotateKey}`;
+}
+
+/**
+ * ポリゴン要素（頂点 + オフセット）から比較キーを生成（Mode 2）
+ * @param {Array<{x: number, y: number, z: number}>} vertexCoordsList - 頂点座標リスト
+ * @param {{x?: number, y?: number, z?: number}} [levelOffset={}] - 厚さまたはレベルオフセット
+ * @param {number} [precision=PRECISION] - キー生成に使用する小数点以下の桁数
+ * @returns {string|null} 生成されたキー文字列、または無効な頂点が含まれる場合はnull
+ */
+export function getPolyElementKeyMode2(vertexCoordsList, levelOffset = {}, precision = PRECISION) {
+  if (!vertexCoordsList || vertexCoordsList.length === 0) return null;
+
+  // 各頂点にレベルオフセットを適用
+  const offsetCoordsList = vertexCoordsList.map((coords) => addOffsetToCoords(coords, levelOffset));
+
+  const normalizedCoords = normalizePolygonCoords(offsetCoordsList);
+  const coordKeys = normalizedCoords.map((coords) => getNodeCoordKey(coords, precision));
+
+  if (coordKeys.some((key) => key === null)) return null;
+  return coordKeys.sort().join(',');
+}
+
+/**
+ * ポリゴン要素（頂点 + オフセット + 厚さ）から比較キーを生成（Mode 3）
+ * @param {Array<{x: number, y: number, z: number}>} vertexCoordsList - 頂点座標リスト
+ * @param {{x?: number, y?: number, z?: number}} [levelOffset={}] - レベルオフセット
+ * @param {number|string} [thickness=''] - 厚さ値
+ * @param {number} [precision=PRECISION] - キー生成に使用する小数点以下の桁数
+ * @returns {string|null} 生成されたキー文字列、または無効な頂点が含まれる場合はnull
+ */
+export function getPolyElementKeyMode3(
+  vertexCoordsList,
+  levelOffset = {},
+  thickness = '',
+  precision = PRECISION,
+) {
+  // Mode 2 のキーを取得
+  const baseKey = getPolyElementKeyMode2(vertexCoordsList, levelOffset, precision);
+  if (baseKey === null) return null;
+
+  // 厚さを追加
+  const thicknessVal = parseFloat(thickness) || 0;
+  const thicknessKey = thicknessVal.toFixed(precision);
+  return `${baseKey}|thick:${thicknessKey}`;
+}
+
+/**
+ * 頂点ごとのオフセットを各頂点座標に適用した「最終頂点座標リスト」を計算する。
+ * 床(StbSlabOffsetList)・壁(StbWallOffsetList)で頂点ごとに offset_X/Y/Z が
+ * 定義される場合のための専用ヘルパー。
+ *
+ * @param {Array<{x: number, y: number, z: number}>} vertexCoordsList - 各節点の基本座標
+ * @param {Array<{x?: number, y?: number, z?: number}|null|undefined>} perVertexOffsets
+ *        - vertexCoordsList と同じ長さの配列。各要素は対応頂点のオフセット (または null)
+ * @returns {Array<{x: number, y: number, z: number}>|null} 最終頂点座標。長さ不一致なら null。
+ */
+export function applyPerVertexOffsets(vertexCoordsList, perVertexOffsets) {
+  if (!Array.isArray(vertexCoordsList) || !Array.isArray(perVertexOffsets)) return null;
+  if (vertexCoordsList.length !== perVertexOffsets.length) return null;
+
+  return vertexCoordsList.map((coords, i) => addOffsetToCoords(coords, perVertexOffsets[i]));
+}
+
+/**
+ * ポリゴン要素（頂点ごとのオフセット適用）から比較キーを生成 (Mode 2)。
+ * 床・壁の StbSlabOffsetList / StbWallOffsetList を反映した最終ジオメトリで比較する。
+ *
+ * @param {Array<{x: number, y: number, z: number}>} vertexCoordsList - 各節点の基本座標
+ * @param {Array<{x?: number, y?: number, z?: number}|null>} perVertexOffsets - 頂点ごとのオフセット
+ * @param {number} [precision=PRECISION] - キー精度
+ * @returns {string|null} 生成されたキー文字列
+ */
+export function getPolyElementKeyPerVertexMode2(
+  vertexCoordsList,
+  perVertexOffsets,
+  precision = PRECISION,
+) {
+  const finalCoords = applyPerVertexOffsets(vertexCoordsList, perVertexOffsets);
+  if (!finalCoords) return null;
+  return getPolyElementKey(finalCoords, precision);
+}
+
+/**
+ * ポリゴン要素（頂点ごとのオフセット + 厚さ）から比較キーを生成 (Mode 3)。
+ *
+ * @param {Array<{x: number, y: number, z: number}>} vertexCoordsList
+ * @param {Array<{x?: number, y?: number, z?: number}|null>} perVertexOffsets
+ * @param {number|string} [thickness='']
+ * @param {number} [precision=PRECISION]
+ * @returns {string|null}
+ */
+export function getPolyElementKeyPerVertexMode3(
+  vertexCoordsList,
+  perVertexOffsets,
+  thickness = '',
+  precision = PRECISION,
+) {
+  const baseKey = getPolyElementKeyPerVertexMode2(vertexCoordsList, perVertexOffsets, precision);
+  if (baseKey === null) return null;
+
+  const thicknessVal = parseFloat(thickness) || 0;
+  const thicknessKey = thicknessVal.toFixed(precision);
+  return `${baseKey}|thick:${thicknessKey}`;
+}

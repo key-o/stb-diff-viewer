@@ -1,34 +1,32 @@
-/**
- * @fileoverview ジオメトリジェネレータファクトリー
+﻿/**
+ * @fileoverview 繧ｸ繧ｪ繝｡繝医Μ繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ繝輔ぃ繧ｯ繝医Μ繝ｼ
  *
- * 要素タイプに応じたジオメトリジェネレータを管理・提供します。
- * - ジェネレータクラスの登録と取得
- * - インスタンスのキャッシュ管理
- * - 要素タイプとジェネレータのマッピング
+ * 隕∫ｴ繧ｿ繧､繝励↓蠢懊§縺溘ず繧ｪ繝｡繝医Μ繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ繧堤ｮ｡逅・・謠蝉ｾ帙＠縺ｾ縺吶・ * - 繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ繧ｯ繝ｩ繧ｹ縺ｮ逋ｻ骭ｲ縺ｨ蜿門ｾ・ * - 繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ縺ｮ繧ｭ繝｣繝・す繝･邂｡逅・ * - 隕∫ｴ繧ｿ繧､繝励→繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ縺ｮ繝槭ャ繝斐Φ繧ｰ
  */
 
 import { createLogger } from '../../utils/logger.js';
 
-// ジェネレータクラスのインポート
-import { ProfileBasedBraceGenerator } from './ProfileBasedBraceGenerator.js';
-import { ProfileBasedColumnGenerator } from './ProfileBasedColumnGenerator.js';
-import { ProfileBasedPostGenerator } from './ProfileBasedPostGenerator.js';
-import { ProfileBasedBeamGenerator } from './ProfileBasedBeamGenerator.js';
-import { PileGenerator } from './PileGenerator.js';
-import { FootingGenerator } from './FootingGenerator.js';
-import { ProfileBasedFoundationColumnGenerator } from './ProfileBasedFoundationColumnGenerator.js';
-import { SlabGenerator } from './SlabGenerator.js';
-import { WallGenerator } from './WallGenerator.js';
-import { ParapetGenerator } from './ParapetGenerator.js';
-import { JointGenerator } from './JointGenerator.js';
-import { StripFootingGenerator } from './StripFootingGenerator.js';
-import { IsolatingDeviceGenerator } from './IsolatingDeviceGenerator.js';
-import { DampingDeviceGenerator } from './DampingDeviceGenerator.js';
+import {
+  ProfileBasedBeamGenerator,
+  ProfileBasedBraceGenerator,
+  ProfileBasedColumnGenerator,
+  ProfileBasedFoundationColumnGenerator,
+  ProfileBasedPostGenerator,
+  ParapetGenerator,
+  PileGenerator,
+  FootingGenerator,
+  DampingDeviceGenerator,
+  IsolatingDeviceGenerator,
+  JointGenerator,
+  SlabGenerator,
+  StripFootingGenerator,
+  WallGenerator,
+} from './generators/index.js';
 
 const log = createLogger('GeometryGeneratorFactory');
 
 /**
- * ジェネレータクラスのマッピング
+ * 繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ繧ｯ繝ｩ繧ｹ縺ｮ繝槭ャ繝斐Φ繧ｰ
  * @type {Object.<string, {class: Function, method: string}>}
  */
 const GENERATOR_MAP = {
@@ -137,27 +135,23 @@ const GENERATOR_MAP = {
 };
 
 /**
- * ジオメトリジェネレータファクトリークラス
+ * 繧ｸ繧ｪ繝｡繝医Μ繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ繝輔ぃ繧ｯ繝医Μ繝ｼ繧ｯ繝ｩ繧ｹ
  */
 export class GeometryGeneratorFactory {
   constructor() {
-    /** @type {Map<string, Object>} ジェネレータインスタンスのキャッシュ */
+    /** @type {Map<string, Object>} 繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ縺ｮ繧ｭ繝｣繝・す繝･ */
     this.instanceCache = new Map();
   }
 
   /**
-   * 要素タイプに対応するジェネレータ情報を取得
-   * @param {string} elementType - 要素タイプ
-   * @returns {{class: Function, method: string}|null} ジェネレータ情報
+   * 隕∫ｴ繧ｿ繧､繝励↓蟇ｾ蠢懊☆繧九ず繧ｧ繝阪Ξ繝ｼ繧ｿ諠・ｱ繧貞叙蠕・   * @param {string} elementType - 隕∫ｴ繧ｿ繧､繝・   * @returns {{class: Function, method: string}|null} 繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ諠・ｱ
    */
   getGeneratorInfo(elementType) {
     return GENERATOR_MAP[elementType] || null;
   }
 
   /**
-   * 要素タイプに対応するジェネレータインスタンスを取得
-   * @param {string} elementType - 要素タイプ
-   * @returns {Object|null} ジェネレータインスタンス
+   * 隕∫ｴ繧ｿ繧､繝励↓蟇ｾ蠢懊☆繧九ず繧ｧ繝阪Ξ繝ｼ繧ｿ繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ繧貞叙蠕・   * @param {string} elementType - 隕∫ｴ繧ｿ繧､繝・   * @returns {Object|null} 繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ
    */
   getGenerator(elementType) {
     const info = this.getGeneratorInfo(elementType);
@@ -166,10 +160,10 @@ export class GeometryGeneratorFactory {
       return null;
     }
 
-    // キャッシュから取得、なければ新規作成
+    // 繧ｭ繝｣繝・す繝･縺九ｉ蜿門ｾ励√↑縺代ｌ縺ｰ譁ｰ隕丈ｽ懈・
     if (!this.instanceCache.has(elementType)) {
       try {
-        // 静的クラスの場合はクラス自体を返す
+        // 髱咏噪繧ｯ繝ｩ繧ｹ縺ｮ蝣ｴ蜷医・繧ｯ繝ｩ繧ｹ閾ｪ菴薙ｒ霑斐☆
         if (this.isStaticGenerator(info.class)) {
           this.instanceCache.set(elementType, info.class);
         } else {
@@ -186,12 +180,11 @@ export class GeometryGeneratorFactory {
   }
 
   /**
-   * ジェネレータが静的クラスかどうかを判定
-   * @param {Function} GeneratorClass - ジェネレータクラス
-   * @returns {boolean} 静的クラスの場合true
+   * 繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ縺碁撕逧・け繝ｩ繧ｹ縺九←縺・°繧貞愛螳・   * @param {Function} GeneratorClass - 繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ繧ｯ繝ｩ繧ｹ
+   * @returns {boolean} 髱咏噪繧ｯ繝ｩ繧ｹ縺ｮ蝣ｴ蜷・rue
    */
   isStaticGenerator(GeneratorClass) {
-    // 静的メソッドのみを持つジェネレータクラス
+    // 髱咏噪繝｡繧ｽ繝・ラ縺ｮ縺ｿ繧呈戟縺､繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ繧ｯ繝ｩ繧ｹ
     const staticGenerators = [
       JointGenerator,
       SlabGenerator,
@@ -207,25 +200,18 @@ export class GeometryGeneratorFactory {
   }
 
   /**
-   * 要素タイプに対応するメッシュ生成メソッドを取得
-   * @param {string} elementType - 要素タイプ
-   * @returns {string|null} メソッド名
-   */
+   * 隕∫ｴ繧ｿ繧､繝励↓蟇ｾ蠢懊☆繧九Γ繝・す繝･逕滓・繝｡繧ｽ繝・ラ繧貞叙蠕・   * @param {string} elementType - 隕∫ｴ繧ｿ繧､繝・   * @returns {string|null} 繝｡繧ｽ繝・ラ蜷・   */
   getGeneratorMethod(elementType) {
     const info = this.getGeneratorInfo(elementType);
     return info ? info.method : null;
   }
 
   /**
-   * メッシュを生成
-   * @param {string} elementType - 要素タイプ
-   * @param {Array} elements - 要素データ配列
-   * @param {Map} nodes - 節点マップ
-   * @param {Object} sections - 断面データ
-   * @param {Object} steelSections - 鉄骨断面データ
-   * @param {boolean} [isJsonInput=false] - JSON入力フラグ
-   * @param {Object} [additionalData=null] - 追加データ（開口情報など）
-   * @returns {Array} 生成されたメッシュ配列
+   * 繝｡繝・す繝･繧堤函謌・   * @param {string} elementType - 隕∫ｴ繧ｿ繧､繝・   * @param {Array} elements - 隕∫ｴ繝・・繧ｿ驟榊・
+   * @param {Map} nodes - 遽轤ｹ繝槭ャ繝・   * @param {Object} sections - 譁ｭ髱｢繝・・繧ｿ
+   * @param {Object} steelSections - 驩・ｪｨ譁ｭ髱｢繝・・繧ｿ
+   * @param {boolean} [isJsonInput=false] - JSON蜈･蜉帙ヵ繝ｩ繧ｰ
+   * @param {Object} [additionalData=null] - 霑ｽ蜉繝・・繧ｿ・磯幕蜿｣諠・ｱ縺ｪ縺ｩ・・   * @returns {Array} 逕滓・縺輔ｌ縺溘Γ繝・す繝･驟榊・
    */
   createMeshes(
     elementType,
@@ -245,7 +231,7 @@ export class GeometryGeneratorFactory {
     }
 
     try {
-      // 静的クラスの場合はクラスメソッドを直接呼び出す
+      // 髱咏噪繧ｯ繝ｩ繧ｹ縺ｮ蝣ｴ蜷医・繧ｯ繝ｩ繧ｹ繝｡繧ｽ繝・ラ繧堤峩謗･蜻ｼ縺ｳ蜃ｺ縺・
       if (this.isStaticGenerator(generator.constructor || generator)) {
         return generator[method](
           elements,
@@ -256,17 +242,16 @@ export class GeometryGeneratorFactory {
           isJsonInput,
           additionalData,
         );
-      } else {
-        return generator[method](
-          elements,
-          nodes,
-          sections,
-          steelSections,
-          elementType,
-          isJsonInput,
-          additionalData,
-        );
       }
+      return generator[method](
+        elements,
+        nodes,
+        sections,
+        steelSections,
+        elementType,
+        isJsonInput,
+        additionalData,
+      );
     } catch (error) {
       log.error(`Failed to create meshes for ${elementType}:`, error);
       return [];
@@ -274,7 +259,7 @@ export class GeometryGeneratorFactory {
   }
 
   /**
-   * キャッシュをクリア
+   * 繧ｭ繝｣繝・す繝･繧偵け繝ｪ繧｢
    */
   clearCache() {
     this.instanceCache.clear();
@@ -282,27 +267,24 @@ export class GeometryGeneratorFactory {
   }
 
   /**
-   * サポートされている要素タイプの一覧を取得
-   * @returns {string[]} 要素タイプの配列
+   * 繧ｵ繝昴・繝医＆繧後※縺・ｋ隕∫ｴ繧ｿ繧､繝励・荳隕ｧ繧貞叙蠕・   * @returns {string[]} 隕∫ｴ繧ｿ繧､繝励・驟榊・
    */
   getSupportedTypes() {
     return Object.keys(GENERATOR_MAP);
   }
 
   /**
-   * 要素タイプがサポートされているかを確認
-   * @param {string} elementType - 要素タイプ
-   * @returns {boolean} サポートされている場合true
+   * 隕∫ｴ繧ｿ繧､繝励′繧ｵ繝昴・繝医＆繧後※縺・ｋ縺九ｒ遒ｺ隱・   * @param {string} elementType - 隕∫ｴ繧ｿ繧､繝・   * @returns {boolean} 繧ｵ繝昴・繝医＆繧後※縺・ｋ蝣ｴ蜷・rue
    */
   isSupported(elementType) {
     return elementType in GENERATOR_MAP;
   }
 }
 
-// シングルトンインスタンス
+// 繧ｷ繝ｳ繧ｰ繝ｫ繝医Φ繧､繝ｳ繧ｹ繧ｿ繝ｳ繧ｹ
 export const geometryGeneratorFactory = new GeometryGeneratorFactory();
 
-// ジェネレータクラスの直接エクスポート（外部モジュールからの利用用）
+// 繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ繧ｯ繝ｩ繧ｹ縺ｮ逶ｴ謗･繧ｨ繧ｯ繧ｹ繝昴・繝茨ｼ亥､夜Κ繝｢繧ｸ繝･繝ｼ繝ｫ縺九ｉ縺ｮ蛻ｩ逕ｨ逕ｨ
 export {
   ProfileBasedBraceGenerator,
   ProfileBasedColumnGenerator,
@@ -320,5 +302,5 @@ export {
   DampingDeviceGenerator,
 };
 
-// ジェネレータマップのエクスポート（設定参照用）
+// 繧ｸ繧ｧ繝阪Ξ繝ｼ繧ｿ繝槭ャ繝励・繧ｨ繧ｯ繧ｹ繝昴・繝茨ｼ郁ｨｭ螳壼盾辣ｧ逕ｨ
 export { GENERATOR_MAP };

@@ -200,6 +200,7 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
     sprite.userData.maxScaleFactor = maxScaleFactor;
     sprite.userData.elementType = elementType;
     sprite.userData.originalPosition = position.clone();
+    sprite.userData.isLabel = true;
     // store optional metadata for special handling (axis, story, model bounds, etc.)
     sprite.userData.meta = meta || {};
 
@@ -370,7 +371,7 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
         currentPos.add(push);
       }
 
-      const initialVisibility = this.visible; // UIによる表示状態
+      const initialVisibility = this.userData.labelBaseVisible ?? this.visible; // UIによる表示状態
       let shouldBeVisible = initialVisibility; // 基本的にUIの状態に従う
       let isOutsideView = false;
 
@@ -445,6 +446,7 @@ export function createLabelSprite(text, position, spriteGroup, elementType, meta
     // 初期状態をチェックボックスの状態に基づいて設定
     const labelCheckbox = document.getElementById(`toggleLabel-${elementType}`);
     const shouldBeVisible = labelCheckbox ? labelCheckbox.checked : false;
+    sprite.userData.labelBaseVisible = shouldBeVisible;
     sprite.visible = shouldBeVisible;
 
     if (spriteGroup) {
@@ -547,11 +549,13 @@ export function createLabel(config) {
     elementId: elementId, // 関連する要素のID
     modelSource: modelSource, // どのモデル由来か
     originalText: text, // 元のテキスト
+    labelBaseVisible: false,
   };
 
   // 初期状態はチェックボックスの状態に基づいて設定
   const labelCheckbox = document.getElementById(`toggleLabel-${elementType}`);
   const shouldBeVisible = labelCheckbox ? labelCheckbox.checked : false;
+  sprite.userData.labelBaseVisible = shouldBeVisible;
   sprite.visible = shouldBeVisible;
 
   return sprite;

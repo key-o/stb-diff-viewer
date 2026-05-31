@@ -1,13 +1,12 @@
 /**
  * @fileoverview ST-Bridge バリデーション・修復システム エントリーポイント
  *
- * ST-Bridgeファイルのバリデーション、修復、出力機能を提供します。
+ * ST-Bridgeファイルのバリデーション、修復機能を提供します。
  *
  * 主な機能:
  * - validateStbDocument: ドキュメント全体のバリデーション
  * - StbRepairEngine: データ修復エンジン
  * - ValidationWorkflow: 完全なワークフロー管理
- * - exportValidatedStb: バリデート済みデータのエクスポート
  */
 
 // バリデーションエンジン
@@ -47,14 +46,6 @@ export {
   VALID_IMPORTANCE_LEVELS,
   IMPORTANCE_LEVEL_NAMES,
 } from './importanceValidation.js';
-
-// エクスポート機能
-export {
-  exportValidatedStb,
-  validateRepairAndExport,
-  createExportConfig,
-  getExportSummary,
-} from '../export/stbExporter.js';
 
 // UI連携 (ValidationManager経由)
 export {

@@ -10,7 +10,10 @@
 import { createLogger } from '../../utils/logger.js';
 import { eventBus, EditEvents, ComparisonEvents } from '../../data/events/index.js';
 import { getState, setState } from '../../data/state/globalState.js';
-import { recompareSingleElementType } from '../../modelLoader/elementComparison.js';
+import {
+  recompareSingleElementType,
+  normalizeComparisonElementType,
+} from '../../modelLoader/elementComparison.js';
 import comparisonKeyManager from '../comparisonKeyManager.js';
 
 const log = createLogger('editComparisonSyncController');
@@ -18,11 +21,26 @@ const log = createLogger('editComparisonSyncController');
 /** デバウンスタイマーID */
 let debounceTimer = null;
 
+/** 初期化済みフラグ */
+let isInitialized = false;
+
 /** デバウンス中に蓄積された要素タイプ */
 const pendingElementTypes = new Set();
 
 /** デバウンス待機時間（ms） */
 const DEBOUNCE_DELAY = 300;
+
+/**
+ * 編集→再比較同期コントローラーの内部状態をリセットする（テスト用）
+ */
+export function resetEditComparisonSync() {
+  if (debounceTimer !== null) {
+    clearTimeout(debounceTimer);
+    debounceTimer = null;
+  }
+  pendingElementTypes.clear();
+  isInitialized = false;
+}
 
 /**
  * 蓄積された要素タイプの再比較を実行する
@@ -60,13 +78,20 @@ function executeRecomparison() {
   // 既存の Map をコピーして更新
   const updatedResults = new Map(comparisonResults);
   let hasChanges = false;
+  const normalizedElementTypes = new Set();
 
   for (const elementType of elementTypes) {
     try {
-      const newResult = recompareSingleElementType(elementType, modelData, options);
-      updatedResults.set(elementType, newResult);
+      const normalizedElementType = normalizeComparisonElementType(elementType);
+      normalizedElementTypes.add(normalizedElementType);
+
+      const newResult = recompareSingleElementType(normalizedElementType, modelData, options);
+      updatedResults.set(normalizedElementType, newResult);
+      if (normalizedElementType !== elementType) {
+        updatedResults.delete(elementType);
+      }
       hasChanges = true;
-      log.info(`[EditSync] ${elementType} を再比較しました`);
+      log.info(`[EditSync] ${elementType} を ${normalizedElementType} として再比較しました`);
     } catch (error) {
       log.error(`[EditSync] ${elementType} の再比較でエラー:`, error);
     }
@@ -80,18 +105,22 @@ function executeRecomparison() {
   // 統計更新イベントを発火（Statistics, DiffSummary, Filter 等が自動更新）
   eventBus.emit(ComparisonEvents.UPDATE_STATISTICS, {
     comparisonResults: updatedResults,
-    changedElementTypes: elementTypes,
+    changedElementTypes: [...normalizedElementTypes],
     reason: 'editRecomparison',
     timestamp: new Date().toISOString(),
   });
 
-  log.info(`[EditSync] ${elementTypes.join(', ')} の再比較が完了しました`);
+  log.info(`[EditSync] ${[...normalizedElementTypes].join(', ')} の再比較が完了しました`);
 }
 
 /**
  * 編集→再比較同期コントローラーを初期化する
  */
 export function initEditComparisonSync() {
+  if (isInitialized) {
+    return;
+  }
+
   eventBus.on(EditEvents.ATTRIBUTE_CHANGED, ({ elementType }) => {
     if (!elementType) return;
 
@@ -106,6 +135,8 @@ export function initEditComparisonSync() {
       executeRecomparison();
     }, DEBOUNCE_DELAY);
   });
+
+  isInitialized = true;
 
   log.info('編集→再比較同期コントローラーを初期化しました');
 }

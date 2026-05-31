@@ -1,10 +1,10 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>STB Diff Viewer</title>
-    <link rel="icon" href="data:,">
+    <link rel="icon" href="data:," />
     <link rel="stylesheet" href="./style/variables.css" />
     <link rel="stylesheet" href="./style/style.css" />
     <link rel="stylesheet" href="./style/utilities.css" />
@@ -18,7 +18,10 @@
     <link rel="stylesheet" href="./style/components/diff.css" />
     <link rel="stylesheet" href="./style/components/clipping.css" />
     <link rel="stylesheet" href="./style/components/comparison.css" />
-    <link rel="stylesheet" href="./style/components/importance.css" />
+    <link rel="stylesheet" href="./style/components/importance-panel.css" />
+    <link rel="stylesheet" href="./style/components/importance-list.css" />
+    <link rel="stylesheet" href="./style/components/importance-badges.css" />
+    <link rel="stylesheet" href="./style/components/importance-colors.css" />
     <link rel="stylesheet" href="./style/components/dxf.css" />
     <link rel="stylesheet" href="./style/components/diffList.css" />
     <link rel="stylesheet" href="./style/components/theme.css" />
@@ -29,6 +32,8 @@
     <link rel="stylesheet" href="./style/components/beam-section-list.css" />
     <link rel="stylesheet" href="./style/components/parameter-editor.css" />
     <link rel="stylesheet" href="./style/components/ar-mode.css" />
+    <link rel="stylesheet" href="./style/components/validation-panel.css" />
+    <link rel="stylesheet" href="./style/components/measurement.css" />
     <!-- Import map for bare module specifiers used in ES modules (browser) -->
     <script type="importmap">
       {
@@ -41,8 +46,7 @@
           "html2canvas": "https://esm.sh/html2canvas@1.4.1",
           "jspdf": "https://esm.sh/jspdf@2.5.1",
           "ajv": "https://esm.sh/ajv@8.17.1",
-          "web-ifc": "https://cdn.jsdelivr.net/npm/web-ifc@0.0.74/web-ifc-api.js",
-          "encoding-japanese": "https://esm.sh/encoding-japanese@2.2.0"
+          "web-ifc": "https://cdn.jsdelivr.net/npm/web-ifc@0.0.74/web-ifc-api.js"
         }
       }
     </script>
@@ -133,9 +137,7 @@
             <div class="model-header">
               <label for="fileA"><strong>モデルA</strong></label>
               <span class="version-badge-inline" id="versionA-inline"></span>
-              <button type="button" class="custom-file-btn" data-target="fileA">
-                選択
-              </button>
+              <button type="button" class="custom-file-btn" data-target="fileA">選択</button>
             </div>
             <span class="file-name-display" id="fileNameA">未選択</span>
             <input type="file" id="fileA" accept=".stb,.xml,.ifc" />
@@ -145,9 +147,7 @@
             <div class="model-header">
               <label for="fileB"><strong>モデルB</strong></label>
               <span class="version-badge-inline" id="versionB-inline"></span>
-              <button type="button" class="custom-file-btn" data-target="fileB">
-                選択
-              </button>
+              <button type="button" class="custom-file-btn" data-target="fileB">選択</button>
             </div>
             <span class="file-name-display" id="fileNameB">未選択</span>
             <input type="file" id="fileB" accept=".stb,.xml,.ifc" />
@@ -230,6 +230,15 @@
       >
         🔍 生XMLビュー
       </button>
+      <button
+        type="button"
+        id="toggle-measurement-btn"
+        class="btn-white"
+        aria-controls="measurement-panel"
+        aria-expanded="false"
+      >
+        📏 寸法測定
+      </button>
 
       <!-- 出力・変換セクション -->
       <div class="accordion-section">
@@ -262,13 +271,25 @@
             <button type="button" id="exportIfcBtn" class="btn btn-secondary">
               📦 IFCファイルに変換
             </button>
-
-            <button type="button" id="exportReportBtn" class="btn btn-secondary" disabled
-              title="比較結果をHTMLレポートとして出力（比較実行後に有効化）">
+            <button
+              type="button"
+              id="exportReportBtn"
+              class="btn btn-secondary"
+              disabled
+              title="比較結果をHTMLレポートとして出力（比較実行後に有効化）"
+            >
               比較レポート出力
             </button>
-            <label style="font-size: 0.85em; display: flex; align-items: center; gap: 4px; cursor: pointer;">
-              <input type="checkbox" id="reportMultiViewCheck">
+            <label
+              style="
+                font-size: 0.85em;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                cursor: pointer;
+              "
+            >
+              <input type="checkbox" id="reportMultiViewCheck" />
               複数アングルを含める
             </label>
           </div>
@@ -287,13 +308,23 @@
           <!-- STBファイル出力セクション（バージョン変換・IFC変換後モデルに対応） -->
           <div class="export-settings">
             <label><strong>STBファイル出力</strong></label>
-            <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
-              <select id="stbExportTarget" class="form-select" title="出力対象モデル" style="flex: 0 0 auto;">
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center">
+              <select
+                id="stbExportTarget"
+                class="form-select"
+                title="出力対象モデル"
+                style="flex: 0 0 auto"
+              >
                 <option value="auto">自動選択</option>
                 <option value="A">モデルA</option>
                 <option value="B">モデルB</option>
               </select>
-              <select id="stbExportVersion" class="form-select" title="出力STBバージョン" style="flex: 0 0 auto;">
+              <select
+                id="stbExportVersion"
+                class="form-select"
+                title="出力STBバージョン"
+                style="flex: 0 0 auto"
+              >
                 <option value="2.1.0">STB 2.1.0</option>
                 <option value="2.0.2">STB 2.0.2</option>
               </select>
@@ -303,7 +334,7 @@
               id="stbExportFilename"
               class="form-input"
               placeholder="ファイル名（省略時は自動）"
-              style="width: 100%; box-sizing: border-box;"
+              style="width: 100%; box-sizing: border-box"
             />
             <button
               type="button"
@@ -321,77 +352,22 @@
     <!-- 3Dビューアキャンバス -->
     <canvas id="three-canvas"></canvas>
 
-    <script>
-      // ファイル選択のカスタムボタン挙動を設定
-      (function () {
-        function updateCompareButtonLabel() {
-          var compareButton = document.getElementById('compareButton');
-          var inputA = document.getElementById('fileA');
-          var inputB = document.getElementById('fileB');
-          if (!compareButton || !inputA || !inputB) return;
+    <!-- 寸法測定：ステップインジケーター（キャンバス上に重ねて表示） -->
+    <div id="measurement-step-indicator" class="measurement-step-indicator hidden" aria-live="polite" aria-atomic="true">
+      <div class="msi-step active" id="msi-step1">
+        <span class="msi-circle">1</span>
+        <span class="msi-label">1点目をクリック</span>
+        <span class="msi-step-info hidden" id="msi-step1-info"></span>
+      </div>
+      <span class="msi-arrow">→</span>
+      <div class="msi-step" id="msi-step2">
+        <span class="msi-circle">2</span>
+        <span class="msi-label">2点目をクリック</span>
+      </div>
+    </div>
 
-          var hasA = inputA.files && inputA.files.length > 0;
-          var hasB = inputB.files && inputB.files.length > 0;
-
-          if (hasA && hasB) {
-            compareButton.textContent = '🔍 比較実行';
-            return;
-          }
-          if (hasA || hasB) {
-            compareButton.textContent = '🔍 モデル読込';
-            return;
-          }
-          compareButton.textContent = '🔍 読込 / 比較実行';
-        }
-
-        function wire(targetId) {
-          var btn = document.querySelector('.custom-file-btn[data-target="' + targetId + '"]');
-          var input = document.getElementById(targetId);
-          // ファイル名表示要素（fileA→fileNameA, fileB→fileNameB）
-          var nameEl = document.getElementById('fileName' + targetId.charAt(targetId.length - 1));
-          // wrapper要素（has-fileクラス付与用）
-          var wrapper = document.getElementById('wrapper' + targetId.charAt(targetId.length - 1));
-          if (!btn || !input) return;
-          btn.addEventListener('click', function () {
-            input.click();
-          });
-          input.addEventListener('change', function () {
-            var f = input.files && input.files[0];
-            if (f) {
-              // ファイル名を別要素に全名表示（折り返しはCSSで対応）
-              if (nameEl) {
-                nameEl.textContent = f.name;
-                nameEl.title = f.name;
-              }
-              btn.classList.add('has-file');
-              if (wrapper) wrapper.classList.add('has-file');
-            } else {
-              if (nameEl) {
-                nameEl.textContent = '未選択';
-                nameEl.title = '';
-              }
-              btn.classList.remove('has-file');
-              if (wrapper) wrapper.classList.remove('has-file');
-            }
-            updateCompareButtonLabel();
-          });
-        }
-
-        function wireAll() {
-          wire('fileA');
-          wire('fileB');
-          wire('dxfFile');
-          updateCompareButtonLabel();
-          window.updateCompareButtonLabel = updateCompareButtonLabel;
-        }
-
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', wireAll);
-        } else {
-          wireAll();
-        }
-      })();
-    </script>
+    <!-- 寸法測定：カーソル追従ツールチップ -->
+    <div id="measurement-cursor-tooltip" class="measurement-cursor-tooltip hidden"></div>
 
     <!-- 凡例パネル -->
     <div id="legendPanel" class="panel legend-panel-hidden">
@@ -463,52 +439,11 @@
     </div>
 
     <!-- 環境設定管理 -->
-    <script type="module">
-      import {
-        getEnvironmentConfig,
-        isFeatureEnabled,
-        displayEnvironmentInfo,
-      } from './js/config/environment.js';
-
-      async function initializeEnvironment() {
-        try {
-          window.envConfig = await getEnvironmentConfig();
-          if (window.envConfig.features.devTools) {
-            const devToolsEl = document.getElementById('dev-tools');
-            if (devToolsEl) {
-              devToolsEl.style.display = 'block';
-            }
-            await displayEnvironmentInfo();
-          }
-          try {
-            window.AppLogger?.setLevel &&
-              window.AppLogger.setLevel(window.envConfig?.logLevel || 'warn');
-          } catch (e) {}
-          console.log('✅ 環境設定初期化完了:', window.envConfig.environment);
-        } catch (error) {
-          console.error('❌ 環境設定初期化エラー:', error);
-          window.envConfig = {
-            environment: 'production',
-            stb2ifc: {
-              apiBaseUrl: 'https://stb2ifc-api-e23mdd6kwq-an.a.run.app',
-            },
-            features: { devTools: false },
-          };
-        }
-      }
-
-      window.isFeatureEnabled = isFeatureEnabled;
-      window.getEnvironmentConfig = getEnvironmentConfig;
-      initializeEnvironment();
-    </script>
 
     <!-- メインスクリプト -->
     <script type="module" src="js/main.js"></script>
 
     <!-- 開発用: 断面差異診断ユーティリティ -->
-    <script type="module" src="js/diagnostics/geometryInspector.js"></script>
-    <script type="module" src="js/diagnostics/geometryMismatchAnalyzer.js"></script>
-
     <!-- 表示要素設定フローティングウィンドウ -->
     <div id="element-settings-float" class="floating-window">
       <div class="float-window-header" id="element-settings-header">
@@ -577,11 +512,7 @@
                 </th>
                 <th scope="col">
                   ラベル
-                  <input
-                    type="checkbox"
-                    id="masterToggleLabel"
-                    title="全てのラベル表示を切替"
-                  />
+                  <input type="checkbox" id="masterToggleLabel" title="全てのラベル表示を切替" />
                 </th>
                 <th scope="col">色</th>
               </tr>
@@ -620,6 +551,15 @@
             <label for="toggleViewerGrid">
               <input type="checkbox" id="toggleViewerGrid" checked />
               Three.jsグリッドを表示
+            </label>
+          </div>
+
+          <hr class="section-divider" />
+
+          <div class="axis-dimension-control">
+            <label for="showAxisDimensions">
+              <input type="checkbox" id="showAxisDimensions" />
+              通り芯の寸法を表示
             </label>
           </div>
 
@@ -1068,13 +1008,17 @@
             class="float-window-btn"
             id="xml-viewer-copy-btn"
             title="クリップボードにコピー"
-          >📋</button>
+          >
+            📋
+          </button>
           <button
             type="button"
             class="float-window-btn"
             id="close-xml-viewer-btn"
             aria-label="閉じる"
-          >✕</button>
+          >
+            ✕
+          </button>
         </div>
       </div>
       <div class="float-window-content xml-viewer-content">
@@ -1089,13 +1033,60 @@
             <option value="mvd-s4">MVD S4</option>
             <option value="all" selected>すべて</option>
           </select>
-          <button type="button" id="xml-run-validation-btn" class="xml-validation-btn">バリデーション実行</button>
+          <button type="button" id="xml-run-validation-btn" class="xml-validation-btn">
+            バリデーション実行
+          </button>
           <span id="xml-validation-status" class="xml-validation-status"></span>
-          <button type="button" id="xml-prev-error-btn" class="xml-validation-btn xml-nav-btn" title="前のエラーへ" disabled>◀</button>
+          <button
+            type="button"
+            id="xml-prev-error-btn"
+            class="xml-validation-btn xml-nav-btn"
+            title="前のエラーへ"
+            disabled
+          >
+            ◀
+          </button>
           <span id="xml-error-nav-label" class="xml-validation-status xml-nav-label"></span>
-          <button type="button" id="xml-next-error-btn" class="xml-validation-btn xml-nav-btn" title="次のエラーへ" disabled>▶</button>
+          <button
+            type="button"
+            id="xml-next-error-btn"
+            class="xml-validation-btn xml-nav-btn"
+            title="次のエラーへ"
+            disabled
+          >
+            ▶
+          </button>
+          <span id="xml-schema-status" class="xml-validation-status xml-schema-status"></span>
         </div>
-        <div id="xml-viewer-pre" class="xml-viewer-pre" role="code" aria-label="XML内容"></div>
+        <div class="xml-viewer-legend" aria-label="XML色分け凡例">
+          <span class="xml-legend-item"
+            ><span class="xml-legend-swatch xml-legend-xsd-known"></span>XSD定義済み要素</span
+          >
+          <span class="xml-legend-item"
+            ><span class="xml-legend-swatch xml-legend-xsd-unknown"></span>XSD未定義要素</span
+          >
+          <span class="xml-legend-item"
+            ><span class="xml-legend-swatch xml-legend-schema"></span>XSDエラー</span
+          >
+          <span class="xml-legend-item"
+            ><span class="xml-legend-swatch xml-legend-mvd"></span>MVDエラー</span
+          >
+        </div>
+        <pre id="xml-viewer-pre" class="xml-viewer-pre" aria-label="XML内容"></pre>
+      </div>
+    </div>
+
+    <!-- 寸法測定パネル -->
+    <div id="measurement-panel" class="floating-window hidden">
+      <div class="float-window-header" id="measurement-panel-header">
+        <span class="float-window-title">📏 寸法測定</span>
+        <div class="float-window-controls">
+          <button type="button" class="float-window-btn" id="close-measurement-panel-btn" title="閉じる">✕</button>
+        </div>
+      </div>
+      <div class="float-window-content">
+        <p id="measurement-hint" class="measurement-hint">モデルを読み込んでから測定を開始してください</p>
+        <div id="measurement-list"></div>
       </div>
     </div>
 

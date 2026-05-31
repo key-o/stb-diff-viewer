@@ -96,6 +96,7 @@ export function parseStbCalData(doc) {
     loadCases: parseLoadCases(calData),
     memberLoads: parseMemberLoads(calData),
     loadArrangements: parseLoadArrangements(calData),
+    slabFinishDefs: parseSlabFinishDefs(calData),
   };
 
   return result;
@@ -293,12 +294,72 @@ function parseLoadArrangements(calData) {
   const arrangements = calData.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalLoadArrangements')[0];
   if (!arrangements) return {};
 
-  const result = {
+  return {
     columns: parseColumnLoadArrangements(arrangements),
     girders: parseGirderLoadArrangements(arrangements),
     beams: parseBeamLoadArrangements(arrangements),
+    slabFinishes: parseSlabFinishArrangements(arrangements),
+    slabLiveloads: parseSlabLiveLoadArrangements(arrangements),
   };
+}
 
+/**
+ * StbCalSlabFinish_RC 定義を解析
+ * @param {Element} calData - StbCalData要素
+ * @returns {Array<{id: string, weight: number}>}
+ */
+function parseSlabFinishDefs(calData) {
+  const finishEl = calData.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalFinish')[0];
+  if (!finishEl) return [];
+  const memberFinishes = finishEl.getElementsByTagNameNS(
+    STB_NAMESPACE,
+    'StbCalMemberFinishes_RC',
+  )[0];
+  if (!memberFinishes) return [];
+  const slabFinishes = memberFinishes.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabFinish_RC');
+  return Array.from(slabFinishes).map((el) => ({
+    id: el.getAttribute('id'),
+    weight: parseFloat(el.getAttribute('weight')) || 0,
+  }));
+}
+
+/**
+ * StbCalSlabFinish_RC_Arr を解析 (finishId → slabId[])
+ */
+function parseSlabFinishArrangements(arrangements) {
+  const result = new Map();
+  const arrs = arrangements.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabFinish_RC_Arr');
+  for (const arr of arrs) {
+    const loadListEl = arr.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabFinish_RC_LoadList')[0];
+    const memListEl = arr.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabFinish_RC_MemList')[0];
+    if (!loadListEl || !memListEl) continue;
+    const finishIds = loadListEl.textContent.trim().split(/\s+/);
+    const slabIds = memListEl.textContent.trim().split(/\s+/);
+    for (const finishId of finishIds) {
+      if (!result.has(finishId)) result.set(finishId, []);
+      result.get(finishId).push(...slabIds);
+    }
+  }
+  return result;
+}
+
+/**
+ * StbCalSlabLiveLoadArr を解析 (liveloadId → slabId[])
+ */
+function parseSlabLiveLoadArrangements(arrangements) {
+  const result = new Map();
+  const arrs = arrangements.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabLiveLoadArr');
+  for (const arr of arrs) {
+    const loadListEl = arr.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabLiveLoadList')[0];
+    const memListEl = arr.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabLiveLoadMemList')[0];
+    if (!loadListEl || !memListEl) continue;
+    const liveloadIds = loadListEl.textContent.trim().split(/\s+/);
+    const slabIds = memListEl.textContent.trim().split(/\s+/);
+    for (const liveloadId of liveloadIds) {
+      if (!result.has(liveloadId)) result.set(liveloadId, []);
+      result.get(liveloadId).push(...slabIds);
+    }
+  }
   return result;
 }
 

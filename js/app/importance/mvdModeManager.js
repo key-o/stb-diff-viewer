@@ -14,6 +14,70 @@ import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('app:importance:mvdMode');
 
+const SECTION_CHILD_ELEMENT_EQUIVALENCE = new Map([
+  ['StbSecColumn_RC_Rect', 'StbSecColumnRect'],
+  ['StbSecColumn_SRC_Rect', 'StbSecColumnRect'],
+  ['StbSecColumn_RC_Circle', 'StbSecColumnCircle'],
+  ['StbSecColumn_SRC_Circle', 'StbSecColumnCircle'],
+  ['StbSecBeam_RC_Straight', 'StbSecBeamStraight'],
+  ['StbSecBeam_SRC_Straight', 'StbSecBeamStraight'],
+  ['StbSecBeam_RC_Haunch', 'StbSecBeamHaunch'],
+  ['StbSecBeam_SRC_Haunch', 'StbSecBeamHaunch'],
+  ['StbSecBeam_RC_Taper', 'StbSecBeamTaper'],
+  ['StbSecBeam_SRC_Taper', 'StbSecBeamTaper'],
+  ['StbSecBarColumn_RC_RectSame', 'StbSecBarColumnRectSame'],
+  ['StbSecBarColumn_SRC_RectSame', 'StbSecBarColumnRectSame'],
+  ['StbSecBarColumn_SSRC_RectSame', 'StbSecBarColumnRectSame'],
+  ['StbSecBarColumn_RC_RectNotSame', 'StbSecBarColumnRectNotSame'],
+  ['StbSecBarColumn_SRC_RectNotSame', 'StbSecBarColumnRectNotSame'],
+  ['StbSecBarColumn_SSRC_RectNotSame', 'StbSecBarColumnRectNotSame'],
+  ['StbSecBarColumn_RC_CircleSame', 'StbSecBarColumnCircleSame'],
+  ['StbSecBarColumn_SRC_CircleSame', 'StbSecBarColumnCircleSame'],
+  ['StbSecBarColumn_SSRC_CircleSame', 'StbSecBarColumnCircleSame'],
+  ['StbSecBarColumn_RC_CircleNotSame', 'StbSecBarColumnCircleNotSame'],
+  ['StbSecBarColumn_SRC_CircleNotSame', 'StbSecBarColumnCircleNotSame'],
+  ['StbSecBarColumn_SSRC_CircleNotSame', 'StbSecBarColumnCircleNotSame'],
+  ['StbSecBarBeam_RC_Same', 'StbSecBarBeamSimple'],
+  ['StbSecBarBeam_SRC_Same', 'StbSecBarBeamSimple'],
+  ['StbSecBarBeam_SSRC_Same', 'StbSecBarBeamSimple'],
+  ['StbSecBarBeam_RC_ThreeTypes', 'StbSecBarBeamComplex'],
+  ['StbSecBarBeam_SRC_ThreeTypes', 'StbSecBarBeamComplex'],
+  ['StbSecBarBeam_SSRC_ThreeTypes', 'StbSecBarBeamComplex'],
+  ['StbSecBarBeam_RC_StartEnd', 'StbSecBarBeamComplex'],
+  ['StbSecBarBeam_SRC_StartEnd', 'StbSecBarBeamComplex'],
+  ['StbSecBarBeam_SSRC_StartEnd', 'StbSecBarBeamComplex'],
+]);
+
+const SECTION_CHILD_ELEMENT_EQUIVALENCE_REVERSE = new Map(
+  Array.from(SECTION_CHILD_ELEMENT_EQUIVALENCE.entries()).map(([, canonicalName]) => [
+    canonicalName,
+    canonicalName,
+  ]),
+);
+
+function toCanonicalSectionChildName(elementName) {
+  return (
+    SECTION_CHILD_ELEMENT_EQUIVALENCE.get(elementName) ||
+    SECTION_CHILD_ELEMENT_EQUIVALENCE_REVERSE.get(elementName) ||
+    elementName
+  );
+}
+
+export function toComparableMvdTailKey(tailKey) {
+  if (!tailKey || typeof tailKey !== 'string') return '';
+
+  const atIdx = tailKey.lastIndexOf('/@');
+  if (atIdx === -1) {
+    return tailKey.toLowerCase();
+  }
+
+  const elementName = tailKey.slice(0, atIdx);
+  const attrName = tailKey.slice(atIdx + 2);
+
+  const canonicalElementName = toCanonicalSectionChildName(elementName);
+  return `${canonicalElementName}/@${attrName}`.toLowerCase();
+}
+
 /**
  * S4レベルをS2包含ルールで正規化
  * @param {ImportanceManager} manager
@@ -266,7 +330,8 @@ export async function initializeMvdSettings(manager) {
       if (atIdx === -1) continue;
       const slashBefore = p.lastIndexOf('/', atIdx - 1);
       if (slashBefore === -1) continue;
-      tails.add(p.slice(slashBefore + 1)); // "ElementName/@attrName"
+      const tailKey = p.slice(slashBefore + 1); // "ElementName/@attrName"
+      tails.add(toComparableMvdTailKey(tailKey));
     }
     return tails;
   };
@@ -278,7 +343,8 @@ export async function initializeMvdSettings(manager) {
     if (atIdx === -1) return false;
     const slashBefore = path.lastIndexOf('/', atIdx - 1);
     if (slashBefore === -1) return false;
-    return tailKeys.has(path.slice(slashBefore + 1));
+    const tailKey = path.slice(slashBefore + 1);
+    return tailKeys.has(toComparableMvdTailKey(tailKey));
   };
 
   // S2/S4 マップを構築：JSON の required リストに含まれる → REQUIRED、それ以外 → NOT_APPLICABLE

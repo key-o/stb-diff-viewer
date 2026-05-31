@@ -27,6 +27,7 @@ export function setupSelectorChangeListeners() {
   const storySelector = document.getElementById('storySelector');
   const xAxisSelector = document.getElementById('xAxisSelector');
   const yAxisSelector = document.getElementById('yAxisSelector');
+  const dimToggle = document.getElementById('showAxisDimensions');
 
   if (storySelector) {
     storySelector.addEventListener('change', handleStorySelectionChange);
@@ -39,6 +40,25 @@ export function setupSelectorChangeListeners() {
   if (yAxisSelector) {
     yAxisSelector.addEventListener('change', handleYAxisSelectionChange);
   }
+
+  if (dimToggle) {
+    dimToggle.addEventListener('change', handleDimensionToggleChange);
+  }
+}
+
+/**
+ * Teardown selector change listeners
+ */
+export function teardownSelectorChangeListeners() {
+  const storySelector = document.getElementById('storySelector');
+  const xAxisSelector = document.getElementById('xAxisSelector');
+  const yAxisSelector = document.getElementById('yAxisSelector');
+  const dimToggle = document.getElementById('showAxisDimensions');
+
+  storySelector?.removeEventListener('change', handleStorySelectionChange);
+  xAxisSelector?.removeEventListener('change', handleXAxisSelectionChange);
+  yAxisSelector?.removeEventListener('change', handleYAxisSelectionChange);
+  dimToggle?.removeEventListener('change', handleDimensionToggleChange);
 }
 
 /**
@@ -92,12 +112,16 @@ export function redrawAxesAtStory(targetStoryId) {
     const labelCheckbox = document.getElementById('toggleLabel-Axis');
     const labelToggle = labelCheckbox ? labelCheckbox.checked : true;
 
+    const dimensionCheckbox = document.getElementById('showAxisDimensions');
+    const showDimensions = dimensionCheckbox ? dimensionCheckbox.checked : false;
+
     // EventBusを通じてViewer層に軸再描画をリクエスト
     eventBus.emit(AxisEvents.REDRAW_REQUESTED, {
       axesData,
       stories,
       modelBounds,
       labelToggle,
+      showDimensions,
       targetStoryId,
     });
   } catch (error) {
@@ -187,6 +211,16 @@ export function resetAllSelectors() {
   eventBus.emit(RenderEvents.REQUEST_RENDER);
 
   log.info('[Event] 全セレクタをリセット');
+}
+
+/**
+ * Handle dimension toggle change
+ */
+function handleDimensionToggleChange() {
+  const storySelector = document.getElementById('storySelector');
+  const targetStoryId = storySelector ? storySelector.value : 'all';
+  redrawAxesAtStory(targetStoryId);
+  eventBus.emit(RenderEvents.REQUEST_RENDER);
 }
 
 /**

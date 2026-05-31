@@ -1,0 +1,36 @@
+/**
+ * 重要度パネル - レベル別の色・バッジの色定義
+ *
+ * サマリーカードのタイプ別カラー、@keyframes、カードアイコン表示
+ */
+
+/* ========================================
+   統計サマリーカード - タイプ別カラー
+   ======================================== */
+
+.summary-card.total {
+  border-left: 4px solid #007bff;
+}
+
+.summary-card.differences {
+  border-left: 4px solid #ffc107;
+}
+
+.summary-card.critical {
+  border-left: 4px solid #dc3545;
+}
+
+.summary-card.critical.alert {
+  background: #fff5f5;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}

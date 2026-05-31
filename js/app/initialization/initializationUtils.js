@@ -2,81 +2,8 @@
  * @fileoverview 初期化処理で使用されるユーティリティ関数
  */
 
-import { createLogger } from '../../utils/logger.js';
 import { getElementRegistry } from '../../viewer/utils/ElementRegistry.js';
-
-const log = createLogger('initializationUtils');
-
-/**
- * comparisonResultsをツリー表示用のデータ構造に変換
- * @param {Map} comparisonResults - 要素タイプごとの比較結果Map
- * @param {Array<string>|Set<string>|null} [targetElementTypes=null] - 変換対象の要素タイプ
- * @returns {Object} ツリー表示用のデータ構造
- */
-export function convertComparisonResultsForTree(comparisonResults, targetElementTypes = null) {
-  const matched = [];
-  const onlyA = [];
-  const onlyB = [];
-  const targetTypeSet = targetElementTypes
-    ? targetElementTypes instanceof Set
-      ? targetElementTypes
-      : new Set(targetElementTypes)
-    : null;
-
-  // comparisonResultsがMapかどうかチェック
-  if (!comparisonResults) {
-    log.warn('comparisonResults is null or undefined');
-    return { matched, onlyA, onlyB };
-  }
-
-  // Mapまたはオブジェクトの各要素を処理
-  const entries =
-    comparisonResults instanceof Map
-      ? comparisonResults.entries()
-      : Object.entries(comparisonResults);
-
-  for (const [elementType, result] of entries) {
-    if (!result) continue;
-    if (targetTypeSet && !targetTypeSet.has(elementType)) continue;
-
-    // matched要素を変換
-    if (result.matched && Array.isArray(result.matched)) {
-      result.matched.forEach((item) => {
-        matched.push({
-          elementType: elementType,
-          elementA: item.dataA,
-          elementB: item.dataB,
-          id: item.dataA?.id,
-        });
-      });
-    }
-
-    // onlyA要素を変換
-    if (result.onlyA && Array.isArray(result.onlyA)) {
-      result.onlyA.forEach((item) => {
-        onlyA.push({
-          elementType: elementType,
-          ...item,
-        });
-      });
-    }
-
-    // onlyB要素を変換
-    if (result.onlyB && Array.isArray(result.onlyB)) {
-      result.onlyB.forEach((item) => {
-        onlyB.push({
-          elementType: elementType,
-          ...item,
-        });
-      });
-    }
-  }
-
-  log.info(
-    `ツリー用データ変換完了: matched=${matched.length}, onlyA=${onlyA.length}, onlyB=${onlyB.length}`,
-  );
-  return { matched, onlyA, onlyB };
-}
+import { STB_TAG_NAMES } from '../../constants/elementTypes.js';
 
 /**
  * 3Dシーンから要素を検索するヘルパー関数
@@ -131,29 +58,35 @@ export function find3DObjectByElement(elementType, elementId, modelSource, eleme
  * @returns {Object} 部材データ
  */
 export function buildMemberDataFromDocument(document) {
-  if (!document) return { columns: [], girders: [], beams: [] };
+  if (!document) return { columns: [], girders: [], beams: [], slabs: [] };
 
   const STB_NS = 'https://www.building-smart.or.jp/dl';
 
   // 柱を取得
-  const columns = Array.from(document.getElementsByTagNameNS(STB_NS, 'StbColumn'));
+  const columns = Array.from(document.getElementsByTagNameNS(STB_NS, STB_TAG_NAMES.COLUMN));
   if (columns.length === 0) {
-    columns.push(...Array.from(document.getElementsByTagName('StbColumn')));
+    columns.push(...Array.from(document.getElementsByTagName(STB_TAG_NAMES.COLUMN)));
   }
 
   // 大梁を取得
-  const girders = Array.from(document.getElementsByTagNameNS(STB_NS, 'StbGirder'));
+  const girders = Array.from(document.getElementsByTagNameNS(STB_NS, STB_TAG_NAMES.GIRDER));
   if (girders.length === 0) {
-    girders.push(...Array.from(document.getElementsByTagName('StbGirder')));
+    girders.push(...Array.from(document.getElementsByTagName(STB_TAG_NAMES.GIRDER)));
   }
 
   // 小梁を取得
-  const beams = Array.from(document.getElementsByTagNameNS(STB_NS, 'StbBeam'));
+  const beams = Array.from(document.getElementsByTagNameNS(STB_NS, STB_TAG_NAMES.BEAM));
   if (beams.length === 0) {
-    beams.push(...Array.from(document.getElementsByTagName('StbBeam')));
+    beams.push(...Array.from(document.getElementsByTagName(STB_TAG_NAMES.BEAM)));
   }
 
-  return { columns, girders, beams };
+  // 床を取得
+  const slabs = Array.from(document.getElementsByTagNameNS(STB_NS, STB_TAG_NAMES.SLAB));
+  if (slabs.length === 0) {
+    slabs.push(...Array.from(document.getElementsByTagName(STB_TAG_NAMES.SLAB)));
+  }
+
+  return { columns, girders, beams, slabs };
 }
 
 /**

@@ -11,6 +11,9 @@ import { createLogger, LogCategory } from '../../utils/logger.js';
 
 const logger = createLogger('ui:accordion');
 
+/** @type {Element[]} */
+let _registeredHeaders = [];
+
 /**
  * Setup accordion event listeners
  */
@@ -19,10 +22,21 @@ export function setupAccordionListeners() {
 
   accordionHeaders.forEach((header) => {
     header.addEventListener('click', handleAccordionToggle);
+    _registeredHeaders.push(header);
   });
 
   // Initialize accordion states
   initializeAccordionStates();
+}
+
+/**
+ * Teardown accordion event listeners
+ */
+export function teardownAccordionListeners() {
+  for (const header of _registeredHeaders) {
+    header.removeEventListener('click', handleAccordionToggle);
+  }
+  _registeredHeaders = [];
 }
 
 /**

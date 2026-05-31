@@ -20,6 +20,7 @@ const log = createLogger('ui:events:labelVisibilityListeners');
  * @type {Object.<string, string>}
  */
 const ELEMENT_REDRAW_FUNCTION_MAP = {
+  Node: 'redrawNodesForViewMode',
   Column: 'redrawColumnsForViewMode',
   Post: 'redrawPostsForViewMode',
   Girder: 'redrawBeamsForViewMode',
@@ -33,13 +34,16 @@ const ELEMENT_REDRAW_FUNCTION_MAP = {
   FoundationColumn: 'redrawFoundationColumnsForViewMode',
 };
 
+/** @type {Array<{el: Element, handler: Function}>} */
+let _labelListeners = [];
+
 /**
  * Setup label toggle checkbox listeners to update label visibility
  */
 export function setupLabelToggleListeners() {
   const labelToggles = document.querySelectorAll('input[name="labelToggle"]');
   labelToggles.forEach((checkbox) => {
-    checkbox.addEventListener('change', () => {
+    const handler = () => {
       const elementType = checkbox.value;
 
       // labelDisplayManagerと同期
@@ -57,8 +61,20 @@ export function setupLabelToggleListeners() {
         // Request render via EventBus
         eventBus.emit(RenderEvents.REQUEST_RENDER);
       }
-    });
+    };
+    checkbox.addEventListener('change', handler);
+    _labelListeners.push({ el: checkbox, handler });
   });
+}
+
+/**
+ * Teardown label toggle checkbox listeners
+ */
+export function teardownLabelToggleListeners() {
+  for (const { el, handler } of _labelListeners) {
+    el.removeEventListener('change', handler);
+  }
+  _labelListeners = [];
 }
 
 /**

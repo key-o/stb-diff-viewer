@@ -1,9 +1,11 @@
-/**
+﻿/**
  * @fileoverview 要素タイプの日本語ラベル定義（単一の情報源 - SSOT）
  *
  * アプリケーション全体で使用する要素タイプの日本語名を一元管理します。
  * 他のモジュールはここからラベル定義をインポートしてください。
  */
+
+import { STB_TAG_NAMES } from '../constants/elementTypes.js';
 
 // ============================================================================
 // 基本的な要素タイプラベル
@@ -92,23 +94,23 @@ export const ELEMENT_ICONS = {
  * @type {Object.<string, string>}
  */
 const ELEMENT_TO_STB_NAME = {
-  Node: 'StbNode',
-  Column: 'StbColumn',
-  Post: 'StbPost',
-  Girder: 'StbGirder',
-  Beam: 'StbBeam',
-  Brace: 'StbBrace',
-  Slab: 'StbSlab',
-  ShearWall: 'StbWall',
-  Wall: 'StbWall',
-  Parapet: 'StbParapet',
-  Joint: 'StbJoint',
-  Pile: 'StbPile',
-  Footing: 'StbFooting',
-  StripFooting: 'StbStripFooting',
-  FoundationColumn: 'StbFoundationColumn',
-  Story: 'StbStory',
-  Axis: 'StbParallelAxis',
+  Node: STB_TAG_NAMES.NODE,
+  Column: STB_TAG_NAMES.COLUMN,
+  Post: STB_TAG_NAMES.POST,
+  Girder: STB_TAG_NAMES.GIRDER,
+  Beam: STB_TAG_NAMES.BEAM,
+  Brace: STB_TAG_NAMES.BRACE,
+  Slab: STB_TAG_NAMES.SLAB,
+  ShearWall: STB_TAG_NAMES.WALL,
+  Wall: STB_TAG_NAMES.WALL,
+  Parapet: STB_TAG_NAMES.PARAPET,
+  Joint: STB_TAG_NAMES.JOINT,
+  Pile: STB_TAG_NAMES.PILE,
+  Footing: STB_TAG_NAMES.FOOTING,
+  StripFooting: STB_TAG_NAMES.STRIP_FOOTING,
+  FoundationColumn: STB_TAG_NAMES.FOUNDATION_COLUMN,
+  Story: STB_TAG_NAMES.STORY,
+  Axis: STB_TAG_NAMES.PARALLEL_AXIS,
 };
 
 // ============================================================================

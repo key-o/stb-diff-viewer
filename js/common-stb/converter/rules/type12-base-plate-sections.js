@@ -47,8 +47,9 @@ function convertBaseConventionalTo210(v202Base, sectionType) {
   const suffix =
     sectionType === 'StbSecColumn_S' ? '_S' : sectionType === 'StbSecColumn_SRC' ? '_SRC' : '_CFT';
 
+  // Copy base-level attributes (height_mortar, cut_wide, cut_height, etc.)
   const result = {
-    $: {},
+    $: { ...(v202Base['$'] || {}) },
   };
 
   // Convert Plate element
@@ -240,5 +241,29 @@ export function convertBasePlateSectionsTo202(stbRoot) {
 
   if (totalConverted > 0) {
     logger.info(`Converted ${totalConverted} StbSecBaseConventional elements to v2.0.2 format`);
+  }
+
+  // Reverse rename StbSecBaseProduct → StbSecBaseProduct_S (per column type)
+  // type13 renamed _S → non-S for 2.1.1; restore here for 2.0.2
+  const BASE_PRODUCT_SUFFIX_MAP = {
+    StbSecColumn_S: 'StbSecBaseProduct_S',
+    StbSecColumn_SRC: 'StbSecBaseProduct_SRC',
+    StbSecColumn_CFT: 'StbSecBaseProduct_CFT',
+  };
+  let renamedProduct = 0;
+  BASE_SECTION_TYPES.forEach((sectionType) => {
+    const v202Name = BASE_PRODUCT_SUFFIX_MAP[sectionType];
+    const columns = sections[sectionType] || [];
+    columns.forEach((column) => {
+      if (column['StbSecBaseProduct']) {
+        column[v202Name] = column['StbSecBaseProduct'];
+        delete column['StbSecBaseProduct'];
+        // Restore product_company placeholder if missing (v2.0.2 has it optional)
+        renamedProduct++;
+      }
+    });
+  });
+  if (renamedProduct > 0) {
+    logger.info(`Renamed ${renamedProduct} StbSecBaseProduct back to versioned names`);
   }
 }

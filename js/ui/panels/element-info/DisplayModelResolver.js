@@ -5,6 +5,8 @@
  * タイトルとテーブルヘッダーの両方で同じ判定を再利用します。
  */
 
+import { getState } from '../../../data/state/globalState.js';
+
 /**
  * modelSource を要素情報パネル用のモデル側識別子に正規化
  * @param {string|null|undefined} modelSource
@@ -87,11 +89,63 @@ export function resolveElementInfoModelSide({
 }
 
 /**
+ * ファイル名から最初と最後を抽出して表示用のファイル名を生成
+ * 例: "structure_building_2024.stb" -> "structure_...2024.stb"
+ * @param {string} fileName - 元のファイル名
+ * @returns {string} - 表示用のファイル名
+ */
+export function formatFileNameForDisplay(fileName) {
+  if (!fileName || fileName.length <= 30) {
+    return fileName;
+  }
+
+  // 拡張子を取得
+  const lastDotIndex = fileName.lastIndexOf('.');
+  let name = fileName;
+  let ext = '';
+  if (lastDotIndex > 0) {
+    name = fileName.substring(0, lastDotIndex);
+    ext = fileName.substring(lastDotIndex);
+  }
+
+  // 名前の最初と最後を抽出
+  const maxNameLength = 30 - ext.length - 3; // "..." の 3 文字分
+  const firstPart = name.substring(0, Math.ceil(maxNameLength / 2));
+  const lastPart = name.substring(Math.max(name.length - Math.floor(maxNameLength / 2)));
+
+  return `${firstPart}...${lastPart}${ext}`;
+}
+
+/**
+ * モデル側のファイル名を取得
+ * @param {'A'|'B'|null|undefined} modelSide
+ * @returns {string} - ファイル名またはモデルラベル
+ */
+function getModelFileName(modelSide) {
+  if (!modelSide) {
+    return null;
+  }
+
+  const fileKey = modelSide === 'B' ? 'files.originalFileB' : 'files.originalFileA';
+  const fileObject = getState(fileKey);
+
+  if (fileObject && fileObject.name) {
+    return formatFileNameForDisplay(fileObject.name);
+  }
+
+  return null;
+}
+
+/**
  * モデル側識別子を UI 表示ラベルへ変換
  * @param {'A'|'B'|null|undefined} modelSide
  * @returns {string}
  */
 export function getElementInfoModelLabel(modelSide) {
+  const fileName = getModelFileName(modelSide);
+  if (fileName) {
+    return fileName;
+  }
   return modelSide === 'B' ? 'モデル B' : 'モデル A';
 }
 

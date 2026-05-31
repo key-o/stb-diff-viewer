@@ -24,6 +24,7 @@ import {
   extractBasePlateData,
   extractSteelFigureOffsetLevel,
 } from './steelFigureExtractors.js';
+import { parseStbExtensions } from '../parser/stbParserCore.js';
 
 // STB 名前空間（querySelector がヒットしない場合にフォールバック）
 const STB_NS = 'https://www.building-smart.or.jp/dl';
@@ -273,6 +274,13 @@ function extractSectionData(element, config) {
       if (attr?.name?.startsWith('ss7_')) {
         sectionData[attr.name] = attr.value;
       }
+    }
+  }
+
+  const extProps = parseStbExtensions(element.ownerDocument, element.tagName).get(idAttr);
+  if (extProps) {
+    for (const [key, value] of Object.entries(extProps)) {
+      if (key.startsWith('ss7_')) sectionData[key] = value;
     }
   }
 
@@ -529,8 +537,10 @@ function extractShapeName(element, config) {
 function createEmptyResult() {
   const result = {};
   Object.keys(_sectionConfig).forEach((elementType) => {
-    const sectionKey = `${elementType.toLowerCase()}Sections`;
-    result[sectionKey] = new Map();
+    const keys = getSectionResultKeys(elementType);
+    keys.forEach((sectionKey) => {
+      result[sectionKey] = new Map();
+    });
   });
   return result;
 }

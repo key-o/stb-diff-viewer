@@ -638,10 +638,12 @@ export function createVerticalMemberMesh(element, context, generator, options = 
   const bottomOffset = {
     x: Number(element.offset_bottom_X || 0),
     y: Number(element.offset_bottom_Y || 0),
+    z: Number(element.offset_bottom_Z || 0),
   };
   const topOffset = {
     x: Number(element.offset_top_X || 0),
     y: Number(element.offset_top_Y || 0),
+    z: Number(element.offset_top_Z || 0),
   };
 
   // 回転角度の取得（度単位）

@@ -1,7 +1,7 @@
-/**
- * @fileoverview 重要度別色付けモード
+﻿/**
+ * @fileoverview 驥崎ｦ∝ｺｦ蛻･濶ｲ莉倥￠繝｢繝ｼ繝・
  *
- * 属性の重要度レベルに基づいて要素を色分けするモードを提供します。
+ * 螻樊ｧ縺ｮ驥崎ｦ∝ｺｦ繝ｬ繝吶Ν縺ｫ蝓ｺ縺･縺・※隕∫ｴ繧定牡蛻・￠縺吶ｋ繝｢繝ｼ繝峨ｒ謠蝉ｾ帙＠縺ｾ縺吶・
  *
  * @module colorModes/importanceColorMode
  */
@@ -76,14 +76,15 @@ export function applyImportanceVisibilityFilterToAll() {
 }
 
 /**
- * 重要度色設定UIを初期化
+ * 驥崎ｦ∝ｺｦ濶ｲ險ｭ螳啅I繧貞・譛溷喧
  */
 export function initializeImportanceColorControls() {
   const container = document.getElementById('importance-color-controls');
   if (!container) return;
 
-  // 重要度設定をインポートして色設定コントロールを生成
+  // 驥崎ｦ∝ｺｦ險ｭ螳壹ｒ繧､繝ｳ繝昴・繝医＠縺ｦ濶ｲ險ｭ螳壹さ繝ｳ繝医Ο繝ｼ繝ｫ繧堤函謌・
   Promise.all([
+    // eslint-disable-next-line import/no-restricted-paths
     import('../app/importanceManager.js'),
     import('../config/importanceConfigLoader.js'),
     import('../config/colorConfig.js'),
@@ -95,14 +96,14 @@ export function initializeImportanceColorControls() {
     ]) => {
       container.innerHTML = '';
 
-      // === MVD設定セレクター ===
+      // === MVD險ｭ螳壹そ繝ｬ繧ｯ繧ｿ繝ｼ ===
       const configSelectorContainer = document.createElement('div');
       configSelectorContainer.className = 'config-selector-container';
       configSelectorContainer.style.cssText =
         'margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #ddd;';
 
       const configLabel = document.createElement('label');
-      configLabel.textContent = 'MVD設定:';
+      configLabel.textContent = 'MVD險ｭ螳・';
       configLabel.style.cssText =
         'display: block; font-size: var(--font-size-sm); margin-bottom: 5px; color: #666;';
       configSelectorContainer.appendChild(configLabel);
@@ -112,10 +113,10 @@ export function initializeImportanceColorControls() {
       configSelect.style.cssText =
         'width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: var(--font-size-sm);';
 
-      // オプションを追加
+      // 繧ｪ繝励す繝ｧ繝ｳ繧定ｿｽ蜉
       const defaultOption = document.createElement('option');
       defaultOption.value = '';
-      defaultOption.textContent = 'デフォルト（組み込み）';
+      defaultOption.textContent = '---';
       configSelect.appendChild(defaultOption);
 
       AVAILABLE_CONFIGS.forEach((config) => {
@@ -126,7 +127,7 @@ export function initializeImportanceColorControls() {
         configSelect.appendChild(option);
       });
 
-      // 設定変更イベント
+      // 險ｭ螳壼､画峩繧､繝吶Φ繝・
       configSelect.addEventListener('change', async (e) => {
         const configId = e.target.value;
         const manager = getImportanceManager();
@@ -146,11 +147,11 @@ export function initializeImportanceColorControls() {
       configSelectorContainer.appendChild(configSelect);
       container.appendChild(configSelectorContainer);
 
-      // 違反/対象外の2カテゴリで色設定を表示（高/中/低の区分なし）
+      // 驕募渚/蟇ｾ雎｡螟悶・2繧ｫ繝・ざ繝ｪ縺ｧ濶ｲ險ｭ螳壹ｒ陦ｨ遉ｺ・磯ｫ・荳ｭ/菴弱・蛹ｺ蛻・↑縺暦ｼ・
       const colorCategories = [
         {
           id: 'violation',
-          name: '違反',
+          name: '驕募渚',
           level: IMPORTANCE_LEVELS.REQUIRED,
           linkedLevels: [
             IMPORTANCE_LEVELS.REQUIRED,
@@ -160,7 +161,7 @@ export function initializeImportanceColorControls() {
         },
         {
           id: 'notApplicable',
-          name: '対象外',
+          name: 'Not applicable',
           level: IMPORTANCE_LEVELS.NOT_APPLICABLE,
           linkedLevels: [IMPORTANCE_LEVELS.NOT_APPLICABLE],
         },
@@ -178,14 +179,14 @@ export function initializeImportanceColorControls() {
             id="importance-filter-${id}"
             class="diff-filter-checkbox"
             ${IMPORTANCE_DISPLAY_FILTERS[filterKey] ? 'checked' : ''}
-            title="${name}を表示"
+            title="${name}繧定｡ｨ遉ｺ"
           />
           <input
             type="color"
             id="importance-${id}-color"
             value="${color}"
             class="legend-color-box"
-            title="${name}の色を変更"
+            title="${name}縺ｮ濶ｲ繧貞､画峩"
           />
           <span class="legend-label">${name}</span>
         `;
@@ -195,7 +196,7 @@ export function initializeImportanceColorControls() {
         const colorInput = item.querySelector(`#importance-${id}-color`);
         const visibilityCheckbox = item.querySelector(`#importance-filter-${id}`);
 
-        // 色変更時、リンクされた全レベルを一括更新
+        // 濶ｲ螟画峩譎ゅ√Μ繝ｳ繧ｯ縺輔ｌ縺溷・繝ｬ繝吶Ν繧剃ｸ諡ｬ譖ｴ譁ｰ
         const handleColorChange = (e) => {
           const newColor = e.target.value;
           linkedLevels.forEach((l) => updateImportanceColor(l, newColor));
@@ -221,13 +222,13 @@ export function initializeImportanceColorControls() {
         });
       });
 
-      // リセットボタンを追加
+      // 繝ｪ繧ｻ繝・ヨ繝懊ち繝ｳ繧定ｿｽ蜉
       const resetButton = document.createElement('button');
       resetButton.type = 'button';
       resetButton.className = 'btn-reset';
-      resetButton.textContent = 'デフォルト色に戻す';
-      resetButton.setAttribute('aria-label', '重要度色をデフォルトに戻す');
-      resetButton.title = '重要度色をデフォルト設定に戻します';
+      resetButton.textContent = 'Reset';
+      resetButton.setAttribute('aria-label', 'Reset importance colors');
+      resetButton.title = 'Reset importance colors to defaults';
       resetButton.style.marginTop = '10px';
       resetButton.style.width = '100%';
       resetButton.addEventListener('click', () => resetImportanceColors());
@@ -237,7 +238,7 @@ export function initializeImportanceColorControls() {
       summary.className = 'diff-filter-summary';
       summary.style.marginTop = '10px';
       summary.innerHTML =
-        '表示中: <strong id="importance-visible-count">0</strong> / <span id="importance-total-count">0</span>';
+        '陦ｨ遉ｺ荳ｭ: <strong id="importance-visible-count">0</strong> / <span id="importance-total-count">0</span>';
       container.appendChild(summary);
 
       import('./index.js').then(({ getCurrentColorMode, COLOR_MODES }) => {
@@ -252,15 +253,15 @@ export function initializeImportanceColorControls() {
 }
 
 /**
- * 重要度色を更新
- * @param {string} importanceLevel - 重要度レベル
- * @param {string} color - 新しい色
+ * 驥崎ｦ∝ｺｦ濶ｲ繧呈峩譁ｰ
+ * @param {string} importanceLevel - 驥崎ｦ∝ｺｦ繝ｬ繝吶Ν
+ * @param {string} color - 譁ｰ縺励＞濶ｲ
  */
 function updateImportanceColor(importanceLevel, color) {
-  // ColorManagerを使用して色を更新
+  // ColorManager繧剃ｽｿ逕ｨ縺励※濶ｲ繧呈峩譁ｰ
   colorManager.setImportanceColor(importanceLevel, color);
 
-  // 重要度モードが有効な場合は即座に適用
+  // 驥崎ｦ∝ｺｦ繝｢繝ｼ繝峨′譛牙柑縺ｪ蝣ｴ蜷医・蜊ｳ蠎ｧ縺ｫ驕ｩ逕ｨ
   import('./index.js').then(({ getCurrentColorMode, COLOR_MODES, updateElementsForColorMode }) => {
     if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
       clearImportanceMaterialCache();
@@ -270,19 +271,19 @@ function updateImportanceColor(importanceLevel, color) {
 }
 
 /**
- * 重要度色設定をデフォルトにリセット
+ * 驥崎ｦ∝ｺｦ濶ｲ險ｭ螳壹ｒ繝・ヵ繧ｩ繝ｫ繝医↓繝ｪ繧ｻ繝・ヨ
  */
 export function resetImportanceColors() {
   import('../config/colorConfig.js').then(({ IMPORTANCE_COLORS }) => {
-    // ColorManagerを使用して色をリセット（単一データソース）
+    // ColorManager繧剃ｽｿ逕ｨ縺励※濶ｲ繧偵Μ繧ｻ繝・ヨ・亥腰荳繝・・繧ｿ繧ｽ繝ｼ繧ｹ・・
     Object.entries(IMPORTANCE_COLORS).forEach(([level, color]) => {
       colorManager.setImportanceColor(level, color);
     });
 
-    // UIの色設定コントロールを更新
+    // UI縺ｮ濶ｲ險ｭ螳壹さ繝ｳ繝医Ο繝ｼ繝ｫ繧呈峩譁ｰ
     initializeImportanceColorControls();
 
-    // 重要度モードが有効な場合は即座に適用
+    // 驥崎ｦ∝ｺｦ繝｢繝ｼ繝峨′譛牙柑縺ｪ蝣ｴ蜷医・蜊ｳ蠎ｧ縺ｫ驕ｩ逕ｨ
     import('./index.js').then(
       ({ getCurrentColorMode, COLOR_MODES, updateElementsForColorMode }) => {
         if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
@@ -295,36 +296,36 @@ export function resetImportanceColors() {
 }
 
 /**
- * 重要度変更イベントリスナーを設定
+ * 驥崎ｦ∝ｺｦ螟画峩繧､繝吶Φ繝医Μ繧ｹ繝翫・繧定ｨｭ螳・
  */
 export function setupImportanceChangeListeners() {
-  // 重要度設定変更時のグローバルイベントリスナー（EventBus経由）
+  // 驥崎ｦ∝ｺｦ險ｭ螳壼､画峩譎ゅ・繧ｰ繝ｭ繝ｼ繝舌Ν繧､繝吶Φ繝医Μ繧ｹ繝翫・・・ventBus邨檎罰・・
   eventBus.on(ImportanceEvents.SETTINGS_CHANGED, (_data) => {
     import('./index.js').then(({ getCurrentColorMode, COLOR_MODES }) => {
       if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
-        // 少し遅延させて実行（要素の重要度データ更新を待つ）
+        // 蟆代＠驕・ｻｶ縺輔○縺ｦ螳溯｡鯉ｼ郁ｦ∫ｴ縺ｮ驥崎ｦ∝ｺｦ繝・・繧ｿ譖ｴ譁ｰ繧貞ｾ・▽・・
         setTimeout(() => {
           applyImportanceColorModeToAll();
 
-          // UI層に変更を通知（eventBus経由でレイヤー違反解消）
+          // UI螻､縺ｫ螟画峩繧帝夂衍・・ventBus邨檎罰縺ｧ繝ｬ繧､繝､繝ｼ驕募渚隗｣豸茨ｼ・
           eventBus.emit(ViewEvents.COLOR_MODE_CHANGED, {
             mode: 'importance',
             trigger: 'settingsChanged',
           });
 
-          // 再描画をリクエスト
+          // 蜀肴緒逕ｻ繧偵Μ繧ｯ繧ｨ繧ｹ繝・
           scheduleRender();
         }, UI_TIMING.COLOR_MODE_APPLY_DELAY_MS);
       }
     });
   });
 
-  // 重要度フィルタ変更時のイベントリスナー
+  // 驥崎ｦ∝ｺｦ繝輔ぅ繝ｫ繧ｿ螟画峩譎ゅ・繧､繝吶Φ繝医Μ繧ｹ繝翫・
   eventBus.on(ImportanceEvents.FILTER_CHANGED, (_data) => {
-    // フィルタ変更は表示・非表示の切り替えなので、色分けの再適用は不要
+    // 繝輔ぅ繝ｫ繧ｿ螟画峩縺ｯ陦ｨ遉ｺ繝ｻ髱櫁｡ｨ遉ｺ縺ｮ蛻・ｊ譖ｿ縺医↑縺ｮ縺ｧ縲∬牡蛻・￠縺ｮ蜀埼←逕ｨ縺ｯ荳崎ｦ・
   });
 
-  // モデル比較完了時のイベントリスナー
+  // 繝｢繝・Ν豈碑ｼ・ｮ御ｺ・凾縺ｮ繧､繝吶Φ繝医Μ繧ｹ繝翫・
   eventBus.on(ComparisonEvents.UPDATE_STATISTICS, (_data) => {
     import('./index.js').then(({ getCurrentColorMode, COLOR_MODES }) => {
       if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
@@ -339,7 +340,7 @@ export function setupImportanceChangeListeners() {
 }
 
 /**
- * 全要素に重要度色分けを適用
+ * 蜈ｨ隕∫ｴ縺ｫ驥崎ｦ∝ｺｦ濶ｲ蛻・￠繧帝←逕ｨ
  */
 export function applyImportanceColorModeToAll() {
   const elementGroups = getState('elementGroups') || viewerElementGroups;
@@ -348,11 +349,11 @@ export function applyImportanceColorModeToAll() {
     return;
   }
 
-  // 全オブジェクトを収集
+  // 蜈ｨ繧ｪ繝悶ず繧ｧ繧ｯ繝医ｒ蜿朱寔
   const allObjects = [];
   const groups = Array.isArray(elementGroups) ? elementGroups : Object.values(elementGroups);
 
-  // グループが空の場合は警告を出して終了
+  // 繧ｰ繝ｫ繝ｼ繝励′遨ｺ縺ｮ蝣ｴ蜷医・隴ｦ蜻翫ｒ蜃ｺ縺励※邨ゆｺ・
   if (groups.length === 0 || groups.every((g) => !g || (g.children && g.children.length === 0))) {
     log.warn(
       '[ImportanceColorMode] No element groups or empty groups - model may not be loaded yet',
@@ -370,7 +371,7 @@ export function applyImportanceColorModeToAll() {
     }
   });
 
-  // オブジェクト数に応じて処理方法を選択
+  // 繧ｪ繝悶ず繧ｧ繧ｯ繝域焚縺ｫ蠢懊§縺ｦ蜃ｦ逅・婿豕輔ｒ驕ｸ謚・
   const objectCount = allObjects.length;
 
   if (objectCount === 0) {
@@ -384,7 +385,7 @@ export function applyImportanceColorModeToAll() {
   const useBatchProcessing = objectCount > 200;
 
   if (useBatchProcessing) {
-    // バッチ処理を使用
+    // 繝舌ャ繝∝・逅・ｒ菴ｿ逕ｨ
     const batchOptions = {
       batchSize: Math.max(50, Math.min(200, Math.floor(objectCount / 10))),
       delay: 5,
@@ -393,7 +394,7 @@ export function applyImportanceColorModeToAll() {
     applyImportanceVisibilityFilterToAll();
     applyImportanceColorModeBatch(allObjects, batchOptions);
   } else {
-    // 通常処理
+    // 騾壼ｸｸ蜃ｦ逅・
     allObjects.forEach((object) => {
       applyImportanceColorMode(object);
     });
@@ -403,7 +404,7 @@ export function applyImportanceColorModeToAll() {
 }
 
 /**
- * パフォーマンス統計を表示
+ * 繝代ヵ繧ｩ繝ｼ繝槭Φ繧ｹ邨ｱ險医ｒ陦ｨ遉ｺ
  */
 export function showImportancePerformanceStats() {
   const stats = getImportanceRenderingStats();

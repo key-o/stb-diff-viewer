@@ -1,0 +1,186 @@
+/**
+ * 寸法測定パネル・ツール
+ */
+
+/* 測定モード中のカーソル */
+#three-canvas.measurement-mode {
+  cursor: crosshair !important;
+}
+
+/* =====================================================
+ * ステップインジケーター（キャンバス上部中央に固定表示）
+ * ===================================================== */
+.measurement-step-indicator {
+  position: fixed;
+  top: 56px; /* ツールバー下 */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(10, 20, 50, 0.82);
+  border: 1px solid rgba(100, 150, 255, 0.4);
+  border-radius: 24px;
+  padding: 7px 20px;
+  z-index: 900;
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.measurement-step-indicator.hidden {
+  display: none;
+}
+
+.msi-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  opacity: 0.38;
+  transition: opacity 0.2s;
+}
+
+.msi-step.active {
+  opacity: 1;
+}
+
+.msi-step.done {
+  opacity: 0.7;
+}
+
+.msi-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(100, 150, 255, 0.25);
+  color: #aac4ff;
+  border: 1.5px solid rgba(100, 150, 255, 0.5);
+  transition: background 0.2s, color 0.2s;
+}
+
+.msi-step.active .msi-circle {
+  background: #2255cc;
+  color: #ffffff;
+  border-color: #4477ee;
+}
+
+.msi-step.done .msi-circle {
+  background: #22994a;
+  color: #ffffff;
+  border-color: #33bb66;
+}
+
+.msi-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #c5d3ff;
+  white-space: nowrap;
+}
+
+.msi-step.active .msi-label {
+  color: #ffffff;
+}
+
+.msi-step-info {
+  font-size: 11px;
+  font-weight: 400;
+  color: #88eeaa;
+  white-space: nowrap;
+  margin-left: 4px;
+}
+
+.msi-step-info.hidden {
+  display: none;
+}
+
+.msi-arrow {
+  font-size: 14px;
+  color: rgba(180, 200, 255, 0.5);
+}
+
+/* =====================================================
+ * カーソル追従ツールチップ
+ * ===================================================== */
+.measurement-cursor-tooltip {
+  position: fixed;
+  pointer-events: none;
+  z-index: 950;
+  background: rgba(10, 20, 50, 0.82);
+  color: #ddeeff;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(100, 150, 255, 0.4);
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  transform: translate(18px, -50%);
+  transition: opacity 0.1s;
+}
+
+.measurement-cursor-tooltip.hidden {
+  display: none;
+}
+
+/* =====================================================
+ * 測定パネルの位置
+ * ===================================================== */
+#measurement-panel {
+  right: 16px;
+  left: auto;
+  top: 80px;
+  min-width: 260px;
+  max-width: 340px;
+}
+
+/* ヒントテキスト */
+.measurement-hint {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin: 0 0 10px 0;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+/* 測定リスト各行 */
+.measurement-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.measurement-distance {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.measurement-delete-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 2px 6px;
+  border-radius: 3px;
+  line-height: 1;
+  font-size: 12px;
+}
+
+.measurement-delete-btn:hover {
+  background-color: var(--bg-hover);
+  color: var(--color-danger, #cc3333);
+}
+
+/* ツールバーボタンのアクティブ状態 */
+#toggle-measurement-btn.active {
+  background-color: var(--color-primary, #2255cc);
+  color: #ffffff;
+  border-color: var(--color-primary, #2255cc);
+}

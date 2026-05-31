@@ -512,6 +512,69 @@
   color: var(--color-error, #c62828);
 }
 
+.xml-schema-status {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.xml-viewer-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 4px 8px;
+  border-bottom: var(--border-width) solid var(--border-color);
+  background: color-mix(in srgb, var(--bg-panel) 88%, var(--bg-body) 12%);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.xml-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.xml-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid var(--border-color);
+}
+
+.xml-legend-xsd-known {
+  background: rgba(46, 125, 50, 0.22);
+  border-color: rgba(46, 125, 50, 0.7);
+}
+
+.xml-legend-xsd-unknown {
+  background: rgba(183, 28, 28, 0.2);
+  border-color: rgba(183, 28, 28, 0.7);
+}
+
+.xml-legend-schema {
+  background: rgba(198, 40, 40, 0.25);
+  border-color: rgba(198, 40, 40, 0.7);
+}
+
+.xml-legend-mvd {
+  background: rgba(239, 108, 0, 0.22);
+  border-color: rgba(239, 108, 0, 0.7);
+}
+
+.xml-tag-name {
+  font-weight: 500;
+}
+
+.xml-tag-name.xml-tag-xsd-known {
+  color: #2e7d32;
+}
+
+.xml-tag-name.xml-tag-xsd-unknown {
+  color: #b71c1c;
+  text-decoration: underline dotted currentColor;
+  text-underline-offset: 2px;
+}
+
 /* バリデーションエラーハイライト（mark要素） */
 .xml-viewer-pre mark {
   border-radius: 2px;
@@ -540,6 +603,27 @@
   color: inherit;
   outline: 1px solid rgba(21, 101, 192, 0.3);
   cursor: help;
+}
+
+/* カテゴリごとの強調色（severity色より優先） */
+.xml-viewer-pre mark.xml-mark-cat-schema {
+  background: rgba(198, 40, 40, 0.24);
+  outline-color: rgba(198, 40, 40, 0.55);
+}
+
+.xml-viewer-pre mark.xml-mark-cat-mvd {
+  background: rgba(239, 108, 0, 0.22);
+  outline-color: rgba(239, 108, 0, 0.55);
+}
+
+.xml-viewer-pre mark.xml-mark-cat-structure,
+.xml-viewer-pre mark.xml-mark-cat-reference,
+.xml-viewer-pre mark.xml-mark-cat-data,
+.xml-viewer-pre mark.xml-mark-cat-geometry,
+.xml-viewer-pre mark.xml-mark-cat-duplicate,
+.xml-viewer-pre mark.xml-mark-cat-other {
+  background: rgba(21, 101, 192, 0.18);
+  outline-color: rgba(21, 101, 192, 0.42);
 }
 
 /* 現在フォーカス中のエラーマーク */

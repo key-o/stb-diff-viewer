@@ -12,28 +12,19 @@ const log = createLogger('config:environment');
 const globalConfig = {
   environments: {
     development: {
-      stb2ifc_api: 'http://localhost:5001',
-      cors_enabled: true,
       debug: true,
     },
     production: {
-      stb2ifc_api: 'https://stb2ifc-api-e23mdd6kwq-an.a.run.app',
-      cors_enabled: false,
       debug: false,
     },
     staging: {
-      stb2ifc_api: 'https://stb2ifc-api-e23mdd6kwq-an.a.run.app',
-      cors_enabled: false,
       debug: true,
     },
   },
   fallback: {
-    cors_proxy: 'https://cors-anywhere.herokuapp.com/',
     timeout: 30000,
-    retry_attempts: 3,
   },
   features: {
-    ifc_conversion: true,
     schema_validation: true,
     importance_rating: true,
   },
@@ -69,14 +60,7 @@ function transformConfigForBrowser(config, environment) {
   }
 
   return {
-    stb2ifc: {
-      apiBaseUrl: envConfig.stb2ifc_api,
-      corsEnabled: envConfig.cors_enabled,
-      debug: envConfig.debug,
-      timeout: config.fallback.timeout,
-    },
     features: {
-      ifcConversion: config.features.ifc_conversion,
       schemaValidation: config.features.schema_validation,
       importanceRating: config.features.importance_rating,
       devTools: environment === 'development',
@@ -84,11 +68,6 @@ function transformConfigForBrowser(config, environment) {
     logging: {
       level: envConfig.debug ? 'debug' : 'warn',
       console: envConfig.debug,
-    },
-    corsProxy: {
-      proxyUrl: config.fallback.cors_proxy,
-      retryAttempts: config.fallback.retry_attempts,
-      retryDelay: 1000,
     },
   };
 }
@@ -120,8 +99,6 @@ export function displayEnvironmentInfo() {
   const config = getEnvironmentConfig();
   console.group('🌍 環境設定情報');
   log.info('環境:', config.environment);
-  log.info('API URL:', config.stb2ifc?.apiBaseUrl);
-  log.info('デバッグモード:', config.stb2ifc?.debug);
   log.info('有効な機能:', config.features);
   console.groupEnd();
 }

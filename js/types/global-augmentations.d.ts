@@ -86,6 +86,14 @@ interface Navigator {
 }
 
 interface Window {
+  envConfig?: {
+    environment: string;
+    features?: Record<string, any>;
+    logging?: {
+      level?: string;
+      console?: boolean;
+    };
+  };
   viewer: ViewerGlobal;
   AppLogger?: any;
   ElementGeometryUtils?: any;
@@ -120,7 +128,6 @@ interface Window {
   getStbExportStats?: (...args: any[]) => any;
   globalState?: GlobalStateLike;
   handleCompareModelsClick?: (...args: any[]) => any;
-  ifcConverter?: any;
   importanceDebug?: any;
   labelDisplayManager?: any;
   moduleMessenger?: any;
@@ -184,11 +191,6 @@ interface XRRigidTransform {
 declare module 'https://unpkg.com/camera-controls@3.1.0/dist/camera-controls.module.js' {
   const CameraControls: any;
   export default CameraControls;
-}
-
-declare module 'encoding-japanese' {
-  const Encoding: any;
-  export default Encoding;
 }
 
 declare module 'html2canvas' {

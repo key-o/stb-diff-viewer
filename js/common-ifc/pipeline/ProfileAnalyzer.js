@@ -130,7 +130,12 @@ export class ProfileAnalyzer {
     const profileEntity = this.api.GetLine(this.modelID, sweptAreaRef);
     if (!profileEntity) return null;
 
-    const sectionInfo = extractStbSectionFromProfile(this.api, this.modelID, profileEntity);
+    const sectionInfo = extractStbSectionFromProfile(
+      this.api,
+      this.modelID,
+      profileEntity,
+      options.element || options.profileHint || {},
+    );
 
     if (!sectionInfo) return null;
 
@@ -149,6 +154,7 @@ export class ProfileAnalyzer {
         sectionId: null,
         sectionInfo: normalizedSectionInfo,
         length: Math.round(lengthMM * 100) / 100,
+        extrusionDirection: this._resolveExtrusionDirection(item),
       };
     }
 
@@ -157,7 +163,29 @@ export class ProfileAnalyzer {
       sectionId: section.id,
       sectionInfo: section,
       length: Math.round(lengthMM * 100) / 100,
+      extrusionDirection: this._resolveExtrusionDirection(item),
     };
+  }
+
+  _resolveExtrusionDirection(item) {
+    const dirRef = item.ExtrudedDirection?.value ?? item.ExtrudedDirection;
+    if (!dirRef) return { x: 0, y: 0, z: 1 };
+
+    let direction;
+    try {
+      direction = this.api.GetLine(this.modelID, dirRef);
+    } catch {
+      return { x: 0, y: 0, z: 1 };
+    }
+
+    const ratios = direction?.DirectionRatios;
+    if (!ratios) return { x: 0, y: 0, z: 1 };
+
+    const x = ratios[0]?.value ?? ratios[0] ?? 0;
+    const y = ratios[1]?.value ?? ratios[1] ?? 0;
+    const z = ratios[2]?.value ?? ratios[2] ?? 1;
+    const length = Math.sqrt(x * x + y * y + z * z) || 1;
+    return { x: x / length, y: y / length, z: z / length };
   }
 
   registerSection(sectionInfo) {

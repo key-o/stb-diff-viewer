@@ -12,7 +12,8 @@ import { displayElementInfo } from '../../ui/panels/element-info/index.js';
 import { selectElement3D, selectMultipleElements3D } from '../controllers/interactionController.js';
 import { showError } from '../../ui/common/toast.js';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
-import { convertComparisonResultsForTree, find3DObjectByElement } from './initializationUtils.js';
+import { convertComparisonResultsForTree } from '../../data/converters/comparison-to-tree.js';
+import { find3DObjectByElement } from './initializationUtils.js';
 import { scene, axesHelper, setGridHelperVisibility } from '../../viewer/index.js';
 
 const log = createLogger('eventHandlers');

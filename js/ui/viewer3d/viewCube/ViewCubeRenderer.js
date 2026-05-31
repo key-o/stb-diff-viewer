@@ -80,7 +80,7 @@ export function createViewCubeDOM() {
 
     // アクセシビリティ属性
     face.setAttribute('role', 'button');
-    face.setAttribute('tabindex', '0');
+    face.setAttribute('tabindex', '-1');
     face.setAttribute('aria-label', `${label}から見る`);
 
     cube.appendChild(face);
@@ -94,7 +94,7 @@ export function createViewCubeDOM() {
 
     // アクセシビリティ属性
     edge.setAttribute('role', 'button');
-    edge.setAttribute('tabindex', '0');
+    edge.setAttribute('tabindex', '-1');
     edge.setAttribute('aria-label', `${id}ビュー`);
 
     cube.appendChild(edge);
@@ -108,7 +108,7 @@ export function createViewCubeDOM() {
 
     // アクセシビリティ属性
     corner.setAttribute('role', 'button');
-    corner.setAttribute('tabindex', '0');
+    corner.setAttribute('tabindex', '-1');
     corner.setAttribute('aria-label', `${id}ビュー`);
 
     cube.appendChild(corner);

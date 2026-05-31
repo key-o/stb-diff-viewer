@@ -9,8 +9,6 @@
  * - デバウンス処理
  */
 
-import { escapeHtml } from '../../utils/htmlUtils.js';
-
 /**
  * デフォルトの差分ステータスフィルタ（全て表示）
  */
@@ -573,52 +571,83 @@ function isAllTargetEnabled(targetFilter, targetOptions) {
 }
 
 /**
- * テキストの検索ハイライト用HTMLを生成
+ * 検索ハイライト済みのDOMフラグメントを生成
+ *
+ * マッチ部分は `<span class="search-highlight">` で包まれ、
+ * それ以外はテキストノードとして配置されます。innerHTML を介さないため
+ * XSS リスクがありません。
  *
  * @param {string} text - 元のテキスト
  * @param {Object} searchPattern - parseSearchPatternの戻り値
- * @returns {string} ハイライト付きHTML文字列
+ * @returns {DocumentFragment} ハイライト済みノード群
  */
 export function highlightSearchMatch(text, searchPattern) {
-  if (!text || !searchPattern || !searchPattern.pattern) {
-    return escapeHtml(text || '');
-  }
+  const fragment = document.createDocumentFragment();
+  const source = text || '';
 
-  if (searchPattern.error) {
-    return escapeHtml(text);
+  if (!source || !searchPattern || !searchPattern.pattern || searchPattern.error) {
+    fragment.appendChild(document.createTextNode(source));
+    return fragment;
   }
 
   try {
     if (searchPattern.isRegex && searchPattern.pattern instanceof RegExp) {
-      // グローバルフラグを追加して全マッチを置換
       const flags = searchPattern.pattern.flags.includes('g')
         ? searchPattern.pattern.flags
         : searchPattern.pattern.flags + 'g';
       const globalRegex = new RegExp(searchPattern.pattern.source, flags);
-      return escapeHtml(text).replace(globalRegex, '<span class="search-highlight">$&</span>');
-    } else {
-      // 通常のテキスト検索
-      const lowerText = text.toLowerCase();
-      const lowerPattern = searchPattern.pattern;
-      const index = lowerText.indexOf(lowerPattern);
 
-      if (index === -1) {
-        return escapeHtml(text);
+      let lastIndex = 0;
+      let match;
+      globalRegex.lastIndex = 0;
+      while ((match = globalRegex.exec(source)) !== null) {
+        if (match.index > lastIndex) {
+          fragment.appendChild(document.createTextNode(source.substring(lastIndex, match.index)));
+        }
+        fragment.appendChild(createHighlightSpan(match[0]));
+        lastIndex = match.index + match[0].length;
+        // ゼロ幅マッチ対策
+        if (match[0].length === 0) {
+          globalRegex.lastIndex++;
+        }
       }
-
-      const before = text.substring(0, index);
-      const match = text.substring(index, index + lowerPattern.length);
-      const after = text.substring(index + lowerPattern.length);
-
-      return (
-        escapeHtml(before) +
-        '<span class="search-highlight">' +
-        escapeHtml(match) +
-        '</span>' +
-        escapeHtml(after)
-      );
+      if (lastIndex < source.length) {
+        fragment.appendChild(document.createTextNode(source.substring(lastIndex)));
+      }
+      return fragment;
     }
+
+    const lowerText = source.toLowerCase();
+    const lowerPattern = searchPattern.pattern;
+    const index = lowerText.indexOf(lowerPattern);
+
+    if (index === -1) {
+      fragment.appendChild(document.createTextNode(source));
+      return fragment;
+    }
+
+    const before = source.substring(0, index);
+    const match = source.substring(index, index + lowerPattern.length);
+    const after = source.substring(index + lowerPattern.length);
+
+    if (before) fragment.appendChild(document.createTextNode(before));
+    fragment.appendChild(createHighlightSpan(match));
+    if (after) fragment.appendChild(document.createTextNode(after));
+    return fragment;
   } catch {
-    return escapeHtml(text);
+    const fallback = document.createDocumentFragment();
+    fallback.appendChild(document.createTextNode(source));
+    return fallback;
   }
+}
+
+/**
+ * @param {string} text
+ * @returns {HTMLSpanElement}
+ */
+function createHighlightSpan(text) {
+  const span = document.createElement('span');
+  span.className = 'search-highlight';
+  span.textContent = text;
+  return span;
 }

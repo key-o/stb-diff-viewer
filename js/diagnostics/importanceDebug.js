@@ -3,7 +3,9 @@
  * 重複パスの検出とXSD属性の整合性チェック
  */
 
+// eslint-disable-next-line import/no-restricted-paths
 import { getImportanceManager } from '../app/importanceManager.js';
+// eslint-disable-next-line import/no-restricted-paths
 import { STB_ELEMENT_TABS } from '../app/importanceManager.js';
 import { createLogger } from '../utils/logger.js';
 

@@ -195,7 +195,7 @@ class ColorManager {
   _generateCacheKey(colorMode, params) {
     // JSON.stringify を文字列連結に置換してパフォーマンスを改善
     // 大量の要素に対して呼ばれるため、軽量なキー生成が重要
-    return `${colorMode}|${params.elementType ?? ''}|${params.comparisonState ?? ''}|${params.toleranceState ?? ''}|${params.positionState ?? ''}|${params.attributeState ?? ''}|${params.diffStatus ?? ''}|${params.isLine ?? ''}|${params.isPoly ?? ''}|${params.importanceLevel ?? ''}|${params.wireframe ?? ''}|${params.hasError ?? ''}|${params.status ?? ''}|${params.isTransparent ?? ''}|${params.layoutType ?? ''}|${params.overrideColor ?? ''}`;
+    return `${colorMode}|${params.elementType ?? ''}|${params.comparisonState ?? ''}|${params.toleranceState ?? ''}|${params.positionState ?? ''}|${params.attributeState ?? ''}|${params.diffStatus ?? ''}|${params.isLine ?? ''}|${params.isSprite ?? ''}|${params.isPoly ?? ''}|${params.importanceLevel ?? ''}|${params.wireframe ?? ''}|${params.hasError ?? ''}|${params.status ?? ''}|${params.isTransparent ?? ''}|${params.layoutType ?? ''}|${params.overrideColor ?? ''}`;
   }
 
   /**
@@ -204,6 +204,7 @@ class ColorManager {
    */
   _createMaterial(colorMode, params) {
     let color;
+    let material;
     const materialOptions = {
       side: THREE.DoubleSide,
       clippingPlanes: renderer?.clippingPlanes || [],
@@ -257,6 +258,9 @@ class ColorManager {
       case 'highlight':
         return this._createHighlightMaterial(params);
 
+      case 'selectionCandidate':
+        return this._createSelectionCandidateMaterial(params);
+
       case 'layout':
         return this._createLayoutMaterial(params);
 
@@ -275,9 +279,6 @@ class ColorManager {
     if (shouldUseWireframe) {
       materialOptions.wireframe = true;
     }
-
-    // マテリアルタイプに応じて作成
-    let material;
 
     if (params.isLine) {
       // 線要素用マテリアル (一点鎖線はジオメトリで実現済み)
@@ -333,7 +334,7 @@ class ColorManager {
   /**
    * ハイライト用マテリアルを作成
    * @private
-   * @param {Object} params - { isLine: boolean }
+   * @param {Object} params - { isLine: boolean, isSprite: boolean }
    * @returns {THREE.Material}
    */
   _createHighlightMaterial(params) {
@@ -348,12 +349,60 @@ class ColorManager {
       });
     }
 
+    if (params.isSprite) {
+      return new THREE.SpriteMaterial({
+        color: new THREE.Color(highlightColor),
+        transparent: true,
+        opacity: 1,
+        depthTest: false,
+        depthWrite: false,
+      });
+    }
+
     return new THREE.MeshStandardMaterial({
       color: new THREE.Color(highlightColor),
       roughness: 0.5,
       metalness: 0.2,
       side: THREE.DoubleSide,
       emissive: new THREE.Color(0x554400),
+      clippingPlanes,
+    });
+  }
+
+  /**
+   * 選択候補プレビュー用マテリアルを生成
+   * @private
+   * @param {Object} params - { isLine: boolean, isSprite: boolean }
+   * @returns {THREE.Material}
+   */
+  _createSelectionCandidateMaterial(params) {
+    const clippingPlanes = renderer?.clippingPlanes || [];
+    const candidateColor = '#26c6da'; // Cyan
+
+    if (params.isLine) {
+      return new THREE.LineBasicMaterial({
+        color: new THREE.Color(candidateColor),
+        linewidth: 5,
+        clippingPlanes,
+      });
+    }
+
+    if (params.isSprite) {
+      return new THREE.SpriteMaterial({
+        color: new THREE.Color(candidateColor),
+        transparent: true,
+        opacity: 0.9,
+        depthTest: false,
+        depthWrite: false,
+      });
+    }
+
+    return new THREE.MeshStandardMaterial({
+      color: new THREE.Color(candidateColor),
+      roughness: 0.45,
+      metalness: 0.15,
+      side: THREE.DoubleSide,
+      emissive: new THREE.Color(0x0c4a52),
       clippingPlanes,
     });
   }

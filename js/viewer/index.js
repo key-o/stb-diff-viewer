@@ -36,6 +36,7 @@ import {
   getActiveCamera,
   setFrustumCullingEnabled,
   isFrustumCullingEnabled,
+  setLabelVisibilityCullingProvider,
   setXRSessionActive,
   isXRSessionActive,
 } from './core/core.js';
@@ -110,6 +111,7 @@ export {
   // パフォーマンス最適化: フラスタムカリング
   setFrustumCullingEnabled,
   isFrustumCullingEnabled,
+  setLabelVisibilityCullingProvider,
   // WebXR AR/VR 状態管理
   setXRSessionActive,
   isXRSessionActive,
@@ -156,6 +158,7 @@ export {
 // パフォーマンスユーティリティの再エクスポート
 export { getElementRegistry } from './utils/ElementRegistry.js';
 export { getFrustumCuller } from './rendering/FrustumCuller.js';
+export { getLabelVisibilityCuller } from './annotations/labelVisibilityCuller.js';
 export {
   disposeRecursive,
   disposeLabels,

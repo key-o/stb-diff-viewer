@@ -62,6 +62,178 @@ async function collectElementDataForExport(sources, options = {}) {
 }
 
 // ================================================================
+// 共通ヘルパー関数
+// ================================================================
+
+/**
+ * 要素データ変換の共通処理を抽出
+ * ノード取得、セクション抽出、プロファイル抽出、回転角度取得などを統一処理
+ * @private
+ * @param {Object} element - 要素データ
+ * @param {Map} nodeMap - ノードマップ
+ * @param {Map} sectionMap - セクションマップ
+ * @param {Object} config - 設定オプション
+ * @param {string|Array} [config.nodeKeys] - ノード取得設定
+ *   単一ノード: 'id_node' → {nodeId, nodeKey: 'id_node'}
+ *   複数キー: ['id_node_start', 'id_node_end'] → {nodes, nodeKeys}
+ * @param {string} [config.sectionKey='id_section'] - 断面キー
+ * @param {Map} [config.steelSections] - 鋼材断面マップ
+ * @param {number} [config.minNodeCount] - ノード最小数チェック
+ * @returns {Object|null} 共通情報: { nodes, nodeIds, section, profile, rotation, errors: [] }
+ */
+function _extractCommonElementData(element, nodeMap, sectionMap, config = {}) {
+  const result = {
+    section: null,
+    profile: null,
+    rotation: 0,
+    errors: [],
+    nodes: [],
+    nodeIds: [],
+  };
+
+  try {
+    // (1) ノード取得とバリデーション
+    const nodeConfig = config.nodeKeys || 'id_node';
+    const minNodeCount = config.minNodeCount || 0;
+
+    if (typeof nodeConfig === 'string') {
+      // 単一ノード取得
+      const node = nodeMap.get(element[nodeConfig]);
+      if (!node) {
+        result.errors.push(`ノードが見つかりません: ${element.id} (${nodeConfig})`);
+      } else {
+        result.nodes.push(node);
+        result.nodeIds.push(element[nodeConfig]);
+      }
+    } else if (Array.isArray(nodeConfig)) {
+      // 複数ノード取得
+      for (const key of nodeConfig) {
+        const node = nodeMap.get(element[key]);
+        if (!node) {
+          result.errors.push(`ノードが見つかりません: ${element.id} (${key})`);
+        } else {
+          result.nodes.push(node);
+          result.nodeIds.push(element[key]);
+        }
+      }
+    }
+
+    // 最小ノード数チェック
+    if (minNodeCount > 0 && result.nodes.length < minNodeCount) {
+      result.errors.push(
+        `ノード数不足: ${element.id} (期待: ${minNodeCount}, 実際: ${result.nodes.length})`,
+      );
+      return result;
+    }
+
+    // (2) セクション情報抽出
+    const sectionKey = config.sectionKey || 'id_section';
+    if (sectionKey && element[sectionKey]) {
+      result.section = sectionMap.get(element[sectionKey]);
+    }
+
+    // (3) プロファイル抽出（steelSectionsがある場合）
+    if (result.section && config.steelSections) {
+      result.profile = extractProfileFromSection(result.section, config.steelSections);
+    }
+
+    // (4) 回転角度取得
+    result.rotation = element.rotate || element.angle || 0;
+
+    return result;
+  } catch (error) {
+    result.errors.push(`データ抽出エラー: ${error.message}`);
+    return result;
+  }
+}
+
+/**
+ * ノード座標にオフセットを適用
+ * @private
+ * @param {Object} node - ノード座標
+ * @param {Object} element - 要素データ
+ * @param {string} prefix - オフセットキープレフィックス（例: 'offset_start_', 'offset_bottom_'）
+ * @param {string} [zAxis='z'] - Z軸の適用方式: 'apply' = オフセット適用, 'skip' = 適用しない
+ * @returns {Object} オフセット適用後の座標 {x, y, z}
+ */
+function _applyNodeOffset(node, element, prefix, zAxis = 'apply') {
+  const offsetX = element[`${prefix}X`] || 0;
+  const offsetY = element[`${prefix}Y`] || 0;
+  const offsetZ = zAxis === 'apply' ? element[`${prefix}Z`] || 0 : 0;
+
+  return {
+    x: node.x + offsetX,
+    y: node.y + offsetY,
+    z: node.z + offsetZ,
+  };
+}
+
+/**
+ * 複数ノードのオフセット適用（メッシュ頂点など）
+ * @private
+ * @param {Array<number>} nodeIds - ノードID配列
+ * @param {Map} nodeMap - ノードマップ
+ * @param {Object} element - 要素データ
+ * @param {Map|Object} [offsetsSource] - オフセット情報の取得元
+ * @param {string} [offsetKeyPrefix] - オフセットキープレフィックス
+ * @returns {Array<Object>|null} 頂点座標配列、またはエラー時はnull
+ */
+function _applyOffsetsToVertices(nodeIds, nodeMap, element, offsetsSource, offsetKeyPrefix) {
+  const vertices = [];
+
+  for (const nodeId of nodeIds) {
+    const node = nodeMap.get(nodeId);
+    if (!node) {
+      log.warn(`頂点ノード ${nodeId} が見つかりません`);
+      return null;
+    }
+
+    let offsetX = 0,
+      offsetY = 0,
+      offsetZ = 0;
+    if (offsetsSource) {
+      const offset = offsetsSource.get ? offsetsSource.get(nodeId) : offsetsSource[nodeId];
+      if (offset) {
+        offsetX = offset[`${offsetKeyPrefix || 'offset_'}X`] || 0;
+        offsetY = offset[`${offsetKeyPrefix || 'offset_'}Y`] || 0;
+        offsetZ = offset[`${offsetKeyPrefix || 'offset_'}Z`] || 0;
+      }
+    }
+
+    vertices.push({
+      x: node.x + offsetX,
+      y: node.y + offsetY,
+      z: node.z + offsetZ,
+    });
+  }
+
+  return vertices;
+}
+
+/**
+ * セクションから寸法値を抽出
+ * @private
+ * @param {Object} section - セクションデータ
+ * @param {Array<string>} keys - 優先順位付き寸法キー（例: ['D', 'diameter']）
+ * @param {*} defaultValue - 見つからない場合のデフォルト値
+ * @returns {*} 見つかった寸法値またはデフォルト値
+ */
+function _extractDimensionFromSection(section, keys, defaultValue) {
+  if (!section) return defaultValue;
+
+  for (const key of keys) {
+    // トップレベル
+    if (section[key] !== undefined) return section[key];
+    // dimensions オブジェクト内
+    if (section.dimensions && section.dimensions[key] !== undefined) {
+      return section.dimensions[key];
+    }
+  }
+
+  return defaultValue;
+}
+
+// ================================================================
 // 梁データ収集・変換
 // ================================================================
 
@@ -96,31 +268,25 @@ export function collectBeamDataForExport() {
  */
 function convertElementToBeamData(element, nodeMap, sectionMap, steelSections, elementType) {
   try {
-    const startNode = nodeMap.get(element.id_node_start);
-    const endNode = nodeMap.get(element.id_node_end);
+    // 共通データ抽出
+    const commonData = _extractCommonElementData(element, nodeMap, sectionMap, {
+      nodeKeys: ['id_node_start', 'id_node_end'],
+      sectionKey: 'id_section',
+      steelSections,
+      minNodeCount: 2,
+    });
 
-    if (!startNode || !endNode) {
-      log.warn(`ノードが見つかりません: ${element.id}`);
+    if (commonData.errors.length > 0) {
+      log.warn(`梁 ${element.id}:`, commonData.errors.join(', '));
       return null;
     }
 
-    // 断面情報を取得
-    const section = sectionMap.get(element.id_section);
-    const profile = extractProfileFromSection(section, steelSections);
-
-    // 断面高さを取得（天端基準調整用）
-    // SRC造の場合はコンクリート外形の高さを使用（ビューアと同じ）
-
-    // 回転角度を取得
-    const rotation = element.rotate || element.angle || 0;
+    const [startNode, endNode] = commonData.nodes;
+    const { section, profile, rotation } = commonData;
 
     // オフセット情報を取得（STBの梁はXYZ方向のオフセットを持つ）
-    const offsetStartX = element.offset_start_X || 0;
-    const offsetStartY = element.offset_start_Y || 0;
-    const offsetStartZ = element.offset_start_Z || 0;
-    const offsetEndX = element.offset_end_X || 0;
-    const offsetEndY = element.offset_end_Y || 0;
-    const offsetEndZ = element.offset_end_Z || 0;
+    const startPoint = _applyNodeOffset(startNode, element, 'offset_start_', 'apply');
+    const endPoint = _applyNodeOffset(endNode, element, 'offset_end_', 'apply');
 
     // マルチセクション（ハンチ）梁の検出（配置モード決定のため先に判定）
     let isMultiSection = false;
@@ -151,16 +317,8 @@ function convertElementToBeamData(element, nodeMap, sectionMap, steelSections, e
     // 基本データ
     const beamData = {
       name: element.name || element.id || `${elementType}-${element.id}`,
-      startPoint: {
-        x: startNode.x + offsetStartX,
-        y: startNode.y + offsetStartY,
-        z: startNode.z + offsetStartZ,
-      },
-      endPoint: {
-        x: endNode.x + offsetEndX,
-        y: endNode.y + offsetEndY,
-        z: endNode.z + offsetEndZ,
-      },
+      startPoint,
+      endPoint,
       profile,
       rotation,
       // IFCエクスポートで天端基準配置を使用（単一断面・多断面両方）
@@ -229,20 +387,21 @@ export function collectColumnDataForExport() {
  */
 function convertColumnToExportData(element, nodeMap, sectionMap, steelSections, elementType) {
   try {
-    const bottomNode = nodeMap.get(element.id_node_bottom);
-    const topNode = nodeMap.get(element.id_node_top);
+    // 共通データ抽出
+    const commonData = _extractCommonElementData(element, nodeMap, sectionMap, {
+      nodeKeys: ['id_node_bottom', 'id_node_top'],
+      sectionKey: 'id_section',
+      steelSections,
+      minNodeCount: 2,
+    });
 
-    if (!bottomNode || !topNode) {
-      log.warn(`ノードが見つかりません: ${element.id}`);
+    if (commonData.errors.length > 0) {
+      log.warn(`柱 ${element.id}:`, commonData.errors.join(', '));
       return null;
     }
 
-    // 断面情報を取得
-    const section = sectionMap.get(element.id_section);
-    const profile = extractProfileFromSection(section, steelSections);
-
-    // 回転角度を取得
-    const rotation = element.rotate || element.angle || 0;
+    const [bottomNode, topNode] = commonData.nodes;
+    const { section, profile, rotation } = commonData;
 
     // isReferenceDirectionを取得（断面データから）
     // デフォルトはtrue（STB仕様: 未指定時はtrue）
@@ -259,23 +418,13 @@ function convertColumnToExportData(element, nodeMap, sectionMap, steelSections, 
     }
 
     // オフセット情報を取得（STBの柱はXY方向のオフセットを持つ）
-    const offsetBottomX = element.offset_bottom_X || 0;
-    const offsetBottomY = element.offset_bottom_Y || 0;
-    const offsetTopX = element.offset_top_X || 0;
-    const offsetTopY = element.offset_top_Y || 0;
+    const bottomPoint = _applyNodeOffset(bottomNode, element, 'offset_bottom_', 'skip');
+    const topPoint = _applyNodeOffset(topNode, element, 'offset_top_', 'skip');
 
     const result = {
       name: element.name || element.id || `${elementType}-${element.id}`,
-      bottomPoint: {
-        x: bottomNode.x + offsetBottomX,
-        y: bottomNode.y + offsetBottomY,
-        z: bottomNode.z,
-      },
-      topPoint: {
-        x: topNode.x + offsetTopX,
-        y: topNode.y + offsetTopY,
-        z: topNode.z,
-      },
+      bottomPoint,
+      topPoint,
       profile,
       rotation,
       isReferenceDirection,
@@ -326,20 +475,21 @@ export function collectBraceDataForExport() {
  */
 function convertBraceToExportData(element, nodeMap, sectionMap, steelSections) {
   try {
-    const startNode = nodeMap.get(element.id_node_start);
-    const endNode = nodeMap.get(element.id_node_end);
+    // 共通データ抽出
+    const commonData = _extractCommonElementData(element, nodeMap, sectionMap, {
+      nodeKeys: ['id_node_start', 'id_node_end'],
+      sectionKey: 'id_section',
+      steelSections,
+      minNodeCount: 2,
+    });
 
-    if (!startNode || !endNode) {
-      log.warn(`ノードが見つかりません: ${element.id}`);
+    if (commonData.errors.length > 0) {
+      log.warn(`ブレース ${element.id}:`, commonData.errors.join(', '));
       return null;
     }
 
-    // 断面情報を取得
-    const section = sectionMap.get(element.id_section);
-    const profile = extractProfileFromSection(section, steelSections);
-
-    // 回転角度を取得
-    const rotation = element.rotate || element.angle || 0;
+    const [startNode, endNode] = commonData.nodes;
+    const { profile, rotation } = commonData;
 
     return {
       name: element.name || element.id || `Brace-${element.id}`,
@@ -388,41 +538,19 @@ function convertSlabToExportData(element, nodeMap, sectionMap) {
     }
 
     // 頂点座標を取得（オフセット適用）
-    const vertices = [];
     const offsets = element.offsets || new Map();
+    const vertices = _applyOffsetsToVertices(nodeIds, nodeMap, element, offsets, 'offset_');
 
-    for (const nodeId of nodeIds) {
-      const node = nodeMap.get(nodeId);
-      if (!node) {
-        log.warn(`床 ${element.id}: ノード ${nodeId} が見つかりません`);
-        return null;
-      }
-
-      const offset = offsets.get ? offsets.get(nodeId) : offsets[nodeId];
-      const offsetX = offset?.offset_X || 0;
-      const offsetY = offset?.offset_Y || 0;
-      const offsetZ = offset?.offset_Z || 0;
-
-      vertices.push({
-        x: node.x + offsetX,
-        y: node.y + offsetY,
-        z: node.z + offsetZ,
-      });
+    if (!vertices) {
+      return null;
     }
 
     // 断面データから厚さを取得
-    let thickness = 150;
-    if (sectionMap) {
-      const sectionData = sectionMap.get(element.id_section);
-      if (sectionData) {
-        thickness =
-          sectionData.depth ||
-          sectionData.dimensions?.depth ||
-          sectionData.t ||
-          sectionData.thickness ||
-          150;
-      }
-    }
+    const thickness = _extractDimensionFromSection(
+      sectionMap.get(element.id_section),
+      ['depth', 't', 'thickness'],
+      150,
+    );
 
     // 床タイプを決定
     let predefinedType = 'FLOOR';
@@ -486,26 +614,11 @@ function convertWallToExportData(element, nodeMap, sectionMap, openingElements =
     }
 
     // 頂点座標を取得（オフセット適用）
-    const vertices = [];
     const offsets = element.offsets || new Map();
+    const vertices = _applyOffsetsToVertices(nodeIds, nodeMap, element, offsets, 'offset_');
 
-    for (const nodeId of nodeIds) {
-      const node = nodeMap.get(nodeId);
-      if (!node) {
-        log.warn(`壁 ${element.id}: ノード ${nodeId} が見つかりません`);
-        return null;
-      }
-
-      const offset = offsets.get ? offsets.get(nodeId) : offsets[nodeId];
-      const offsetX = offset?.offset_X || 0;
-      const offsetY = offset?.offset_Y || 0;
-      const offsetZ = offset?.offset_Z || 0;
-
-      vertices.push({
-        x: node.x + offsetX,
-        y: node.y + offsetY,
-        z: node.z + offsetZ,
-      });
+    if (!vertices) {
+      return null;
     }
 
     // 4点から壁の始点・終点・高さを計算
@@ -527,18 +640,11 @@ function convertWallToExportData(element, nodeMap, sectionMap, openingElements =
     const endPoint = { x: p1.x, y: p1.y, z: bottomZ };
 
     // 断面データから厚さを取得
-    let thickness = 200;
-    if (sectionMap) {
-      const sectionData = sectionMap.get(element.id_section);
-      if (sectionData) {
-        thickness =
-          sectionData.t ||
-          sectionData.thickness ||
-          sectionData.dimensions?.t ||
-          sectionData.dimensions?.thickness ||
-          200;
-      }
-    }
+    const thickness = _extractDimensionFromSection(
+      sectionMap.get(element.id_section),
+      ['t', 'thickness'],
+      200,
+    );
 
     // 壁タイプを決定
     let predefinedType = 'STANDARD';
@@ -632,14 +738,18 @@ function convertPileToExportData(element, nodeMap, sectionMap) {
 
     if (element.pileFormat === '2node') {
       // 2ノード形式
-      const bottomNode = nodeMap.get(element.id_node_bottom);
-      const topNode = nodeMap.get(element.id_node_top);
+      const commonData = _extractCommonElementData(element, nodeMap, sectionMap, {
+        nodeKeys: ['id_node_bottom', 'id_node_top'],
+        sectionKey: 'id_section',
+        minNodeCount: 2,
+      });
 
-      if (!bottomNode || !topNode) {
-        log.warn(`杭 ${element.id}: ノードが見つかりません`);
+      if (commonData.errors.length > 0) {
+        log.warn(`杭 ${element.id}:`, commonData.errors.join(', '));
         return null;
       }
 
+      const [bottomNode, topNode] = commonData.nodes;
       topPoint = {
         x: topNode.x + (element.offset_top_X || 0),
         y: topNode.y + (element.offset_top_Y || 0),
@@ -652,13 +762,18 @@ function convertPileToExportData(element, nodeMap, sectionMap) {
       };
     } else if (element.pileFormat === '1node') {
       // 1ノード形式
-      // STBでは id_node で参照するノードのXY座標と、level_top（杭頭レベル）を使用
-      const node = nodeMap.get(element.id_node);
-      if (!node) {
-        log.warn(`杭 ${element.id}: ノードが見つかりません`);
+      const commonData = _extractCommonElementData(element, nodeMap, sectionMap, {
+        nodeKeys: 'id_node',
+        sectionKey: 'id_section',
+        minNodeCount: 1,
+      });
+
+      if (commonData.errors.length > 0) {
+        log.warn(`杭 ${element.id}:`, commonData.errors.join(', '));
         return null;
       }
 
+      const [node] = commonData.nodes;
       const offsetX = element.offset_X || 0;
       const offsetY = element.offset_Y || 0;
       const lengthAll = element.length_all || 10000; // デフォルト10m
@@ -690,14 +805,8 @@ function convertPileToExportData(element, nodeMap, sectionMap) {
     if (sectionMap) {
       const sectionData = sectionMap.get(element.id_section);
       if (sectionData) {
-        diameter =
-          sectionData.D ||
-          sectionData.diameter ||
-          sectionData.dimensions?.D ||
-          sectionData.dimensions?.diameter ||
-          600;
-        wallThickness =
-          sectionData.t || sectionData.wallThickness || sectionData.dimensions?.t || null;
+        diameter = _extractDimensionFromSection(sectionData, ['D', 'diameter'], 600);
+        wallThickness = _extractDimensionFromSection(sectionData, ['t', 'wallThickness'], null);
       }
     }
 
@@ -756,11 +865,20 @@ export function collectFootingDataForExport() {
  */
 function convertFootingToExportData(element, nodeMap, sectionMap) {
   try {
-    const node = nodeMap.get(element.id_node);
-    if (!node) {
-      log.warn(`基礎 ${element.id}: ノードが見つかりません`);
+    // 共通データ抽出
+    const commonData = _extractCommonElementData(element, nodeMap, sectionMap, {
+      nodeKeys: 'id_node',
+      sectionKey: 'id_section',
+      minNodeCount: 1,
+    });
+
+    if (commonData.errors.length > 0) {
+      log.warn(`基礎 ${element.id}:`, commonData.errors.join(', '));
       return null;
     }
+
+    const [node] = commonData.nodes;
+    const { section } = commonData;
 
     const offsetX = element.offset_X || 0;
     const offsetY = element.offset_Y || 0;
@@ -768,40 +886,17 @@ function convertFootingToExportData(element, nodeMap, sectionMap) {
     const rotation = element.rotate || 0;
 
     // 断面データから寸法を取得
-    let width_X = 1500; // デフォルト1.5m
-    let width_Y = 1500;
-    let depth = 500; // デフォルト500mm
-
-    if (sectionMap) {
-      const sectionData = sectionMap.get(element.id_section);
-      if (sectionData) {
-        const dims = sectionData.dimensions || {};
-        // 注: deriveDimensionsFromAttributesはwidth_X→width, width_Y→heightに変換する
-        width_X =
-          dims.width_X ||
-          dims.width ||
-          dims.overall_width ||
-          sectionData.width_X ||
-          sectionData.width ||
-          1500;
-        width_Y =
-          dims.width_Y ||
-          dims.height ||
-          dims.overall_depth ||
-          sectionData.width_Y ||
-          sectionData.height ||
-          1500;
-        // 基礎の深さはthicknessまたはdepthとして格納される
-        depth =
-          dims.depth ||
-          dims.thickness ||
-          dims.t ||
-          sectionData.depth ||
-          sectionData.thickness ||
-          sectionData.t ||
-          500;
-      }
-    }
+    const width_X = _extractDimensionFromSection(
+      section,
+      ['width_X', 'width', 'overall_width'],
+      1500,
+    );
+    const width_Y = _extractDimensionFromSection(
+      section,
+      ['width_Y', 'height', 'overall_depth'],
+      1500,
+    );
+    const depth = _extractDimensionFromSection(section, ['depth', 'thickness', 't'], 500);
 
     // 基礎タイプを決定（長方形基礎はPAD_FOOTING、細長い場合はSTRIP_FOOTING）
     const predefinedType =
@@ -860,12 +955,19 @@ export function collectFoundationColumnDataForExport() {
  */
 function convertFoundationColumnToExportData(element, nodeMap, sectionMap, steelSections) {
   try {
-    const baseNode = nodeMap.get(element.id_node);
-    if (!baseNode) {
-      log.warn(`基礎柱 ${element.id}: ノード ${element.id_node} が見つかりません`);
+    // 共通データ抽出
+    const commonData = _extractCommonElementData(element, nodeMap, sectionMap, {
+      nodeKeys: 'id_node',
+      steelSections,
+      minNodeCount: 1,
+    });
+
+    if (commonData.errors.length > 0) {
+      log.warn(`基礎柱 ${element.id}:`, commonData.errors.join(', '));
       return null;
     }
 
+    const [baseNode] = commonData.nodes;
     const lengthFD = element.length_FD || 0;
     const lengthWR = element.length_WR || 0;
     const totalLength = lengthFD + lengthWR;

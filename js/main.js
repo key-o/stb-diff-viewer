@@ -37,6 +37,8 @@ import {
   initializeIntegratedSystems,
   setupLoadDisplayEventListeners,
 } from './app/initialization/systemInitializer.js';
+import { initializeEnvironment } from './app/initialization/environmentInitializer.js';
+import { initializeCompareFileInputs } from './app/initialization/fileInputInitializer.js';
 import { setupDevelopmentTools } from './app/initialization/devToolsInitializer.js';
 import { initArButton } from './ui/ar/arButton.js';
 
@@ -71,7 +73,10 @@ exposeManagers({
 
 // --- DOMContentLoaded イベントリスナー ---
 document.addEventListener('DOMContentLoaded', async () => {
+  await initializeEnvironment();
   log.info('アプリケーションを起動しています...');
+  initializeCompareFileInputs();
+  log.info('✓ Phase 0: 比較対象ファイル入力の初期化が完了しました');
 
   // Phase 1: レンダラーコアの初期化
   if (await initializeRenderer()) {

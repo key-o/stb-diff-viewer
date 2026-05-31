@@ -58,3 +58,62 @@ export const COMPARISON_KEY_TYPE_DESCRIPTIONS = {
   [COMPARISON_KEY_TYPE.STORY_AXIS_BASED]:
     'ノードの所属階と所属通芯の名前を基準に対応関係を判定します（所属情報が無い要素は比較対象外）',
 };
+
+/**
+ * 配置要素比較モード: 線状要素とポリゴン要素の配置位置比較の詳細度
+ * @enum {string}
+ */
+export const PLACEMENT_COMPARISON_MODE = {
+  /**
+   * ノード位置のみ: 基準ノード(id_node_start/end)の座標のみでキーを生成
+   * - 最も単純な比較
+   * - 後方互換性を保証
+   * - スピード重視
+   */
+  NODE_POSITION_ONLY: 'nodePositionOnly',
+
+  /**
+   * ノード位置 + オフセット: 基準ノード座標とオフセット値を合算した座標でキーを生成
+   * - offset_start_X/Y/Z, offset_end_X/Y/Z を考慮
+   * - 配置要素の実際の配置位置を反映
+   * - 標準的な配置位置比較
+   */
+  NODE_POSITION_WITH_OFFSET: 'nodePositionWithOffset',
+
+  /**
+   * ノード位置 + オフセット + 回転角: ノード、オフセット、回転角すべてを考慮
+   * - offset_start_X/Y/Z, offset_end_X/Y/Z, rotate を考慮
+   * - 配置位置と向きの完全な比較
+   * - 精度重視
+   */
+  PLACEMENT_POSITION_COMPLETE: 'placementPositionComplete',
+};
+
+/**
+ * デフォルトの配置要素比較モード（後方互換性のため段階1）
+ * @type {string}
+ */
+export const DEFAULT_PLACEMENT_COMPARISON_MODE = PLACEMENT_COMPARISON_MODE.NODE_POSITION_ONLY;
+
+/**
+ * 配置要素比較モードの表示名
+ * @type {Object<string, string>}
+ */
+export const PLACEMENT_COMPARISON_MODE_LABELS = {
+  [PLACEMENT_COMPARISON_MODE.NODE_POSITION_ONLY]: 'ノード位置のみ',
+  [PLACEMENT_COMPARISON_MODE.NODE_POSITION_WITH_OFFSET]: 'ノード位置 + オフセット',
+  [PLACEMENT_COMPARISON_MODE.PLACEMENT_POSITION_COMPLETE]: 'ノード位置 + オフセット + 回転角',
+};
+
+/**
+ * 配置要素比較モードの説明
+ * @type {Object<string, string>}
+ */
+export const PLACEMENT_COMPARISON_MODE_DESCRIPTIONS = {
+  [PLACEMENT_COMPARISON_MODE.NODE_POSITION_ONLY]:
+    '基準ノードの座標のみで比較します。最も高速な比較方式です。',
+  [PLACEMENT_COMPARISON_MODE.NODE_POSITION_WITH_OFFSET]:
+    'ノード座標 + オフセット値を合算した位置で比較します。要素の正確な配置位置を反映します。',
+  [PLACEMENT_COMPARISON_MODE.PLACEMENT_POSITION_COMPLETE]:
+    'ノード座標 + オフセット値 + 回転角すべてを考慮します。配置位置と向きを完全に比較します。',
+};

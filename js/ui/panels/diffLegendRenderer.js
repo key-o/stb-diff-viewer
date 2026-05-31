@@ -1,11 +1,13 @@
 /**
  * @fileoverview 差分フィルタ凡例レンダラー
  *
- * このファイルは、差分フィルタ凡例のHTML動的生成機能を提供します:
- * - config/diffFilterConfig.js の設定からHTML生成
+ * このファイルは、差分フィルタ凡例のDOM動的生成機能を提供します:
+ * - config/diffFilterConfig.js の設定からDOM生成
  * - カテゴリ凡例の描画
  * - プリセットボタンの描画
  * - 国際化対応
+ *
+ * 返り値は全て DOM Node です（innerHTML を介しません）。
  *
  * @module ui/panels/diffLegendRenderer
  */
@@ -34,119 +36,159 @@ class DiffLegendRenderer {
   }
 
   /**
-   * 凡例HTMLを生成
-   * @param {string} [containerId='diff-filter-legend'] - コンテナ要素のID
-   * @returns {string} HTML文字列
+   * 凡例コンテナを生成
+   * @param {string} [containerId='diff-filter-legend']
+   * @returns {HTMLDivElement}
    */
   renderLegend(containerId = 'diff-filter-legend') {
+    const container = document.createElement('div');
+    container.className = 'color-legend-container';
+    container.id = containerId;
     const sortedCategories = [...DIFF_CATEGORIES].sort((a, b) => a.order - b.order);
-
-    const items = sortedCategories.map((cat) => this.renderCategoryItem(cat)).join('\n');
-
-    return `<div class="color-legend-container" id="${containerId}">${items}</div>`;
+    for (const cat of sortedCategories) {
+      container.appendChild(this.renderCategoryItem(cat));
+    }
+    return container;
   }
 
   /**
-   * カテゴリ1つ分のHTMLを生成
-   * @param {Object} category - カテゴリ定義
-   * @returns {string} HTML文字列
+   * カテゴリ1つ分のDOMを生成
+   * @param {Object} category
+   * @returns {HTMLDivElement}
    */
   renderCategoryItem(category) {
     const label = getCategoryLabel(category.id, this.locale);
     const description = category.description[this.locale] || category.description.ja;
     const showIcon = this.config.showIcons && category.icon;
 
-    return `
-      <div class="legend-item diff-filter-item"
-           data-status="${category.id}"
-           title="${description}">
-        <input type="checkbox"
-               class="diff-filter-checkbox"
-               id="${category.htmlCheckboxId}"
-               checked />
-        <span class="legend-color-box ${category.htmlColorClass}"></span>
-        <span class="legend-label">${showIcon ? category.icon + ' ' : ''}${label}</span>
-        ${this.config.showCounts ? `<span id="${category.htmlCountId}" class="legend-count">0</span>` : ''}
-      </div>
-    `.trim();
+    const item = document.createElement('div');
+    item.className = 'legend-item diff-filter-item';
+    item.dataset.status = category.id;
+    item.title = description;
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'diff-filter-checkbox';
+    checkbox.id = category.htmlCheckboxId;
+    checkbox.checked = true;
+    item.appendChild(checkbox);
+
+    const colorBox = document.createElement('span');
+    colorBox.className = `legend-color-box ${category.htmlColorClass}`;
+    item.appendChild(colorBox);
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'legend-label';
+    labelSpan.textContent = showIcon ? `${category.icon} ${label}` : label;
+    item.appendChild(labelSpan);
+
+    if (this.config.showCounts) {
+      const count = document.createElement('span');
+      count.id = category.htmlCountId;
+      count.className = 'legend-count';
+      count.textContent = '0';
+      item.appendChild(count);
+    }
+
+    return item;
   }
 
   /**
-   * プリセットボタンHTMLを生成
-   * @param {string} [containerId='diff-filter-presets'] - コンテナ要素のID
-   * @returns {string} HTML文字列
+   * プリセットボタンのコンテナを生成
+   * @param {string} [containerId='diff-filter-presets']
+   * @returns {HTMLDivElement|null}
    */
   renderPresetButtons(containerId = 'diff-filter-presets') {
     if (!this.config.enablePresets) {
-      return '';
+      return null;
     }
 
+    const container = document.createElement('div');
+    container.className = 'diff-preset-buttons';
+    container.id = containerId;
+
     const sortedPresets = [...DIFF_FILTER_PRESETS].sort((a, b) => a.order - b.order);
-
-    const buttons = sortedPresets.map((preset) => this.renderPresetButton(preset)).join('\n');
-
-    return `<div class="diff-preset-buttons" id="${containerId}">${buttons}</div>`;
+    for (const preset of sortedPresets) {
+      container.appendChild(this.renderPresetButton(preset));
+    }
+    return container;
   }
 
   /**
-   * プリセットボタン1つ分のHTMLを生成
-   * @param {Object} preset - プリセット定義
-   * @returns {string} HTML文字列
+   * プリセットボタン1つ分のDOMを生成
+   * @param {Object} preset
+   * @returns {HTMLButtonElement}
    */
   renderPresetButton(preset) {
     const name = getPresetName(preset.id, this.locale);
     const description = preset.description[this.locale] || preset.description.ja;
 
-    return `
-      <button class="preset-btn"
-              data-preset="${preset.id}"
-              title="${description}">
-        ${preset.icon ? preset.icon + ' ' : ''}${name}
-      </button>
-    `.trim();
+    const btn = document.createElement('button');
+    btn.className = 'preset-btn';
+    btn.dataset.preset = preset.id;
+    btn.title = description;
+    btn.textContent = preset.icon ? `${preset.icon} ${name}` : name;
+    return btn;
   }
 
   /**
-   * 統計表示HTMLを生成
-   * @returns {string} HTML文字列
+   * 統計表示のDOMを生成
+   * @returns {HTMLDivElement}
    */
   renderStats() {
-    return `
-      <div class="diff-filter-stats">
-        <span>表示中: </span>
-        <span id="diff-visible-count">0</span>
-        <span> / </span>
-        <span id="diff-total-count">0</span>
-        <span> 要素</span>
-      </div>
-    `.trim();
+    const stats = document.createElement('div');
+    stats.className = 'diff-filter-stats';
+
+    const label1 = document.createElement('span');
+    label1.textContent = '表示中: ';
+
+    const visibleCount = document.createElement('span');
+    visibleCount.id = 'diff-visible-count';
+    visibleCount.textContent = '0';
+
+    const separator = document.createElement('span');
+    separator.textContent = ' / ';
+
+    const totalCount = document.createElement('span');
+    totalCount.id = 'diff-total-count';
+    totalCount.textContent = '0';
+
+    const unit = document.createElement('span');
+    unit.textContent = ' 要素';
+
+    stats.append(label1, visibleCount, separator, totalCount, unit);
+    return stats;
   }
 
   /**
-   * 完全なフィルタパネルHTMLを生成
-   * @returns {string} HTML文字列
+   * 完全なフィルタパネルのDOMを生成
+   * @returns {HTMLDivElement}
    */
   renderFullPanel() {
-    return `
-      <div class="diff-filter-panel">
-        <h4>差分フィルタ</h4>
-        ${this.renderPresetButtons()}
-        ${this.renderLegend()}
-        ${this.renderStats()}
-      </div>
-    `.trim();
+    const panel = document.createElement('div');
+    panel.className = 'diff-filter-panel';
+
+    const heading = document.createElement('h4');
+    heading.textContent = '差分フィルタ';
+    panel.appendChild(heading);
+
+    const presets = this.renderPresetButtons();
+    if (presets) panel.appendChild(presets);
+    panel.appendChild(this.renderLegend());
+    panel.appendChild(this.renderStats());
+    return panel;
   }
 
   /**
-   * DOMにHTML挿入
-   * @param {string} parentId - 親要素のID
-   * @param {string} html - 挿入するHTML
+   * DOMに子ノードを挿入（既存の子を置き換え）
+   * @param {string} parentId
+   * @param {Node} node
    * @returns {boolean} 挿入成功かどうか
    */
-  insertIntoDOM(parentId, html) {
+  insertIntoDOM(parentId, node) {
     const parent = document.getElementById(parentId);
     if (parent) {
-      parent.innerHTML = html;
+      parent.replaceChildren(node);
       return true;
     }
     log.warn(`[DiffLegendRenderer] Parent element not found: ${parentId}`);
@@ -155,27 +197,27 @@ class DiffLegendRenderer {
 
   /**
    * 凡例をDOMに挿入
-   * @param {string} parentId - 親要素のID
-   * @returns {boolean} 挿入成功かどうか
+   * @param {string} parentId
+   * @returns {boolean}
    */
   insertLegend(parentId) {
-    const html = this.renderLegend();
-    return this.insertIntoDOM(parentId, html);
+    return this.insertIntoDOM(parentId, this.renderLegend());
   }
 
   /**
    * プリセットボタンをDOMに挿入
-   * @param {string} parentId - 親要素のID
-   * @returns {boolean} 挿入成功かどうか
+   * @param {string} parentId
+   * @returns {boolean}
    */
   insertPresetButtons(parentId) {
-    const html = this.renderPresetButtons();
-    return this.insertIntoDOM(parentId, html);
+    const presets = this.renderPresetButtons();
+    if (!presets) return false;
+    return this.insertIntoDOM(parentId, presets);
   }
 
   /**
    * 言語を変更
-   * @param {string} locale - 言語コード
+   * @param {string} locale
    */
   setLocale(locale) {
     this.locale = locale;
@@ -187,8 +229,8 @@ let diffLegendRendererInstance = null;
 
 /**
  * DiffLegendRendererのシングルトンインスタンスを取得
- * @param {string} [locale] - 言語コード
- * @returns {DiffLegendRenderer} インスタンス
+ * @param {string} [locale]
+ * @returns {DiffLegendRenderer}
  */
 export function getDiffLegendRenderer(locale) {
   if (!diffLegendRendererInstance) {

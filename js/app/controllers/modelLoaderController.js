@@ -253,6 +253,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     setState('models.nodeMapB', nodeMapB);
     setState('models.stories', stories);
     setState('models.axesData', axesData);
+    setState('models.sectionMaps', sectionMaps);
     setState('sectionsData', sectionMaps);
     setState('models.versionInfo', versionInfo);
     setState('models.calDataA', calDataA);

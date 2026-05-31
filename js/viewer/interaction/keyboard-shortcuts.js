@@ -1,27 +1,31 @@
-/**
- * @fileoverview キーボードショートカットモジュール
+﻿/**
+ * @fileoverview 繧ｭ繝ｼ繝懊・繝峨す繝ｧ繝ｼ繝医き繝・ヨ繝｢繧ｸ繝･繝ｼ繝ｫ
  *
- * ビュー操作のキーボードショートカットを提供します:
- * - F: 選択要素にフォーカス＆回転中心設定
- * - Home: モデル全体にフィット＆回転中心リセット
- * - Escape: 選択解除
+ * 繝薙Η繝ｼ謫堺ｽ懊・繧ｭ繝ｼ繝懊・繝峨す繝ｧ繝ｼ繝医き繝・ヨ繧呈署萓帙＠縺ｾ縺・
+ * - F: 驕ｸ謚櫁ｦ∫ｴ縺ｫ繝輔か繝ｼ繧ｫ繧ｹ・・屓霆｢荳ｭ蠢・ｨｭ螳・
+ * - Home: 繝｢繝・Ν蜈ｨ菴薙↓繝輔ぅ繝・ヨ・・屓霆｢荳ｭ蠢・Μ繧ｻ繝・ヨ
+ * - Escape: 驕ｸ謚櫁ｧ｣髯､
  */
 
 import { controls } from '../core/core.js';
 import { focusOnSelected, fitCameraToModel } from '../camera/cameraFitter.js';
 import { createLogger } from '../../utils/logger.js';
+import {
+  createOrUpdateOrbitCenterHelper,
+  getSelectedCenter,
+  hideOrbitCenterHelper,
+  resetSelection,
+} from './interactionManager.js';
 
 const log = createLogger('viewer:keyboard');
 
 let isInitialized = false;
 
 /**
- * 選択要素に回転中心を設定
- * @returns {Promise<boolean>} 成功した場合true
+ * 驕ｸ謚櫁ｦ∫ｴ縺ｫ蝗櫁ｻ｢荳ｭ蠢・ｒ險ｭ螳・
+ * @returns {boolean} 謌仙粥縺励◆蝣ｴ蜷・rue
  */
-export async function setOrbitCenterToSelected() {
-  const { getSelectedCenter, createOrUpdateOrbitCenterHelper } =
-    await import('../../app/controllers/interactionController.js');
+export function setOrbitCenterToSelected() {
   const center = getSelectedCenter();
 
   if (!center) {
@@ -29,7 +33,7 @@ export async function setOrbitCenterToSelected() {
     return false;
   }
 
-  // 回転中心を設定
+  // 蝗櫁ｻ｢荳ｭ蠢・ｒ險ｭ螳・
   if (controls && typeof controls.setOrbitPoint === 'function') {
     controls.stop?.();
     controls.setOrbitPoint(center.x, center.y, center.z);
@@ -39,26 +43,25 @@ export async function setOrbitCenterToSelected() {
     controls.update?.();
   }
 
-  // 回転中心ヘルパーを表示
+  // 蝗櫁ｻ｢荳ｭ蠢・・繝ｫ繝代・繧定｡ｨ遉ｺ
   createOrUpdateOrbitCenterHelper(center);
 
   return true;
 }
 
 /**
- * 回転中心をリセット（ヘルパーを非表示に）
+ * 蝗櫁ｻ｢荳ｭ蠢・ｒ繝ｪ繧ｻ繝・ヨ・医・繝ｫ繝代・繧帝撼陦ｨ遉ｺ縺ｫ・・
  */
-export async function resetOrbitCenter() {
-  const { hideOrbitCenterHelper } = await import('../../app/controllers/interactionController.js');
+export function resetOrbitCenter() {
   hideOrbitCenterHelper();
 }
 
 /**
- * キーボードイベントハンドラー
+ * 繧ｭ繝ｼ繝懊・繝峨う繝吶Φ繝医ワ繝ｳ繝峨Λ繝ｼ
  * @param {KeyboardEvent} event
  */
 function handleKeyDown(event) {
-  // 入力フィールド内では無視
+  // 蜈･蜉帙ヵ繧｣繝ｼ繝ｫ繝牙・縺ｧ縺ｯ辟｡隕・
   const target = event.target;
   if (
     target instanceof HTMLInputElement ||
@@ -71,28 +74,27 @@ function handleKeyDown(event) {
 
   switch (event.key.toLowerCase()) {
     case 'f':
-      // F: 選択要素にフォーカス
+      // F: 驕ｸ謚櫁ｦ∫ｴ縺ｫ繝輔か繝ｼ繧ｫ繧ｹ
       if (!event.ctrlKey && !event.altKey && !event.metaKey) {
         event.preventDefault();
-        focusOnSelected({ enableTransition: true, padding: 2.0 }).then((success) => {
-          if (success) {
-            // フォーカス後に回転中心も設定
-            setOrbitCenterToSelected();
-            log.info('Focused on selected element');
-          } else {
-            log.debug('No element to focus on');
-          }
-        });
+        const success = focusOnSelected({ enableTransition: true, padding: 2.0 });
+        if (success) {
+          // 繝輔か繝ｼ繧ｫ繧ｹ蠕後↓蝗櫁ｻ｢荳ｭ蠢・ｂ險ｭ螳・
+          setOrbitCenterToSelected();
+          log.info('Focused on selected element');
+        } else {
+          log.debug('No element to focus on');
+        }
       }
       break;
 
     case 'home':
-      // Home: モデル全体にフィット
+      // Home: 繝｢繝・Ν蜈ｨ菴薙↓繝輔ぅ繝・ヨ
       if (!event.ctrlKey && !event.altKey && !event.metaKey) {
         event.preventDefault();
         const success = fitCameraToModel({ enableTransition: true, padding: 1.2 });
         if (success) {
-          // モデル全体フィット時は回転中心ヘルパーを非表示
+          // 繝｢繝・Ν蜈ｨ菴薙ヵ繧｣繝・ヨ譎ゅ・蝗櫁ｻ｢荳ｭ蠢・・繝ｫ繝代・繧帝撼陦ｨ遉ｺ
           resetOrbitCenter();
           log.info('Camera fitted to model');
         } else {
@@ -102,17 +104,15 @@ function handleKeyDown(event) {
       break;
 
     case 'escape':
-      // Escape: 選択解除
-      import('../../app/controllers/interactionController.js').then(({ resetSelection }) => {
-        resetSelection();
-        log.debug('Selection cleared via Escape key');
-      });
+      // Escape: 驕ｸ謚櫁ｧ｣髯､
+      resetSelection();
+      log.debug('Selection cleared via Escape key');
       break;
   }
 }
 
 /**
- * キーボードショートカットを初期化
+ * 繧ｭ繝ｼ繝懊・繝峨す繝ｧ繝ｼ繝医き繝・ヨ繧貞・譛溷喧
  */
 export function initKeyboardShortcuts() {
   if (isInitialized) {
@@ -127,7 +127,7 @@ export function initKeyboardShortcuts() {
 }
 
 /**
- * キーボードショートカットを破棄
+ * 繧ｭ繝ｼ繝懊・繝峨す繝ｧ繝ｼ繝医き繝・ヨ繧堤ｴ譽・
  */
 export function disposeKeyboardShortcuts() {
   if (!isInitialized) return;

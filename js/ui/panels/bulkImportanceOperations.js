@@ -12,7 +12,7 @@
  * 迅速かつ一貫した重要度管理が可能になります。
  */
 
-import { getImportanceManager, STB_ELEMENT_TABS } from '../../app/importanceManager.js';
+import { getImportanceManager } from '../../app/importanceManager.js';
 import { IMPORTANCE_LEVELS, IMPORTANCE_LEVEL_NAMES } from '../../constants/importanceLevels.js';
 import { setState } from '../../data/state/globalState.js';
 import { floatingWindowManager } from './floatingWindowManager.js';
@@ -21,6 +21,8 @@ import { storageHelper } from '../../utils/storageHelper.js';
 import { showSuccess, showError, showWarning, showInfo } from '../common/toast.js';
 import { downloadBlob } from '../../utils/downloadHelper.js';
 import { createLogger } from '../../utils/logger.js';
+import { createPanelHTML, createPreviewResultsHTML } from './bulkImportanceTemplates.js';
+import { BulkImportanceHistory } from './bulkImportanceHistory.js';
 
 const log = createLogger('ui:panels:bulkImportanceOperations');
 
@@ -41,8 +43,7 @@ export class BulkImportanceOperations {
   constructor() {
     this.manager = getImportanceManager();
     this.presets = new Map();
-    this.operationHistory = [];
-    this.maxHistorySize = 50;
+    this.history = new BulkImportanceHistory();
     this.isVisible = false;
     this.containerElement = null;
 
@@ -99,201 +100,7 @@ export class BulkImportanceOperations {
    * パネルのHTMLを作成する
    */
   createPanelHTML() {
-    const panelHTML = `
-      <div id="bulk-operations-panel" class="floating-window">
-        <div class="float-window-header" id="bulk-operations-header">
-          <span class="float-window-title">⚙️ 一括操作</span>
-          <div class="float-window-controls">
-            <button class="float-window-btn" id="bulk-operations-close">✕</button>
-          </div>
-        </div>
-
-        <div class="float-window-content">
-          <!-- 要素タイプ別一括設定 -->
-          <div class="operation-section">
-            <div class="section-header">
-              <h4>要素タイプ別一括設定</h4>
-              <button id="expand-type-bulk" class="expand-button">▼</button>
-            </div>
-            <div class="section-content" id="type-bulk-content">
-              <div class="type-selector">
-                <label>対象要素タイプ:</label>
-                <select id="bulk-element-type" multiple size="4">
-                  ${STB_ELEMENT_TABS.map(
-                    (tab) => `
-                    <option value="${tab.id}">${tab.name}</option>
-                  `,
-                  ).join('')}
-                </select>
-                <div class="type-controls">
-                  <button id="select-all-types" class="btn btn-sm">全選択</button>
-                  <button id="clear-type-selection" class="btn btn-sm">選択解除</button>
-                </div>
-              </div>
-              
-              <div class="importance-selector">
-                <label>設定する重要度:</label>
-                <select id="bulk-importance-level">
-                  ${Object.entries(IMPORTANCE_LEVELS)
-                    .map(
-                      ([_key, value]) => `
-                    <option value="${value}">${IMPORTANCE_LEVEL_NAMES[value]}</option>
-                  `,
-                    )
-                    .join('')}
-                </select>
-              </div>
-              
-              <div class="filter-options">
-                <label>
-                  <input type="checkbox" id="bulk-filter-pattern" />
-                  パターンフィルタ使用
-                </label>
-                <input type="text" id="bulk-pattern-text" placeholder="例: //@id, //StbColumn" disabled />
-              </div>
-              
-              <div class="operation-controls">
-                <button id="preview-bulk-operation" class="btn btn-primary">プレビュー</button>
-                <button id="execute-bulk-operation" class="btn btn-success" disabled>実行</button>
-              </div>
-              
-              <div id="bulk-preview-results" class="preview-results" style="display: none;">
-                <!-- プレビュー結果がここに表示される -->
-              </div>
-            </div>
-          </div>
-          
-          <!-- プリセット管理 -->
-          <div class="operation-section">
-            <div class="section-header">
-              <h4>プリセット管理</h4>
-              <button id="expand-presets" class="expand-button">▼</button>
-            </div>
-            <div class="section-content" id="presets-content">
-              <div class="preset-selector">
-                <label>保存済みプリセット:</label>
-                <select id="preset-list">
-                  <option value="">プリセットを選択...</option>
-                </select>
-                <div class="preset-controls">
-                  <button id="apply-preset" class="btn btn-primary" disabled>適用</button>
-                  <button id="delete-preset" class="btn btn-danger" disabled>削除</button>
-                </div>
-              </div>
-              
-              <div class="preset-creation">
-                <div class="form-group">
-                  <label>新規プリセット名:</label>
-                  <input type="text" id="new-preset-name" placeholder="プリセット名を入力..." />
-                </div>
-                <div class="form-group">
-                  <label>説明:</label>
-                  <textarea id="new-preset-description" placeholder="プリセットの説明..." rows="2"></textarea>
-                </div>
-                <button id="save-current-preset" class="btn btn-success">現在の設定を保存</button>
-              </div>
-            </div>
-          </div>
-          
-          <!-- ルールベース設定 -->
-          <div class="operation-section">
-            <div class="section-header">
-              <h4>ルールベース設定</h4>
-              <button id="expand-rules" class="expand-button">▼</button>
-            </div>
-            <div class="section-content" id="rules-content" style="display: none;">
-              <div class="rule-templates">
-                <label>テンプレート:</label>
-                <select id="rule-template">
-                  <option value="">テンプレートを選択...</option>
-                  <option value="structural">構造重要要素優先</option>
-                  <option value="geometric">幾何情報重視</option>
-                  <option value="minimal">最小限設定</option>
-                  <option value="detailed">詳細設定</option>
-                </select>
-                <button id="apply-rule-template" class="btn btn-primary" disabled>適用</button>
-              </div>
-              
-              <div class="custom-rules">
-                <h5>カスタムルール</h5>
-                <div id="custom-rules-list">
-                  <!-- カスタムルールがここに表示される -->
-                </div>
-                <button id="add-custom-rule" class="btn btn-secondary">ルール追加</button>
-              </div>
-            </div>
-          </div>
-          
-          <!-- 操作履歴 -->
-          <div class="operation-section">
-            <div class="section-header">
-              <h4>操作履歴</h4>
-              <button id="expand-history" class="expand-button">▼</button>
-            </div>
-            <div class="section-content" id="history-content" style="display: none;">
-              <div class="history-controls">
-                <button id="undo-last-operation" class="btn btn-warning" disabled>元に戻す</button>
-                <button id="clear-history" class="btn btn-danger">履歴クリア</button>
-                <button id="export-history" class="btn btn-info">履歴出力</button>
-              </div>
-              
-              <div class="history-list" id="operation-history-list">
-                <!-- 操作履歴がここに表示される -->
-              </div>
-            </div>
-          </div>
-          
-          <!-- インポート・エクスポート -->
-          <div class="operation-section">
-            <div class="section-header">
-              <h4>設定の入出力</h4>
-              <button id="expand-import-export" class="expand-button">▼</button>
-            </div>
-            <div class="section-content" id="import-export-content" style="display: none;">
-              <div class="export-options">
-                <h5>エクスポート</h5>
-                <div class="export-controls">
-                  <label>
-                    <input type="checkbox" id="export-include-presets" checked />
-                    プリセットを含める
-                  </label>
-                  <label>
-                    <input type="checkbox" id="export-include-history" />
-                    履歴を含める
-                  </label>
-                </div>
-                <button id="export-all-settings" class="btn btn-primary">設定エクスポート</button>
-              </div>
-              
-              <div class="import-options">
-                <h5>インポート</h5>
-                <input type="file" id="import-settings-file" accept=".json" style="display: none;" />
-                <button id="import-settings-btn" class="btn btn-primary">設定インポート</button>
-                <div class="import-options-detail">
-                  <label>
-                    <input type="checkbox" id="import-merge-mode" />
-                    既存設定とマージ（上書きしない）
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        </div>
-      </div>
-    `;
-
-    this.containerElement.insertAdjacentHTML('beforeend', panelHTML);
-    this.addStyles();
-  }
-
-  /**
-   * スタイルを追加する
-   * 注: スタイルは importance.css に外部化されました
-   */
-  addStyles() {
-    // スタイルは stb-diff-viewer/style/components/importance.css で定義
-    // このメソッドは互換性のために残されています
+    this.containerElement.insertAdjacentHTML('beforeend', createPanelHTML());
   }
 
   /**
@@ -447,7 +254,7 @@ export class BulkImportanceOperations {
       this.exportHistory();
     });
 
-    this.updateHistoryDisplay();
+    this.history.updateHistoryDisplay();
   }
 
   /**
@@ -487,22 +294,7 @@ export class BulkImportanceOperations {
     const affectedPaths = this.getAffectedPaths(selectedTypes, usePattern ? pattern : null);
 
     const previewContainer = document.getElementById('bulk-preview-results');
-    previewContainer.innerHTML = `
-      <div class="preview-summary">
-        <strong>プレビュー結果:</strong> ${affectedPaths.length} 個の要素が変更されます
-      </div>
-      <div class="preview-details">
-        ${selectedTypes
-          .map((type) => {
-            const typePaths = affectedPaths.filter((path) => path.includes(type));
-            return `<div class="preview-item">
-            <span>${type}</span>
-            <span>${typePaths.length} 個</span>
-          </div>`;
-          })
-          .join('')}
-      </div>
-    `;
+    previewContainer.replaceChildren(createPreviewResultsHTML(affectedPaths, selectedTypes));
 
     previewContainer.style.display = 'block';
     document.getElementById('execute-bulk-operation').disabled = false;
@@ -702,7 +494,10 @@ export class BulkImportanceOperations {
    */
   updatePresetList() {
     const select = document.getElementById('preset-list');
-    select.innerHTML = '<option value="">プリセットを選択...</option>';
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'プリセットを選択...';
+    select.replaceChildren(defaultOption);
 
     for (const [name, preset] of this.presets.entries()) {
       const option = document.createElement('option');
@@ -823,140 +618,28 @@ export class BulkImportanceOperations {
    * @param {Object} details - 操作詳細
    */
   recordOperation(type, details) {
-    const operation = {
-      id: Date.now().toString(),
-      type,
-      timestamp: new Date().toISOString(),
-      details,
-      description: this.generateOperationDescription(type, details),
-    };
-
-    this.operationHistory.unshift(operation);
-
-    // 履歴サイズ制限
-    if (this.operationHistory.length > this.maxHistorySize) {
-      this.operationHistory = this.operationHistory.slice(0, this.maxHistorySize);
-    }
-
-    this.updateHistoryDisplay();
-    this.updateUndoButton();
-  }
-
-  /**
-   * 操作説明を生成
-   * @param {string} type - 操作タイプ
-   * @param {Object} details - 操作詳細
-   * @returns {string} 操作説明
-   */
-  generateOperationDescription(type, details) {
-    switch (type) {
-      case 'bulk':
-        return `一括設定: ${details.count}個の要素を${IMPORTANCE_LEVEL_NAMES[details.importanceLevel]}に変更`;
-      case 'preset':
-        return `プリセット適用: ${details.presetName} (${details.count}個の要素)`;
-      case 'rule':
-        return `ルールテンプレート適用: ${details.template} (${details.count}個の要素)`;
-      case 'individual':
-        return `個別変更: ${details.path || '不明'}`;
-      default:
-        return `操作: ${type}`;
-    }
+    this.history.recordOperation(type, details);
   }
 
   /**
    * 最後の操作を元に戻す
    */
   undoLastOperation() {
-    if (this.operationHistory.length === 0) {
-      showWarning('元に戻す操作がありません。');
-      return;
-    }
-
-    const lastOperation = this.operationHistory[0];
-
-    if (!confirm(`「${lastOperation.description}」を元に戻しますか？`)) {
-      return;
-    }
-
-    // 操作を元に戻す
-    if (lastOperation.details.beforeState) {
-      Object.entries(lastOperation.details.beforeState).forEach(([path, importance]) => {
-        this.manager.setImportanceLevel(path, importance);
-      });
-
-      // 履歴から削除
-      this.operationHistory.shift();
-      this.updateHistoryDisplay();
-      this.updateUndoButton();
-
-      showSuccess('操作を元に戻しました。');
-    } else {
-      showWarning('この操作は元に戻すことができません。');
-    }
+    this.history.undoLastOperation(this.manager);
   }
 
   /**
    * 履歴をクリア
    */
   clearHistory() {
-    if (!confirm('操作履歴をすべてクリアしますか？')) {
-      return;
-    }
-
-    this.operationHistory = [];
-    this.updateHistoryDisplay();
-    this.updateUndoButton();
-  }
-
-  /**
-   * 履歴表示を更新
-   */
-  updateHistoryDisplay() {
-    const container = document.getElementById('operation-history-list');
-
-    if (this.operationHistory.length === 0) {
-      container.innerHTML = '<div class="history-item">操作履歴はありません</div>';
-      return;
-    }
-
-    container.innerHTML = this.operationHistory
-      .slice(0, 10)
-      .map(
-        (operation) => `
-      <div class="history-item">
-        <div class="operation-description">${operation.description}</div>
-        <div class="operation-time">${new Date(operation.timestamp).toLocaleString()}</div>
-      </div>
-    `,
-      )
-      .join('');
-  }
-
-  /**
-   * アンドゥボタンの状態を更新
-   */
-  updateUndoButton() {
-    const button = document.getElementById('undo-last-operation');
-    button.disabled = this.operationHistory.length === 0;
+    this.history.clearHistory();
   }
 
   /**
    * 履歴をエクスポート
    */
   exportHistory() {
-    try {
-      const exportData = {
-        timestamp: new Date().toISOString(),
-        history: this.operationHistory,
-      };
-
-      const jsonContent = JSON.stringify(exportData, null, 2);
-      const blob = new Blob([jsonContent], { type: 'application/json' });
-      downloadBlob(blob, `operation_history_${new Date().toISOString().slice(0, 10)}.json`);
-    } catch (error) {
-      log.error('Failed to export history:', error);
-      showError('履歴の出力に失敗しました。');
-    }
+    this.history.exportHistory();
   }
 
   /**
@@ -977,7 +660,7 @@ export class BulkImportanceOperations {
       }
 
       if (includeHistory) {
-        exportData.history = this.operationHistory;
+        exportData.history = this.history.getOperations();
       }
 
       const jsonContent = JSON.stringify(exportData, null, 2);
@@ -1034,9 +717,7 @@ export class BulkImportanceOperations {
 
       // 履歴のインポート（マージモードでは無視）
       if (importData.history && !mergeMode) {
-        this.operationHistory = importData.history.slice(0, this.maxHistorySize);
-        this.updateHistoryDisplay();
-        this.updateUndoButton();
+        this.history.replaceHistory(importData.history);
       }
 
       showSuccess(`設定をインポートしました。${importedCount}個の要素設定を更新しました。`);

@@ -16,6 +16,7 @@ import {
 import { showError, showWarning } from './dxfLoaderHelpers.js';
 
 const log = createLogger('DXFLoader');
+const BATCH_EXPORT_COMPLETION_MESSAGE_DELAY_MS = 2000;
 
 // 選択された要素タイプを取得するコールバック（循環依存回避のため遅延設定）
 let _getSelectedStbExportTypes = /** @type {() => string[]} */ (() => []);
@@ -158,7 +159,7 @@ async function handleExportAllStories() {
     if (success) {
       updateBatchExportProgress('エクスポート完了');
       // 2秒後に進捗表示をクリア
-      setTimeout(() => updateBatchExportProgress(null), 2000);
+      setTimeout(() => updateBatchExportProgress(null), BATCH_EXPORT_COMPLETION_MESSAGE_DELAY_MS);
     } else {
       updateBatchExportProgress(null);
     }
@@ -197,7 +198,7 @@ async function handleExportAllAxes(direction) {
     // エクスポート完了を表示
     if (success) {
       updateBatchExportProgress('エクスポート完了');
-      setTimeout(() => updateBatchExportProgress(null), 2000);
+      setTimeout(() => updateBatchExportProgress(null), BATCH_EXPORT_COMPLETION_MESSAGE_DELAY_MS);
     } else {
       updateBatchExportProgress(null);
     }
@@ -235,7 +236,7 @@ async function handleExportAllAxesBoth() {
     // エクスポート完了を表示
     if (success) {
       updateBatchExportProgress('エクスポート完了');
-      setTimeout(() => updateBatchExportProgress(null), 2000);
+      setTimeout(() => updateBatchExportProgress(null), BATCH_EXPORT_COMPLETION_MESSAGE_DELAY_MS);
     } else {
       updateBatchExportProgress(null);
     }

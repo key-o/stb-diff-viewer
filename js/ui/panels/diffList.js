@@ -15,20 +15,22 @@ import { sceneController } from '../../app/controllers/sceneController.js';
 import { selectElement3D } from '../../app/controllers/interactionController.js';
 import * as THREE from 'three';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
-import { eventBus, ComparisonEvents } from '../../data/events/index.js';
+import { ComparisonEvents } from '../../data/events/index.js';
 import { VersionEvents } from '../../constants/eventTypes.js';
 import { ELEMENT_LABELS } from '../../config/elementLabels.js';
 import { shouldShowVersionSpecificDifferences, getCurrentVersionInfo } from './versionPanel.js';
 import { scheduleRender } from '../../utils/renderScheduler.js';
 import { createLogger } from '../../utils/logger.js';
+import { UIComponent } from '../common/UIComponent.js';
 
 const log = createLogger('ui:panels:diffList');
 
 /**
  * 差分一覧表示クラス
  */
-export class DiffListPanel {
+export class DiffListPanel extends UIComponent {
   constructor() {
+    super();
     this.isVisible = false;
     this.containerElement = null;
     this.diffData = {
@@ -53,14 +55,14 @@ export class DiffListPanel {
    */
   setupEventListeners() {
     // 比較結果更新時（EventBus経由）
-    eventBus.on(ComparisonEvents.UPDATE_STATISTICS, (data) => {
+    this.onBus(ComparisonEvents.UPDATE_STATISTICS, (data) => {
       if (data && data.comparisonResults) {
         this.updateDiffList(data.comparisonResults);
       }
     });
 
     // バージョンフィルタ変更時
-    eventBus.on(VersionEvents.FILTER_CHANGED, (data) => {
+    this.onBus(VersionEvents.FILTER_CHANGED, (data) => {
       this.currentFilter.showVersionDifferences = data.showVersionSpecificDifferences;
       if (this.isVisible) {
         this.renderList();
@@ -68,7 +70,7 @@ export class DiffListPanel {
     });
 
     // バージョン情報更新時
-    eventBus.on(VersionEvents.INFO_UPDATED, (data) => {
+    this.onBus(VersionEvents.INFO_UPDATED, (data) => {
       if (data) {
         this.versionInfo = {
           versionA: data.versionA,

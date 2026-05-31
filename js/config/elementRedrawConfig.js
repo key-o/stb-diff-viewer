@@ -8,6 +8,7 @@
  */
 
 import { filterWallsByViewerElementType } from '../common-stb/walls/wallClassification.js';
+import { STB_TAG_NAMES } from '../constants/elementTypes.js';
 
 /**
  * @typedef {Object} ElementRedrawConfig
@@ -33,7 +34,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'Column',
     {
       elementType: 'Column',
-      stbTagName: 'StbColumn',
+      stbTagName: STB_TAG_NAMES.COLUMN,
       nodeStartAttr: 'id_node_bottom',
       nodeEndAttr: 'id_node_top',
       elementsKey: 'columnElements',
@@ -44,7 +45,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'Post',
     {
       elementType: 'Post',
-      stbTagName: 'StbPost',
+      stbTagName: STB_TAG_NAMES.POST,
       nodeStartAttr: 'id_node_bottom',
       nodeEndAttr: 'id_node_top',
       elementsKey: 'postElements',
@@ -57,7 +58,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'Girder',
     {
       elementType: 'Girder',
-      stbTagName: 'StbGirder',
+      stbTagName: STB_TAG_NAMES.GIRDER,
       nodeStartAttr: 'id_node_start',
       nodeEndAttr: 'id_node_end',
       elementsKey: 'girderElements',
@@ -68,7 +69,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'Beam',
     {
       elementType: 'Beam',
-      stbTagName: 'StbBeam',
+      stbTagName: STB_TAG_NAMES.BEAM,
       nodeStartAttr: 'id_node_start',
       nodeEndAttr: 'id_node_end',
       elementsKey: 'beamElements',
@@ -79,7 +80,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'Brace',
     {
       elementType: 'Brace',
-      stbTagName: 'StbBrace',
+      stbTagName: STB_TAG_NAMES.BRACE,
       nodeStartAttr: 'id_node_start',
       nodeEndAttr: 'id_node_end',
       elementsKey: 'braceElements',
@@ -90,7 +91,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'Parapet',
     {
       elementType: 'Parapet',
-      stbTagName: 'StbParapet',
+      stbTagName: STB_TAG_NAMES.PARAPET,
       nodeStartAttr: 'id_node_start',
       nodeEndAttr: 'id_node_end',
       elementsKey: 'parapetElements',
@@ -101,7 +102,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'StripFooting',
     {
       elementType: 'StripFooting',
-      stbTagName: 'StbStripFooting',
+      stbTagName: STB_TAG_NAMES.STRIP_FOOTING,
       nodeStartAttr: 'id_node_start',
       nodeEndAttr: 'id_node_end',
       elementsKey: 'stripFootingElements',
@@ -114,7 +115,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'IsolatingDevice',
     {
       elementType: 'IsolatingDevice',
-      stbTagName: 'StbIsolatingDevice',
+      stbTagName: STB_TAG_NAMES.ISOLATING_DEVICE,
       nodeStartAttr: 'id_node_start',
       nodeEndAttr: 'id_node_end',
       elementsKey: 'isolatingDeviceElements',
@@ -127,7 +128,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'DampingDevice',
     {
       elementType: 'DampingDevice',
-      stbTagName: 'StbDampingDevice',
+      stbTagName: STB_TAG_NAMES.DAMPING_DEVICE,
       nodeStartAttr: 'id_node_start',
       nodeEndAttr: 'id_node_end',
       elementsKey: 'dampingDeviceElements',
@@ -140,7 +141,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'FrameDampingDevice',
     {
       elementType: 'FrameDampingDevice',
-      stbTagName: 'StbFrameDampingDevice',
+      stbTagName: STB_TAG_NAMES.FRAME_DAMPING_DEVICE,
       nodeStartAttr: 'node_ids',
       nodeEndAttr: null,
       elementsKey: 'frameDampingDeviceElements',
@@ -154,7 +155,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'Pile',
     {
       elementType: 'Pile',
-      stbTagName: 'StbPile',
+      stbTagName: STB_TAG_NAMES.PILE,
       nodeStartAttr: 'id_node_bottom',
       nodeEndAttr: 'id_node_top',
       elementsKey: 'pileElements',
@@ -167,7 +168,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'Footing',
     {
       elementType: 'Footing',
-      stbTagName: 'StbFooting',
+      stbTagName: STB_TAG_NAMES.FOOTING,
       nodeStartAttr: 'id_node',
       nodeEndAttr: null,
       elementsKey: 'footingElements',
@@ -179,7 +180,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'FoundationColumn',
     {
       elementType: 'FoundationColumn',
-      stbTagName: 'StbFoundationColumn',
+      stbTagName: STB_TAG_NAMES.FOUNDATION_COLUMN,
       nodeStartAttr: 'id_node',
       nodeEndAttr: null,
       elementsKey: 'foundationColumnElements',
@@ -192,7 +193,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'Slab',
     {
       elementType: 'Slab',
-      stbTagName: 'StbSlab',
+      stbTagName: STB_TAG_NAMES.SLAB,
       nodeStartAttr: 'node_ids',
       nodeEndAttr: null,
       elementsKey: 'slabElements',
@@ -204,7 +205,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'ShearWall',
     {
       elementType: 'ShearWall',
-      stbTagName: 'StbWall',
+      stbTagName: STB_TAG_NAMES.WALL,
       nodeStartAttr: 'node_ids',
       nodeEndAttr: null,
       elementsKey: 'wallElements',
@@ -217,7 +218,7 @@ export const ELEMENT_REDRAW_CONFIGS = new Map([
     'Wall',
     {
       elementType: 'Wall',
-      stbTagName: 'StbWall',
+      stbTagName: STB_TAG_NAMES.WALL,
       nodeStartAttr: 'node_ids',
       nodeEndAttr: null,
       elementsKey: 'wallElements',

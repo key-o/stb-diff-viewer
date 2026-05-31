@@ -459,17 +459,10 @@ export function clearModifications() {
 }
 
 // DOM初期化後にイベントリスナーを設定（window.*グローバル汚染の解消）
-function initEditModeButton() {
+export function initializeEditModeButton() {
   const editModeBtn = document.getElementById('edit-mode-button');
   if (editModeBtn) {
     editModeBtn.addEventListener('click', toggleEditMode);
-  }
-}
-if (typeof document !== 'undefined') {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initEditModeButton);
-  } else {
-    initEditModeButton();
   }
 }
 // editAttribute は動的に生成されるHTML内のonclickから呼ばれるため window に登録を維持

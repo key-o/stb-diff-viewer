@@ -51,6 +51,32 @@ export function updateVersionTo210(stbRoot) {
 }
 
 /**
+ * Update version attribute to 2.1.1
+ * @param {object} stbRoot - ST-Bridge root element
+ */
+export function updateVersionTo211(stbRoot) {
+  const root = getRootElement(stbRoot);
+  const rootData = Array.isArray(root?.element) ? root.element[0] : root?.element;
+  if (rootData?.['$']) {
+    const currentVersion = rootData['$']['version'];
+    rootData['$']['version'] = '2.1.1';
+    logger.info(`Version updated: ${currentVersion} -> 2.1.1`);
+  }
+
+  const stbCommon = rootData?.['StbCommon']?.[0];
+  if (stbCommon?.['$']) {
+    if (!stbCommon['$']['app_version']) {
+      stbCommon['$']['app_version'] = '1.0.0';
+      logger.info('Added app_version attribute to StbCommon');
+    }
+    if (!stbCommon['$']['project_name']) {
+      stbCommon['$']['project_name'] = 'Untitled Project';
+      logger.info('Added project_name attribute to StbCommon');
+    }
+  }
+}
+
+/**
  * Update version attribute from 2.1.0 to 2.0.2
  * @param {object} stbRoot - ST-Bridge root element
  */

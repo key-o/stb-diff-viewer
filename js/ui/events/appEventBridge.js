@@ -10,7 +10,6 @@
 import {
   eventBus,
   AppEvents,
-  ToastEvents,
   InteractionEvents,
   LoadingIndicatorEvents,
   FinalizationEvents,
@@ -27,7 +26,6 @@ import {
   updateTreeElementTypes,
 } from '../panels/elementTreeView.js';
 import { clearSectionTree } from '../panels/sectionTreeView.js';
-import { showError, showWarning, showSuccess, showInfo } from '../common/toast.js';
 import { showContextMenu, initializeContextMenu } from '../common/contextMenu.js';
 import {
   displayElementInfo,
@@ -44,7 +42,7 @@ import { updateStorySelector, updateAxisSelectors } from '../viewer3d/selectors.
 import { updateLabelVisibility, handleColorModeChange } from '../viewer3d/unifiedLabelManager.js';
 import { updateLegendContent } from './legendListeners.js';
 import { refreshElementInfoPanel } from '../panels/element-info/ElementInfoDisplay.js';
-import { convertComparisonResultsForTree } from '../../app/initialization/initializationUtils.js';
+import { convertComparisonResultsForTree } from '../../data/converters/comparison-to-tree.js';
 
 function scheduleUiIdle(task) {
   if (typeof requestIdleCallback === 'function') {
@@ -67,23 +65,6 @@ export function setupAppEventBridge() {
   });
 
   eventBus.on(AppEvents.CLEAR_SECTION_TREE, clearSectionTree);
-
-  // --- ToastEvents ---
-  eventBus.on(ToastEvents.SHOW_ERROR, ({ message } = {}) => {
-    showError(message);
-  });
-
-  eventBus.on(ToastEvents.SHOW_WARNING, ({ message } = {}) => {
-    showWarning(message);
-  });
-
-  eventBus.on(ToastEvents.SHOW_SUCCESS, ({ message } = {}) => {
-    showSuccess(message);
-  });
-
-  eventBus.on(ToastEvents.SHOW_INFO, ({ message } = {}) => {
-    showInfo(message);
-  });
 
   // --- InteractionEvents ---
   eventBus.on(
@@ -174,14 +155,27 @@ export function setupAppEventBridge() {
   eventBus.on(
     ComparisonEvents.UPDATE_STATISTICS,
     ({ reason, comparisonResults, changedElementTypes } = {}) => {
-      if (reason === 'editRecomparison' && comparisonResults) {
-        const treeData = convertComparisonResultsForTree(comparisonResults, changedElementTypes);
-        if (Array.isArray(changedElementTypes) && changedElementTypes.length > 0) {
-          updateTreeElementTypes(treeData, changedElementTypes);
-        } else {
-          buildTree(treeData);
-        }
+      if (!comparisonResults) {
+        return;
       }
+
+      const hasChangedElementTypes =
+        Array.isArray(changedElementTypes) && changedElementTypes.length > 0;
+
+      // modelComparison は既存フローで buildTree されるためここでは無視
+      if (reason === 'modelComparison') {
+        return;
+      }
+
+      if (hasChangedElementTypes) {
+        const treeData = convertComparisonResultsForTree(comparisonResults, changedElementTypes);
+        updateTreeElementTypes(treeData, changedElementTypes);
+        return;
+      }
+
+      // reason が editRecomparison 以外でも、type 指定が無い統計更新は全体更新で安全側に倒す
+      const treeData = convertComparisonResultsForTree(comparisonResults);
+      buildTree(treeData);
     },
   );
 }

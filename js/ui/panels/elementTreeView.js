@@ -532,10 +532,13 @@ class ElementTreeView extends BaseTreeView {
     for (const category of ['matched', 'onlyA', 'onlyB']) {
       const currentItems = Array.isArray(currentResult?.[category]) ? currentResult[category] : [];
       const nextItems = Array.isArray(nextResult?.[category]) ? nextResult[category] : [];
+      const nextChangedItems = nextItems.filter((item) =>
+        changedTypeSet.has(item.elementType || item.type),
+      );
 
       merged[category] = [
         ...currentItems.filter((item) => !changedTypeSet.has(item.elementType || item.type)),
-        ...nextItems,
+        ...nextChangedItems,
       ];
     }
 
@@ -624,10 +627,11 @@ class ElementTreeView extends BaseTreeView {
 
     // ID と名前を組み合わせて表示（検索ハイライト付き）
     if (searchPattern && searchPattern.pattern) {
+      elementId.appendChild(highlightSearchMatch(idText, searchPattern));
       if (nameText && nameText !== idText) {
-        elementId.innerHTML = `${highlightSearchMatch(idText, searchPattern)} (${highlightSearchMatch(nameText, searchPattern)})`;
-      } else {
-        elementId.innerHTML = highlightSearchMatch(idText, searchPattern);
+        elementId.appendChild(document.createTextNode(' ('));
+        elementId.appendChild(highlightSearchMatch(nameText, searchPattern));
+        elementId.appendChild(document.createTextNode(')'));
       }
     } else {
       if (nameText && nameText !== idText) {
@@ -649,7 +653,8 @@ class ElementTreeView extends BaseTreeView {
 
       // 検索ハイライト付き
       if (searchPattern && searchPattern.pattern) {
-        guidSpan.innerHTML = `GUID: ${highlightSearchMatch(guidText, searchPattern)}`;
+        guidSpan.appendChild(document.createTextNode('GUID: '));
+        guidSpan.appendChild(highlightSearchMatch(guidText, searchPattern));
       } else {
         guidSpan.textContent = `GUID: ${guidText}`;
       }

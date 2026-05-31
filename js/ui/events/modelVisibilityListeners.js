@@ -27,6 +27,18 @@ export function setupModelVisibilityListeners() {
 }
 
 /**
+ * Teardown model visibility toggle listeners
+ */
+export function teardownModelVisibilityListeners() {
+  if (toggleModelACheckbox) {
+    toggleModelACheckbox.removeEventListener('change', handleModelAToggle);
+  }
+  if (toggleModelBCheckbox) {
+    toggleModelBCheckbox.removeEventListener('change', handleModelBToggle);
+  }
+}
+
+/**
  * Handle Model A visibility toggle
  * @param {Event} event - Change event
  */

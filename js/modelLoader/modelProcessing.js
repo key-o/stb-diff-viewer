@@ -15,6 +15,51 @@ import {
 import { parseStbCalData } from '../common-stb/import/extractor/StbCalDataExtractor.js';
 import { getLoaderSetState } from './loaderDependencies.js';
 
+function createEmptySectionMaps() {
+  return {
+    columnSections: new Map(),
+    postSections: new Map(),
+    girderSections: new Map(),
+    beamSections: new Map(),
+    braceSections: new Map(),
+    pileSections: new Map(),
+    footingSections: new Map(),
+    foundationColumnSections: new Map(),
+    foundationcolumnSections: new Map(),
+    slabSections: new Map(),
+    wallSections: new Map(),
+    parapetSections: new Map(),
+    isolatingDeviceSections: new Map(),
+    isolatingdeviceSections: new Map(),
+    dampingDeviceSections: new Map(),
+    dampingdeviceSections: new Map(),
+    undefinedSections: new Map(),
+  };
+}
+
+function createEmptyElementData() {
+  return {
+    columnElements: [],
+    postElements: [],
+    girderElements: [],
+    beamElements: [],
+    braceElements: [],
+    isolatingDeviceElements: [],
+    dampingDeviceElements: [],
+    frameDampingDeviceElements: [],
+    pileElements: [],
+    footingElements: [],
+    foundationColumnElements: [],
+    slabElements: [],
+    wallElements: [],
+    parapetElements: [],
+    openingElements: [],
+    jointElements: [],
+    stripFootingElements: [],
+    undefinedElements: [],
+  };
+}
+
 /**
  * Process model documents and extract structural data.
  * When both files are provided, they are parsed in parallel using Promise.all.
@@ -85,6 +130,8 @@ export async function processModelDocuments(fileA, fileB) {
     versionInfo,
     calDataA: resultA?.calData || null,
     calDataB: resultB?.calData || null,
+    originalTextA: resultA?.originalText || null,
+    originalTextB: resultB?.originalText || null,
   };
 }
 
@@ -132,6 +179,7 @@ async function processModelFile(file) {
     versionInfo: getVersionInfo(document),
     sourceType: metadata.sourceType,
     ifcSchema: metadata.ifcSchema || null,
+    originalText: metadata.originalText || null,
   };
 }
 
@@ -142,6 +190,24 @@ export function clearModelProcessingState() {
   const setState = getLoaderSetState();
   setState('models.documentA', null);
   setState('models.documentB', null);
+  setState('models.nodeMapA', new Map());
+  setState('models.nodeMapB', new Map());
+  setState('models.nodeMapRawA', new Map());
+  setState('models.nodeMapRawB', new Map());
+  setState('models.stories', []);
+  setState('models.axesData', { xAxes: [], yAxes: [] });
+  setState('models.sectionMaps', createEmptySectionMaps());
+  setState('models.steelSections', new Map());
+  setState('models.elementData', createEmptyElementData());
+  setState('models.modelsLoaded', false);
+  setState('models.modelBounds', null);
+  setState('sectionsData', null);
+  setState('models.versionInfo', null);
+  setState('models.stbVersionA', null);
+  setState('models.stbVersionB', null);
+  setState('models.activeXsdVersion', null);
+  setState('models.calDataA', null);
+  setState('models.calDataB', null);
 }
 
 /**

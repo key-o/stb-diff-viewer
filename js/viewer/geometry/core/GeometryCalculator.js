@@ -275,18 +275,18 @@ export function calculatePlacement(
 export function calculateColumnPlacement(
   bottomNode,
   topNode,
-  { bottomOffset = { x: 0, y: 0 }, topOffset = { x: 0, y: 0 }, rollAngle = 0 } = {},
+  { bottomOffset = { x: 0, y: 0, z: 0 }, topOffset = { x: 0, y: 0, z: 0 }, rollAngle = 0 } = {},
 ) {
   const adjustedBottom = {
     x: bottomNode.x + (bottomOffset.x || 0),
     y: bottomNode.y + (bottomOffset.y || 0),
-    z: bottomNode.z,
+    z: bottomNode.z + (bottomOffset.z || 0),
   };
 
   const adjustedTop = {
     x: topNode.x + (topOffset.x || 0),
     y: topNode.y + (topOffset.y || 0),
-    z: topNode.z,
+    z: topNode.z + (topOffset.z || 0),
   };
 
   const center = calculateMidpoint(adjustedBottom, adjustedTop);

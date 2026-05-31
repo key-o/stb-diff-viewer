@@ -312,6 +312,25 @@ export const LabelEvents = {
 };
 
 /**
+ * 寸法測定イベント
+ * @constant {Object}
+ */
+export const MeasurementEvents = {
+  /** 測定モードに入った */
+  MODE_ENTERED: 'measurement:modeEntered',
+  /** 測定モードを抜けた */
+  MODE_EXITED: 'measurement:modeExited',
+  /** 第1点が選択された */
+  FIRST_POINT_PICKED: 'measurement:firstPointPicked',
+  /** 測定が完了した */
+  MEASUREMENT_COMPLETED: 'measurement:completed',
+  /** 測定が個別削除された */
+  MEASUREMENT_DELETED: 'measurement:deleted',
+  /** 全測定がクリアされた */
+  ALL_CLEARED: 'measurement:allCleared',
+};
+
+/**
  * ファイナライゼーション関連イベント
  * @constant {Object}
  */
@@ -384,6 +403,7 @@ export const EventTypes = {
   LoadingIndicator: LoadingIndicatorEvents,
   Finalization: FinalizationEvents,
   Label: LabelEvents,
+  Measurement: MeasurementEvents,
 };
 
 /**
@@ -416,6 +436,7 @@ export function isValidEventType(eventType) {
     ...Object.values(LoadingIndicatorEvents),
     ...Object.values(FinalizationEvents),
     ...Object.values(LabelEvents),
+    ...Object.values(MeasurementEvents),
   ];
   return allTypes.includes(eventType);
 }
