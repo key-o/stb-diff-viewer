@@ -15,21 +15,31 @@ import {
   getAllAttributeNames,
   getAttributeInfo,
 } from '../../../common-stb/import/parser/jsonSchemaLoader.js';
-import { getValidationStyles } from '../../../common-stb/validation/validationManager.js';
+import { getValidationStyles } from '../../../common-stb/validation/validationHtmlRenderer.js';
 import { getImportanceCircleHtml, getImportanceCircleHtmlByPath } from './ImportanceColors.js';
 import {
   findSectionNode,
   extractSectionData,
   generateEquivalenceSection,
+  generateGeometryEquivalenceSection,
+  getGeometrySectionData,
   getAttributesMap,
 } from './SectionHelpers.js';
 import { evaluateSectionEquivalence } from './ElementInfoProviders.js';
+import comparisonKeyManager from '../../../app/comparisonKeyManager.js';
+import { SECTION_MATCH_CRITERION_LABELS } from '../../../config/comparisonKeyConfig.js';
+import {
+  buildGeometryShapeSignature,
+  describeGeometryShape,
+} from '../../../common-stb/comparison/geometryShapeSignature.js';
 import { isEditMode, getCurrentEditingElement } from './EditMode.js';
+import { buildElementEditPath } from './editPath.js';
+import { escapeHtml, valueToSafeHtml } from '../../../utils/htmlUtils.js';
 import { getState } from '../../../data/state/globalState.js';
 
 // サブモジュールからのインポート
 import {
-  attributesDiffer,
+  comparableAttributeDiffers,
   buildXPathFromXmlElement,
   buildAttributeValidationStatusMap,
   getValidationCellMeta,
@@ -108,7 +118,7 @@ export function renderOpeningInfo(nodeA, nodeB, showSingleColumn) {
     const dimsA = findOpeningSectionDimensions(docA, idSectionA);
     const dimsB = findOpeningSectionDimensions(docB, idSectionB);
     if (dimsA || dimsB) {
-      const secRowId = `row_sec_open_${openId}_${Math.random().toString(36).slice(2, 7)}`;
+      const secRowId = `row_sec_open_${Math.random().toString(36).slice(2, 7)}`;
       const indentStyle = 'padding-left: 1.5em;';
       const attrIndentStyle = 'padding-left: 3em;';
 
@@ -128,18 +138,19 @@ export function renderOpeningInfo(nodeA, nodeB, showSingleColumn) {
         const valA = dimsA?.[dimAttr];
         const valB = dimsB?.[dimAttr];
         if (showSingleColumn) {
-          const val = valA ?? valB ?? '-';
+          const val = valueToSafeHtml(valA ?? valB, '-');
           content += `<tr data-parent="${secRowId}">`;
-          content += `<td style="${attrIndentStyle}"><span class="attr-name">${dimAttr}</span></td>`;
+          content += `<td style="${attrIndentStyle}"><span class="attr-name">${escapeHtml(dimAttr)}</span></td>`;
           content += `<td style="color: #555;">${val}</td>`;
           content += '</tr>';
         } else {
-          const displayA = valA ?? '<span class="no-value">-</span>';
-          const displayB = valB ?? '<span class="no-value">-</span>';
-          const differs = valA != null && valB != null && attributesDiffer(valA, valB);
+          const displayA = valueToSafeHtml(valA);
+          const displayB = valueToSafeHtml(valB);
+          const differs =
+            valA != null && valB != null && comparableAttributeDiffers(dimAttr, valA, valB);
           const highlightClass = differs ? ' class="differs"' : '';
           content += `<tr data-parent="${secRowId}">`;
-          content += `<td style="${attrIndentStyle}"><span class="attr-name">${dimAttr}</span></td>`;
+          content += `<td style="${attrIndentStyle}"><span class="attr-name">${escapeHtml(dimAttr)}</span></td>`;
           content += `<td${highlightClass} style="color: #555;">${displayA}</td>`;
           content += `<td${highlightClass} style="color: #555;">${displayB}</td>`;
           content += '</tr>';
@@ -288,29 +299,48 @@ export function renderSectionInfo(nodeA, nodeB, showSingleColumn, modelSource, e
   const sectionNodeB = sectionIdB ? findSectionNode(docB, sectionIdB, elementType) : null;
 
   // 断面等価性評価の実行（比較モードの場合のみ）
+  // 梁/大梁は分類根拠と同じ GSS（形状等価）で判定・表示し、それ以外は従来エンジンにフォールバックする。
   let equivalenceResult = null;
+  let geometryEquivalence = null;
   if (!showSingleColumn && sectionNodeA && sectionNodeB && modelSource === 'matched') {
-    const sectionDataA = extractSectionData(sectionNodeA);
-    const sectionDataB = extractSectionData(sectionNodeB);
+    const geomSectionA = getGeometrySectionData(docA, sectionIdA, elementType);
+    const geomSectionB = getGeometrySectionData(docB, sectionIdB, elementType);
+    const gssA = geomSectionA ? buildGeometryShapeSignature(geomSectionA, elementType) : null;
+    const gssB = geomSectionB ? buildGeometryShapeSignature(geomSectionB, elementType) : null;
 
-    if (sectionDataA && sectionDataB) {
-      equivalenceResult = evaluateSectionEquivalence(sectionDataA, sectionDataB, elementType);
+    if (gssA != null || gssB != null) {
+      geometryEquivalence = {
+        equivalent: gssA != null && gssA === gssB,
+        descA: geomSectionA ? describeGeometryShape(geomSectionA, elementType) : null,
+        descB: geomSectionB ? describeGeometryShape(geomSectionB, elementType) : null,
+      };
+    } else {
+      const sectionDataA = extractSectionData(sectionNodeA);
+      const sectionDataB = extractSectionData(sectionNodeB);
+      if (sectionDataA && sectionDataB) {
+        equivalenceResult = evaluateSectionEquivalence(sectionDataA, sectionDataB, elementType);
+      }
     }
   }
 
   // 断面情報セクションのヘッダー行を追加
   if (showSingleColumn) {
     const sectionId = sectionIdA || sectionIdB;
-    content += `<tr class="section-header-row"><td colspan="2">▼ 断面情報 (ID: ${sectionId})</td></tr>`;
+    content += `<tr class="section-header-row"><td colspan="2">▼ 断面情報 (ID: ${escapeHtml(sectionId)})</td></tr>`;
   } else {
     content += `<tr class="section-header-row"><td colspan="3">▼ 断面情報 (A: ${
-      sectionIdA ?? 'なし'
-    }, B: ${sectionIdB ?? 'なし'})</td></tr>`;
+      sectionIdA ? escapeHtml(sectionIdA) : 'なし'
+    }, B: ${sectionIdB ? escapeHtml(sectionIdB) : 'なし'})</td></tr>`;
   }
 
-  // 断面等価性評価結果を表示（比較モードの場合）
-  if (equivalenceResult && !showSingleColumn) {
-    content += generateEquivalenceSection(equivalenceResult);
+  // 断面等価性評価結果を表示（比較モードの場合）。
+  // 選択中の断面一致基準（部材レベル）をバッジに併記し、表示を設定に追従させる（F1）。
+  const criterionLabel =
+    SECTION_MATCH_CRITERION_LABELS[comparisonKeyManager.getSectionMatchCriterion()] || null;
+  if (geometryEquivalence && !showSingleColumn) {
+    content += generateGeometryEquivalenceSection(geometryEquivalence, criterionLabel);
+  } else if (equivalenceResult && !showSingleColumn) {
+    content += generateEquivalenceSection(equivalenceResult, criterionLabel);
   }
 
   // 断面要素の比較表示 (ルート要素と同じレベルで表示)
@@ -325,6 +355,36 @@ export function renderSectionInfo(nodeA, nodeB, showSingleColumn, modelSource, e
   );
 
   return content;
+}
+
+/**
+ * 編集ボタンHTMLを生成する（編集対象はモデルAのみ）。
+ * id属性を持たない断面子要素はパスアドレッシングで特定する。
+ * クリック処理は EditMode.js のイベントデリゲーションが担当する。
+ * @param {Element|null} nodeA - モデルAのXML要素（B側要素は編集不可）
+ * @param {string} editType - 要素タイプ（タグ名から 'Stb' を除いたもの）
+ * @param {string} attrName - 属性名
+ * @param {string|undefined} currentValue - 現在の値
+ * @returns {string} ボタンHTML（編集不可の場合は空文字列）
+ */
+function buildEditButtonHtml(nodeA, editType, attrName, currentValue) {
+  if (!nodeA) return '';
+
+  const id = typeof nodeA.getAttribute === 'function' ? nodeA.getAttribute('id') : null;
+  let addressAttr = '';
+  if (id) {
+    addressAttr = ` data-edit-id="${escapeHtml(id)}"`;
+  } else {
+    const path = buildElementEditPath(nodeA);
+    if (!path) return '';
+    addressAttr = ` data-edit-path="${escapeHtml(path)}"`;
+  }
+
+  return (
+    ` <button class="edit-btn" style="font-size: var(--font-size-xs); padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;"` +
+    ` data-edit-type="${escapeHtml(editType)}" data-edit-attr="${escapeHtml(attrName)}"` +
+    ` data-edit-value="${escapeHtml(currentValue ?? '')}"${addressAttr} title="編集">✏️</button>`
+  );
 }
 
 /**
@@ -369,9 +429,7 @@ export function renderComparisonRecursive(
   const attrValidationMapB = buildAttributeValidationStatusMap(effectiveValidationIdB, {
     targetElementName: displayTagName,
   });
-  const rowId = `row_${displayTagName}_${idA}_${idB}_${level}_${Math.random()
-    .toString(36)
-    .slice(2, 7)}`;
+  const rowId = `row_${level}_${Math.random().toString(36).slice(2, 7)}`;
 
   // --- 要素タイプの判定 ---
   // パラメータから渡されたelementTypeを優先し、なければタグ名から推定
@@ -392,9 +450,9 @@ export function renderComparisonRecursive(
   }>`;
   let elementCell = `<td style="${indentStyle} white-space: nowrap;">`;
   elementCell += `<span class="toggle-btn" data-target-id="${rowId}" style="margin-right:5px;display:inline-block;width:1em;text-align:center;font-weight:var(--font-weight-bold);cursor:pointer;color:#666;">-</span>`;
-  elementCell += `<span class="tag-name">${displayTagName}</span>`;
+  elementCell += `<span class="tag-name">${escapeHtml(displayTagName)}</span>`;
   if (tagNameA && tagNameB && tagNameA !== tagNameB) {
-    elementCell += ` <span style="color: red; font-size: var(--font-size-sm);">(A: ${tagNameA}, B: ${tagNameB})</span>`;
+    elementCell += ` <span style="color: red; font-size: var(--font-size-sm);">(A: ${escapeHtml(tagNameA)}, B: ${escapeHtml(tagNameB)})</span>`;
   }
   elementCell += '</td>';
   rowsHtml += elementCell;
@@ -454,31 +512,28 @@ export function renderComparisonRecursive(
 
       // 属性ラベルの構築（XSD丸 + S2丸 + S4丸 + 属性名 + デフォルト値）
       const xsdIndicator = `<span style="display:inline-block;width:1em;text-align:center;color:#D32F2F;font-size:var(--font-size-sm);line-height:1;opacity:${isRequired ? '1' : '0.65'};" title="${isRequired ? 'XSD: 必須' : 'XSD: 任意'}">${isRequired ? '&#9679;' : '&#9675;'}</span>`;
-      let attrLabel = `${xsdIndicator}${importanceCircle} ${attrName}`;
+      let attrLabel = `${xsdIndicator}${importanceCircle} ${escapeHtml(attrName)}`;
       if (attrInfo && hasDefault)
-        attrLabel += ` <span style="color:blue;font-size:var(--font-size-sm);" title="デフォルト値: ${hasDefault}">(${hasDefault})</span>`;
+        attrLabel += ` <span style="color:blue;font-size:var(--font-size-sm);" title="デフォルト値: ${escapeHtml(hasDefault)}">(${escapeHtml(hasDefault)})</span>`;
 
-      const titleAttr = documentation ? ` title="${documentation}"` : '';
+      const titleAttr = documentation ? ` title="${escapeHtml(documentation)}"` : '';
       const validationMetaA = getValidationCellMeta(attrName, attrValidationMapA);
       const validationMetaB = getValidationCellMeta(attrName, attrValidationMapB);
 
       if (showSingleColumn) {
         // 単一モデル表示の場合
         const singleValue = valueA ?? valueB;
-        let displayValue = singleValue ?? '<span class="no-value">-</span>';
+        let displayValue = valueToSafeHtml(singleValue);
         const singleValidationMeta =
           valueA !== undefined || (nodeA && !nodeB) ? validationMetaA : validationMetaB;
 
-        // 編集モードの場合、編集ボタンを追加
+        // 編集モードの場合、編集ボタンを追加（編集はモデルAの要素のみ）
         if (editMode && currentEditingElement) {
           // displayTagNameから実際の要素タイプを導出（断面ノードの場合はStbSecColumn_RC→SecColumn_RC）
           const currentEditType = displayTagName?.startsWith('Stb')
             ? displayTagName.slice(3)
             : currentEditingElement.elementType;
-          const currentId = valueA !== undefined ? idA : idB;
-          displayValue += ` <button class="edit-btn" style="font-size: var(--font-size-xs); padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentEditType}', '${currentId}', '${attrName}', '${
-            singleValue || ''
-          }')" title="編集">✏️</button>`;
+          displayValue += buildEditButtonHtml(nodeA, currentEditType, attrName, singleValue);
         }
 
         rowsHtml += `<tr data-parent="${rowId}"${attrRowDisplay}>`;
@@ -487,25 +542,17 @@ export function renderComparisonRecursive(
         rowsHtml += '</tr>';
       } else {
         // 比較表示の場合
-        let displayValueA = valueA ?? '<span class="no-value">-</span>';
-        let displayValueB = valueB ?? '<span class="no-value">-</span>';
+        let displayValueA = valueToSafeHtml(valueA);
+        const displayValueB = valueToSafeHtml(valueB);
 
-        // 編集モードの場合、編集ボタンを追加
+        // 編集モードの場合、編集ボタンを追加（編集はモデルAの要素のみ。
+        // B側に出すと documentA に誤適用されるため表示しない）
         if (editMode && currentEditingElement) {
           // displayTagNameから実際の要素タイプを導出（断面ノードの場合はStbSecColumn_RC→SecColumn_RC）
           const currentEditType = displayTagName?.startsWith('Stb')
             ? displayTagName.slice(3)
             : currentEditingElement.elementType;
-          if (valueA !== undefined && idA) {
-            displayValueA += ` <button class="edit-btn" style="font-size: var(--font-size-xs); padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentEditType}', '${idA}', '${attrName}', '${
-              valueA || ''
-            }')" title="編集">✏️</button>`;
-          }
-          if (valueB !== undefined && idB) {
-            displayValueB += ` <button class="edit-btn" style="font-size: var(--font-size-xs); padding: 1px 2px; background: none; border: none; opacity: 0.5; cursor: pointer;" onclick="window.editAttribute('${currentEditType}', '${idB}', '${attrName}', '${
-              valueB || ''
-            }')" title="編集">✏️</button>`;
-          }
+          displayValueA += buildEditButtonHtml(nodeA, currentEditType, attrName, valueA);
         }
 
         // 比較結果: 値が異なる場合のみ黄色ハイライト
@@ -514,7 +561,7 @@ export function renderComparisonRecursive(
           nodeB &&
           valueA !== undefined &&
           valueB !== undefined &&
-          attributesDiffer(valueA, valueB);
+          comparableAttributeDiffers(attrName, valueA, valueB);
         const classAttrA = buildCellClassAttr(differs ? 'differs' : '', validationMetaA.className);
         const classAttrB = buildCellClassAttr(differs ? 'differs' : '', validationMetaB.className);
 
@@ -598,7 +645,7 @@ export function renderComparisonRecursive(
     if (showSingleColumn) {
       // 単一モデル表示の場合
       const singleText = hasMeaningfulTextA ? textA : hasMeaningfulTextB ? textB : '';
-      const displayText = singleText ? singleText : '<span class="no-value">-</span>';
+      const displayText = singleText ? escapeHtml(singleText) : '<span class="no-value">-</span>';
 
       rowsHtml += `<tr data-parent="${rowId}"${textRowDisplay}>`;
       rowsHtml += `<td style="${attrIndentStyle}"><span class="text-label">(内容)</span></td>`;
@@ -616,8 +663,12 @@ export function renderComparisonRecursive(
       );
     } else {
       // 比較表示の場合（従来通り）
-      const displayTextA = hasMeaningfulTextA ? textA : '<span class="no-value">-</span>';
-      const displayTextB = hasMeaningfulTextB ? textB : '<span class="no-value">-</span>';
+      const displayTextA = hasMeaningfulTextA
+        ? escapeHtml(textA)
+        : '<span class="no-value">-</span>';
+      const displayTextB = hasMeaningfulTextB
+        ? escapeHtml(textB)
+        : '<span class="no-value">-</span>';
       const differs = nodeA && nodeB && hasMeaningfulTextA && hasMeaningfulTextB && textA !== textB;
       const highlightClass = differs ? ' class="differs"' : '';
 

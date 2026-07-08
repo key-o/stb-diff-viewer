@@ -14,6 +14,7 @@ import {
 } from '../common-stb/import/parser/utils/versionDetector.js';
 import { parseStbCalData } from '../common-stb/import/extractor/StbCalDataExtractor.js';
 import { getLoaderSetState } from './loaderDependencies.js';
+import { SS7_ENABLED } from '../config/featureFlags.js';
 
 function createEmptySectionMaps() {
   return {
@@ -100,11 +101,15 @@ export async function processModelDocuments(fileA, fileB) {
     stories = Array.from(uniqueStoriesMap.values()).sort((a, b) => a.height - b.height);
   }
 
-  // Merge section maps
-  const sectionMaps = resultA?.sectionMaps || {};
-  if (resultB) {
-    mergeSectionMaps(sectionMaps, resultB.sectionMaps);
-  }
+  // Merge section maps.
+  // NOTE: resultA.sectionMaps / resultB.sectionMaps are the exact Map instances
+  // held by extractAllSections' per-document WeakMap cache, and those same
+  // instances are returned again later by parseStbFile() for solid mesh
+  // generation. Merging MUST NOT mutate them in place, or Model B's section
+  // definitions would overwrite Model A's at any colliding id_section and
+  // corrupt Model A's rendered geometry (notably RC/rectangular sections, which
+  // have no steel-dimension repair path). Build a fresh merged object instead.
+  const sectionMaps = mergeSectionMaps(resultA?.sectionMaps, resultB?.sectionMaps);
 
   // Build version info
   const versionA = resultA?.version || null;
@@ -145,19 +150,32 @@ function isIfcFile(file) {
 }
 
 /**
+ * ファイルがSS7形式かどうかを判定
+ * @param {File} file - チェック対象ファイル
+ * @returns {boolean}
+ */
+function isSs7CsvFile(file) {
+  const name = file.name.toLowerCase();
+  return name.endsWith('.csv') || name.endsWith('.ss7');
+}
+
+/**
  * Process a single model file (pure transformation, no side effects)
- * Supports STB (XML) and IFC files.
+ * Supports STB (XML), IFC, and SS7 CSV files.
  * All importers return a unified ImportResult: { document, metadata }.
  * @param {File} file - Model file to process
  * @returns {Promise<Object>} Processing result for single model
  */
 async function processModelFile(file) {
-  /** @type {import('../constants/importTypes.js').ImportResult} */
+  /** @type {import('../common-stb/import/constants/importTypes.js').ImportResult} */
   let importResult;
 
   if (isIfcFile(file)) {
     const { convertIfcToStbDocument } = await import('../common-ifc/IfcToStbBridge.js');
     importResult = await convertIfcToStbDocument(file);
+  } else if (isSs7CsvFile(file) && SS7_ENABLED) {
+    const { convertSs7ToStbDocument } = await import('../common-ss7/Ss7ToStbBridge.js');
+    importResult = await convertSs7ToStbDocument(file);
   } else {
     importResult = await loadStbXmlAutoEncoding(file);
   }
@@ -208,23 +226,33 @@ export function clearModelProcessingState() {
   setState('models.activeXsdVersion', null);
   setState('models.calDataA', null);
   setState('models.calDataB', null);
+  setState('models.ss7OriginalCsvTextA', null);
+  setState('models.ss7OriginalCsvTextB', null);
 }
 
 /**
- * Merge section maps from source into target
- * @param {Object} targetMaps - Target section maps to merge into
- * @param {Object} sourceMaps - Source section maps to merge from
+ * Merge section maps from two models into a brand-new object with fresh Maps.
+ * Non-destructive: the input maps (which are shared by reference with the
+ * per-document extract cache and, through it, with mesh generation) are never
+ * mutated. On id_section collision, Model B wins, preserving the previous
+ * merge semantics for the label / section-tree consumers of the returned map.
+ * @param {Object} [mapsA] - Model A section maps
+ * @param {Object} [mapsB] - Model B section maps
+ * @returns {Object} Newly allocated merged section maps
  */
-function mergeSectionMaps(targetMaps, sourceMaps) {
-  if (!sourceMaps) return;
-
-  for (const [sectionType, sourceMap] of Object.entries(sourceMaps)) {
-    if (!sourceMap || typeof sourceMap.forEach !== 'function') continue;
-    if (!targetMaps[sectionType]) {
-      targetMaps[sectionType] = new Map();
+function mergeSectionMaps(mapsA, mapsB) {
+  const merged = {};
+  for (const source of [mapsA, mapsB]) {
+    if (!source) continue;
+    for (const [sectionType, sourceMap] of Object.entries(source)) {
+      if (!sourceMap || typeof sourceMap.forEach !== 'function') continue;
+      if (!merged[sectionType]) {
+        merged[sectionType] = new Map();
+      }
+      sourceMap.forEach((value, key) => {
+        merged[sectionType].set(key, value);
+      });
     }
-    sourceMap.forEach((value, key) => {
-      targetMaps[sectionType].set(key, value);
-    });
   }
+  return merged;
 }

@@ -1,22 +1,8 @@
 /**
  * テーマシステム
  *
- * ダークテーマとライトテーマの切り替え機能を提供
- * - システム設定に従う自動切り替え
- * - 手動切り替え
- * - 設定の永続化（storageHelper経由）
+ * UI品質を安定させるため、アプリのテーマはライトに固定します。
  */
-
-import { storageHelper } from '../../utils/storageHelper.js';
-import { createLogger } from '../../utils/logger.js';
-
-const log = createLogger('ui:common:theme');
-
-/** @type {'light' | 'dark' | 'system'} */
-let currentThemeSetting = 'system';
-
-/** @type {MediaQueryList|null} */
-let systemThemeQuery = null;
 
 /** @type {Function|null} */
 let onThemeChangeCallback = null;
@@ -28,31 +14,7 @@ let onThemeChangeCallback = null;
  */
 export function initializeTheme(options = {}) {
   onThemeChangeCallback = options.onThemeChange || null;
-
-  // システムテーマの変更を監視
-  if (window.matchMedia) {
-    systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    systemThemeQuery.addEventListener('change', handleSystemThemeChange);
-  }
-
-  // 保存された設定を読み込み
-  const savedSetting = storageHelper.get('theme-setting');
-  if (savedSetting && ['light', 'dark', 'system'].includes(savedSetting)) {
-    currentThemeSetting = savedSetting;
-  }
-
-  // テーマを適用
   applyTheme();
-}
-
-/**
- * システムテーマ変更ハンドラ
- * @private
- */
-function handleSystemThemeChange() {
-  if (currentThemeSetting === 'system') {
-    applyTheme();
-  }
 }
 
 /**
@@ -60,51 +22,25 @@ function handleSystemThemeChange() {
  * @private
  */
 function applyTheme() {
-  const effectiveTheme = getEffectiveTheme();
+  document.documentElement.removeAttribute('data-theme');
 
-  // data-theme属性を設定
-  if (effectiveTheme === 'dark') {
-    document.documentElement.setAttribute('data-theme', 'dark');
-  } else {
-    document.documentElement.removeAttribute('data-theme');
-  }
-
-  // コールバックを呼び出し
   if (onThemeChangeCallback) {
-    onThemeChangeCallback(effectiveTheme, currentThemeSetting);
+    onThemeChangeCallback('light', 'light');
   }
-}
-
-/**
- * 実際に適用されるテーマを取得
- * @returns {'light' | 'dark'}
- */
-function getEffectiveTheme() {
-  if (currentThemeSetting === 'system') {
-    return systemThemeQuery?.matches ? 'dark' : 'light';
-  }
-  return currentThemeSetting;
 }
 
 /**
  * 現在のテーマ設定を取得
- * @returns {'light' | 'dark' | 'system'}
+ * @returns {'light'}
  */
 export function getThemeSetting() {
-  return currentThemeSetting;
+  return 'light';
 }
 
 /**
  * テーマ設定を変更
- * @param {'light' | 'dark' | 'system'} setting - テーマ設定
+ * @param {string} _setting - テーマ設定（現在はライト固定）
  */
-export function setThemeSetting(setting) {
-  if (!['light', 'dark', 'system'].includes(setting)) {
-    log.warn(`Invalid theme setting: ${setting}`);
-    return;
-  }
-
-  currentThemeSetting = setting;
-  storageHelper.set('theme-setting', setting);
+export function setThemeSetting(_setting) {
   applyTheme();
 }

@@ -15,6 +15,7 @@
  */
 
 import { getState } from '../../data/state/globalState.js';
+import { getElementIds } from '../../app/controllers/interaction/selectionInfoUtils.js';
 import { UI_TIMING } from '../../config/uiTimingConfig.js';
 import { eventBus, DiffStatusEvents, ComparisonEvents } from '../../data/events/index.js';
 import { sceneController } from '../../app/controllers/sceneController.js';
@@ -47,6 +48,8 @@ export class DiffStatusFilter extends BaseFilter {
       filterName: 'DiffStatus',
     });
     this.activeFilters = new Set(DIFF_STATUS_VALUES); // デフォルト: 6カテゴリ全て表示
+    this.activeElementType = null; // null = 全要素タイプを表示
+    this.activeCriteria = null; // positionState / attributeMismatchKind などの追加条件
     this.presets = this.createDefaultPresets();
 
     this.setupEventListeners();
@@ -134,6 +137,7 @@ export class DiffStatusFilter extends BaseFilter {
 
   /**
    * プリセットフィルタを適用
+   * プリセットは「全体に対する見え方」を選ぶ操作のため、要素タイプ絞り込みは解除する
    * @param {string} presetName - プリセット名
    */
   applyPreset(presetName) {
@@ -143,6 +147,8 @@ export class DiffStatusFilter extends BaseFilter {
       return;
     }
 
+    this.activeElementType = null;
+    this.activeCriteria = null;
     this.setActiveFilters(new Set(preset.levels));
     this.notifyFilterChange('preset', { presetName, preset });
 
@@ -155,12 +161,63 @@ export class DiffStatusFilter extends BaseFilter {
   }
 
   /**
+   * 要素タイプ絞り込みを設定する
+   * @param {string|null} elementType - 表示する要素タイプ（null で解除）
+   */
+  setElementTypeFilter(elementType) {
+    if (this.activeElementType === elementType) return;
+
+    this.activeElementType = elementType || null;
+    this.applyFilter();
+    this.notifyFilterChange('elementType', { elementType: this.activeElementType });
+  }
+
+  /**
+   * 差分ステータスと要素タイプ絞り込みを同時に設定して一括適用する
+   * （差分サマリーのグラフ・表クリックから使用。applyFilter を1回で済ませる）
+   * @param {Iterable<string>} statuses - 表示する差分ステータス
+   * @param {string|string[]|null} [elementType] - 表示する要素タイプ（配列で複数タイプ、null で全タイプ）
+   * @param {Object|null} [criteria] - 位置/属性種別などの追加条件
+   */
+  applyStatusAndTypeFilter(statuses, elementType = null, criteria = null) {
+    const previousFilters = new Set(this.activeFilters);
+    this.activeFilters = new Set(statuses);
+    this.activeElementType = elementType || null;
+    this.activeCriteria = normalizeCriteria(criteria);
+
+    this.saveToHistory();
+    this.applyFilter();
+    this.notifyFilterChange('bulk', {
+      previousFilters,
+      currentFilters: this.activeFilters,
+      elementType: this.activeElementType,
+      criteria: this.activeCriteria,
+    });
+  }
+
+  /**
+   * 要素タイプ（グループ）単位の可視判定。
+   * activeElementType は単一タイプ（文字列）または複数タイプ（配列）を許容する。
+   * 配列の場合はいずれかに一致すれば可視（例: 断面カテゴリ「梁」= 大梁+小梁）。
+   * @param {string} groupType - 要素グループのタイプ名
+   * @returns {boolean}
+   */
+  _isElementTypeVisible(groupType) {
+    const active = this.activeElementType;
+    if (!active) return true;
+    return Array.isArray(active) ? active.includes(groupType) : groupType === active;
+  }
+
+  /**
    * 要素からフィルタ値（差分ステータス）を取得
    * @param {THREE.Object3D} element
    * @returns {string}
    */
   _getFilterValueFromElement(element) {
-    return this.getDiffStatusFromElement(element);
+    return {
+      status: this.getDiffStatusFromElement(element),
+      element,
+    };
   }
 
   /**
@@ -169,9 +226,108 @@ export class DiffStatusFilter extends BaseFilter {
    * @returns {boolean} 表示すべきかどうか
    */
   shouldElementBeVisible(diffStatus) {
+    if (diffStatus && typeof diffStatus === 'object') {
+      const effectiveStatus = diffStatus.status || DIFF_STATUS.MATCHED;
+      return (
+        this.activeFilters.has(effectiveStatus) &&
+        this.doesElementMatchActiveCriteria(diffStatus.element, effectiveStatus)
+      );
+    }
+
     // 差分ステータス情報がない場合はMATCHEDとして扱う
     const effectiveStatus = diffStatus || DIFF_STATUS.MATCHED;
     return this.activeFilters.has(effectiveStatus);
+  }
+
+  /**
+   * 現在の追加条件に3D要素が一致するか判定する
+   * @param {THREE.Object3D} element
+   * @param {string} diffStatus
+   * @returns {boolean}
+   */
+  doesElementMatchActiveCriteria(element, diffStatus) {
+    if (!this.activeCriteria) return true;
+    const axes = getElementDiffAxes(element, diffStatus);
+    const criteria = this.activeCriteria;
+
+    if (criteria.positionStates && !criteria.positionStates.includes(axes.positionState)) {
+      return false;
+    }
+    if (criteria.instanceStates && !criteria.instanceStates.includes(axes.instanceState)) {
+      return false;
+    }
+    if (criteria.sectionStates && !criteria.sectionStates.includes(axes.sectionState)) {
+      return false;
+    }
+    // 断面定義id絞り込み（差分サマリーの断面タブ数値セルクリック）:
+    // 該当断面を参照する配置要素（対応ペア matched を含む）を表示する。
+    // A/Bで id_section 番号が衝突しうるため、要求モデル側（criteria.modelSource）に
+    // 応じて照合する id_section を選ぶ:
+    //   - A側: userData.sectionId（matched メッシュも A側 id_section を持つ）
+    //   - B側: matched は elementIdB から docB を引いた id_section、
+    //          B片側メッシュは userData.sectionId（B側 id_section）
+    if (criteria.sectionIds) {
+      if (!this._matchesSectionIdCriteria(element, criteria)) return false;
+    }
+    return true;
+  }
+
+  /**
+   * sectionIds 条件に対し、要求モデル側の id_section で要素を照合する。
+   * @param {THREE.Object3D} element
+   * @param {{sectionIds: string[], modelSource?: 'A'|'B'}} criteria
+   * @returns {boolean}
+   */
+  _matchesSectionIdCriteria(element, criteria) {
+    const source = element?.userData?.modelSource;
+    const wanted = criteria.modelSource;
+
+    // 要求モデル側と描画メッシュの整合。matched は A/B どちらの要求にも該当しうる。
+    if (wanted === 'A' && source !== 'A' && source !== 'matched') return false;
+    if (wanted === 'B' && source !== 'B' && source !== 'matched') return false;
+
+    const wantedIds = criteria.sectionIds;
+    if (wanted === 'B') {
+      const idB = this._getBSideSectionId(element);
+      return idB != null && wantedIds.includes(String(idB));
+    }
+    if (wanted === 'A') {
+      const idA = element?.userData?.sectionId;
+      return idA != null && wantedIds.includes(String(idA));
+    }
+    // モデル側指定なし（対応セル等）: A側 / B側 id_section のどちらかが含まれれば表示
+    const idA = element?.userData?.sectionId;
+    if (idA != null && wantedIds.includes(String(idA))) return true;
+    const idB = this._getBSideSectionId(element);
+    return idB != null && wantedIds.includes(String(idB));
+  }
+
+  /**
+   * 要素の B側 id_section を解決する。
+   * B片側メッシュは userData.sectionId がそのまま B側 id_section。
+   * matched メッシュは B側 id_section を持たないため、elementIdB から
+   * documentB の配置要素を引いて取得し、userData にメモ化する。
+   * @param {THREE.Object3D} element
+   * @returns {string|null}
+   */
+  _getBSideSectionId(element) {
+    const userData = element?.userData;
+    if (!userData) return null;
+    if (userData.modelSource === 'B') return userData.sectionId ?? null;
+    if (userData.modelSource !== 'matched') return null;
+
+    if (userData._sectionIdB !== undefined) return userData._sectionIdB;
+
+    const { idB } = getElementIds(userData);
+    const docB = getState('models.documentB');
+    let resolved = null;
+    if (idB != null && docB && userData.elementType) {
+      const node = docB.querySelector(`Stb${userData.elementType}[id="${idB}"]`);
+      const idSection = node?.getAttribute?.('id_section');
+      if (idSection != null) resolved = String(idSection);
+    }
+    userData._sectionIdB = resolved; // メモ化（次回以降の docB 参照を回避）
+    return resolved;
   }
 
   /**
@@ -210,13 +366,8 @@ export class DiffStatusFilter extends BaseFilter {
       return this._getSingleModelStatus();
     }
 
-    // 新しい6カテゴリ形式: positionState と attributeState を組み合わせて判定
     const positionState = element.userData.positionState; // 'exact' | 'withinTolerance' | 'mismatch'
     const attributeState = element.userData.attributeState; // 'matched' | 'mismatch'
-
-    if (positionState && attributeState) {
-      return this.determineStatusFromStates(positionState, attributeState);
-    }
 
     // diffStatus プロパティを確認（レガシー対応）
     if (element.userData.diffStatus) {
@@ -255,6 +406,11 @@ export class DiffStatusFilter extends BaseFilter {
         }
         return status;
       }
+    }
+
+    // 新しい6カテゴリ形式: positionState と attributeState を組み合わせて判定
+    if (positionState && attributeState) {
+      return this.determineStatusFromStates(positionState, attributeState);
     }
 
     // comparisonState プロパティを確認（レガシー対応）
@@ -425,6 +581,29 @@ export class DiffStatusFilter extends BaseFilter {
   }
 
   /**
+   * 指定した断面定義id集合を参照する配置要素が3Dシーンに存在するか判定する。
+   * トグル状態や現在のフィルタに依存せず、userData.sectionId を直接走査する
+   * （断面タブ数値セルの「未使用断面定義→生XMLフォールバック」判定に使う）。
+   * @param {string[]} sectionIds - 断面定義の rawElement@id 集合
+   * @param {string|null} [modelSource] - 'A' | 'B' に限定する場合に指定
+   * @returns {boolean} 参照する配置要素が1つでも存在すれば true
+   */
+  hasElementsReferencingSectionIds(sectionIds, modelSource = null) {
+    const groups = sceneController.getElementGroups();
+    if (!groups) return false;
+    const ids = (sectionIds || []).map(String);
+    if (ids.length === 0) return false;
+    // doesElementMatchActiveCriteria と同じ side 別照合で「参照する配置要素の有無」を判定する。
+    // （フィルタで表示される要素とフォールバック判定の母集団を一致させるため）
+    const criteria = { sectionIds: ids };
+    if (modelSource) criteria.modelSource = modelSource;
+    return Object.values(groups).some((group) => {
+      if (!group || !group.children) return false;
+      return group.children.some((element) => this._matchesSectionIdCriteria(element, criteria));
+    });
+  }
+
+  /**
    * デバッグ情報を出力
    */
   debug() {
@@ -435,6 +614,51 @@ export class DiffStatusFilter extends BaseFilter {
     log.info('History:', this.filterHistory);
     log.info('Stats:', this.getStats());
     log.infoEnd();
+  }
+}
+
+function normalizeCriteria(criteria) {
+  if (!criteria || typeof criteria !== 'object') return null;
+  const normalized = {};
+  for (const key of ['positionStates', 'instanceStates', 'sectionStates', 'sectionIds']) {
+    if (Array.isArray(criteria[key]) && criteria[key].length > 0) {
+      normalized[key] = [...criteria[key]];
+    }
+  }
+  // modelSource は sectionIds 絞り込みの補助（'A' | 'B'）
+  if (criteria.modelSource === 'A' || criteria.modelSource === 'B') {
+    normalized.modelSource = criteria.modelSource;
+  }
+  return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
+function getElementDiffAxes(element, diffStatus) {
+  const userData = element?.userData || {};
+  const positionState =
+    userData.positionState ||
+    (diffStatus === DIFF_STATUS.POSITION_TOLERANCE || diffStatus === DIFF_STATUS.COMBINED
+      ? 'withinTolerance'
+      : 'exact');
+  const kind = getAttributeMismatchKind(userData, diffStatus);
+
+  return {
+    positionState,
+    instanceState: kind === 'instance' || kind === 'both' ? 'mismatch' : 'match',
+    sectionState: kind === 'type' || kind === 'both' ? 'mismatch' : 'match',
+  };
+}
+
+function getAttributeMismatchKind(userData, diffStatus) {
+  if (userData.attributeMismatchKind) return userData.attributeMismatchKind;
+  switch (diffStatus) {
+    case DIFF_STATUS.ATTRIBUTE_MISMATCH_INSTANCE:
+      return 'instance';
+    case DIFF_STATUS.ATTRIBUTE_MISMATCH_TYPE:
+      return 'type';
+    case DIFF_STATUS.ATTRIBUTE_MISMATCH_BOTH:
+      return 'both';
+    default:
+      return null;
   }
 }
 

@@ -11,9 +11,10 @@
 .accordion-section {
   border: var(--border-width) solid var(--border-color-light);
   border-radius: var(--border-radius-lg);
-  margin-bottom: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
   background: var(--sidebar-btn-bg);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 /* ========================================
@@ -30,7 +31,7 @@
   justify-content: space-between;
   align-items: center;
   font: inherit;
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
   text-align: left;
   width: 100%;
   color: var(--sidebar-btn-text);
@@ -40,6 +41,10 @@
 
 .accordion-header:hover {
   background: var(--sidebar-btn-hover-bg);
+}
+
+.accordion-header[aria-expanded='true'] {
+  color: var(--text-heading);
 }
 
 .accordion-header:focus:not(:focus-visible) {
@@ -81,8 +86,8 @@
    ======================================== */
 
 .accordion-content {
-  padding: var(--spacing-md);
-  background: var(--bg-body);
+  padding: 14px;
+  background: var(--bg-elevated);
   transition: all var(--transition-base);
   max-height: 1000px;
   overflow: hidden;
@@ -115,9 +120,27 @@
 .file-input-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 12px;
   max-width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--border-radius-lg);
+  background: color-mix(in srgb, var(--bg-elevated) 92%, var(--bg-secondary));
+  transition:
+    border-color var(--transition-fast),
+    background-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.file-input-wrapper:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 45%, var(--border-color));
+  box-shadow: var(--shadow-sm);
+}
+
+.file-input-wrapper.has-file {
+  border-color: color-mix(in srgb, var(--color-success) 55%, var(--border-color));
+  background: color-mix(in srgb, var(--color-success) 8%, var(--bg-elevated));
 }
 
 /* カスタムファイル選択ボタンとファイル名表示 */
@@ -132,10 +155,13 @@
 }
 
 .custom-file-btn {
-  display: inline-block;
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  padding: 5px 10px;
   border: var(--border-width) solid var(--border-color);
-  background: var(--bg-body);
+  background: var(--bg-elevated);
   border-radius: var(--border-radius);
   cursor: pointer;
   font-size: var(--font-size-sm);
@@ -145,7 +171,7 @@
 }
 
 .custom-file-btn:hover {
-  background-color: var(--bg-panel);
+  background-color: var(--bg-hover);
   border-color: var(--color-primary);
 }
 
@@ -163,7 +189,8 @@
   word-break: break-word;
   overflow-wrap: break-word;
   line-height: 1.4;
-  margin-top: 4px;
+  min-height: 1.4em;
+  margin-top: 0;
 }
 
 /* ファイル選択済み時のファイル名スタイル */
@@ -171,18 +198,37 @@
   color: var(--text-primary);
 }
 
-
 /* ========================================
    モデルヘッダー（ラベル+バージョン）
    ======================================== */
 
 .model-header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
+  display: grid;
+  grid-template-areas:
+    "label action"
+    "version action";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 12px;
+  row-gap: 6px;
+}
+
+.model-header label {
+  grid-area: label;
+  display: inline-flex;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-heading);
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .version-badge-inline {
+  grid-area: version;
+  justify-self: start;
+  min-width: 0;
+  max-width: 100%;
   font-size: var(--font-size-sm);
   padding: 2px 6px;
   border-radius: var(--border-radius);
@@ -190,6 +236,14 @@
   color: var(--text-secondary);
   border: 1px solid var(--border-color-light);
   white-space: nowrap;
+}
+
+.model-header .custom-file-btn {
+  grid-area: action;
+  width: auto;
+  margin: 0;
+  justify-self: end;
+  align-self: center;
 }
 
 .version-badge-inline:empty {
@@ -206,6 +260,10 @@
 
 .version-badge-inline.version-unknown {
   color: var(--text-muted);
+}
+
+.version-badge-inline.version-ss7 {
+  border-left: 2px solid #f59e0b;
 }
 
 .version-badge-inline.version-ifc {

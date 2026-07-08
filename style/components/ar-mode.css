@@ -11,6 +11,18 @@
   background-color: var(--btn-hover-bg, #d0d0d0);
 }
 
+/* モデル未読み込み時の無効状態（FR-1.4）
+   タッチ端末で理由をトースト表示するため disabled 属性ではなく
+   aria-disabled + クリックガードで無効化する */
+.ar-mode-btn.ar-unavailable {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ar-mode-btn.ar-unavailable:hover {
+  background-color: var(--btn-bg, #e8e8e8);
+}
+
 .ar-mode-btn.ar-active {
   background-color: #4caf50;
   color: #fff;
@@ -19,4 +31,164 @@
 
 .ar-mode-btn.ar-active:hover {
   background-color: #43a047;
+}
+
+/* --- AR専用オーバーレイ（DOM Overlayルート） --- */
+
+.ar-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  /* ジェスチャー取得のため全面でタッチを受ける（背景は透過表示） */
+  touch-action: none;
+  background: transparent;
+  font-family: sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.ar-overlay[hidden] {
+  display: none;
+}
+
+.ar-overlay-top {
+  position: absolute;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.ar-guidance {
+  flex: 1;
+  text-align: center;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.ar-guidance[hidden] {
+  visibility: hidden;
+}
+
+.ar-exit-btn {
+  pointer-events: auto;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.ar-overlay-bottom {
+  position: absolute;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  left: 12px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.ar-scale-presets {
+  display: flex;
+  gap: 8px;
+}
+
+.ar-ctrl-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.ar-ctrl-btn.active {
+  background: #4caf50;
+  border-color: #388e3c;
+}
+
+.ar-ctrl-btn[hidden] {
+  display: none;
+}
+
+.ar-scale-label {
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 12px;
+}
+
+/* --- 要素情報カード（FR-6.1: 配置済みモデルのタップで表示） --- */
+
+.ar-element-info {
+  position: absolute;
+  /* 下部コントロール群（再配置・縮尺）の上に重ならない位置 */
+  bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(92vw, 420px);
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+}
+
+.ar-element-info[hidden] {
+  display: none;
+}
+
+.ar-element-info-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ar-element-info-title {
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1.3;
+}
+
+.ar-element-info-detail {
+  font-size: 12px;
+  line-height: 1.3;
+  opacity: 0.85;
+}
+
+.ar-element-info-detail[hidden] {
+  display: none;
+}
+
+.ar-element-info-close {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
 }

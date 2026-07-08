@@ -18,6 +18,7 @@ import {
   redrawUndefinedElementsForViewMode,
 } from './elementRedrawer.js';
 import { registerElementsToRegistry } from '../../modelLoader/renderingOrchestrator.js';
+import { setModelContext, clearModelContext } from './modelContext.js';
 
 // ロガー
 const log = createLogger('displayModeController');
@@ -25,27 +26,7 @@ const log = createLogger('displayModeController');
 // stbStructureReaderに状態プロバイダーを設定（依存性注入）
 setStateProvider({ setState });
 
-// モデル情報の参照
-let modelBounds = null;
-let modelADocument = null;
-let modelBDocument = null;
-let nodeMapA = null;
-let nodeMapB = null;
 let initialDisplayModeRunId = 0;
-
-/**
- * モデルコンテキストを取得
- * @returns {Object} モデルコンテキスト
- */
-export function getModelContext() {
-  return {
-    modelBounds,
-    modelADocument,
-    modelBDocument,
-    nodeMapA,
-    nodeMapB,
-  };
-}
 
 /**
  * 状態管理モジュールを初期化
@@ -57,11 +38,7 @@ export function initViewModes(modelData, scheduleRender) {
   // compareModels 側でキャッシュをクリアし、必要データをプリウォームした後に到達する。
   // ここで再度クリアすると初回ソリッド描画の高速化が失われる。
 
-  modelBounds = modelData.modelBounds;
-  modelADocument = modelData.modelADocument;
-  modelBDocument = modelData.modelBDocument;
-  nodeMapA = modelData.nodeMapA;
-  nodeMapB = modelData.nodeMapB;
+  setModelContext(modelData);
 
   log.info('[initViewModes] Initializing view modes with new model data');
 
@@ -73,17 +50,24 @@ export function initViewModes(modelData, scheduleRender) {
 }
 
 /**
+ * 表示設定の変更（トグル等）に伴い、現在のモデルデータで全要素を再描画する。
+ * モデルコンテキストは既に設定済みである前提（比較後に呼ばれる）。
+ * @param {Function} scheduleRender - 再描画要求関数
+ * @returns {Promise<{completed: boolean, aborted: boolean, errors: Array}>}
+ */
+export function redrawAllElementsForViewMode(scheduleRender) {
+  log.info('[redrawAllElementsForViewMode] Redrawing all elements after display setting change');
+  return scheduleInitialDisplayModes(scheduleRender);
+}
+
+/**
  * 表示モード管理をリセット
  */
 export function resetViewModes() {
   log.info('[resetViewModes] Resetting view modes');
   initialDisplayModeRunId += 1;
   clearParseCache();
-  modelBounds = null;
-  modelADocument = null;
-  modelBDocument = null;
-  nodeMapA = null;
-  nodeMapB = null;
+  clearModelContext();
 }
 
 /**

@@ -11,8 +11,10 @@ import { floatingWindowManager } from '../floatingWindowManager.js';
 import { extractColumnSectionGrid } from '../../../data/extractors/columnSectionListExtractor.js';
 import { ColumnSectionListRenderer } from './ColumnSectionListRenderer.js';
 import { exportToPdf } from './ColumnSectionListExporter.js';
+import { exportColumnSectionListToDxf } from './SectionListDxfExporter.js';
 import { createLogger } from '../../../utils/logger.js';
 import { getState } from '../../../data/state/globalState.js';
+import { showWarning, showError } from '../../common/toast.js';
 
 const log = createLogger('ui/ColumnSectionListPanel');
 
@@ -26,6 +28,7 @@ export class ColumnSectionListPanel {
     this.renderer = new ColumnSectionListRenderer();
     this.currentData = null;
     this.currentDoc = null;
+    this.currentSource = 'A';
     this.isInitialized = false;
   }
 
@@ -72,6 +75,9 @@ export class ColumnSectionListPanel {
           <button class="float-window-btn section-list-export-btn" id="section-list-export-pdf-btn" title="PDF出力">
             PDF
           </button>
+          <button class="float-window-btn section-list-export-btn" id="section-list-export-dxf-btn" title="DXF出力">
+            DXF
+          </button>
           <button class="float-window-btn section-list-refresh-btn" id="section-list-refresh-btn" title="更新">
             ↻
           </button>
@@ -111,6 +117,12 @@ export class ColumnSectionListPanel {
       exportBtn.addEventListener('click', () => this.handleExportPdf());
     }
 
+    // DXF出力ボタン
+    const exportDxfBtn = document.getElementById('section-list-export-dxf-btn');
+    if (exportDxfBtn) {
+      exportDxfBtn.addEventListener('click', () => this.handleExportDxf());
+    }
+
     // 更新ボタン
     const refreshBtn = document.getElementById('section-list-refresh-btn');
     if (refreshBtn) {
@@ -144,6 +156,7 @@ export class ColumnSectionListPanel {
    * @param {string} source - 'A' または 'B'
    */
   handleSourceChange(source) {
+    this.currentSource = source;
     log.info(`Source changed to: ${source}`);
     this.refresh(source);
   }
@@ -231,7 +244,7 @@ export class ColumnSectionListPanel {
       tableContainer?.querySelector('.column-section-list-table');
 
     if (!table) {
-      alert('出力するテーブルがありません');
+      showWarning('出力するテーブルがありません。');
       return;
     }
 
@@ -246,11 +259,44 @@ export class ColumnSectionListPanel {
       log.info('PDF exported successfully');
     } catch (error) {
       log.error('PDF export failed:', error);
-      alert(`PDF出力に失敗しました: ${error.message}`);
+      showError(`PDF出力に失敗しました: ${error.message}`);
     } finally {
       if (exportBtn) {
         exportBtn.disabled = false;
         exportBtn.textContent = 'PDF';
+      }
+    }
+  }
+
+  /**
+   * DXF出力を処理
+   */
+  async handleExportDxf() {
+    if (!this.currentData) {
+      showWarning('出力するデータがありません。');
+      return;
+    }
+
+    const exportBtn = document.getElementById('section-list-export-dxf-btn');
+    if (exportBtn) {
+      exportBtn.disabled = true;
+      exportBtn.textContent = '...';
+    }
+
+    try {
+      const source = this.currentSource || 'A';
+      const fileKey = source === 'A' ? 'files.originalFileA' : 'files.originalFileB';
+      const file = getState(fileKey);
+      const stbName = file?.name ? file.name.replace(/\.[^/.]+$/, '') : '';
+      await exportColumnSectionListToDxf(this.currentData, 'rc-column-section-list', stbName);
+      log.info('DXF exported successfully');
+    } catch (error) {
+      log.error('DXF export failed:', error);
+      showError(`DXF出力に失敗しました: ${error.message}`);
+    } finally {
+      if (exportBtn) {
+        exportBtn.disabled = false;
+        exportBtn.textContent = 'DXF';
       }
     }
   }

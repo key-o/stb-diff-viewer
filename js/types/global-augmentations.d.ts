@@ -109,18 +109,15 @@ interface Window {
   applyStoryClip?: (...args: any[]) => any;
   canExportStbToDxf?: (...args: any[]) => any;
   clearClippingPlanes?: (...args: any[]) => any;
-  clearModifications?: (...args: any[]) => any;
   comparisonKeyManager?: any;
   controls?: any;
   debugLoadData?: (...args: any[]) => any;
   diffStatusFilter?: any;
   displayElementInfo?: (...args: any[]) => any;
   displayModeManager?: any;
-  editAttribute?: (...args: any[]) => any;
   exportAllStoriesToDxf?: (...args: any[]) => any;
   exportAlongAllAxesBothDirections?: (...args: any[]) => any;
   exportAlongAllAxesToDxf?: (...args: any[]) => any;
-  exportModifications?: (...args: any[]) => any;
   exportStbToDxf?: (...args: any[]) => any;
   getAvailableAxes?: (...args: any[]) => any;
   getAvailableStories?: (...args: any[]) => any;
@@ -188,9 +185,14 @@ interface XRRigidTransform {
   readonly matrix: ArrayLike<number>;
 }
 
-declare module 'https://unpkg.com/camera-controls@3.1.0/dist/camera-controls.module.js' {
+declare module 'camera-controls' {
   const CameraControls: any;
   export default CameraControls;
+}
+
+declare module 'encoding-japanese' {
+  const Encoding: any;
+  export default Encoding;
 }
 
 declare module 'html2canvas' {

@@ -6,6 +6,7 @@
  */
 
 import { getState } from '../../../data/state/globalState.js';
+import { escapeHtml } from '../../../utils/htmlUtils.js';
 
 /**
  * modelSource を要素情報パネル用のモデル側識別子に正規化
@@ -151,12 +152,15 @@ export function getElementInfoModelLabel(modelSide) {
 
 /**
  * 単一モデル表示用タイトルを生成
+ *
+ * body は呼び出し側で組み立て済みの安全な HTML 断片（動的値はエスケープ済み）。
+ * モデルラベルはファイル名（ユーザー入力由来）を含むためここでエスケープする。
  * @param {'A'|'B'|null|undefined} modelSide
- * @param {string} body
+ * @param {string} body - エスケープ済みの HTML 断片
  * @returns {string}
  */
 export function buildSingleModelTitle(modelSide, body) {
-  return `${getElementInfoModelLabel(modelSide)}: ${body}`;
+  return `${escapeHtml(getElementInfoModelLabel(modelSide))}: ${body}`;
 }
 
 /**
@@ -166,7 +170,7 @@ export function buildSingleModelTitle(modelSide, body) {
  * @returns {string}
  */
 export function buildSingleColumnHeaderHtml(labelColumnText, modelSide) {
-  return `<thead><tr><th style="width: 50%;">${labelColumnText}</th><th style="width: 50%;">${getElementInfoModelLabel(modelSide)}</th></tr></thead>`;
+  return `<thead><tr><th style="width: 50%;">${labelColumnText}</th><th style="width: 50%;">${escapeHtml(getElementInfoModelLabel(modelSide))}</th></tr></thead>`;
 }
 
 /**

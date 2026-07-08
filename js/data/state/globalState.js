@@ -83,6 +83,9 @@ class ApplicationState {
         // 荷重データ（StbCalData）
         calDataA: null,
         calDataB: null,
+        // SS7元CSVテキスト（SS7再エクスポート時のパススルー用）
+        ss7OriginalCsvTextA: null,
+        ss7OriginalCsvTextB: null,
         // IFC変換用: 生の座標データ（THREE.Vector3変換前）
         nodeMapRawA: new Map(),
         nodeMapRawB: new Map(),
@@ -118,6 +121,9 @@ class ApplicationState {
         beamViewMode: 'line',
         isModelAVisible: true,
         isModelBVisible: true,
+        // 断面が異なる一致要素(ATTRIBUTE_MISMATCH)でモデルB側の形状を
+        // 半透明で重ねて表示するか（形状差の可視化用トグル、既定OFF）
+        showMatchedModelBOverlay: false,
       },
 
       // 機能関数
@@ -372,6 +378,8 @@ class ApplicationState {
         // 荷重データ（StbCalData）
         calDataA: null,
         calDataB: null,
+        ss7OriginalCsvTextA: null,
+        ss7OriginalCsvTextB: null,
         nodeMapRawA: new Map(),
         nodeMapRawB: new Map(),
         sectionMaps: createEmptySectionMaps(),

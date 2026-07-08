@@ -22,6 +22,9 @@ export {
   toggleEditMode,
   exportModifications,
   clearModifications,
+  undoLastModification,
+  addNewMember,
+  getNewMemberDefinitions,
   initializeEditModeButton,
 } from './EditMode.js';
 
@@ -29,6 +32,10 @@ export {
   setElementInfoProviders,
   setElementInfoProviders as setProviders,
 } from './ElementInfoProviders.js';
+
+export { initializeDockButton } from './dockController.js';
+
+export { initAddMemberForm, openAddMemberForm } from './AddMemberForm.js';
 
 export { getAttributeImportanceLevel, getImportanceCircleHtml } from './ImportanceColors.js';
 export {

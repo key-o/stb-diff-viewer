@@ -4,6 +4,7 @@
  */
 
 import * as WebIFC from 'web-ifc';
+import { STB_TAG_NAMES } from '../../constants/elementTypes.js';
 
 /**
  * IFCエンティティタイプコード → STB要素カテゴリ
@@ -11,14 +12,17 @@ import * as WebIFC from 'web-ifc';
  * ElementClassifier で判別する。
  */
 export const IFC_TO_STB_TYPE = new Map([
-  [WebIFC.IFCCOLUMN, { stbCategory: 'column', default: 'StbColumn', alt: 'StbPost' }],
-  [WebIFC.IFCBEAM, { stbCategory: 'beam', default: 'StbGirder', alt: 'StbBeam' }],
-  [WebIFC.IFCMEMBER, { stbCategory: 'brace', default: 'StbBrace' }],
-  [WebIFC.IFCSLAB, { stbCategory: 'slab', default: 'StbSlab' }],
-  [WebIFC.IFCWALL, { stbCategory: 'wall', default: 'StbWall' }],
-  [WebIFC.IFCWALLSTANDARDCASE, { stbCategory: 'wall', default: 'StbWall' }],
-  [WebIFC.IFCPILE, { stbCategory: 'pile', default: 'StbPile' }],
-  [WebIFC.IFCFOOTING, { stbCategory: 'footing', default: 'StbFooting' }],
+  [
+    WebIFC.IFCCOLUMN,
+    { stbCategory: 'column', default: STB_TAG_NAMES.COLUMN, alt: STB_TAG_NAMES.POST },
+  ],
+  [WebIFC.IFCBEAM, { stbCategory: 'beam', default: STB_TAG_NAMES.GIRDER, alt: STB_TAG_NAMES.BEAM }],
+  [WebIFC.IFCMEMBER, { stbCategory: 'brace', default: STB_TAG_NAMES.BRACE }],
+  [WebIFC.IFCSLAB, { stbCategory: 'slab', default: STB_TAG_NAMES.SLAB }],
+  [WebIFC.IFCWALL, { stbCategory: 'wall', default: STB_TAG_NAMES.WALL }],
+  [WebIFC.IFCWALLSTANDARDCASE, { stbCategory: 'wall', default: STB_TAG_NAMES.WALL }],
+  [WebIFC.IFCPILE, { stbCategory: 'pile', default: STB_TAG_NAMES.PILE }],
+  [WebIFC.IFCFOOTING, { stbCategory: 'footing', default: STB_TAG_NAMES.FOOTING }],
 ]);
 
 /** 構造要素として処理するIFCタイプコード一覧 */

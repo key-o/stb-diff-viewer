@@ -25,6 +25,7 @@ export {
   buildNodeMap,
   parseStories,
   parseAxes,
+  computeAxisGeometryKey,
   buildNodeStoryAxisLookup,
   STB_NAMESPACE,
 } from './stbParserCore.js';

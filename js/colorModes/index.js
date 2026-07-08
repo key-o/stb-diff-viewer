@@ -17,11 +17,15 @@ export {
   setColorMode,
   setupColorModeListeners,
   updateElementsForColorMode,
-  requestColorModeRedraw,
-  applyColorModeToAllObjects,
   getMaterialForElement,
   applyDefaultColorModeAfterLoad,
 } from './colorModeManager.js';
+
+// 一括適用・再描画（循環依存解消のため分離）
+export { applyColorModeToAllObjects, requestColorModeRedraw } from './applyColorMode.js';
+
+// 状況メッセージ表示（循環依存解消のため分離）
+export { showColorModeStatus } from './colorModeStatus.js';
 
 // Element color mode
 export {

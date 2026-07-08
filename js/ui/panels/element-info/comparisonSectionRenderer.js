@@ -8,11 +8,12 @@
 import { getState } from '../../../data/state/globalState.js';
 import { getAttributesMap } from './SectionHelpers.js';
 import {
-  attributesDiffer,
+  comparableAttributeDiffers,
   buildAttributeValidationStatusMap,
   getValidationCellMeta,
   buildCellClassAttr,
 } from './comparisonUtils.js';
+import { escapeHtml, valueToSafeHtml } from '../../../utils/htmlUtils.js';
 
 /**
  * XMLドキュメントのStbSecSteelからshape名で鉄骨断面要素を検索する
@@ -38,7 +39,9 @@ export function findSteelSectionElement(doc, shapeName) {
     'StbSecBuild-BOX',
   ];
   for (const tag of tags) {
-    const el = steel.querySelector(`${tag}[name="${shapeName}"]`);
+    const el = Array.from(steel.querySelectorAll(tag)).find(
+      (candidate) => candidate.getAttribute('name') === shapeName,
+    );
     if (el) return { element: el, tagName: tag };
   }
   return null;
@@ -70,13 +73,13 @@ export function renderSteelSectionBlock(
 
   const shape = shapeA || shapeB;
   const tagName = resultA?.tagName || resultB?.tagName;
-  const blockRowId = `row_steel_${shape}_${Math.random().toString(36).slice(2, 7)}`;
+  const blockRowId = `row_steel_${Math.random().toString(36).slice(2, 7)}`;
 
   // 要素行: StbSecRoll-H[@name="H-700x300x13x24x18"]
   let html = `<tr class="element-row" data-id="${blockRowId}" data-parent="${parentRowId}">`;
   html += `<td style="${elementIndentStyle} white-space: nowrap;">`;
   html += `<span class="toggle-btn" data-target-id="${blockRowId}" style="margin-right:5px;display:inline-block;width:1em;text-align:center;font-weight:var(--font-weight-bold);cursor:pointer;color:#666;">-</span>`;
-  html += `<span class="tag-name">${tagName}[@name="${shape}"]</span>`;
+  html += `<span class="tag-name">${escapeHtml(tagName)}[@name="${escapeHtml(shape)}"]</span>`;
   html += '</td>';
   if (showSingleColumn) {
     html += '<td></td>';
@@ -102,24 +105,24 @@ export function renderSteelSectionBlock(
     const valB = attrsB.get(attr);
 
     if (showSingleColumn) {
-      const val = valA ?? valB ?? '-';
+      const val = valueToSafeHtml(valA ?? valB, '-');
       const activeMap = validationMapA.size > 0 ? validationMapA : validationMapB;
       const validationMeta = getValidationCellMeta(attr, activeMap);
       const cellClass = buildCellClassAttr(validationMeta.className);
       html += `<tr data-parent="${blockRowId}">`;
-      html += `<td style="${attrIndentStyle}"><span class="attr-name">${attr}</span></td>`;
+      html += `<td style="${attrIndentStyle}"><span class="attr-name">${escapeHtml(attr)}</span></td>`;
       html += `<td${cellClass}${validationMeta.titleAttr} style="color: #555;">${val}</td>`;
       html += '</tr>';
     } else {
-      const displayA = valA ?? '<span class="no-value">-</span>';
-      const displayB = valB ?? '<span class="no-value">-</span>';
-      const differs = valA != null && valB != null && attributesDiffer(valA, valB);
+      const displayA = valueToSafeHtml(valA);
+      const displayB = valueToSafeHtml(valB);
+      const differs = valA != null && valB != null && comparableAttributeDiffers(attr, valA, valB);
       const validationMetaA = getValidationCellMeta(attr, validationMapA);
       const validationMetaB = getValidationCellMeta(attr, validationMapB);
       const classAttrA = buildCellClassAttr(differs ? 'differs' : '', validationMetaA.className);
       const classAttrB = buildCellClassAttr(differs ? 'differs' : '', validationMetaB.className);
       html += `<tr data-parent="${blockRowId}">`;
-      html += `<td style="${attrIndentStyle}"><span class="attr-name">${attr}</span></td>`;
+      html += `<td style="${attrIndentStyle}"><span class="attr-name">${escapeHtml(attr)}</span></td>`;
       html += `<td${classAttrA}${validationMetaA.titleAttr} style="color: #555;">${displayA}</td>`;
       html += `<td${classAttrB}${validationMetaB.titleAttr} style="color: #555;">${displayB}</td>`;
       html += '</tr>';
@@ -136,11 +139,8 @@ export function renderSteelSectionBlock(
  */
 export function findOpeningXmlElement(doc, openingId) {
   if (!doc || !openingId) return null;
-  // v2.0.2: StbOpen[@id="..."]
-  const stbOpen = doc.querySelector(`StbOpen[id="${openingId}"]`);
-  if (stbOpen) return stbOpen;
-  // v2.1.0: StbOpenArrangement[@id="..."]
-  return doc.querySelector(`StbOpenArrangement[id="${openingId}"]`);
+  const candidates = doc.querySelectorAll('StbOpen, StbOpenArrangement');
+  return Array.from(candidates).find((el) => el.getAttribute('id') === openingId) || null;
 }
 
 /**
@@ -151,7 +151,10 @@ export function findOpeningXmlElement(doc, openingId) {
  */
 export function findOpeningSectionDimensions(doc, idSection) {
   if (!doc || !idSection) return null;
-  const secEl = doc.querySelector(`StbSecOpen_RC[id="${idSection}"]`);
+  const secEl =
+    Array.from(doc.querySelectorAll('StbSecOpen_RC')).find(
+      (el) => el.getAttribute('id') === idSection,
+    ) || null;
   if (!secEl) return null;
   const lx = secEl.getAttribute('length_X');
   const ly = secEl.getAttribute('length_Y');
@@ -185,13 +188,13 @@ export function renderOpeningPropertiesBlock(
 
   const openId = openIdA || openIdB;
   const tagName = openElA?.tagName || openElB?.tagName;
-  const blockRowId = `row_open_${openId}_${Math.random().toString(36).slice(2, 7)}`;
+  const blockRowId = `row_open_${Math.random().toString(36).slice(2, 7)}`;
 
   // 要素行: StbOpen[@id="101"]
   let html = `<tr class="element-row" data-id="${blockRowId}" data-parent="${parentRowId}">`;
   html += `<td style="${elementIndentStyle} white-space: nowrap;">`;
   html += `<span class="toggle-btn" data-target-id="${blockRowId}" style="margin-right:5px;display:inline-block;width:1em;text-align:center;font-weight:var(--font-weight-bold);cursor:pointer;color:#666;">-</span>`;
-  html += `<span class="tag-name">${tagName}[@id="${openId}"]</span>`;
+  html += `<span class="tag-name">${escapeHtml(tagName)}[@id="${escapeHtml(openId)}"]</span>`;
   html += '</td>';
   if (showSingleColumn) {
     html += '<td></td>';
@@ -253,18 +256,18 @@ export function renderOpeningPropertiesBlock(
     const valB = attrsB.get(attr);
 
     if (showSingleColumn) {
-      const val = valA ?? valB ?? '-';
+      const val = valueToSafeHtml(valA ?? valB, '-');
       html += `<tr data-parent="${blockRowId}">`;
-      html += `<td style="${attrIndentStyle}"><span class="attr-name">${attr}</span></td>`;
+      html += `<td style="${attrIndentStyle}"><span class="attr-name">${escapeHtml(attr)}</span></td>`;
       html += `<td style="color: #555;">${val}</td>`;
       html += '</tr>';
     } else {
-      const displayA = valA ?? '<span class="no-value">-</span>';
-      const displayB = valB ?? '<span class="no-value">-</span>';
-      const differs = valA != null && valB != null && attributesDiffer(valA, valB);
+      const displayA = valueToSafeHtml(valA);
+      const displayB = valueToSafeHtml(valB);
+      const differs = valA != null && valB != null && comparableAttributeDiffers(attr, valA, valB);
       const highlightClass = differs ? ' class="differs"' : '';
       html += `<tr data-parent="${blockRowId}">`;
-      html += `<td style="${attrIndentStyle}"><span class="attr-name">${attr}</span></td>`;
+      html += `<td style="${attrIndentStyle}"><span class="attr-name">${escapeHtml(attr)}</span></td>`;
       html += `<td${highlightClass} style="color: #555;">${displayA}</td>`;
       html += `<td${highlightClass} style="color: #555;">${displayB}</td>`;
       html += '</tr>';

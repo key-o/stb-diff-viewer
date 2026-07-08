@@ -37,6 +37,10 @@ export const ImportanceEvents = {
 export const COMPARISON_KEY_EVENTS = {
   /** 比較キータイプが変更された */
   KEY_TYPE_CHANGED: 'comparisonKey:keyTypeChanged',
+  /** 断面一致基準が変更された */
+  SECTION_MATCH_CRITERION_CHANGED: 'comparisonKey:sectionMatchCriterionChanged',
+  /** 通り芯・階の判定基準が変更された */
+  STORY_AXIS_MATCH_CRITERION_CHANGED: 'comparisonKey:storyAxisMatchCriterionChanged',
 };
 
 /**
@@ -175,6 +179,8 @@ export const ViewEvents = {
   MODE_CHANGED: 'view:modeChanged',
   /** カラーモード変更 */
   COLOR_MODE_CHANGED: 'view:colorModeChanged',
+  /** カラーモードの再適用要求（設定変更時に各モードモジュールが発行） */
+  COLOR_MODE_REFRESH_REQUESTED: 'view:colorModeRefreshRequested',
   /** 要素表示/非表示切替 */
   ELEMENT_VISIBILITY_CHANGED: 'view:elementVisibilityChanged',
   /** カメラモード変更 */
@@ -258,8 +264,8 @@ export const EditEvents = {
   EDIT_STARTED: 'edit:started',
   /** 属性値が変更された */
   ATTRIBUTE_CHANGED: 'edit:attributeChanged',
-  /** ジオメトリが再生成された */
-  GEOMETRY_REGENERATED: 'edit:geometryRegenerated',
+  /** 編集起因の再比較が完了した（ペイロード: { changedElementTypes: string[] }） */
+  RECOMPARISON_COMPLETED: 'edit:recomparisonCompleted',
   /** 編集がキャンセルされた */
   EDIT_CANCELLED: 'edit:cancelled',
   /** 編集モードが切り替わった */
@@ -356,8 +362,12 @@ export const InteractionEvents = {
   SHOW_CONTEXT_MENU: 'interaction:showContextMenu',
   /** コンテキストメニューを初期化 */
   INIT_CONTEXT_MENU: 'interaction:initContextMenu',
+  /** フローティングウィンドウを開く（windowId 指定） */
+  OPEN_WINDOW: 'interaction:openWindow',
   /** 選択要素にセクションボックスを適用 */
   ACTIVATE_SECTION_BOX_FOR_SELECTION: 'interaction:activateSectionBoxForSelection',
+  /** 節点ピックモード中に3Dで節点がクリックされた */
+  NODE_PICKED: 'interaction:nodePicked',
 };
 
 /**

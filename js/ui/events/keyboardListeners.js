@@ -9,6 +9,7 @@
 import { toggleLegend } from './legendListeners.js';
 import { toggleModelAVisibility, toggleModelBVisibility } from './modelVisibilityListeners.js';
 import { resetAllSelectors } from './selectorChangeListeners.js';
+import { undoLastModification } from '../panels/element-info/index.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('ui:events:keyboardListeners');
@@ -29,41 +30,55 @@ export function setupWindowResizeListener() {
 
 /**
  * Handle keyboard shortcuts
+ *
+ * 修飾キーなしの単キーのみ使用する（Ctrl+R 等のブラウザ標準操作を奪わないため）。
  * @param {KeyboardEvent} event - Keyboard event
  */
 function handleKeyboardShortcuts(event) {
   // Only handle shortcuts when not typing in inputs
-  if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+  const tag = event.target.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || event.target.isContentEditable) {
+    return;
+  }
+
+  // Ctrl+Z / Cmd+Z: 編集の Undo（input 内ではブラウザ標準の Undo を維持）
+  if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'z') {
+    if (
+      tag !== 'INPUT' &&
+      tag !== 'TEXTAREA' &&
+      tag !== 'SELECT' &&
+      !event.target.isContentEditable
+    ) {
+      event.preventDefault();
+      undoLastModification();
+    }
+    return;
+  }
+
+  // ブラウザ・OSのショートカット（Ctrl+R, Ctrl+1 等）には反応しない
+  if (event.ctrlKey || event.metaKey || event.altKey) {
     return;
   }
 
   switch (event.key.toLowerCase()) {
     case 'l':
-      if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
-        toggleLegend();
-      }
+      event.preventDefault();
+      toggleLegend();
       break;
 
-    case '1':
-      if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
-        toggleModelAVisibility();
-      }
+    case 'a':
+      event.preventDefault();
+      toggleModelAVisibility();
       break;
 
-    case '2':
-      if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
-        toggleModelBVisibility();
-      }
+    case 'b':
+      event.preventDefault();
+      toggleModelBVisibility();
       break;
 
     case 'r':
-      if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
-        resetAllSelectors();
-      }
+      event.preventDefault();
+      resetAllSelectors();
       break;
   }
 }

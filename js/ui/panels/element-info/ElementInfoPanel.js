@@ -14,7 +14,8 @@ import {
   resolveElementInfoModelSide,
   shouldUseSingleColumnElementInfo,
 } from './DisplayModelResolver.js';
-import { generateValidationInfoHtml } from '../../../common-stb/validation/validationManager.js';
+import { generateValidationInfoHtml } from '../../../common-stb/validation/validationHtmlRenderer.js';
+import { escapeHtml, valueToSafeHtml } from '../../../utils/htmlUtils.js';
 
 const logger = createLogger('viewer:element-info');
 
@@ -22,6 +23,22 @@ export let storedPanelWidth = storageHelper.get('panelWidth');
 export let storedPanelHeight = storageHelper.get('panelHeight');
 
 const DEFAULT_ELEMENT_INFO_MESSAGE = '要素を選択してください。';
+
+/**
+ * 要素情報パネルのタイトル(<h3>)の HTML を生成する。
+ *
+ * title は呼び出し側(ElementInfoController)で組み立て済みの安全な HTML 断片で、
+ * XSD/評価バッジ等の <span> マークアップを含み、動的値(要素ID・型名・ファイル名など)は
+ * 構築時にエスケープ済み。ここで再度 escapeHtml するとマークアップが文字列として
+ * 表示されてしまう(回帰: commit e675b9ed)。showInfo と showJointMeshDataOnly の
+ * 描画経路をこの関数に一本化し、テストが本番と同じ出力を検証できるようにする。
+ *
+ * @param {string} title - エスケープ済みの安全な HTML タイトル断片
+ * @returns {string} `<h3>...</h3>` の HTML
+ */
+export function renderElementInfoTitleHtml(title) {
+  return `<h3>${title}</h3>`;
+}
 
 export function clearElementInfoDisplayState(
   contentDiv = null,
@@ -214,26 +231,28 @@ export function tryFallbackDisplay(elementType, idA, idB, contentDiv) {
           ([_k, v]) =>
             typeof v === 'number' || (typeof v === 'string' && v.match(/^\d+(?:\.\d+)?$/)),
         )
-        .map(([key, v]) => `${key}: ${v}`)
+        .map(([key, v]) => `${escapeHtml(key)}: ${escapeHtml(v)}`)
         .slice(0, 24)
         .join('<br>');
       const metaPairs = Object.entries(ud.profileMeta || {})
-        .map(([key, v]) => `${key}: ${v}`)
+        .map(([key, v]) => `${escapeHtml(key)}: ${escapeHtml(v)}`)
         .join('<br>');
       contentDiv.innerHTML = `
-        <div style="font-weight:var(--font-weight-bold);margin-bottom:4px;">${elementType} (Mesh UserData)</div>
-        <div><strong>ID:</strong> ${ud.elementId || '-'}</div>
-        <div><strong>Section Type:</strong> ${
-          ud.sectionType || ud.profileMeta?.sectionTypeResolved || '-'
-        }</div>
-        <div><strong>Profile Source:</strong> ${ud.profileMeta?.profileSource || '-'}</div>
+        <div style="font-weight:var(--font-weight-bold);margin-bottom:4px;">${escapeHtml(elementType)} (Mesh UserData)</div>
+        <div><strong>ID:</strong> ${valueToSafeHtml(ud.elementId, '-')}</div>
+        <div><strong>Section Type:</strong> ${valueToSafeHtml(
+          ud.sectionType || ud.profileMeta?.sectionTypeResolved,
+          '-',
+        )}</div>
+        <div><strong>Profile Source:</strong> ${valueToSafeHtml(ud.profileMeta?.profileSource, '-')}</div>
         <div style="margin-top:6px;"><strong>Dimensions (from enriched section):</strong><br>${
           dimPairs || '-'
         }</div>
         <div style="margin-top:6px;"><strong>Profile Meta:</strong><br>${metaPairs || '-'}</div>
-        <div style="margin-top:6px;"><strong>Raw shapeName:</strong> ${
-          sec.shapeName || ud.shapeName || '-'
-        }</div>
+        <div style="margin-top:6px;"><strong>Raw shapeName:</strong> ${valueToSafeHtml(
+          sec.shapeName || ud.shapeName,
+          '-',
+        )}</div>
       `;
 
       return true;
@@ -251,12 +270,12 @@ function renderJointParentRow(label, valueA, valueB, showSingleColumn, parentRow
 
   if (showSingleColumn) {
     const value = valueA !== '-' ? valueA : valueB;
-    html += `<td>${value}</td>`;
+    html += `<td>${escapeHtml(value)}</td>`;
   } else {
     const isDiff = valueA !== valueB;
     const highlightClass = isDiff ? ' class="differs"' : '';
-    html += `<td${highlightClass}>${valueA}</td>`;
-    html += `<td${highlightClass}>${valueB}</td>`;
+    html += `<td${highlightClass}>${escapeHtml(valueA)}</td>`;
+    html += `<td${highlightClass}>${escapeHtml(valueB)}</td>`;
   }
 
   html += '</tr>';
@@ -347,7 +366,7 @@ export function showJointMeshDataOnly(
     hasModelB,
   });
 
-  let content = `<h3>${title}</h3>`;
+  let content = renderElementInfoTitleHtml(title);
   content += '<table class="unified-comparison-table">';
 
   if (showSingleColumn) {
@@ -398,7 +417,7 @@ export function showInfo(
   const idA = nodeA ? nodeA.getAttribute('id') : null;
   const idB = nodeB ? nodeB.getAttribute('id') : null;
 
-  let content = `<h3>${title}</h3>`;
+  let content = renderElementInfoTitleHtml(title);
 
   const hasModelA = !!getState('models.documentA');
   const hasModelB = !!getState('models.documentB');
@@ -550,7 +569,7 @@ export function displayMultiSelectionSummary(summaryData = {}) {
   `;
 
   for (const item of typeCounts) {
-    summaryHtml += `<li>${item.elementType}: ${item.count}</li>`;
+    summaryHtml += `<li>${escapeHtml(item.elementType)}: ${escapeHtml(item.count)}</li>`;
   }
 
   summaryHtml += `

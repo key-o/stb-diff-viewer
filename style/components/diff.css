@@ -42,20 +42,7 @@
    差分サマリー
    ======================================== */
 
-#diff-summary {
-  margin-top: var(--spacing-md);
-  padding: 10px;
-  background: #f8f9fa;
-  border-radius: var(--border-radius);
-  border-left: 4px solid var(--color-primary);
-}
-
-.diff-summary-title {
-  font-weight: var(--font-weight-bold);
-  margin-bottom: 8px;
-  color: #495057;
-}
-
+/* 差分サマリーは独立フローティングウィンドウ (#diff-summary-float) で表示 */
 #diff-summary-content {
   font-size: var(--font-size-sm);
   color: #666;
@@ -72,21 +59,666 @@
   padding: 2px 0;
 }
 
-.diff-stat-value {
+.diff-stat-matched {
+  color: var(--color-matched);
+}
+
+.diff-stat-only-a {
+  color: var(--color-only-a);
+}
+
+.diff-stat-only-b {
+  color: var(--color-only-b);
+}
+
+.diff-stat-attribute-mismatch {
+  color: var(--color-attribute-mismatch);
+}
+
+.diff-stat-position-tolerance {
+  color: var(--color-position-tolerance);
+}
+
+.diff-stat-attribute-mismatch-instance {
+  color: var(--color-attribute-mismatch-instance);
+}
+
+.diff-stat-attribute-mismatch-type {
+  color: var(--color-attribute-mismatch-type);
+}
+
+.diff-stat-attribute-mismatch-both,
+.diff-stat-combined {
+  color: var(--color-attribute-mismatch-both);
+}
+
+/* 対応率の見出し */
+.diff-summary-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.diff-headline-label {
+  font-size: var(--font-size-sm);
+  color: #6c757d;
+}
+
+.diff-headline-value {
+  font-size: 1.6em;
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.diff-headline-sub {
+  font-size: var(--font-size-sm);
+  color: #6c757d;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 構成比バー */
+.diff-proportion-bar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background: var(--border-color-light, #e9ecef);
+}
+
+.diff-proportion-seg {
+  height: 100%;
+}
+
+/* 凡例 */
+.diff-legend {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.diff-legend-row {
+  display: grid;
+  grid-template-columns: 1fr auto 3.5em;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.diff-legend-label {
+  color: #495057;
+}
+
+.diff-legend-value {
+  text-align: right;
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.diff-legend-pct {
+  text-align: right;
+  color: #6c757d;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 対応要素の内訳サブ行（完全一致 / 位置許容差内 / 属性差あり） */
+.diff-legend-sub {
+  font-size: var(--font-size-sm);
+  color: #6c757d;
+}
+
+.diff-legend-sub .diff-legend-label {
+  padding-left: 12px;
+  color: #6c757d;
+}
+
+/* 値の色は JS が付与する diff-stat-* クラス（一致=緑 / 位置許容差=アンバー /
+   属性差=オレンジ）に委ね、3Dジオメトリの色と一致させる。ここでは色を指定しない。 */
+.diff-legend-sub .diff-legend-value {
+  font-weight: var(--font-weight-normal);
+}
+
+/* 対応要素の次元別分析 */
+.diff-dim-section {
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.diff-dim-total {
+  font-weight: var(--font-weight-normal);
+  color: #6c757d;
+  font-variant-numeric: tabular-nums;
+}
+
+.diff-dim-row {
+  margin-bottom: 6px;
+}
+
+.diff-dim-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.diff-dim-label {
+  color: #495057;
+  font-size: var(--font-size-sm);
+}
+
+.diff-dim-counts {
+  color: #6c757d;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.diff-dim-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--border-color-light, #e9ecef);
+}
+
+.diff-dim-seg {
+  height: 100%;
+}
+
+/* 集計範囲の注記（全比較対象 = 3D表示対象 + 非描画のSTB定義） */
+.diff-scope-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin-bottom: 10px;
+  padding: 6px 8px;
+  background: var(--bg-secondary, #f3f4f6);
+  border-radius: 4px;
+  border-left: 3px solid var(--border-color, #ced4da);
+  font-size: var(--font-size-sm);
+  color: #6c757d;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.diff-scope-label {
   font-weight: var(--font-weight-semibold);
   color: #495057;
 }
 
-.diff-stat-matched {
-  color: var(--color-primary);
+.diff-scope-parts {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
 }
 
-.diff-stat-only-a {
-  color: var(--color-success);
+.diff-scope-3d {
+  color: var(--color-matched, #16a34a);
+  font-weight: var(--font-weight-semibold);
 }
 
-.diff-stat-only-b {
-  color: var(--color-danger);
+.diff-scope-def {
+  color: #6c757d;
+}
+
+.diff-scope-hint {
+  flex-basis: 100%;
+  font-size: var(--font-size-xs, 0.72rem);
+  color: #868e96;
+}
+
+/* 異ソフト間比較モード: C2 別建物プリコンディション警告 */
+.diff-cross-precondition {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 8px;
+  background: #fff3e0;
+  border-radius: 4px;
+  border-left: 3px solid var(--color-warning, #f59e0b);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary, #374151);
+  line-height: 1.5;
+}
+
+.diff-cross-precondition-icon {
+  flex-shrink: 0;
+}
+
+/* 異ソフト間比較モード: A5 片側欠落カテゴリの注記 */
+.diff-cross-scope-note {
+  margin-bottom: 10px;
+  padding: 8px;
+  background: var(--bg-secondary, #f3f4f6);
+  border-radius: 4px;
+  border-left: 3px solid var(--color-info, #3b82f6);
+  font-size: var(--font-size-sm);
+  color: #495057;
+  line-height: 1.5;
+}
+
+.diff-cross-scope-title {
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: 4px;
+}
+
+.diff-cross-scope-list {
+  margin: 0 0 4px;
+  padding-left: 20px;
+}
+
+.diff-cross-scope-adjusted {
+  font-variant-numeric: tabular-nums;
+}
+
+.diff-cross-scope-adjusted strong {
+  color: var(--color-matched, #16a34a);
+}
+
+.diff-cross-scope-hint {
+  font-size: var(--font-size-xs, 0.72rem);
+  color: #868e96;
+}
+
+/* A5: 要素タイプ別テーブルの片側欠落マーカー */
+.diff-scope-marker {
+  color: var(--color-info, #3b82f6);
+  cursor: help;
+}
+
+/* 要素タイプ別テーブル */
+.diff-type-section {
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.diff-type-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.diff-type-heading {
+  min-width: 12rem;
+}
+
+.diff-type-title {
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: 3px;
+  color: #495057;
+}
+
+.diff-type-note {
+  max-width: 34rem;
+  color: #6c757d;
+  font-size: var(--font-size-xs, 0.72rem);
+  line-height: 1.45;
+}
+
+.diff-type-section .diff-view-filter-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* 幅が変わらない固定部分（ラベル・プリセットボタン）。
+   下の動的行の文字数が変わってもここは動かない。 */
+.diff-view-filter-toolbar .diff-view-filter-fixed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.diff-view-filter-toolbar .diff-view-filter-title {
+  color: #6c757d;
+}
+
+.diff-view-filter-toolbar .diff-filter-presets {
+  margin-bottom: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* クリックで内容（絞り込み状態・件数・タイプチップ）が書き換わる動的部。
+   サマリー最下部のフッターに固定し、上部の本文が文字数変化でブレないようにする。
+   スクロールコンテナ（.float-window-content）の下端に sticky で貼り付ける。 */
+.diff-summary-footer {
+  position: sticky;
+  bottom: 0;
+  margin: 8px -12px -12px;
+  padding: 6px 12px;
+  background: var(--bg-elevated, #fff);
+  border-top: var(--border-width, 1px) solid var(--border-color-light, #e5e7eb);
+}
+
+.diff-summary-footer .diff-view-filter-dynamic {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.diff-summary-footer .diff-view-filter-state {
+  max-width: 12rem;
+}
+
+.diff-summary-footer .diff-filter-summary {
+  margin-top: 0;
+  padding: 3px 6px;
+  background: var(--bg-secondary, #f3f4f6);
+  white-space: nowrap;
+}
+
+.diff-summary-footer .diff-filter-active-type {
+  margin: 0;
+}
+
+/* 列グループの折りたたみで列数が変わる。表フレームは表示中の実列幅合計に固定して
+   列を詰め、余った幅を特定列（タイプ等）に配分して間延びさせない。
+   展開して収まらないときだけ .diff-type-section 内で横スクロールする。 */
+.diff-type-table-frame {
+  --diff-type-name-width: 7.5em;
+  --diff-type-metric-width: 4.6em;
+  width: var(--diff-type-table-width, max-content);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 非描画STB定義（断面/接合/開口/STB定義）のタブUI。配置要素テーブルの下に置く */
+.diff-def-tabs-section {
+  margin-top: 12px;
+}
+
+.diff-def-tabs-title {
+  margin: 0 0 6px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: #495057;
+}
+
+.diff-def-tablist {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border-color, #dee2e6);
+  margin-bottom: 8px;
+}
+
+.diff-def-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-bottom: none;
+  border-radius: 5px 5px 0 0;
+  background: transparent;
+  color: var(--text-secondary, #6c757d);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.diff-def-tab:hover {
+  background: var(--bg-secondary, #f1f3f5);
+  color: var(--text-primary, #343a40);
+}
+
+.diff-def-tab--active {
+  background: var(--bg-primary, #fff);
+  border-color: var(--border-color, #dee2e6);
+  color: var(--text-primary, #212529);
+  font-weight: var(--font-weight-semibold);
+  /* 下線と重ねてタブとパネルを繋ぐ */
+  margin-bottom: -1px;
+  border-bottom: 1px solid var(--bg-primary, #fff);
+}
+
+.diff-def-tab-count {
+  min-width: 1.4em;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--bg-secondary, #e9ecef);
+  color: var(--text-secondary, #6c757d);
+  font-size: var(--font-size-xs, 0.72rem);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.diff-def-tab--active .diff-def-tab-count {
+  background: var(--color-matched, #2f9e44);
+  color: #fff;
+}
+
+.diff-def-panel[hidden] {
+  display: none;
+}
+
+.diff-type-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: inherit;
+  font-variant-numeric: inherit;
+}
+
+.diff-type-table col.diff-type-name-col {
+  width: var(--diff-type-name-width);
+}
+
+.diff-type-table col.diff-type-metric-col {
+  width: var(--diff-type-metric-width);
+}
+
+.diff-type-table th,
+.diff-type-table td {
+  padding: 3px 6px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.diff-type-table thead th {
+  color: #6c757d;
+  font-weight: var(--font-weight-semibold);
+  border-bottom: 1px solid #dee2e6;
+  vertical-align: bottom;
+}
+
+.diff-type-group-header-grid {
+  display: grid;
+  grid-template-columns: var(--diff-type-grid-columns);
+  width: 100%;
+  color: #6c757d;
+  font-weight: var(--font-weight-semibold);
+}
+
+.diff-type-group-header-grid .diff-group-spacer {
+  background: transparent;
+  border-bottom: 1px solid transparent;
+}
+
+/* 段1（親）ヘッダ「対応要素数」。分類軸すべてを束ねる見出し */
+.diff-type-parent-header-grid {
+  font-size: calc(var(--font-size-sm) * 0.95);
+}
+
+.diff-type-parent-header-grid .diff-group-parent {
+  padding: 2px 6px;
+  text-align: center;
+  white-space: nowrap;
+  color: #495057;
+  background: var(--bg-secondary, #f3f4f6);
+  border-bottom: 1px solid #dee2e6;
+}
+
+/* 断面軸を「配置属性の特例で大分類」と示す視覚マーカー（●） */
+.diff-axis-marker {
+  color: var(--color-attribute-mismatch-type, #17a2b8);
+  font-size: 0.7em;
+  line-height: 1;
+}
+
+.diff-type-table thead .diff-column-header .diff-col-name {
+  text-align: left;
+}
+
+.diff-type-table thead th[title] {
+  cursor: help;
+}
+
+/* 列グループ折りたたみトグル（全体 / 配置要素 / 断面要素の見出し） */
+.diff-type-group-header-grid .diff-group-toggle,
+.diff-type-group-header-grid .diff-group-static {
+  padding: 0;
+  text-align: center;
+  background: var(--bg-secondary, #f3f4f6);
+  border-bottom: 1px solid #dee2e6;
+  min-width: 0;
+}
+
+.diff-type-group-header-grid .diff-group-static {
+  padding: 3px 6px;
+  white-space: nowrap;
+}
+
+.diff-group-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  padding: 3px 6px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.diff-group-toggle-btn:hover {
+  background: var(--bg-hover);
+}
+
+.diff-group-caret {
+  font-size: 0.8em;
+  color: #6c757d;
+  line-height: 1;
+}
+
+.diff-type-table tbody tr:not(:last-child) td {
+  border-bottom: 1px solid var(--border-color-light, #f1f3f5);
+}
+
+.diff-type-table tfoot td {
+  border-top: 2px solid #dee2e6;
+  font-weight: var(--font-weight-semibold);
+}
+
+.diff-type-table .diff-col-name {
+  text-align: left;
+  color: #495057;
+}
+
+.diff-type-table .diff-cell-total {
+  font-weight: var(--font-weight-semibold);
+  color: #495057;
+}
+
+.diff-type-table .diff-cell-zero {
+  color: var(--border-color, #ced4da);
+}
+
+@media (max-width: 720px) {
+  .diff-type-toolbar {
+    flex-direction: column;
+  }
+
+  .diff-type-section .diff-view-filter-toolbar {
+    justify-content: flex-start;
+  }
+}
+
+/* クリックで3D表示を絞り込める箇所（バーセグメント・凡例行・テーブルセル） */
+.diff-clickable {
+  cursor: pointer;
+}
+
+.diff-proportion-seg.diff-clickable:hover,
+.diff-dim-seg.diff-clickable:hover {
+  filter: brightness(1.2);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 35%);
+}
+
+.diff-legend-row.diff-clickable:hover,
+.diff-type-table td.diff-clickable:hover {
+  background: var(--bg-secondary, #f3f4f6);
+}
+
+.diff-type-table td.diff-clickable:hover,
+.diff-legend-row.diff-clickable:hover .diff-legend-value {
+  text-decoration: underline;
+}
+
+/* 要素タイプ絞り込み中チップ（差分フィルタ内） */
+.diff-filter-active-type {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 6px 0;
+  padding: 4px 8px;
+  background: var(--bg-secondary, #f3f4f6);
+  border: 1px solid var(--border-color, #ced4da);
+  border-radius: 12px;
+  font-size: var(--font-size-sm);
+  color: #495057;
+  width: fit-content;
+}
+
+.diff-filter-active-type[hidden] {
+  display: none;
+}
+
+.diff-filter-type-clear {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: var(--font-size-sm);
+  color: #6c757d;
+  line-height: 1;
+}
+
+.diff-filter-type-clear:hover {
+  color: #dc3545;
+}
+
+/* 差分一覧ボタン */
+.diff-summary-actions {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #dee2e6;
+}
+
+.diff-list-btn {
+  width: 100%;
+  padding: 8px;
+  font-size: var(--font-size-sm);
 }
 
 /* ========================================
@@ -99,4 +731,3 @@
   min-height: 1.2em;
   word-break: break-all;
 }
-

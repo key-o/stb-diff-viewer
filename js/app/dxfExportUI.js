@@ -8,6 +8,7 @@ import { createLogger } from '../utils/logger.js';
 import { exportDxf, getExportStats } from '../export/dxf/dxfExporter.js';
 import { getCurrentEntities, getCurrentLayers } from './dxfFileLoader.js';
 import { showWarning } from './dxfLoaderHelpers.js';
+import { getState } from '../data/state/globalState.js';
 
 const log = createLogger('DXFLoader');
 
@@ -29,6 +30,12 @@ export function updateExportLayerUI() {
   const currentLayers = getCurrentLayers();
   const layerContainer = document.getElementById('dxf-export-layer-list');
   if (!layerContainer) return;
+
+  const filenameInput = document.getElementById('dxfExportFilename');
+  if (filenameInput && !filenameInput.value.trim()) {
+    const fileA = getState('files.originalFileA');
+    if (fileA?.name) filenameInput.value = fileA.name.replace(/\.[^.]+$/, '');
+  }
 
   layerContainer.innerHTML = '';
   selectedExportLayers.clear();
@@ -158,7 +165,12 @@ export function handleExportDxf() {
   }
 
   const filenameInput = document.getElementById('dxfExportFilename');
-  const filename = filenameInput?.value?.trim() || 'export';
+  const defaultName = (() => {
+    const fileA = getState('files.originalFileA');
+    if (fileA?.name) return fileA.name.replace(/\.[^.]+$/, '');
+    return 'export';
+  })();
+  const filename = filenameInput?.value?.trim() || defaultName;
 
   const success = exportDxf(currentEntities, currentLayers, selectedLayerArray, filename);
 

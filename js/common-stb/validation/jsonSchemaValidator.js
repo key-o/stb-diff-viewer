@@ -19,7 +19,7 @@ import {
   getElementDefinitionForVersion,
   isVersionLoaded,
 } from '../import/parser/jsonSchemaLoader.js';
-import { SEVERITY, CATEGORY } from './stbValidator.js';
+import { SEVERITY, CATEGORY } from './validationConstants.js';
 
 // ajv インスタンスのキャッシュ（バージョン別）
 const ajvCache = new Map(); // version -> { ajv, validatorCache }

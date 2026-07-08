@@ -3,7 +3,7 @@
  *
  * STBファイルのエクスポート機能を処理します。
  * 元のSTBファイルが利用可能な場合、バージョン変換ルール（12種類）を適用します。
- * IFCソースの場合はDOMドキュメントのバージョン属性のみ更新します。
+ * IFC/SS7ソースの場合はDOMドキュメントのバージョン属性のみ更新します。
  *
  * @module ui/events/exportHandlers/stbExportHandler
  */
@@ -59,7 +59,7 @@ function escapeRegExp(value) {
  * @returns {string} 拡張子を除いたファイル名
  */
 function stripKnownSourceExtension(filename) {
-  return String(filename || '').replace(/\.(stb|xml|ifc)$/i, '');
+  return String(filename || '').replace(/\.(stb|xml|csv|ss7|ifc)$/i, '');
 }
 
 /**
@@ -75,6 +75,20 @@ export function buildDefaultStbExportFilename(sourceName, targetVersion) {
 
   const hasToken = new RegExp(`(^|[_-])${escapeRegExp(token)}([_-]|$)`, 'i').test(baseStem);
   return `${hasToken ? baseStem : `${baseStem}_${token}`}.stb`;
+}
+
+/**
+ * バージョン変換の入力XMLを編集済みDOMから生成する。
+ *
+ * 元ファイルのテキストではなく現在のDOM（documentA/B）をシリアライズする点が重要。
+ * 新規追加した部材や属性編集は DOM にのみ反映されており、元ファイルテキストを
+ * 変換すると編集内容（追加要素など）が失われるため。
+ *
+ * @param {Document} sourceDoc - 出力対象の編集済みDOM
+ * @returns {string} シリアライズされたXML文字列
+ */
+export function serializeDocForExport(sourceDoc) {
+  return new XMLSerializer().serializeToString(sourceDoc);
 }
 
 /**
@@ -155,7 +169,10 @@ async function handleStbExport() {
     const isStbSource = sourceFile && /\.(stb|xml)$/i.test(sourceFile.name);
     if (isStbSource) {
       const { convert, detectVersion } = await import('../../../common-stb/converter/index.js');
-      const xmlContent = await sourceFile.text();
+      // 元ファイルのテキストではなく編集済みDOMをシリアライズして変換する。
+      // （新規追加した部材や属性編集は sourceDoc にのみ反映されており、
+      //   元ファイルテキストを変換すると編集内容が失われるため）
+      const xmlContent = serializeDocForExport(sourceDoc);
       const currentVersion = await detectVersion(xmlContent);
 
       if (currentVersion && normalizeVersion(currentVersion) !== normalizeVersion(targetVersion)) {
@@ -179,7 +196,7 @@ async function handleStbExport() {
       }
     }
 
-    // IFCソースまたは同バージョンの場合はDOM経由で出力
+    // IFC/SS7ソースまたは同バージョンの場合はDOM経由で出力
     const { validateJsonSchema } =
       await import('../../../common-stb/validation/jsonSchemaValidator.js');
     const schemaIssues = validateJsonSchema(sourceDoc, {

@@ -22,6 +22,7 @@ import { eventBus, ImportanceEvents, ComparisonEvents } from '../../data/events/
 import { showError, showWarning } from '../common/toast.js';
 import { createLogger } from '../../utils/logger.js';
 import { downloadBlob } from '../../utils/downloadHelper.js';
+import { getCategoryCounts } from '../../data/normalizeComparisonResult.js';
 
 const log = createLogger('statistics');
 
@@ -352,10 +353,12 @@ export class ImportanceStatistics {
     results.forEach((result) => {
       if (!result) return;
 
-      const matched = result.matched ? result.matched.length : 0;
-      const onlyA = result.onlyA ? result.onlyA.length : 0;
-      const onlyB = result.onlyB ? result.onlyB.length : 0;
-      const differences = onlyA + onlyB;
+      const counts = getCategoryCounts(result);
+      const matched = counts.exact + counts.withinTolerance;
+      const attributeMismatch = counts.attributeMismatch;
+      const onlyA = counts.onlyA;
+      const onlyB = counts.onlyB;
+      const differences = attributeMismatch + onlyA + onlyB;
 
       this.statistics.totalElements += matched + differences;
       this.statistics.totalDifferences += differences;
@@ -366,6 +369,7 @@ export class ImportanceStatistics {
         this.statistics.byElementType[elementType] = {
           totalMatched: matched,
           totalDifferences: differences,
+          totalAttributeMismatch: attributeMismatch,
           totalOnlyA: onlyA,
           totalOnlyB: onlyB,
         };

@@ -8,6 +8,7 @@
  */
 
 import { getStbSecSteelTagName } from '../mapping/IfcProfileToStbSection.js';
+import { STB_TAG_NAMES } from '../../constants/elementTypes.js';
 
 /**
  * STB XMLを生成
@@ -67,7 +68,7 @@ export function generateStbXml(data) {
 
   // StbOpen（開口）
   const allOpenings = data.elements
-    .filter((el) => el.stbType === 'StbWall' && el.openings && el.openings.length > 0)
+    .filter((el) => el.stbType === STB_TAG_NAMES.WALL && el.openings && el.openings.length > 0)
     .flatMap((el) => el.openings);
   if (allOpenings.length > 0) {
     lines.push(`${indent(1)}<StbOpen>`);
@@ -96,16 +97,16 @@ function generateMembers(lines, elements, level) {
   const indent = (l) => '  '.repeat(l);
 
   const groups = {
-    StbColumn: [],
-    StbPost: [],
-    StbFoundationColumn: [],
-    StbGirder: [],
-    StbBeam: [],
-    StbBrace: [],
-    StbSlab: [],
-    StbWall: [],
-    StbPile: [],
-    StbFooting: [],
+    [STB_TAG_NAMES.COLUMN]: [],
+    [STB_TAG_NAMES.POST]: [],
+    [STB_TAG_NAMES.FOUNDATION_COLUMN]: [],
+    [STB_TAG_NAMES.GIRDER]: [],
+    [STB_TAG_NAMES.BEAM]: [],
+    [STB_TAG_NAMES.BRACE]: [],
+    [STB_TAG_NAMES.SLAB]: [],
+    [STB_TAG_NAMES.WALL]: [],
+    [STB_TAG_NAMES.PILE]: [],
+    [STB_TAG_NAMES.FOOTING]: [],
   };
 
   for (const el of elements) {
@@ -116,54 +117,54 @@ function generateMembers(lines, elements, level) {
 
   // Columns
   if (
-    groups.StbColumn.length > 0 ||
-    groups.StbPost.length > 0 ||
-    groups.StbFoundationColumn.length > 0
+    groups[STB_TAG_NAMES.COLUMN].length > 0 ||
+    groups[STB_TAG_NAMES.POST].length > 0 ||
+    groups[STB_TAG_NAMES.FOUNDATION_COLUMN].length > 0
   ) {
     lines.push(`${indent(level)}<StbColumns>`);
-    for (const el of groups.StbColumn) {
+    for (const el of groups[STB_TAG_NAMES.COLUMN]) {
       lines.push(`${indent(level + 1)}<StbColumn${memberAttrs(el, 'column')}/>`);
     }
-    for (const el of groups.StbPost) {
+    for (const el of groups[STB_TAG_NAMES.POST]) {
       lines.push(`${indent(level + 1)}<StbPost${memberAttrs(el, 'column')}/>`);
     }
-    for (const el of groups.StbFoundationColumn) {
+    for (const el of groups[STB_TAG_NAMES.FOUNDATION_COLUMN]) {
       lines.push(`${indent(level + 1)}<StbFoundationColumn${foundationColumnAttrs(el)}/>`);
     }
     lines.push(`${indent(level)}</StbColumns>`);
   }
 
   // Girders
-  if (groups.StbGirder.length > 0) {
+  if (groups[STB_TAG_NAMES.GIRDER].length > 0) {
     lines.push(`${indent(level)}<StbGirders>`);
-    for (const el of groups.StbGirder) {
+    for (const el of groups[STB_TAG_NAMES.GIRDER]) {
       lines.push(`${indent(level + 1)}<StbGirder${memberAttrs(el, 'beam')}/>`);
     }
     lines.push(`${indent(level)}</StbGirders>`);
   }
 
   // Beams
-  if (groups.StbBeam.length > 0) {
+  if (groups[STB_TAG_NAMES.BEAM].length > 0) {
     lines.push(`${indent(level)}<StbBeams>`);
-    for (const el of groups.StbBeam) {
+    for (const el of groups[STB_TAG_NAMES.BEAM]) {
       lines.push(`${indent(level + 1)}<StbBeam${memberAttrs(el, 'beam')}/>`);
     }
     lines.push(`${indent(level)}</StbBeams>`);
   }
 
   // Braces
-  if (groups.StbBrace.length > 0) {
+  if (groups[STB_TAG_NAMES.BRACE].length > 0) {
     lines.push(`${indent(level)}<StbBraces>`);
-    for (const el of groups.StbBrace) {
+    for (const el of groups[STB_TAG_NAMES.BRACE]) {
       lines.push(`${indent(level + 1)}<StbBrace${memberAttrs(el, 'beam')}/>`);
     }
     lines.push(`${indent(level)}</StbBraces>`);
   }
 
   // Slabs
-  if (groups.StbSlab.length > 0) {
+  if (groups[STB_TAG_NAMES.SLAB].length > 0) {
     lines.push(`${indent(level)}<StbSlabs>`);
-    for (const el of groups.StbSlab) {
+    for (const el of groups[STB_TAG_NAMES.SLAB]) {
       lines.push(`${indent(level + 1)}<StbSlab${slabAttrs(el)}>`);
       if (el.nodeIds && el.nodeIds.length > 0) {
         lines.push(`${indent(level + 2)}<StbNodeIdOrder>${el.nodeIds.join(' ')}</StbNodeIdOrder>`);
@@ -174,9 +175,9 @@ function generateMembers(lines, elements, level) {
   }
 
   // Walls
-  if (groups.StbWall.length > 0) {
+  if (groups[STB_TAG_NAMES.WALL].length > 0) {
     lines.push(`${indent(level)}<StbWalls>`);
-    for (const el of groups.StbWall) {
+    for (const el of groups[STB_TAG_NAMES.WALL]) {
       lines.push(`${indent(level + 1)}<StbWall${wallAttrs(el)}>`);
       if (el.nodeIds && el.nodeIds.length > 0) {
         lines.push(`${indent(level + 2)}<StbNodeIdOrder>${el.nodeIds.join(' ')}</StbNodeIdOrder>`);
@@ -194,18 +195,18 @@ function generateMembers(lines, elements, level) {
   }
 
   // Piles
-  if (groups.StbPile.length > 0) {
+  if (groups[STB_TAG_NAMES.PILE].length > 0) {
     lines.push(`${indent(level)}<StbPiles>`);
-    for (const el of groups.StbPile) {
+    for (const el of groups[STB_TAG_NAMES.PILE]) {
       lines.push(`${indent(level + 1)}<StbPile${pileAttrs(el)}/>`);
     }
     lines.push(`${indent(level)}</StbPiles>`);
   }
 
   // Footings
-  if (groups.StbFooting.length > 0) {
+  if (groups[STB_TAG_NAMES.FOOTING].length > 0) {
     lines.push(`${indent(level)}<StbFootings>`);
-    for (const el of groups.StbFooting) {
+    for (const el of groups[STB_TAG_NAMES.FOOTING]) {
       lines.push(`${indent(level + 1)}<StbFooting${footingAttrs(el)}/>`);
     }
     lines.push(`${indent(level)}</StbFootings>`);

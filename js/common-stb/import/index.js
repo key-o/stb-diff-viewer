@@ -47,6 +47,21 @@ export {
 
 export { SectionShapeProcessor } from './extractor/SectionShapeProcessor.js';
 
+// カーネルDI設定（アプリ固有の断面設定・ロガーを注入する場合に使用）
+export {
+  setSectionConfig,
+  getSectionConfig,
+  setLoggerFactory,
+  createKernelLogger,
+} from './config/kernelConfig.js';
+
+// カーネル同梱のデフォルト断面抽出設定
+export { SECTION_CONFIG } from './config/sectionConfig.js';
+
+// STBドメイン定数
+export { STB_TAG_NAMES } from './constants/stbTagNames.js';
+export { SOURCE_TYPES, IMPORT_STAGES, createImportMetadata } from './constants/importTypes.js';
+
 // バージョン検出ユーティリティの再エクスポート
 export {
   findRootElement,
@@ -68,3 +83,31 @@ export * as coordinateRangeCalculator from './extractor/utils/coordinateRangeCal
 
 // 統一断面抽出エンジン
 export * as sectionExtractor from './extractor/sectionExtractor.js';
+
+// RC配筋情報の抽出（追加API。断面抽出パイプラインへは未配線）
+export {
+  extractBarArrangement,
+  extractSlabBarArrangement,
+  extractWallBarArrangement,
+} from './extractor/barArrangementExtractors.js';
+
+// 鋼材断面寸法のテーブル駆動正規化（追加API。SDV側は当面未使用）
+export {
+  normalizeSteelDimensions,
+  extractRawDimensions,
+  applyMappings,
+  normalizeUnknownShape,
+  STEEL_DIMENSION_NORMALIZERS,
+  RAW_DIMENSION_PARAMS,
+} from './data/steelDimensionNormalizers.js';
+
+// STB修復エンジン（オプション機能。setValidatorFunctions によるオプトイン）
+export {
+  StbRepairEngine,
+  setValidatorFunctions,
+  autoRepairDocument,
+  formatRepairReport,
+  REPAIR_ACTION,
+  DEFAULT_VALUES,
+  VALUE_CONSTRAINTS,
+} from './repair/stbRepairEngine.js';

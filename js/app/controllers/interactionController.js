@@ -20,9 +20,9 @@ import {
   camera,
   getActiveCamera,
   renderer,
-  colorManager,
   controls,
   elementGroups,
+  getBatchElementCenter,
 } from '../../viewer/index.js';
 import { getState } from '../../data/state/globalState.js';
 import {
@@ -32,6 +32,28 @@ import {
   ToastEvents,
 } from '../../data/events/index.js';
 import { CAMERA_CONTROLS } from '../../config/renderingConstants.js';
+import {
+  createOrUpdateOrbitCenterHelper,
+  hideOrbitCenterHelper,
+} from './interaction/orbitCenterHelper.js';
+import {
+  findSelectableAncestor,
+  getElementIds,
+  normalizeSelectedElementType,
+  normalizeSelectionModelSide,
+  resolveTwoObjectComparisonTarget,
+  buildMultiSelectionSummaryData,
+} from './interaction/selectionInfoUtils.js';
+import { applyHighlightMaterial } from './interaction/selectionHighlight.js';
+import {
+  syncMeasurementHoverPreview,
+  clearMeasurementHoverPreview,
+  hasMeasurementHoverPreview,
+} from './interaction/measurementHover.js';
+import { handleContextMenu } from './interaction/contextMenu3D.js';
+
+// 分割モジュールの公開APIを従来通り本モジュールから提供する
+export { createOrUpdateOrbitCenterHelper, hideOrbitCenterHelper, resolveTwoObjectComparisonTarget };
 
 // レイキャスト用オブジェクト
 const raycaster = new THREE.Raycaster();
@@ -58,13 +80,6 @@ const pendingSelectionPointer = {
 };
 let pendingSelectionPreviewObject = null;
 let pendingSelectionPreviewMaterial = null;
-/** @type {{line: THREE.Material|null, sprite: THREE.Material|null, mesh: THREE.Material|null, meshSrcConcrete: THREE.Material|null}} */
-const selectionCandidateMaterialCache = {
-  line: null,
-  sprite: null,
-  mesh: null,
-  meshSrcConcrete: null,
-};
 let interactionScheduleRender = null;
 let isInteractionListenersBound = false;
 let boundInteractionCanvasElement = null;
@@ -116,81 +131,7 @@ const TAB_SELECTION_CYCLE_CANDIDATE_LIMIT = 3;
 const HOVER_RAYCAST_INTERVAL_MS = 50;
 let lastHoverRaycastTime = 0;
 
-// 測定モード中のhoverハイライト色
-const MEASUREMENT_HOVER_COLOR_IDLE = 0xff8800; // オレンジ（1点目待ち）
-const MEASUREMENT_HOVER_COLOR_FIRST_PICKED = 0x00bb55; // グリーン（2点目待ち）
-/** @type {THREE.Object3D|null} */
-let measurementHoverObject = null;
-/** @type {THREE.Material|THREE.Material[]|null} */
-let measurementHoverOriginalMaterial = null;
-/** @type {THREE.Material|null} */
-let measurementHoverPreviewMaterial = null;
-
-// 回転中心ヘルパー球体のジオメトリパラメータ
-const ORBIT_CENTER_RADIUS_MM = 150;
-const ORBIT_SPHERE_SEGMENTS = { width: 16, height: 12 };
-
-// 回転中心表示用のヘルパーオブジェクト
-let orbitCenterHelper = null;
 // CameraControls では setOrbitPoint でビューを動かさずに回転中心のみ切替可能
-
-// サブメッシュ命中時でも部材本体を見つける（Axis/Storyは除外）
-function findSelectableAncestor(obj) {
-  let cur = obj;
-  while (cur) {
-    if (cur.userData && cur.userData.elementType) {
-      const et = cur.userData.elementType || cur.userData.stbNodeType;
-      if (et && et !== 'Axis' && et !== 'Story') return cur;
-    }
-    cur = cur.parent;
-  }
-  return null;
-}
-
-/**
- * 回転中心を視覚的に表示するヘルパーを作成・更新
- * @param {THREE.Vector3} position - 回転中心の位置
- */
-export function createOrUpdateOrbitCenterHelper(position) {
-  if (!scene) return;
-
-  // 既存のヘルパーを削除
-  if (orbitCenterHelper) {
-    scene.remove(orbitCenterHelper);
-    if (orbitCenterHelper.geometry) orbitCenterHelper.geometry.dispose();
-    if (orbitCenterHelper.material) orbitCenterHelper.material.dispose();
-  }
-
-  // 新しいヘルパーを作成（球体を大きくする）
-  const geometry = new THREE.SphereGeometry(
-    ORBIT_CENTER_RADIUS_MM,
-    ORBIT_SPHERE_SEGMENTS.width,
-    ORBIT_SPHERE_SEGMENTS.height,
-  );
-  const material = new THREE.MeshBasicMaterial({
-    color: 0xff4444,
-    transparent: true,
-    opacity: 0.9,
-    depthTest: false, // 常に手前に表示
-  });
-
-  orbitCenterHelper = new THREE.Mesh(geometry, material);
-  orbitCenterHelper.position.copy(position);
-  orbitCenterHelper.userData.isOrbitHelper = true;
-  scene.add(orbitCenterHelper);
-}
-
-/**
- * 回転中心ヘルパーを非表示にする
- */
-export function hideOrbitCenterHelper() {
-  if (orbitCenterHelper) {
-    scene.remove(orbitCenterHelper);
-    if (orbitCenterHelper.geometry) orbitCenterHelper.geometry.dispose();
-    if (orbitCenterHelper.material) orbitCenterHelper.material.dispose();
-    orbitCenterHelper = null;
-  }
-}
 
 /**
  * 現在選択中オブジェクトのワールド中心を取得（なければ null）
@@ -487,64 +428,6 @@ export function resetSelection(scheduleRender) {
   if (scheduleRender) scheduleRender();
 }
 
-/**
- * 単一オブジェクトをハイライト（選択リストに追加）
- * @param {THREE.Object3D} obj
- */
-function createHighlightMaterial(obj, colorMode = 'highlight') {
-  let highlightMat = null;
-  if (obj instanceof THREE.Line) {
-    highlightMat = colorManager.getMaterial(colorMode, { isLine: true });
-  } else if (obj instanceof THREE.Sprite) {
-    highlightMat = colorManager.getMaterial(colorMode, { isSprite: true });
-  } else if (obj instanceof THREE.Mesh) {
-    highlightMat = colorManager.getMaterial(colorMode, { isLine: false });
-  }
-
-  if (colorMode === 'selectionCandidate' && highlightMat?.isMaterial) {
-    if (obj instanceof THREE.Line) {
-      if (!selectionCandidateMaterialCache.line) {
-        selectionCandidateMaterialCache.line = highlightMat;
-      }
-      highlightMat = selectionCandidateMaterialCache.line;
-    } else if (obj instanceof THREE.Sprite) {
-      if (!selectionCandidateMaterialCache.sprite) {
-        selectionCandidateMaterialCache.sprite = highlightMat;
-      }
-      highlightMat = selectionCandidateMaterialCache.sprite;
-    } else if (obj instanceof THREE.Mesh && obj.userData?.isSRCConcrete === true) {
-      if (!selectionCandidateMaterialCache.meshSrcConcrete) {
-        const srcConcreteMaterial = highlightMat.clone();
-        srcConcreteMaterial.transparent = true;
-        srcConcreteMaterial.opacity = 0.14;
-        srcConcreteMaterial.depthWrite = false;
-        selectionCandidateMaterialCache.meshSrcConcrete = srcConcreteMaterial;
-      }
-      highlightMat = selectionCandidateMaterialCache.meshSrcConcrete;
-    } else {
-      if (!selectionCandidateMaterialCache.mesh) {
-        selectionCandidateMaterialCache.mesh = highlightMat;
-      }
-      highlightMat = selectionCandidateMaterialCache.mesh;
-    }
-    if (!highlightMat.userData.isSelectionPreviewMaterial) {
-      highlightMat.userData = { ...highlightMat.userData, isSelectionPreviewMaterial: true };
-    }
-  }
-
-  return highlightMat;
-}
-
-function applyHighlightMaterial(obj, colorMode = 'highlight') {
-  const highlightMat = createHighlightMaterial(obj, colorMode);
-  if (!highlightMat || !obj?.material) {
-    return false;
-  }
-
-  obj.material = highlightMat;
-  return true;
-}
-
 function syncPendingSelectionPreview(scheduleRender) {
   const candidate = pendingSelectionCandidates[pendingSelectionCandidateIndex] || null;
   if (pendingSelectionPreviewObject === candidate) {
@@ -589,67 +472,6 @@ function handleInteractionCanvasMouseEnter(event) {
   syncPendingSelectionPreview(interactionScheduleRender);
 }
 
-/**
- * 測定モード中のhoverハイライトを更新する（ステップに応じて色を変える）
- * @param {THREE.Object3D|null} object
- */
-function syncMeasurementHoverPreview(object) {
-  // 前のhoverオブジェクトを復元
-  if (measurementHoverObject && measurementHoverObject !== object) {
-    clearMeasurementHoverPreview();
-  }
-
-  if (!object || object === measurementHoverObject || !object.material) {
-    if (interactionScheduleRender) interactionScheduleRender();
-    return;
-  }
-
-  const step = getMeasurementStep ? getMeasurementStep() : 'idle';
-  const color =
-    step === 'firstPicked' ? MEASUREMENT_HOVER_COLOR_FIRST_PICKED : MEASUREMENT_HOVER_COLOR_IDLE;
-
-  measurementHoverObject = object;
-  measurementHoverOriginalMaterial = object.material;
-
-  let mat;
-  if (object instanceof THREE.Line) {
-    mat = new THREE.LineBasicMaterial({ color, depthTest: false });
-  } else if (object instanceof THREE.Mesh) {
-    mat = new THREE.MeshBasicMaterial({
-      color,
-      transparent: true,
-      opacity: 0.75,
-      depthTest: false,
-    });
-  } else {
-    measurementHoverObject = null;
-    measurementHoverOriginalMaterial = null;
-    return;
-  }
-  object.material = mat;
-  measurementHoverPreviewMaterial = mat;
-  if (interactionScheduleRender) interactionScheduleRender();
-}
-
-/** 測定モードのhoverハイライトをクリアして元マテリアルに戻す */
-function clearMeasurementHoverPreview() {
-  if (measurementHoverObject && measurementHoverOriginalMaterial !== null) {
-    try {
-      measurementHoverObject.material = measurementHoverOriginalMaterial;
-    } catch (error) {
-      logger.warn(`${WarnCategory.UI} 測定hoverプレビューのマテリアル復元に失敗`, error);
-    }
-  }
-
-  if (measurementHoverPreviewMaterial) {
-    measurementHoverPreviewMaterial.dispose();
-  }
-
-  measurementHoverObject = null;
-  measurementHoverOriginalMaterial = null;
-  measurementHoverPreviewMaterial = null;
-}
-
 function handleInteractionCanvasMouseMove(event) {
   if (!interactionScheduleRender) {
     return;
@@ -666,12 +488,12 @@ function handleInteractionCanvasMouseMove(event) {
   if (getMeasurementModeActive && getMeasurementModeActive()) {
     const intersects = performRaycast(pendingSelectionPointer) || [];
     const hit = intersects.find((i) => i.object?.userData?.elementType !== 'Measurement');
-    syncMeasurementHoverPreview(hit?.object || null);
+    syncMeasurementHoverPreview(hit?.object || null, getMeasurementStep, interactionScheduleRender);
     return;
   }
 
   // 測定モード解除直後にhoverが残らないようクリア
-  if (measurementHoverObject) clearMeasurementHoverPreview();
+  if (hasMeasurementHoverPreview()) clearMeasurementHoverPreview();
 
   refreshPendingSelectionCandidates(null, event);
   syncPendingSelectionPreview(interactionScheduleRender);
@@ -697,6 +519,39 @@ function handleInteractionCanvasClick(event) {
   const clickDx = event.clientX - pointerDownPos.x;
   const clickDy = event.clientY - pointerDownPos.y;
   if (Math.hypot(clickDx, clickDy) >= DRAG_APPLY_THRESHOLD_PX) {
+    return;
+  }
+
+  // 節点ピックモード中: クリックで節点を1つ拾って NODE_PICKED を発行し、通常の選択処理は抑止する。
+  // 節点以外がヒットした場合は無視してモードを継続する（AddMemberForm 等が購読）。
+  // バッチ描画（InstancedMesh）の節点は intersect.instanceId から個別 userData を解決する。
+  if (getState('ui.nodePick')?.active) {
+    const pickIntersects = performRaycast(event) || [];
+    for (const intersect of pickIntersects) {
+      const obj = intersect.object;
+      const baseType = obj?.userData?.elementType || obj?.userData?.stbNodeType;
+      if (baseType !== 'Node') continue;
+      // 非表示の節点グループ・クリップ範囲外はピック対象外（通常選択と同じ可視性条件）
+      if (!obj.visible || !elementGroups.Node?.visible || isPointClipped(intersect.point)) continue;
+
+      const ud =
+        obj.userData.isInstanced &&
+        Array.isArray(obj.userData.instances) &&
+        intersect.instanceId != null
+          ? obj.userData.instances[intersect.instanceId]
+          : obj.userData;
+      const { idA, idB } = getElementIds(ud || {});
+      const nodeId = idA || idB;
+      if (nodeId) {
+        eventBus.emit(InteractionEvents.NODE_PICKED, {
+          nodeId,
+          idA,
+          idB,
+          modelSource: ud?.modelSource,
+        });
+      }
+      break;
+    }
     return;
   }
 
@@ -729,7 +584,13 @@ function handleInteractionCanvasContextMenu(event) {
   }
   appliedThisRightDrag = false;
 
-  handleContextMenu(event, interactionScheduleRender);
+  handleContextMenu(event, interactionScheduleRender, {
+    performRaycast,
+    getSelectedObjects: () => selectedObjects,
+    resetSelection,
+    selectElement3D,
+    getContextMenuActionCallback: () => contextMenuActionCallback,
+  });
 }
 
 function handleInteractionCanvasMouseDown(event) {
@@ -882,20 +743,43 @@ function highlightObject(obj) {
 }
 
 /**
+ * 指定ワールド座標へ回転中心を移動し、マーカーで位置を示す。
+ * バッチ描画要素（共有マテリアルで個別ハイライト不可）の選択表現として使う。
+ * @param {THREE.Vector3} center - フォーカスするワールド座標
+ */
+function focusCameraAtCenter(center) {
+  try {
+    if (controls && typeof controls.setOrbitPoint === 'function') {
+      controls.stop?.();
+      controls.setOrbitPoint(center.x, center.y, center.z);
+    } else if (controls && controls.target) {
+      controls.target.copy(center);
+    }
+    createOrUpdateOrbitCenterHelper(center);
+  } catch (e) {
+    logger.warn(`${WarnCategory.UI} 選択: フォーカス中心の設定失敗`, e);
+  }
+}
+
+/**
  * 3Dオブジェクトを直接選択してハイライト表示する
  * ツリービューからの呼び出し用（常に単一選択）
  * @param {THREE.Object3D} obj - 選択するThree.jsオブジェクト
  * @param {Function} scheduleRender - 再描画要求関数
- * @param {Object} [options] - 互換用オプション
+ * @param {Object} [options] - オプション
+ * @param {import('../../viewer/utils/batchElementLookup.js').BatchElementHit} [options.batchHit]
+ *   バッチ描画要素の検索結果。指定時はハイライトせず位置フォーカス+マーカーで示す。
  */
 export function selectElement3D(obj, scheduleRender, options = {}) {
-  void options;
   if (!obj || !obj.userData) {
     logger.warn(`${WarnCategory.UI} 選択: 無効なオブジェクトが指定されました`);
     return;
   }
 
-  const userData = obj.userData;
+  // バッチ描画（節点=InstancedMesh / 線要素=LineSegmentsバッチ）の個別要素指定。
+  // 個別要素のuserDataは batchHit.userData にあるため、以降のID解決はそちらを優先する。
+  const batchHit = options.batchHit && options.batchHit.kind !== 'object' ? options.batchHit : null;
+  const userData = batchHit ? batchHit.userData : obj.userData;
   const elementType = userData.elementType || userData.stbNodeType;
 
   // Axis と Story 以外の場合のみハイライト処理を実行
@@ -919,6 +803,15 @@ export function selectElement3D(obj, scheduleRender, options = {}) {
 
     // 通常モード: 既存の選択を解除（単一選択なので全解除）
     resetSelection();
+
+    // バッチ描画の個別要素: 共有マテリアルのため個別ハイライトは不可。
+    // 要素位置へフォーカスしてマーカーで示す。
+    if (batchHit) {
+      const center = getBatchElementCenter(batchHit);
+      if (center) focusCameraAtCenter(center);
+      if (scheduleRender) scheduleRender();
+      return;
+    }
 
     // ハイライト処理
     highlightObject(obj);
@@ -1009,144 +902,6 @@ export function selectMultipleElements3D(objects, scheduleRender, options = {}) 
 
   // 再描画
   if (scheduleRender) scheduleRender();
-}
-
-/**
- * 要素のIDを取得するヘルパー関数
- * @param {Object} userData
- * @returns {{idA: string|null, idB: string|null}}
- */
-function getElementIds(userData) {
-  const modelSource = userData.modelSource;
-  let idA = null;
-  let idB = null;
-
-  if (modelSource === 'matched') {
-    idA = userData.elementIdA || userData.elementId;
-    idB = userData.elementIdB;
-  } else if (modelSource === 'A' || modelSource === 'onlyA') {
-    idA = userData.elementIdA || userData.elementId;
-  } else if (modelSource === 'B' || modelSource === 'onlyB') {
-    idB = userData.elementIdB || userData.elementId;
-  } else {
-    // フォールバック
-    idA = userData.elementId;
-  }
-
-  return { idA, idB };
-}
-
-/**
- * 選択要素タイプを表示用に正規化
- * @param {Object} userData
- * @returns {string|null}
- */
-function normalizeSelectedElementType(userData) {
-  const elementType = userData?.elementType || userData?.stbNodeType || null;
-  return elementType === 'Column (fallback line)' ? 'Column' : elementType;
-}
-
-/**
- * モデルソースを A/B に正規化
- * @param {string|null|undefined} modelSource
- * @returns {'A'|'B'|null}
- */
-function normalizeSelectionModelSide(modelSource) {
-  if (modelSource === 'A' || modelSource === 'onlyA') {
-    return 'A';
-  }
-  if (modelSource === 'B' || modelSource === 'onlyB') {
-    return 'B';
-  }
-  return null;
-}
-
-/**
- * 2要素選択から比較対象を解決する
- * @param {THREE.Object3D[]} objects
- * @returns {{idA: string, idB: string, elementType: string, modelSource: 'matched'}|null}
- */
-export function resolveTwoObjectComparisonTarget(objects) {
-  if (!Array.isArray(objects) || objects.length !== 2) {
-    return null;
-  }
-
-  const selectionInfo = objects.map((obj) => {
-    const userData = obj?.userData;
-    if (!userData || userData.modelSource === 'matched') {
-      return null;
-    }
-
-    const elementType = normalizeSelectedElementType(userData);
-    const side = normalizeSelectionModelSide(userData.modelSource);
-    if (!elementType || !side) {
-      return null;
-    }
-
-    const { idA, idB } = getElementIds(userData);
-    return { elementType, side, idA, idB };
-  });
-
-  if (selectionInfo.some((info) => !info)) {
-    return null;
-  }
-
-  if (selectionInfo[0].elementType !== selectionInfo[1].elementType) {
-    return null;
-  }
-
-  const infoA = selectionInfo.find((info) => info.side === 'A');
-  const infoB = selectionInfo.find((info) => info.side === 'B');
-  if (!infoA || !infoB || !infoA.idA || !infoB.idB) {
-    return null;
-  }
-
-  return {
-    idA: String(infoA.idA),
-    idB: String(infoB.idB),
-    elementType: infoA.elementType,
-    modelSource: 'matched',
-  };
-}
-
-/**
- * 複数選択サマリー情報を生成
- * @param {THREE.Object3D[]} objects
- * @returns {{
- *   count: number,
- *   typeCounts: Array<{elementType: string, count: number}>,
- *   modelSourceCounts: {A: number, B: number, matched: number, unknown: number}
- * }}
- */
-function buildMultiSelectionSummaryData(objects) {
-  const safeObjects = Array.isArray(objects) ? objects : [];
-
-  // 要素タイプ別にカウント
-  const typeCounts = new Map();
-  const modelSourceCounts = { A: 0, B: 0, matched: 0, unknown: 0 };
-
-  for (const obj of safeObjects) {
-    const userData = obj?.userData || {};
-    const elementType = normalizeSelectedElementType(userData) || 'Unknown';
-    typeCounts.set(elementType, (typeCounts.get(elementType) || 0) + 1);
-
-    const normalizedSource = normalizeSelectionModelSide(userData.modelSource);
-    if (normalizedSource) {
-      modelSourceCounts[normalizedSource]++;
-    } else if (userData.modelSource === 'matched') {
-      modelSourceCounts.matched++;
-    } else {
-      modelSourceCounts.unknown++;
-    }
-  }
-
-  return {
-    count: safeObjects.length,
-    typeCounts: Array.from(typeCounts.entries())
-      .map(([elementType, count]) => ({ elementType, count }))
-      .sort((left, right) => left.elementType.localeCompare(right.elementType, 'ja')),
-    modelSourceCounts,
-  };
 }
 
 /**
@@ -1673,265 +1428,6 @@ export function setupInteractionListeners(scheduleRender, options = {}) {
   boundInteractionCanvasElement = canvasElement;
 }
 
-/**
- * 3Dビューでの右クリック（コンテキストメニュー）を処理
- * @param {MouseEvent} event - マウスイベント
- * @param {Function} scheduleRender - 再描画要求関数
- */
-function handleContextMenu(event, scheduleRender) {
-  const canvasElement = document.getElementById('three-canvas');
-  if (!canvasElement) return;
-
-  const rect = canvasElement.getBoundingClientRect();
-  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-  raycaster.setFromCamera(mouse, getActiveCamera() || camera);
-  const intersects = raycaster.intersectObjects(scene.children, true);
-
-  // 選択可能なオブジェクトを探す
-  let targetObject = null;
-  for (const hit of intersects) {
-    const selectable = findSelectableAncestor(hit.object);
-    if (selectable) {
-      targetObject = selectable;
-      break;
-    }
-  }
-
-  if (targetObject) {
-    // オブジェクトがまだ選択されていなければ選択する
-    if (!selectedObjects.includes(targetObject)) {
-      selectElement3D(targetObject, scheduleRender, { addToSelection: false });
-    }
-
-    // コンテキストメニューを表示
-    show3DContextMenu(event.clientX, event.clientY, targetObject, scheduleRender);
-  } else {
-    // 空の領域を右クリックした場合は汎用メニューを表示
-    showEmpty3DContextMenu(event.clientX, event.clientY, scheduleRender);
-  }
-}
-
-/**
- * 3Dビューの要素用コンテキストメニューを表示
- * @param {number} x - X座標
- * @param {number} y - Y座標
- * @param {THREE.Object3D} targetObject - 対象オブジェクト
- * @param {Function} scheduleRender - 再描画要求関数
- */
-function show3DContextMenu(x, y, targetObject, scheduleRender) {
-  const selectedCount = selectedObjects.length;
-  const isMultipleSelected = selectedCount > 1;
-
-  const menuItems = [
-    {
-      label: isMultipleSelected ? `${selectedCount}個の要素を非表示` : '要素を非表示',
-      icon: '👁️',
-      action: () => handle3DHideElements(scheduleRender),
-    },
-    { separator: true },
-    {
-      label: 'セクションボックスをかける',
-      icon: '📦',
-      action: () => handleActivateSectionBoxForSelection(),
-    },
-    { separator: true },
-    {
-      label: '選択をリセット',
-      icon: '🔄',
-      action: () => {
-        resetSelection(scheduleRender);
-      },
-    },
-    { separator: true },
-    {
-      label: 'プロパティをコピー',
-      icon: '📋',
-      action: () => handle3DCopyProperties(targetObject),
-      disabled: isMultipleSelected,
-    },
-    {
-      label: 'この要素にフォーカス',
-      icon: '🎯',
-      action: () => handle3DFocusElement(targetObject),
-      disabled: isMultipleSelected,
-    },
-  ];
-
-  eventBus.emit(InteractionEvents.SHOW_CONTEXT_MENU, { x, y, menuItems });
-}
-
-/**
- * 空の3Dビュー領域用コンテキストメニューを表示
- * @param {number} x - X座標
- * @param {number} y - Y座標
- * @param {Function} scheduleRender - 再描画要求関数
- */
-function showEmpty3DContextMenu(x, y, scheduleRender) {
-  const hasSelection = selectedObjects.length > 0;
-
-  const menuItems = [
-    {
-      label: '選択をリセット',
-      icon: '🔄',
-      action: () => {
-        resetSelection(scheduleRender);
-      },
-      disabled: !hasSelection,
-    },
-    { separator: true },
-    {
-      label: 'ビューをリセット',
-      icon: '🏠',
-      action: () => {
-        if (controls && typeof controls.reset === 'function') {
-          controls.reset();
-          if (scheduleRender) scheduleRender();
-        }
-      },
-    },
-  ];
-
-  eventBus.emit(InteractionEvents.SHOW_CONTEXT_MENU, { x, y, menuItems });
-}
-
-/**
- * 3Dビューで選択された要素を非表示にする
- * @param {Function} scheduleRender - 再描画要求関数
- */
-function handle3DHideElements(scheduleRender) {
-  if (selectedObjects.length === 0) return;
-
-  const elementsToHide = selectedObjects.map((obj) => ({
-    elementType: obj.userData?.elementType,
-    elementId: obj.userData?.elementId,
-    modelSource: obj.userData?.modelSource,
-    object: obj,
-  }));
-
-  // 非表示にする
-  selectedObjects.forEach((obj) => {
-    obj.visible = false;
-  });
-
-  // 選択をリセット
-  resetSelection(scheduleRender);
-
-  // コールバックを呼び出す
-  if (contextMenuActionCallback) {
-    contextMenuActionCallback({
-      action: 'hide',
-      multiple: elementsToHide.length > 1,
-      elements: elementsToHide,
-    });
-  }
-
-  if (scheduleRender) scheduleRender();
-}
-
-/**
- * 3Dオブジェクトのプロパティをクリップボードにコピー
- * @param {THREE.Object3D} targetObject - 対象オブジェクト
- */
-function handle3DCopyProperties(targetObject) {
-  const userData = targetObject.userData || {};
-
-  const properties = {
-    タイプ: userData.elementType || '-',
-    ID: userData.elementId || '-',
-    名前: userData.name || '-',
-    GUID: userData.guid || '-',
-    ステータス:
-      userData.modelSource === 'matched'
-        ? '一致'
-        : userData.modelSource === 'onlyA'
-          ? 'Aのみ'
-          : userData.modelSource === 'onlyB'
-            ? 'Bのみ'
-            : '-',
-  };
-
-  // 位置情報を追加
-  if (targetObject.position) {
-    properties['位置'] =
-      `(${targetObject.position.x.toFixed(2)}, ${targetObject.position.y.toFixed(2)}, ${targetObject.position.z.toFixed(2)})`;
-  }
-
-  // 断面情報があれば追加
-  if (userData.section) {
-    properties['断面'] = userData.section;
-  }
-
-  const text = Object.entries(properties)
-    .map(([key, value]) => `${key}: ${value}`)
-    .join('\n');
-
-  navigator.clipboard
-    .writeText(text)
-    .then(() => {
-      if (contextMenuActionCallback) {
-        contextMenuActionCallback({
-          action: 'copyProperties',
-          success: true,
-          properties: properties,
-        });
-      }
-    })
-    .catch((err) => {
-      logger.error('クリップボードへのコピーに失敗しました:', err);
-    });
-}
-
-/**
- * 選択要素にセクションボックスを適用する
- */
-function handleActivateSectionBoxForSelection() {
-  if (selectedObjects.length === 0) return;
-
-  const box = new THREE.Box3();
-  for (const obj of selectedObjects) {
-    const mainObj = findSelectableAncestor(obj) || obj;
-    const objBox = new THREE.Box3().setFromObject(mainObj);
-    if (!objBox.isEmpty()) {
-      box.union(objBox);
-    }
-  }
-
-  if (box.isEmpty()) {
-    logger.warn(`${WarnCategory.UI} セクションボックス: バウンディングボックスが空です`);
-    return;
-  }
-
-  eventBus.emit(InteractionEvents.ACTIVATE_SECTION_BOX_FOR_SELECTION, { box3: box });
-}
-
-/**
- * 要素にカメラをフォーカスする
- * @param {THREE.Object3D} targetObject - 対象オブジェクト
- */
-function handle3DFocusElement(targetObject) {
-  if (!targetObject || !controls) return;
-
-  // バウンディングボックスを計算
-  const box = new THREE.Box3().setFromObject(targetObject);
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-
-  // カメラターゲットを要素の中心に設定
-  if (controls.target) {
-    controls.target.copy(center);
-  }
-
-  // 適切な距離を計算
-  const maxDim = Math.max(size.x, size.y, size.z);
-  const fov = camera.fov * (Math.PI / 180);
-  let cameraDistance = maxDim / (2 * Math.tan(fov / 2));
-  cameraDistance = Math.max(cameraDistance * 2, 5); // 最小距離を確保
-
-  // カメラ位置を更新
-  const direction = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
-  camera.position.copy(center).add(direction.multiplyScalar(cameraDistance));
-
-  controls.update();
-}
+// コンテキストメニュー処理は interaction/contextMenu3D.js に分離。
+// 選択状態・レイキャストへのアクセスは handleInteractionCanvasContextMenu で
+// deps として注入する。

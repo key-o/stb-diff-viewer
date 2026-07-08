@@ -1,0 +1,179 @@
+/**
+ * 非ジオメトリ要素の生XML差分ビューア コンポーネントスタイル
+ *
+ * 3Dに描画されない非ジオメトリ要素（STB定義など）の元XMLを、
+ * モデルA/Bを左右に並べて表示するフローティングウィンドウのスタイル。
+ */
+
+#raw-xml-diff-float {
+  min-width: 460px;
+  max-width: 90vw;
+  width: 760px;
+  max-height: 80vh;
+}
+
+.raw-xml-diff-panel .float-window-content {
+  display: flex;
+  flex-direction: column;
+  /* flex 子の .raw-xml-diff-body にスクロールを担わせるため、
+     コンテンツ自身は伸びきらず（min-height:0）ウィンドウ内に収める */
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.raw-xml-diff-subtitle {
+  /* 件数・カテゴリ見出しはスクロール領域の外で常に見えるよう縮まないようにする */
+  flex-shrink: 0;
+  padding: 6px 10px;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.raw-xml-diff-body {
+  flex: 1;
+  /* flex アイテムの既定 min-height:auto を打ち消し、内容より縮んでスクロールできるようにする */
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.raw-xml-diff-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* ========================================
+   要素カード
+   ======================================== */
+
+.raw-xml-diff-card {
+  /* 親(.raw-xml-diff-body)が flex column のため、既定の flex-shrink:1 だと
+     カードが押し潰れて内容がはみ出し、本体がスクロールしなくなる。各カードは
+     自然な高さを保ち、スクロールは .raw-xml-diff-body に担わせる。 */
+  flex-shrink: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  overflow: hidden;
+}
+
+.raw-xml-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--bg-secondary, #f3f4f6);
+  font-size: var(--font-size-sm);
+}
+
+.raw-xml-cat-badge {
+  flex-shrink: 0;
+  padding: 0 6px;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: #fff;
+  background: var(--text-secondary);
+}
+
+.raw-xml-cat-mismatch .raw-xml-cat-badge {
+  background: var(--color-attribute-mismatch);
+}
+
+.raw-xml-cat-onlyA .raw-xml-cat-badge {
+  background: var(--color-only-a);
+}
+
+.raw-xml-cat-onlyB .raw-xml-cat-badge {
+  background: var(--color-only-b);
+}
+
+.raw-xml-cat-match .raw-xml-cat-badge {
+  background: var(--color-matched);
+}
+
+.raw-xml-card-tag {
+  flex-shrink: 0;
+  font-weight: var(--font-weight-bold);
+}
+
+.raw-xml-card-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+/* ========================================
+   A/B ペイン
+   ======================================== */
+
+.raw-xml-diff-panes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border-color-light);
+}
+
+.raw-xml-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-panel);
+}
+
+.raw-xml-pane-label {
+  padding: 3px 8px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.raw-xml-pane-a .raw-xml-pane-label {
+  color: var(--color-only-a);
+}
+
+.raw-xml-pane-b .raw-xml-pane-label {
+  color: var(--color-only-b);
+}
+
+.raw-xml-pane-pre {
+  margin: 0;
+  padding: 6px 8px;
+  overflow: auto;
+  max-height: 340px;
+  font-family: var(--font-family-monospace, monospace);
+  font-size: 11px;
+  line-height: 1.45;
+  white-space: pre;
+  color: var(--text-primary);
+}
+
+.raw-xml-pane-missing {
+  padding: 12px 8px;
+  font-size: var(--font-size-xs);
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+/* 狭い幅では上下に積む */
+@media (max-width: 640px) {
+  .raw-xml-diff-panes {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========================================
+   ダークテーマ対応
+   ======================================== */
+
+[data-theme='dark'] .raw-xml-card-head {
+  background: #383838;
+}

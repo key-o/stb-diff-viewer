@@ -5,7 +5,16 @@
  * ColorManagerやDisplayModeManagerと同様のシングルトンパターンで実装。
  */
 
-import { COMPARISON_KEY_TYPE, DEFAULT_COMPARISON_KEY_TYPE } from '../config/comparisonKeyConfig.js';
+import {
+  COMPARISON_KEY_TYPE,
+  DEFAULT_COMPARISON_KEY_TYPE,
+  SECTION_MATCH_CRITERION,
+  DEFAULT_SECTION_MATCH_CRITERION,
+  STORY_AXIS_MATCH_CRITERION,
+  DEFAULT_STORY_AXIS_MATCH_CRITERION,
+  isFloorCanonicalizingSectionCriterion,
+} from '../config/comparisonKeyConfig.js';
+import { setCrossSoftwareConfig } from '../config/crossSoftwareConfig.js';
 // UI層への依存を解消: constants/から直接インポート
 import { COMPARISON_KEY_EVENTS } from '../constants/eventTypes.js';
 import { storageHelper } from '../utils/storageHelper.js';
@@ -15,6 +24,8 @@ const log = createLogger('app:comparisonKeyManager');
 
 // storageHelper用のキー
 const STORAGE_KEY = 'comparison-key-type';
+const SECTION_CRITERION_STORAGE_KEY = 'section-match-criterion';
+const STORY_AXIS_CRITERION_STORAGE_KEY = 'story-axis-match-criterion';
 
 /**
  * 比較キータイプ管理クラス
@@ -25,8 +36,23 @@ class ComparisonKeyManager {
     // 現在のキータイプ
     this.currentKeyType = this.loadFromStorage();
 
+    // 現在の断面一致基準（部材レベル）
+    this.currentSectionMatchCriterion = this.loadSectionCriterionFromStorage();
+
+    // 現在の通り芯・階の判定基準（名前 or 幾何位置）
+    this.currentStoryAxisMatchCriterion = this.loadStoryAxisCriterionFromStorage();
+
     // 変更通知用のリスナー
     this.changeListeners = new Set();
+
+    // 断面一致基準の変更通知用リスナー
+    this.sectionCriterionChangeListeners = new Set();
+
+    // 通り芯・階の判定基準の変更通知用リスナー
+    this.storyAxisCriterionChangeListeners = new Set();
+
+    // 低レイヤーの crossSoftwareConfig（elementComparison が参照）を初期同期する
+    this.syncCrossSoftwareConfig();
   }
 
   /**
@@ -52,11 +78,192 @@ class ComparisonKeyManager {
   }
 
   /**
+   * storageHelperから断面一致基準を読み込む
+   * @returns {string} 断面一致基準
+   * @private
+   */
+  loadSectionCriterionFromStorage() {
+    const saved = storageHelper.get(SECTION_CRITERION_STORAGE_KEY);
+    if (saved && Object.values(SECTION_MATCH_CRITERION).includes(saved)) {
+      return saved;
+    }
+    return DEFAULT_SECTION_MATCH_CRITERION;
+  }
+
+  /**
+   * storageHelperから通り芯・階の判定基準を読み込む
+   * @returns {string} 通り芯・階の判定基準
+   * @private
+   */
+  loadStoryAxisCriterionFromStorage() {
+    const saved = storageHelper.get(STORY_AXIS_CRITERION_STORAGE_KEY);
+    if (saved && Object.values(STORY_AXIS_MATCH_CRITERION).includes(saved)) {
+      return saved;
+    }
+    return DEFAULT_STORY_AXIS_MATCH_CRITERION;
+  }
+
+  /**
+   * 低レイヤーの crossSoftwareConfig を現在の断面一致基準に同期する。
+   * elementComparison（Layer3）は manager（Layer2）を参照できないため、
+   * config（Layer0）の boolean を真実源として橋渡しする。
+   * 断面一致基準が NAME_FLOOR_CANONICAL（異ソフト間）のとき有効化する。
+   * @private
+   */
+  syncCrossSoftwareConfig() {
+    setCrossSoftwareConfig({
+      enabled: isFloorCanonicalizingSectionCriterion(this.currentSectionMatchCriterion),
+    });
+  }
+
+  /**
    * 現在の比較キータイプを取得
    * @returns {string} 比較キータイプ
    */
   getKeyType() {
     return this.currentKeyType;
+  }
+
+  /**
+   * 現在の断面一致基準を取得
+   * @returns {string} 断面一致基準（SECTION_MATCH_CRITERION の値）
+   */
+  getSectionMatchCriterion() {
+    return this.currentSectionMatchCriterion;
+  }
+
+  /**
+   * 断面一致基準を設定
+   * @param {string} criterion - 断面一致基準（SECTION_MATCH_CRITERION の値）
+   * @returns {boolean} 設定成功フラグ
+   */
+  setSectionMatchCriterion(criterion) {
+    if (!Object.values(SECTION_MATCH_CRITERION).includes(criterion)) {
+      log.error(`[ComparisonKeyManager] Invalid section match criterion: ${criterion}`);
+      return false;
+    }
+
+    const oldCriterion = this.currentSectionMatchCriterion;
+    if (oldCriterion === criterion) {
+      return true;
+    }
+
+    this.currentSectionMatchCriterion = criterion;
+    storageHelper.set(SECTION_CRITERION_STORAGE_KEY, criterion);
+    // 再比較（notify で駆動）より先に crossSoftwareConfig を同期しておく
+    this.syncCrossSoftwareConfig();
+    this.notifySectionCriterionChange(criterion, oldCriterion);
+
+    return true;
+  }
+
+  /**
+   * 断面一致基準の変更通知リスナーを登録
+   * @param {Function} callback - コールバック関数 (newCriterion, oldCriterion) => void
+   */
+  onSectionCriterionChange(callback) {
+    if (typeof callback === 'function') {
+      this.sectionCriterionChangeListeners.add(callback);
+    }
+  }
+
+  /**
+   * 断面一致基準の変更通知リスナーを削除
+   * @param {Function} callback - コールバック関数
+   */
+  offSectionCriterionChange(callback) {
+    this.sectionCriterionChangeListeners.delete(callback);
+  }
+
+  /**
+   * 断面一致基準の変更を通知
+   * @param {string} newCriterion - 新しい基準
+   * @param {string} oldCriterion - 古い基準
+   * @private
+   */
+  notifySectionCriterionChange(newCriterion, oldCriterion) {
+    const event = new CustomEvent(COMPARISON_KEY_EVENTS.SECTION_MATCH_CRITERION_CHANGED, {
+      detail: { newCriterion, oldCriterion },
+    });
+    document.dispatchEvent(event);
+
+    this.sectionCriterionChangeListeners.forEach((callback) => {
+      try {
+        callback(newCriterion, oldCriterion);
+      } catch (error) {
+        log.error('[ComparisonKeyManager] Error in section criterion change listener:', error);
+      }
+    });
+  }
+
+  /**
+   * 現在の通り芯・階の判定基準を取得
+   * @returns {string} 通り芯・階の判定基準（STORY_AXIS_MATCH_CRITERION の値）
+   */
+  getStoryAxisMatchCriterion() {
+    return this.currentStoryAxisMatchCriterion;
+  }
+
+  /**
+   * 通り芯・階の判定基準を設定
+   * @param {string} criterion - STORY_AXIS_MATCH_CRITERION の値
+   * @returns {boolean} 設定成功フラグ
+   */
+  setStoryAxisMatchCriterion(criterion) {
+    if (!Object.values(STORY_AXIS_MATCH_CRITERION).includes(criterion)) {
+      log.error(`[ComparisonKeyManager] Invalid story/axis match criterion: ${criterion}`);
+      return false;
+    }
+
+    const oldCriterion = this.currentStoryAxisMatchCriterion;
+    if (oldCriterion === criterion) {
+      return true;
+    }
+
+    this.currentStoryAxisMatchCriterion = criterion;
+    storageHelper.set(STORY_AXIS_CRITERION_STORAGE_KEY, criterion);
+    this.notifyStoryAxisCriterionChange(criterion, oldCriterion);
+
+    return true;
+  }
+
+  /**
+   * 通り芯・階の判定基準の変更通知リスナーを登録
+   * @param {Function} callback - コールバック関数 (newCriterion, oldCriterion) => void
+   */
+  onStoryAxisCriterionChange(callback) {
+    if (typeof callback === 'function') {
+      this.storyAxisCriterionChangeListeners.add(callback);
+    }
+  }
+
+  /**
+   * 通り芯・階の判定基準の変更通知リスナーを削除
+   * @param {Function} callback - コールバック関数
+   */
+  offStoryAxisCriterionChange(callback) {
+    this.storyAxisCriterionChangeListeners.delete(callback);
+  }
+
+  /**
+   * 通り芯・階の判定基準の変更を通知
+   * @param {string} newCriterion - 新しい基準
+   * @param {string} oldCriterion - 古い基準
+   * @private
+   */
+  notifyStoryAxisCriterionChange(newCriterion, oldCriterion) {
+    const event = new CustomEvent(COMPARISON_KEY_EVENTS.STORY_AXIS_MATCH_CRITERION_CHANGED, {
+      detail: { newCriterion, oldCriterion },
+    });
+    document.dispatchEvent(event);
+
+    this.storyAxisCriterionChangeListeners.forEach((callback) => {
+      try {
+        callback(newCriterion, oldCriterion);
+      } catch (error) {
+        log.error('[ComparisonKeyManager] Error in story/axis criterion change listener:', error);
+      }
+    });
   }
 
   /**
@@ -89,11 +296,15 @@ class ComparisonKeyManager {
   }
 
   /**
-   * 位置情報ベースかどうかを判定
+   * 位置情報ベース（節点位置のみ/+オフセット/+オフセット+回転のいずれか）かどうかを判定
    * @returns {boolean} 位置情報ベースならtrue
    */
   isPositionBased() {
-    return this.currentKeyType === COMPARISON_KEY_TYPE.POSITION_BASED;
+    return (
+      this.currentKeyType === COMPARISON_KEY_TYPE.POSITION_NODE_ONLY ||
+      this.currentKeyType === COMPARISON_KEY_TYPE.POSITION_WITH_OFFSET ||
+      this.currentKeyType === COMPARISON_KEY_TYPE.POSITION_WITH_ROTATE
+    );
   }
 
   /**
@@ -150,6 +361,8 @@ class ComparisonKeyManager {
    */
   reset() {
     this.setKeyType(DEFAULT_COMPARISON_KEY_TYPE);
+    this.setSectionMatchCriterion(DEFAULT_SECTION_MATCH_CRITERION);
+    this.setStoryAxisMatchCriterion(DEFAULT_STORY_AXIS_MATCH_CRITERION);
   }
 
   /**
@@ -159,9 +372,12 @@ class ComparisonKeyManager {
   getDebugInfo() {
     return {
       currentKeyType: this.currentKeyType,
+      currentSectionMatchCriterion: this.currentSectionMatchCriterion,
+      currentStoryAxisMatchCriterion: this.currentStoryAxisMatchCriterion,
       isPositionBased: this.isPositionBased(),
       isGuidBased: this.isGuidBased(),
       listenerCount: this.changeListeners.size,
+      sectionCriterionListenerCount: this.sectionCriterionChangeListeners.size,
     };
   }
 }

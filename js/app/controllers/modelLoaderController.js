@@ -32,6 +32,7 @@ import { scheduleRender } from '../../utils/renderScheduler.js';
 import {
   EventTypes,
   ModelEvents,
+  RenderEvents,
   ComparisonEvents,
   AppEvents,
   ToastEvents,
@@ -81,6 +82,7 @@ import {
   handleFinalizationError,
 } from '../../modelLoader/visualizationFinalizer.js';
 import { syncDisplayModeFromUI } from '../viewModes/index.js';
+import { normalizeModelSourceToComparisonState } from '../../colorModes/modelSourceMapping.js';
 
 // モデル状態管理
 let stories = [];
@@ -107,12 +109,42 @@ comparisonKeyManager.onChange(async (newKeyType, oldKeyType) => {
   }
 });
 
-// 許容差設定変更時に自動再比較を実行（eventBus経由）
+// 断面一致基準変更時に自動再比較を実行
+comparisonKeyManager.onSectionCriterionChange(async (newCriterion, oldCriterion) => {
+  if (!modelsLoaded) return;
+  log.info(`断面一致基準が変更されました (${oldCriterion} → ${newCriterion})、再比較を実行します`);
+  try {
+    if (typeof window.handleCompareModelsClick === 'function') {
+      await window.handleCompareModelsClick();
+    }
+  } catch (error) {
+    log.error('断面一致基準変更後の再比較に失敗:', error);
+  }
+});
+
+// 通り芯・階の判定基準変更時に自動再比較を実行
+comparisonKeyManager.onStoryAxisCriterionChange(async (newCriterion, oldCriterion) => {
+  if (!modelsLoaded) return;
+  log.info(
+    `通り芯・階の判定基準が変更されました (${oldCriterion} → ${newCriterion})、再比較を実行します`,
+  );
+  try {
+    if (typeof window.handleCompareModelsClick === 'function') {
+      await window.handleCompareModelsClick();
+    }
+  } catch (error) {
+    log.error('通り芯・階の判定基準変更後の再比較に失敗:', error);
+  }
+});
+
+// 許容差変更時に自動再比較を実行（eventBus経由）。
+// 断面一致基準（NAME_FLOOR_CANONICAL＝異ソフト間を含む）は onSectionCriterionChange で購読する。
+const RECOMPARE_SETTING_TYPES = new Set(['tolerance']);
 eventBus.on(SettingsEvents.CHANGED, async (payload = {}) => {
   const { type, config: newConfig } = /** @type {{type?: string, config?: any}} */ (payload);
-  if (type !== 'tolerance') return;
+  if (!RECOMPARE_SETTING_TYPES.has(type)) return;
   if (!modelsLoaded) return;
-  log.info('許容差設定が変更されました、再比較を実行します', newConfig);
+  log.info(`比較設定（${type}）が変更されました、再比較を実行します`, newConfig);
   try {
     if (typeof window.handleCompareModelsClick === 'function') {
       await window.handleCompareModelsClick();
@@ -203,6 +235,8 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
   modelBDocument = null;
   sectionMaps = null;
   modelsLoaded = false;
+  // 読み込み済みモデルを破棄した時点で通知し、ARなどのモデル依存UIを即時無効化する。
+  eventBus.emit(ModelEvents.CLEARED);
 
   // Clear model processing state (globalState documents)
   clearModelProcessingState();
@@ -244,7 +278,7 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     ({ modelADocument, modelBDocument, nodeMapA, nodeMapB, stories, axesData, sectionMaps } =
       processingResult);
 
-    const { versionInfo, calDataA, calDataB } = processingResult;
+    const { versionInfo, calDataA, calDataB, originalTextA, originalTextB } = processingResult;
 
     // Save all model data to global state
     setState('models.documentA', modelADocument);
@@ -258,6 +292,9 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
     setState('models.versionInfo', versionInfo);
     setState('models.calDataA', calDataA);
     setState('models.calDataB', calDataB);
+    // SS7元CSVテキストを保存（SS7再エクスポート時のパススルー用）
+    setState('models.ss7OriginalCsvTextA', originalTextA);
+    setState('models.ss7OriginalCsvTextB', originalTextB);
     setState('models.stbVersionA', versionInfo.versionA);
     setState('models.stbVersionB', versionInfo.versionB);
 
@@ -334,6 +371,8 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
       useImportanceFiltering: true,
       targetImportanceLevels: null, // null = all levels
       comparisonKeyType: comparisonKeyType, // 比較キータイプを追加
+      sectionMatchCriterion: comparisonKeyManager.getSectionMatchCriterion(), // 断面一致基準
+      storyAxisMatchCriterion: comparisonKeyManager.getStoryAxisMatchCriterion(), // 通り芯・階の判定基準
     };
     const comparisonResult = processElementComparison(
       processingResult,
@@ -501,6 +540,11 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
 
     // Mark models as loaded
     modelsLoaded = true;
+    // モデル読み込み完了を通知（ARボタン等の活性状態が追従する）
+    eventBus.emit(RenderEvents.MODEL_LOADED, {
+      hasModelA: !!modelADocument,
+      hasModelB: !!modelBDocument,
+    });
     onLoadingComplete();
 
     schedulePostLoadTask(() => {
@@ -526,6 +570,8 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
       eventBus.emit(ComparisonEvents.UPDATE_STATISTICS, {
         comparisonResults: comparisonResults,
         reason: 'modelComparison',
+        // 両モデルが揃っているときだけ差分サマリーを自動表示する（単一モデルは比較情報を持たない）
+        hasBothModels: !!modelADocument && !!modelBDocument,
         timestamp: new Date().toISOString(),
       });
     });
@@ -553,6 +599,8 @@ export async function compareModels(scheduleRender, { camera, controls } = {}) {
       createOrUpdateGridHelper(modelBounds);
       clearModelProcessingState();
       modelsLoaded = false;
+      // シーンをクリアしたため、モデルクリアを通知（ARボタン等の活性状態が追従する）
+      eventBus.emit(ModelEvents.CLEARED);
     } catch (cleanupError) {
       log.error('状態クリーンアップ中のエラー:', cleanupError);
     }
@@ -617,13 +665,17 @@ function updateObjectMaterialAsync(object) {
         return;
       }
 
-      const comparisonState = object.userData.modelSource || 'matched';
+      const comparisonState = normalizeModelSourceToComparisonState(object.userData.modelSource);
       const isLine = object.userData.isLine || false;
       const isPoly = object.userData.isPoly || false;
       const elementId = object.userData.elementId || null;
       const materialOptions = {
         isTransparent: object.userData.isSRCConcrete === true,
         srcComponentType: object.userData.srcComponentType || null,
+        modelSource: object.userData.modelSource || null,
+        diffStatus: object.userData.diffStatus || null,
+        positionState: object.userData.positionState || null,
+        attributeState: object.userData.attributeState || null,
       };
 
       const newMaterial = getMaterialForElementWithMode(
@@ -632,7 +684,7 @@ function updateObjectMaterialAsync(object) {
         isLine,
         isPoly,
         elementId,
-        null,
+        object.userData.toleranceState || null,
         materialOptions,
       );
 

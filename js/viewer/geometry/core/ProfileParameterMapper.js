@@ -16,7 +16,7 @@ import {
   getDiameter,
   getRadius,
   getThickness,
-} from '../../../common-stb/data/dimensionNormalizer.js';
+} from '../../../common-stb/import/data/dimensionNormalizer.js';
 
 /**
  * 断面タイプに応じたプロファイルパラメータを準備

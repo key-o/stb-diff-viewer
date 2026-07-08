@@ -169,6 +169,9 @@ export function getMaterialForElementWithMode(
     isLine,
     isPoly,
     toleranceState,
+    diffStatus: extraOptions?.diffStatus || null,
+    positionState: extraOptions?.positionState || null,
+    attributeState: extraOptions?.attributeState || null,
     isTransparent: forceTransparent,
     overrideColor: srcComponentOverrideColor,
   };

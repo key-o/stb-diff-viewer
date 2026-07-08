@@ -25,7 +25,7 @@ import {
 } from '../core/TaperedGeometryBuilder.js';
 import { colorManager } from '../../rendering/colorManager.js';
 import { ElementGeometryUtils } from '../ElementGeometryUtils.js';
-import { isExtendedPile } from '../../../common-stb/data/dimensionNormalizer.js';
+import { isExtendedPile } from '../../../common-stb/import/data/dimensionNormalizer.js';
 import { BaseElementGenerator } from '../core/BaseElementGenerator.js';
 import { MeshMetadataBuilder } from '../core/MeshMetadataBuilder.js';
 

@@ -144,10 +144,13 @@ export class SuggestionEngine {
   }
 
   /*
-   * XSDスキーマから列挙値を取得
+   * JSON スキーマの制約から列挙候補を取得
+   *
+   * スキーマの `enum`（列挙値）と `boolean` 型を候補として返す。
+   * 値は jsonSchemaLoader が解析済みの `attrInfo.constraints.enumerations` から取得する。
    * @param {string} elementType - 要素タイプ
    * @param {string} attributeName - 属性名
-   * @returns {Array<string>} 列挙値候補
+   * @returns {Array<Object>} 列挙値候補
    */
   getEnumerationSuggestions(elementType, attributeName) {
     if (!isSchemaLoaded()) {
@@ -158,44 +161,21 @@ export class SuggestionEngine {
 
     try {
       const attrInfo = getAttributeInfo(tagName, attributeName);
-      if (attrInfo && attrInfo.type) {
-        // XSDスキーマから列挙値を取得するヘルパー関数を使用
-        return this.getEnumerationValuesFromSchema(attrInfo.type).map((value) => ({
-          value,
-          label: value,
-          source: 'xsd',
-        }));
+      if (!attrInfo) return [];
+
+      const enumerations = attrInfo.constraints?.enumerations ?? [];
+      if (enumerations.length > 0) {
+        return enumerations.map((value) => ({ value, label: value, source: 'schema' }));
+      }
+
+      // boolean 型は true / false の2択
+      if (attrInfo.type === 'boolean') {
+        return ['true', 'false'].map((value) => ({ value, label: value, source: 'schema' }));
       }
 
       return [];
     } catch (error) {
       log.warn(`${tagName}.${attributeName}の列挙サジェストの取得中にエラーが発生しました:`, error);
-      return [];
-    }
-  }
-
-  /**
-   * XSDスキーマから列挙値を取得するヘルパー関数
-   * @param {string} typeName - 型名
-   * @returns {Array<string>} 列挙値の配列
-   */
-  getEnumerationValuesFromSchema(typeName) {
-    if (!window.xsdSchema) return [];
-
-    try {
-      // カスタム型の定義を検索
-      const simpleType = window.xsdSchema.querySelector(
-        `xs\\:simpleType[name="${typeName}"], simpleType[name="${typeName}"]`,
-      );
-      if (!simpleType) return [];
-
-      // 列挙値を取得
-      const enumerations = simpleType.querySelectorAll('xs\\:enumeration, enumeration');
-      return Array.from(enumerations)
-        .map((enumElement) => enumElement.getAttribute('value'))
-        .filter((v) => v);
-    } catch (error) {
-      log.warn(`型${typeName}の列挙値抽出中にエラーが発生しました:`, error);
       return [];
     }
   }

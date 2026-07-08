@@ -15,7 +15,9 @@ import {
   FinalizationEvents,
   ComparisonEvents,
   ViewEvents,
+  RenderEvents,
 } from '../../data/events/index.js';
+import { floatingWindowManager } from '../panels/floatingWindowManager.js';
 
 import { clearUIState, setGlobalStateForUI } from '../state.js';
 import {
@@ -90,6 +92,19 @@ export function setupAppEventBridge() {
   });
 
   eventBus.on(InteractionEvents.INIT_CONTEXT_MENU, initializeContextMenu);
+
+  // 右クリックメニュー等からの表示系ウィンドウ表示要求（トグルではなく確実に開く）
+  eventBus.on(InteractionEvents.OPEN_WINDOW, ({ windowId } = {}) => {
+    if (windowId) {
+      floatingWindowManager.showWindow(windowId);
+    }
+  });
+
+  // モデル読み込み完了時に要素情報パネルを自動表示（差分サマリーと同様）。
+  // 中身は空（要素未選択）で表示され、以後の選択で内容が更新される。
+  eventBus.on(RenderEvents.MODEL_LOADED, () => {
+    floatingWindowManager.showWindow('component-info');
+  });
 
   eventBus.on(InteractionEvents.ACTIVATE_SECTION_BOX_FOR_SELECTION, ({ box3 } = {}) => {
     if (box3) {

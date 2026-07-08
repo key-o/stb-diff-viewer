@@ -239,7 +239,43 @@
    差分フィルタ設定
    ======================================== */
 
+/* 差分フィルタ（差分サマリーウィンドウ内に常時表示） */
 .diff-filter-settings {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #f8f9fa;
+  border-radius: var(--border-radius-lg);
+  border: 1px solid #e9ecef;
+}
+
+.diff-view-filter-settings {
+  padding: 8px 10px;
+}
+
+.diff-view-filter-settings .settings-separator {
+  margin-top: 4px;
+}
+
+.diff-view-filter-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: #495057;
+}
+
+.diff-view-filter-state {
+  min-width: 0;
+  max-width: 70%;
+  overflow: hidden;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 許容差設定セクション（色付けモード設定内、diffモード時のみ colorModeManager が表示） */
+.tolerance-settings-section {
   display: none;
   margin-top: 10px;
   padding: 10px;
@@ -251,7 +287,7 @@
 .diff-filter-presets {
   display: flex;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   flex-wrap: wrap;
 }
 
@@ -301,8 +337,8 @@
 
 /* 差分フィルタサマリー */
 .diff-filter-summary {
-  margin-top: 10px;
-  padding: 8px 10px;
+  margin-top: 8px;
+  padding: 6px 8px;
   background-color: rgba(0, 0, 0, 0.03);
   border-radius: var(--border-radius);
   font-size: var(--font-size-sm);

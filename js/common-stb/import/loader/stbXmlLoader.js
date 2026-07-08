@@ -6,7 +6,7 @@
  * - XMLドキュメントのパース
  */
 
-import { SOURCE_TYPES, createImportMetadata } from '../../../constants/importTypes.js';
+import { SOURCE_TYPES, createImportMetadata } from '../constants/importTypes.js';
 
 /**
  * STBファイル(XML)のencoding宣言を自動判別してデコードする

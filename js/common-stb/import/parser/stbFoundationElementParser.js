@@ -7,6 +7,7 @@
  */
 
 import { getLogger, parseElements } from './stbParserCore.js';
+import { STB_TAG_NAMES } from '../constants/stbTagNames.js';
 
 /**
  * 杭(Pile)要素データを抽出する
@@ -16,7 +17,7 @@ import { getLogger, parseElements } from './stbParserCore.js';
 export function extractPileElements(xmlDoc) {
   const logger = getLogger();
   const pileElementsData = [];
-  const pileElements = parseElements(xmlDoc, 'StbPile');
+  const pileElements = parseElements(xmlDoc, STB_TAG_NAMES.PILE);
 
   for (const pileEl of pileElements) {
     const id = pileEl.getAttribute('id');
@@ -99,7 +100,7 @@ export function extractPileElements(xmlDoc) {
 export function extractFootingElements(xmlDoc) {
   const logger = getLogger();
   const footingElementsData = [];
-  const footingElements = parseElements(xmlDoc, 'StbFooting');
+  const footingElements = parseElements(xmlDoc, STB_TAG_NAMES.FOOTING);
 
   for (const footingEl of footingElements) {
     const id = footingEl.getAttribute('id');
@@ -142,7 +143,7 @@ export function extractFootingElements(xmlDoc) {
 export function extractFoundationColumnElements(xmlDoc) {
   const logger = getLogger();
   const foundationColumnElementsData = [];
-  const foundationColumnElements = parseElements(xmlDoc, 'StbFoundationColumn');
+  const foundationColumnElements = parseElements(xmlDoc, STB_TAG_NAMES.FOUNDATION_COLUMN);
 
   for (const fcEl of foundationColumnElements) {
     const id = fcEl.getAttribute('id');
@@ -217,7 +218,7 @@ export function extractFoundationColumnElements(xmlDoc) {
 export function extractStripFootingElements(xmlDoc) {
   const logger = getLogger();
   const stripFootingElementsData = [];
-  const stripFootingElements = parseElements(xmlDoc, 'StbStripFooting');
+  const stripFootingElements = parseElements(xmlDoc, STB_TAG_NAMES.STRIP_FOOTING);
 
   for (const stripFootingEl of stripFootingElements) {
     const id = stripFootingEl.getAttribute('id');

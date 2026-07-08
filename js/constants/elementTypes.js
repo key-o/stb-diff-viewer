@@ -129,62 +129,9 @@ export function isSupportedElement(elementType) {
 /**
  * STB XML タグ名定数
  *
- * ST-Bridge XML で使用される要素タグ名を一元管理します。
- * 文字列リテラルの代わりにこの定数を使用してください。
- * @type {Object.<string, string>}
+ * 定義本体は STB読み込み共通カーネル（common-stb/import/）にあります。
+ * アプリケーション層は従来どおり本モジュールから import してください。
+ * （共通カーネルは外部ライブラリ相当の最下層として扱うため、
+ * constants からの re-export はレイヤールール違反になりません）
  */
-export const STB_TAG_NAMES = {
-  // 構造要素（部材）
-  NODE: 'StbNode',
-  COLUMN: 'StbColumn',
-  POST: 'StbPost',
-  GIRDER: 'StbGirder',
-  BEAM: 'StbBeam',
-  BRACE: 'StbBrace',
-  SLAB: 'StbSlab',
-  WALL: 'StbWall',
-  PARAPET: 'StbParapet',
-  JOINT: 'StbJoint',
-  OPEN: 'StbOpen',
-
-  // 基礎要素
-  PILE: 'StbPile',
-  FOOTING: 'StbFooting',
-  STRIP_FOOTING: 'StbStripFooting',
-  FOUNDATION_COLUMN: 'StbFoundationColumn',
-
-  // 免震・制振装置
-  ISOLATING_DEVICE: 'StbIsolatingDevice',
-  DAMPING_DEVICE: 'StbDampingDevice',
-  FRAME_DAMPING_DEVICE: 'StbFrameDampingDevice',
-
-  // 配置・参照要素
-  STORY: 'StbStory',
-  PARALLEL_AXIS: 'StbParallelAxis',
-
-  // コンテナ要素（複数形）
-  COLUMNS: 'StbColumns',
-  POSTS: 'StbPosts',
-  GIRDERS: 'StbGirders',
-  BEAMS: 'StbBeams',
-  BRACES: 'StbBraces',
-  SLABS: 'StbSlabs',
-  WALLS: 'StbWalls',
-  PARAPETS: 'StbParapets',
-  PILES: 'StbPiles',
-  FOOTINGS: 'StbFootings',
-  STRIP_FOOTINGS: 'StbStripFootings',
-  FOUNDATION_COLUMNS: 'StbFoundationColumns',
-  OPENS: 'StbOpens',
-  NODES: 'StbNodes',
-  STORIES: 'StbStories',
-
-  // 上位コンテナ
-  MODEL: 'StbModel',
-  COMMON: 'StbCommon',
-  MEMBERS: 'StbMembers',
-  SECTIONS: 'StbSections',
-  AXES: 'StbAxes',
-  JOINTS: 'StbJoints',
-  EXTENSION: 'StbExtension',
-};
+export { STB_TAG_NAMES } from '../common-stb/import/constants/stbTagNames.js';

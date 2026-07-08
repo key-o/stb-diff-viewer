@@ -6,6 +6,7 @@
 import { IFCExporterBase, generateIfcGuid } from './IFCExporterBase.js';
 import { createLogger } from '../../utils/logger.js';
 import { calculateBeamBasis, rotateVectorAroundAxis } from '../../data/geometry/vectorMath.js';
+import { STB_TAG_NAMES } from '../../constants/elementTypes.js';
 
 const log = createLogger('IFCBeamExporter');
 
@@ -55,7 +56,7 @@ export class IFCBeamExporter extends IFCExporterBase {
       isSRC = false,
       steelProfile = null,
       kindStructure = 'S',
-      stbType = 'StbGirder',
+      stbType = STB_TAG_NAMES.GIRDER,
     } = beamData;
 
     // Validate name
@@ -202,7 +203,7 @@ export class IFCBeamExporter extends IFCExporterBase {
       `#${beamLocalPlacement}`, // ObjectPlacement
       `#${productShape}`, // Representation
       null, // Tag
-      stbType === 'StbBeam' ? '.USERDEFINED.' : '.BEAM.', // PredefinedType: StbBeam=USERDEFINED, StbGirder=BEAM
+      stbType === STB_TAG_NAMES.BEAM ? '.USERDEFINED.' : '.BEAM.', // PredefinedType: StbBeam=USERDEFINED, StbGirder=BEAM
     ]);
 
     // 梁を階に所属させる（天端基準配置調整後のZ座標で適切な階を決定）

@@ -5,6 +5,12 @@
 import { parseXml, buildXml, deepClone } from './utils/xml-helper.js';
 import logger from './utils/converter-logger.js';
 import { getVersion, getRootElement } from './rules/type1-value-changes.js';
+import { renameElementsTo211, renameElementsTo210from211 } from './rules/type2-element-renaming.js';
+import {
+  applyAttributeRenamesTo211,
+  applyAttributeRenamesTo210from211,
+} from './rules/type3-attribute-changes.js';
+import { fixInvalidGuids, applyCanonicalChildOrder } from './rules/type13-211-fixups.js';
 import convert202to211 from './v202-to-v211.js';
 import convert211to202 from './v211-to-v202.js';
 
@@ -15,8 +21,8 @@ import convert211to202 from './v211-to-v202.js';
  *   2.0.2 -> 2.1.1  (direct)
  *   2.1.1 -> 2.0.2  (direct)
  *   2.1.0 -> 2.0.2  (treated as 2.1.1 input)
- *   2.1.0 -> 2.1.1  (version label update only — no schema diff)
- *   2.1.1 -> 2.1.0  (version label update only — no schema diff)
+ *   2.1.0 -> 2.1.1  (typo-fix renames + version label)
+ *   2.1.1 -> 2.1.0  (reverse typo-fix renames + version label)
  *
  * @param {string} xmlContent - STB XML content
  * @param {string} targetVersion - Target version string
@@ -59,8 +65,17 @@ export async function convert(xmlContent, targetVersion, options = {}) {
   let convertedRoot;
 
   if (is21x(normalizedCurrent) && is21x(normalizedTarget)) {
-    // 2.1.0 <-> 2.1.1: only the version label differs
+    // 2.1.0 <-> 2.1.1: typo-fix renames (Stiffner->Stiffener etc.) + version label
     convertedRoot = deepClone(stbRoot);
+    if (normalizedTarget === '2.1.1') {
+      renameElementsTo211(convertedRoot);
+      applyAttributeRenamesTo211(convertedRoot);
+    } else {
+      renameElementsTo210from211(convertedRoot);
+      applyAttributeRenamesTo210from211(convertedRoot);
+    }
+    fixInvalidGuids(convertedRoot);
+    applyCanonicalChildOrder(convertedRoot);
     setVersion(convertedRoot, normalizedTarget);
   } else if (is21x(normalizedTarget)) {
     // 2.0.2 -> 2.1.x: run full 202->211 pipeline, then set requested label

@@ -270,9 +270,32 @@ function processEntity(
       break;
     }
 
-    case 'DIMENSION':
-      entities.dimensions.push(extractDimensionData(entity, layer, color));
+    case 'DIMENSION': {
+      // 寸法ブロック（*D2 等）が存在する場合はブロックを展開して正確な描画を優先
+      const dimBlockName = entity.block;
+      const dimBlock = dxf.blocks?.[dimBlockName];
+      if (dimBlock && dimBlock.entities && dimBlock.entities.length > 0) {
+        // ブロックはモデル空間座標で定義されているのでオフセット不要 (0,0,0)
+        for (const blockEntity of dimBlock.entities) {
+          processEntity(
+            blockEntity,
+            dxf,
+            entities,
+            offsetX,
+            offsetY,
+            offsetZ,
+            scaleX,
+            scaleY,
+            scaleZ,
+            rotation,
+          );
+        }
+      } else {
+        // ブロックがない場合はフォールバックとして寸法データを再構成
+        entities.dimensions.push(extractDimensionData(entity, layer, color));
+      }
       break;
+    }
 
     default:
       entities.others.push({
@@ -369,8 +392,8 @@ function extractDimensionData(entity, layer, color) {
  * @returns {number} RGB色値
  */
 function getEntityColor(entity, dxf) {
-  // エンティティ固有の色
-  if (entity.color !== undefined && entity.color !== 256) {
+  // エンティティ固有の色 (ByBlock=0, ByLayer=256 はレイヤー色に委ねる)
+  if (entity.color !== undefined && entity.color !== 256 && entity.color !== 0) {
     return aciToRgb(entity.color);
   }
 

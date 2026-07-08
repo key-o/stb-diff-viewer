@@ -55,8 +55,17 @@ const PARENT_TO_CHILD_ATTRS = [
   'center_end_X',
   'center_start_Y',
   'center_end_Y',
+  'center_top',
+  'center_bottom',
+  'center_side',
   'center_interval',
 ];
+
+/**
+ * v2.0.2 beam-arrangement parent attributes with no v2.1.x equivalent
+ * (allowed neither on StbSecBarArrangementBeam_* nor on StbSecBarBeamSimple)
+ */
+const BEAM_PARENT_DROPPED_ATTRS = ['length_bar_start', 'length_bar_end'];
 
 /**
  * 2.1.0 Column bar element names and their Simple/Complex child names
@@ -122,6 +131,9 @@ const LENGTH_TYPE_ATTRS = [
   'center_end_X',
   'center_start_Y',
   'center_end_Y',
+  'center_top',
+  'center_bottom',
+  'center_side',
   'center_interval',
   'center',
   'pitch_hoop',
@@ -355,6 +367,10 @@ function convertBeamBarArrangement(barArrangement) {
   // Clear parent attributes (depth_cover_*, etc.) as they've been moved
   const newParentAttrs = { ...barArrangementAttrs };
   for (const [key, value] of Object.entries(parentAttrs)) {
+    if (BEAM_PARENT_DROPPED_ATTRS.includes(key)) {
+      logger.warn(`Beam bar arrangement: '${key}' dropped (no v2.1.x equivalent)`);
+      continue;
+    }
     if (!PARENT_TO_CHILD_ATTRS.includes(key)) {
       newParentAttrs[key] = value;
     }

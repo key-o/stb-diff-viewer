@@ -14,9 +14,9 @@
 // グローバル状態（バージョン別管理）
 // ============================================================
 
-import { createLogger } from '../../../utils/logger.js';
+import { createKernelLogger } from '../config/kernelConfig.js';
 
-const log = createLogger('common-stb:import:parser:jsonSchemaLoader');
+const log = createKernelLogger('common-stb:import:parser:jsonSchemaLoader');
 const jsonSchemas = new Map(); // version -> parsed JSON schema object
 const elementDefsByVersion = new Map(); // version -> Map<elementName, elementDef>
 let activeVersion = '2.0.2';

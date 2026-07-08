@@ -19,13 +19,15 @@ export const LABEL_CONTENT_TYPES = {
   ID: 'id',
   NAME: 'name',
   SECTION: 'section',
+  SECTION_NAME: 'sectionName',
 };
 
 // ラベル内容の説明
 export const LABEL_CONTENT_DESCRIPTIONS = {
   [LABEL_CONTENT_TYPES.ID]: 'タグ（デフォルト）',
   [LABEL_CONTENT_TYPES.NAME]: 'インスタンス名（Name）',
-  [LABEL_CONTENT_TYPES.SECTION]: '断面名（Section）',
+  [LABEL_CONTENT_TYPES.SECTION]: '断面ID（id_section）',
+  [LABEL_CONTENT_TYPES.SECTION_NAME]: '断面名（name属性）',
 };
 
 // 表示モード（line/solid）

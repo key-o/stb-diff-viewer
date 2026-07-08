@@ -201,9 +201,10 @@ function convertMatchedElement(item, elementType, nodeMapA, nodeMapB) {
     elementType,
     dataA: enrichElementData(dataA, nodeMapA),
     dataB: enrichElementData(dataB, nodeMapB),
-    diffStatus: determineDiffStatus(dataA, dataB, matchType),
+    diffStatus: item.diffStatus || determineDiffStatus(dataA, dataB, matchType),
     importance: importance || 'normal',
     matchType: matchType || 'exact',
+    attributeMismatchKind: item.attributeMismatchKind || null,
   };
 }
 

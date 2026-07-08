@@ -2,54 +2,43 @@
  * @fileoverview 初期化処理で使用されるユーティリティ関数
  */
 
-import { getElementRegistry } from '../../viewer/utils/ElementRegistry.js';
+import { getElementRegistry, findElementInGroup } from '../../viewer/index.js';
 import { STB_TAG_NAMES } from '../../constants/elementTypes.js';
 
 /**
- * 3Dシーンから要素を検索するヘルパー関数
- * ElementRegistryを使用してO(1)で検索
+ * 3Dシーンから要素を検索するヘルパー関数。
+ * ElementRegistryでO(1)検索し、無ければグループ走査にフォールバックする。
+ * バッチ描画（節点=InstancedMesh / 線要素=LineSegmentsバッチ）にも対応する。
  * @param {string} elementType - 要素タイプ
  * @param {string} elementId - 要素ID
  * @param {string} modelSource - モデルソース
  * @param {Object} elementGroups - 要素グループ
- * @returns {THREE.Object3D|null}
+ * @returns {import('../../viewer/utils/batchElementLookup.js').BatchElementHit|null}
  */
 export function find3DObjectByElement(elementType, elementId, modelSource, elementGroups) {
-  // まずElementRegistryから検索（O(1)）
+  // まずElementRegistryから検索（O(1)、非バッチ要素のみ登録される）
   const registry = getElementRegistry();
   const registryResult = registry.find(elementType, elementId, modelSource);
   if (registryResult) {
-    return registryResult;
+    return {
+      object: registryResult,
+      kind: 'object',
+      index: null,
+      userData: registryResult.userData,
+    };
   }
 
-  // Registryに見つからない場合はフォールバック（互換性のため）
-  const elementGroup = elementGroups[elementType];
-  if (!elementGroup) return null;
+  // Registryに見つからない場合はフォールバック（バッチ要素はここで解決）
+  const hit = findElementInGroup(elementGroups[elementType], elementType, elementId, modelSource);
+  if (!hit) return null;
 
-  let foundObj = null;
-  elementGroup.traverse((obj) => {
-    if (foundObj) return;
+  // 非バッチ要素はRegistryに登録（次回からはO(1)で取得可能）。
+  // バッチ要素は単一オブジェクトで表現できないため登録しない。
+  if (hit.kind === 'object') {
+    registry.register(hit.object);
+  }
 
-    if (obj.userData && obj.userData.elementType === elementType) {
-      const objId = obj.userData.elementIdA || obj.userData.elementIdB || obj.userData.elementId;
-      const objIdStr = String(objId);
-      const elementIdStr = String(elementId);
-
-      const modelSourceMatches =
-        obj.userData.modelSource === modelSource ||
-        (modelSource === 'onlyA' && obj.userData.modelSource === 'A') ||
-        (modelSource === 'onlyB' && obj.userData.modelSource === 'B') ||
-        (modelSource === 'matched' && obj.userData.modelSource === 'matched');
-
-      if (objIdStr === elementIdStr && modelSourceMatches) {
-        foundObj = obj;
-        // 見つかった要素をRegistryに登録（次回からはO(1)で取得可能）
-        registry.register(obj);
-      }
-    }
-  });
-
-  return foundObj;
+  return hit;
 }
 
 /**

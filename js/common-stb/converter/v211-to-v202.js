@@ -26,7 +26,7 @@ import { convertSlabSectionsTo202 } from './rules/type9-slab-sections.js';
 import { convertSrcBeamSteelSectionsTo202 } from './rules/type10-src-beam-steel-sections.js';
 import { convertPileSectionsTo202 } from './rules/type11-pile-sections.js';
 import { convertBasePlateSectionsTo202 } from './rules/type12-base-plate-sections.js';
-import { reverseBarFoundationDuplicates } from './rules/type13-211-fixups.js';
+import { reverseBarFoundationDuplicates, fixInvalidGuids } from './rules/type13-211-fixups.js';
 
 /**
  * Convert STB from v2.1.1 to v2.0.2
@@ -57,6 +57,7 @@ export function convert211to202(stbRoot, options = {}) {
     applyAttributeRenamesTo210from211(result);
 
     // Step 2: Standard v2.1.0 -> v2.0.2 conversion
+    fixInvalidGuids(result); // run before addLegacyGuidsTo202 so removed guids are regenerated
     updateVersionTo202(result);
     renameElementsTo202(result);
     applyAttributeChangesTo202(result);

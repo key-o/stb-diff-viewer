@@ -17,7 +17,7 @@ import {
 } from '../../viewer/index.js';
 import { setStbExportPanelVisibility } from '../dxfLoader.js';
 import { createLogger } from '../../utils/logger.js';
-import { getModelContext } from './displayModeController.js';
+import { getModelContext } from './modelContext.js';
 import { eventBus } from '../../data/events/eventBus.js';
 import { ViewEvents, AxisEvents } from '../../constants/eventTypes.js';
 import { getState } from '../../data/state/globalState.js';

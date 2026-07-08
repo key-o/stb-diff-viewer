@@ -241,15 +241,19 @@ function hideToast(toastId) {
     clearTimeout(timeoutId);
   }
 
+  // 管理対象からは即座に外す（DOM除去はアニメーション後）。
+  // 削除を setTimeout 内に遅延させると、showToast の最大数超過ループ
+  // （while activeToasts.size >= maxToasts）が同期的に縮小せず無限ループになる。
+  activeToasts.delete(toastId);
+
   // アニメーションで非表示
   element.classList.remove('toast-show');
   element.style.opacity = '0';
   element.style.transform = 'translateX(100%)';
 
-  // アニメーション後に削除
+  // アニメーション後に DOM から削除
   setTimeout(() => {
     element.remove();
-    activeToasts.delete(toastId);
   }, config.animationDuration);
 }
 

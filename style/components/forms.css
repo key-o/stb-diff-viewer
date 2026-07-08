@@ -15,7 +15,7 @@
   font-size: var(--font-size-base);
   line-height: 1.5;
   color: var(--text-primary);
-  background-color: #fff;
+  background-color: var(--bg-elevated);
   background-clip: padding-box;
   border: var(--border-width) solid var(--input-border-color);
   border-radius: var(--input-border-radius);
@@ -24,7 +24,7 @@
 
 .form-control:focus {
   color: var(--text-primary);
-  background-color: #fff;
+  background-color: var(--bg-elevated);
   border-color: var(--input-focus-border-color);
   outline: 0;
   box-shadow: 0 0 0 0.2rem rgba(74, 111, 165, 0.25);

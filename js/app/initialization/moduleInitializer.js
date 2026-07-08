@@ -27,14 +27,14 @@ export async function initializeRequiredModules(elementGroups) {
   try {
     const [
       { initializeLabelManager, generateLabelText },
-      { attachElementDataToLabel },
+      { attachElementDataToLabel, regenerateAllLabels },
       { createLabelSprite },
     ] = await Promise.all([
       import('../../ui/viewer3d/unifiedLabelManager.js'),
       import('../../ui/viewer3d/labelRegeneration.js'),
       import('../../viewer/annotations/labels.js'),
     ]);
-    initializeLabelManager();
+    initializeLabelManager({ regenerateAllLabels });
     log.info('統合ラベル管理システムが初期化されました');
 
     // viewer層へのラベルプロバイダー注入（逆依存解消）

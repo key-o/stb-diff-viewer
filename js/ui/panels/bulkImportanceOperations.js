@@ -318,7 +318,7 @@ export class BulkImportanceOperations {
       return;
     }
 
-    const confirmMessage = `${affectedPaths.length} 個の要素を「${IMPORTANCE_LEVEL_NAMES[importanceLevel]}」に設定しますか？`;
+    const confirmMessage = `${affectedPaths.length}個の要素を「${IMPORTANCE_LEVEL_NAMES[importanceLevel]}」に設定しますか？`;
     if (!confirm(confirmMessage)) {
       return;
     }
@@ -355,7 +355,7 @@ export class BulkImportanceOperations {
     document.getElementById('bulk-preview-results').style.display = 'none';
     document.getElementById('execute-bulk-operation').disabled = true;
 
-    showSuccess(`${affectedPaths.length} 個の要素の重要度を変更しました。`);
+    showSuccess(`${affectedPaths.length}個の要素の重要度を変更しました。`);
   }
 
   /**
@@ -547,7 +547,7 @@ export class BulkImportanceOperations {
     });
 
     showSuccess(
-      `ルールテンプレート「${ruleSet.name}」を適用しました。${affectedPaths.length} 個の要素が変更されました。`,
+      `ルールテンプレート「${ruleSet.name}」を適用しました。${affectedPaths.length}個の要素が変更されました。`,
     );
   }
 

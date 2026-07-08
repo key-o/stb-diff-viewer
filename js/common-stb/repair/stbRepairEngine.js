@@ -14,7 +14,8 @@
  */
 
 import { parseElements } from '../import/parser/stbXmlParser.js';
-import { CATEGORY, getRepairableIssues } from '../validation/stbValidator.js';
+import { CATEGORY } from '../validation/validationConstants.js';
+import { getRepairableIssues } from '../validation/stbValidator.js';
 import { STB_TAG_NAMES } from '../../constants/elementTypes.js';
 
 /**

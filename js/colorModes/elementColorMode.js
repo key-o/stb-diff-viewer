@@ -10,7 +10,8 @@
 import { DEFAULT_ELEMENT_COLORS } from '../config/colorConfig.js';
 import { colorManager } from '../viewer/index.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
-import { createApplyColorMode } from './colorModeState.js';
+import { getCurrentColorMode, COLOR_MODES } from './colorModeState.js';
+import { eventBus, ViewEvents } from '../data/events/index.js';
 
 /**
  * 部材別色設定UIを初期化（表示要素テーブル内の色ボックス）
@@ -32,14 +33,10 @@ export function initializeElementColorControls() {
     newInput.addEventListener('change', (e) => {
       colorManager.setElementColor(elementType, e.target.value);
       updateElementMaterials();
-      // 部材別モードが有効な場合は全要素に色を再適用
-      import('./index.js').then(
-        ({ getCurrentColorMode, COLOR_MODES, updateElementsForColorMode }) => {
-          if (getCurrentColorMode() === COLOR_MODES.ELEMENT) {
-            updateElementsForColorMode();
-          }
-        },
-      );
+      // 部材別モードが有効な場合は全要素に色を再適用（eventBus経由で循環依存解消）
+      if (getCurrentColorMode() === COLOR_MODES.ELEMENT) {
+        eventBus.emit(ViewEvents.COLOR_MODE_REFRESH_REQUESTED);
+      }
       scheduleRender();
     });
   });
@@ -97,17 +94,12 @@ export function resetElementColors() {
     }
   });
 
-  // 部材別モードが有効な場合は即座に適用
-  import('./index.js').then(({ getCurrentColorMode, COLOR_MODES, updateElementsForColorMode }) => {
-    if (getCurrentColorMode() === COLOR_MODES.ELEMENT) {
-      updateElementMaterials();
-      updateElementsForColorMode();
-    }
-  });
+  // 部材別モードが有効な場合は即座に適用（eventBus経由で循環依存解消）
+  if (getCurrentColorMode() === COLOR_MODES.ELEMENT) {
+    updateElementMaterials();
+    eventBus.emit(ViewEvents.COLOR_MODE_REFRESH_REQUESTED);
+  }
 }
-
-/** 全要素に部材別色分けを適用 */
-export const applyElementColorModeToAll = createApplyColorMode('ElementColorMode');
 
 /**
  * 部材色設定の取得

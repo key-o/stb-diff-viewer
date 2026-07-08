@@ -11,11 +11,8 @@ import {
   validateAttributeValue,
   isSchemaLoaded,
 } from '../../common-stb/import/parser/jsonSchemaLoader.js';
-import {
-  SEVERITY,
-  CATEGORY,
-  formatValidationReport,
-} from '../../common-stb/validation/stbValidator.js';
+import { formatValidationReport } from '../../common-stb/validation/stbValidator.js';
+import { SEVERITY, CATEGORY } from '../../common-stb/validation/validationConstants.js';
 import { formatRepairReport } from '../../common-stb/repair/stbRepairEngine.js';
 
 /**

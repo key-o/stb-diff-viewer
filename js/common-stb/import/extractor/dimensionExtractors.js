@@ -7,10 +7,30 @@
  * @module common/stb/parser/dimensionExtractors
  */
 
-import { deriveDimensionsFromAttributes } from '../../data/dimensionNormalizer.js';
+import { deriveDimensionsFromAttributes } from '../data/dimensionNormalizer.js';
 
 // STB 名前空間（querySelector がヒットしない場合にフォールバック）
 const STB_NS = 'https://www.building-smart.or.jp/dl';
+
+/**
+ * 要素ノードの子要素一覧を取得（Node環境互換）
+ *
+ * `element.children` ではなく `childNodes` + `nodeType === 1` フィルタを使用する
+ * （@xmldom/xmldom など `children` 未実装のDOM実装でも動作する。MC方式）。
+ * ブラウザ/JSDOM では `children` と同一の結果になる。
+ *
+ * @param {Element|null} node - 対象要素
+ * @returns {Element[]} 子要素の配列
+ */
+export function getElementChildren(node) {
+  if (!node) return [];
+  const childNodes = node.childNodes || node.children || [];
+  const result = [];
+  for (let i = 0; i < childNodes.length; i++) {
+    if (childNodes[i].nodeType === 1) result.push(childNodes[i]);
+  }
+  return result;
+}
 
 // ---------------- 追加ヘルパー: S造断面寸法抽出 ----------------
 /**
@@ -28,6 +48,21 @@ export function extractSteelDimensions(steelFigureInfo) {
       profile_hint: 'CROSS_H',
       crossH_shapeX: shapeX,
       crossH_shapeY: shapeY || shapeX,
+    };
+  }
+
+  // T形複合断面（shape_H / shape_T + direction_type）の場合は専用処理
+  // H形鋼とT形鋼を組み合わせた断面。T形鋼のウェブは必ずH形鋼に接合される。
+  if (steelFigureInfo.shapeT) {
+    const { shapeH, shapeT, directionType, offsetHX, offsetHY, offsetT } = steelFigureInfo.shapeT;
+    return {
+      profile_hint: 'SHAPE_T',
+      shapeT_shapeH: shapeH,
+      shapeT_shapeT: shapeT,
+      shapeT_direction: directionType || 'T1',
+      shapeT_offsetHX: offsetHX || 0,
+      shapeT_offsetHY: offsetHY || 0,
+      shapeT_offsetT: offsetT || 0,
     };
   }
 
@@ -75,7 +110,13 @@ export function extractSteelDimensions(steelFigureInfo) {
       shapeName.includes('BCR')
     ) {
       dims.profile_hint = 'BOX';
-    } else if (shapeName.includes('PIPE') || shapeName.includes('○') || shapeName.includes('STK')) {
+    } else if (
+      shapeName.includes('PIPE') ||
+      shapeName.includes('○') ||
+      shapeName.includes('STK') ||
+      shapeName.startsWith('P-') ||
+      shapeName.startsWith('P ')
+    ) {
       dims.profile_hint = 'PIPE';
     } else if (shapeName.includes('[-') || shapeName.startsWith('C ') || /^C\d/.test(shapeName)) {
       dims.profile_hint = 'C';
@@ -267,34 +308,47 @@ export function parseDimensionsFromShapeName(shapeName) {
   return Object.keys(dims).length > 0 ? dims : null;
 }
 
+/**
+ * コンクリート図形要素をセレクタで検索
+ * querySelector → 名前空間付き検索 → 直接子要素のタグ名比較の順にフォールバック
+ *
+ * @param {Element} element - 断面のDOM要素
+ * @param {string} figSel - 図形要素のタグ名
+ * @returns {Element|null}
+ */
+function findConcreteFigureElement(element, figSel) {
+  let fig = null;
+  try {
+    fig = element.querySelector(figSel);
+  } catch (_) {
+    fig = null;
+  }
+  if (!fig && typeof element.getElementsByTagNameNS === 'function') {
+    const nsList = element.getElementsByTagNameNS(STB_NS, figSel);
+    fig = nsList && nsList[0];
+  }
+  if (!fig) {
+    // タグ名で直接検索を試みる（querySelector が失敗する場合のフォールバック）
+    const children = getElementChildren(element);
+    for (let i = 0; i < children.length; i++) {
+      if (children[i].tagName === figSel || children[i].localName === figSel) {
+        fig = children[i];
+        break;
+      }
+    }
+  }
+  return fig;
+}
+
 // ---------------- 追加ヘルパー: コンクリート図形寸法抽出 ----------------
 export function extractConcreteDimensions(element, config) {
   if (!config.concreteFigures || config.concreteFigures.length === 0) return null;
   let dims = null;
   for (const figSel of config.concreteFigures) {
-    let fig = null;
-    try {
-      fig = element.querySelector(figSel);
-    } catch (_) {
-      fig = null;
-    }
-    if (!fig && typeof element.getElementsByTagNameNS === 'function') {
-      const nsList = element.getElementsByTagNameNS(STB_NS, figSel);
-      fig = nsList && nsList[0];
-    }
-    if (!fig) {
-      // タグ名で直接検索を試みる（querySelector が失敗する場合のフォールバック）
-      const children = element.children || element.childNodes || [];
-      for (let i = 0; i < children.length; i++) {
-        if (children[i].tagName === figSel || children[i].localName === figSel) {
-          fig = children[i];
-          break;
-        }
-      }
-    }
+    const fig = findConcreteFigureElement(element, figSel);
     if (!fig) continue;
     // 子要素内の shape を持つもの or 寸法属性を持つものを調査
-    const candidates = Array.from(fig.children || []);
+    const candidates = getElementChildren(fig);
     for (const c of candidates) {
       const d = deriveDimensionsFromAttributes(c.attributes);
       if (d) {
@@ -353,6 +407,101 @@ export function extractConcreteDimensions(element, config) {
 }
 
 /**
+ * RC/SRC梁のテーパー断面（START/END 2断面）寸法を抽出
+ *
+ * STB 2.1.0: <StbSecBeamTaper start_width=".." start_depth=".." end_width=".." end_depth=".."/>
+ * STB 2.0.2: <StbSecBeam_RC_Taper pos="START" width=".." depth=".."/> ×2（START/END）
+ *
+ * @param {Element} element - 断面のDOM要素（StbSecBeam_RC / StbSecGirder_RC 等）
+ * @param {Object} config - 抽出設定（concreteFigures配列を含む）
+ * @returns {{start: Object, end: Object}|null} 始端・終端の寸法 {width, height, depth} または null
+ */
+export function extractConcreteTaperDimensions(element, config) {
+  if (!config?.concreteFigures || config.concreteFigures.length === 0) return null;
+
+  for (const figSel of config.concreteFigures) {
+    const fig = findConcreteFigureElement(element, figSel);
+    if (!fig) continue;
+
+    const children = getElementChildren(fig);
+
+    // STB 2.1.0 形式: 単一要素に start_*/end_* 属性
+    for (const c of children) {
+      if (!/Taper$/i.test(c.tagName || '')) continue;
+      const startWidth = parseFloat(c.getAttribute('start_width'));
+      const startDepth = parseFloat(c.getAttribute('start_depth'));
+      const endWidth = parseFloat(c.getAttribute('end_width'));
+      const endDepth = parseFloat(c.getAttribute('end_depth'));
+      if ([startWidth, startDepth, endWidth, endDepth].every(isFinite)) {
+        return {
+          start: { width: startWidth, height: startDepth, depth: startDepth },
+          end: { width: endWidth, height: endDepth, depth: endDepth },
+        };
+      }
+    }
+
+    // STB 2.0.2 形式: pos="START"/"END" の2要素（width/depth 属性）
+    let start = null;
+    let end = null;
+    for (const c of children) {
+      if (!/_Taper$/i.test(c.tagName || '')) continue;
+      const pos = (c.getAttribute('pos') || '').toUpperCase();
+      const width = parseFloat(c.getAttribute('width'));
+      const depth = parseFloat(c.getAttribute('depth'));
+      if (!isFinite(width) || !isFinite(depth)) continue;
+      const sectionDims = { width, height: depth, depth };
+      if (pos === 'START') start = sectionDims;
+      else if (pos === 'END') end = sectionDims;
+    }
+    if (start && end) return { start, end };
+  }
+
+  return null;
+}
+
+/**
+ * RC/SRC梁のハンチ断面（START/[CENTER]/END の2〜3断面）寸法を抽出
+ *
+ * STB 2.0.2: <StbSecBeam_RC_Haunch pos="START" width=".." depth=".."/> ×2〜3
+ * Straight/Taper と異なり pos ごとに断面が変化しうるため、代表寸法へ潰さず
+ * pos 別に保持する。多断面ジオメトリ生成と形状等価判定(GSS)で使用する。
+ *
+ * @param {Element} element - 断面のDOM要素（StbSecBeam_RC / StbSecGirder_RC 等）
+ * @param {Object} config - 抽出設定（concreteFigures配列を含む）
+ * @returns {Array<{pos:string, width:number, height:number, depth:number}>|null}
+ *   pos 順（START→CENTER→END）で並べた寸法配列。該当2断面未満なら null
+ */
+export function extractConcreteHaunchDimensions(element, config) {
+  if (!config?.concreteFigures || config.concreteFigures.length === 0) return null;
+
+  const POS_ORDER = { START: 0, CENTER: 1, END: 2 };
+
+  for (const figSel of config.concreteFigures) {
+    const fig = findConcreteFigureElement(element, figSel);
+    if (!fig) continue;
+
+    const children = getElementChildren(fig);
+    const stations = [];
+    for (const c of children) {
+      if (!/_Haunch$/i.test(c.tagName || '')) continue;
+      const pos = (c.getAttribute('pos') || '').toUpperCase();
+      if (!(pos in POS_ORDER)) continue;
+      const width = parseFloat(c.getAttribute('width'));
+      const depth = parseFloat(c.getAttribute('depth'));
+      if (!isFinite(width) || !isFinite(depth)) continue;
+      stations.push({ pos, width, height: depth, depth });
+    }
+
+    if (stations.length >= 2) {
+      stations.sort((a, b) => POS_ORDER[a.pos] - POS_ORDER[b.pos]);
+      return stations;
+    }
+  }
+
+  return null;
+}
+
+/**
  * 鋼管杭(StbSecPile_S)の寸法データを抽出
  * 複数のStbSecPile_S_Straight要素からlength_pileを合計し、
  * 先頭要素からD（直径）とt（肉厚）を取得
@@ -385,7 +534,7 @@ export function extractSteelPileDimensions(element, _config) {
     }
     if (!figureElement) {
       // 直接子要素をタグ名で検索
-      const children = element.children || [];
+      const children = getElementChildren(element);
       for (let i = 0; i < children.length; i++) {
         if (children[i].tagName === sel || children[i].localName === sel) {
           figureElement = children[i];
@@ -402,7 +551,7 @@ export function extractSteelPileDimensions(element, _config) {
 
   // StbSecPile_S_Straight 要素を収集
   const straightElements = [];
-  const children = figureElement.children || [];
+  const children = getElementChildren(figureElement);
   for (let i = 0; i < children.length; i++) {
     const child = children[i];
     const childTag = child.tagName || child.localName;
@@ -522,7 +671,7 @@ export function extractPileProductDimensions(element, _config) {
   }
   if (!figureElement) {
     // 直接子要素をタグ名で検索
-    const children = element.children || [];
+    const children = getElementChildren(element);
     for (let i = 0; i < children.length; i++) {
       if (children[i].tagName === figureSelector || children[i].localName === figureSelector) {
         figureElement = children[i];
@@ -539,7 +688,7 @@ export function extractPileProductDimensions(element, _config) {
   // StbSecPileProduct_PHC, StbSecPileProduct_SC, StbSecPileProduct_CPRC,
   // StbSecPileProductNodular_PHC など
   const pileSegmentElements = [];
-  const children = figureElement.children || [];
+  const children = getElementChildren(figureElement);
   for (let i = 0; i < children.length; i++) {
     const child = children[i];
     const childTag = child.tagName || child.localName;

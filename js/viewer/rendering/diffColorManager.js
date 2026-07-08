@@ -24,6 +24,9 @@ const DIFF_STATES = [
   'onlyB',
   'positionTolerance',
   'attributeMismatch',
+  'attributeMismatchInstance',
+  'attributeMismatchType',
+  'attributeMismatchBoth',
   'combined',
   'mismatch', // レガシー互換
 ];

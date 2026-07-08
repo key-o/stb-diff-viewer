@@ -7,6 +7,18 @@ import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('config:importanceConfigLoader');
 
+function resolveRuntimeAssetUrl(appRelativePath, moduleRelativePath) {
+  if (typeof document !== 'undefined' && document.baseURI) {
+    try {
+      return new URL(appRelativePath, document.baseURI).href;
+    } catch {
+      // jsdom の about:blank など、相対 URL を解決できないテスト環境では
+      // モジュール相対の file URL にフォールバックする。
+    }
+  }
+  return new URL(moduleRelativePath, import.meta.url).href;
+}
+
 /**
  * 利用可能な設定ファイル一覧
  * mvd-s2.json / mvd-s4.json は新フォーマット（要素名→属性リスト）
@@ -15,19 +27,23 @@ export const AVAILABLE_CONFIGS = [
   {
     id: 'mvd-combined',
     name: 'MVD 統合',
-    path: '../../config/importance-mvd-combined.json',
+    path: () =>
+      resolveRuntimeAssetUrl(
+        'config/importance-mvd-combined.json',
+        '../../config/importance-mvd-combined.json',
+      ),
     description: 'S2/S4 の統合設定',
   },
   {
     id: 's2',
     name: 'MVD S2 (必須)',
-    path: '../../config/mvd-s2.json',
+    path: () => resolveRuntimeAssetUrl('config/mvd-s2.json', '../../config/mvd-s2.json'),
     description: 'MVD S2 - 通り芯上での配置・大体の部材サイズ確認',
   },
   {
     id: 's4',
     name: 'MVD S4 (任意)',
-    path: '../../config/mvd-s4.json',
+    path: () => resolveRuntimeAssetUrl('config/mvd-s4.json', '../../config/mvd-s4.json'),
     description: 'MVD S4 - 入力可能な決定項目',
   },
 ];
@@ -189,11 +205,8 @@ export async function loadConfigById(configId) {
     throw new Error(`不明な設定ID: ${configId}`);
   }
 
-  // import.meta.url（このファイル自身）を基準に相対パスを解決する
-  // 末尾スラッシュの有無に依存せず、../.. の解決を安定化する
-  const fullPath = new URL(configInfo.path, import.meta.url).href;
-
-  const config = await loadImportanceConfig(fullPath);
+  const configPath = typeof configInfo.path === 'function' ? configInfo.path() : configInfo.path;
+  const config = await loadImportanceConfig(configPath);
 
   return config;
 }

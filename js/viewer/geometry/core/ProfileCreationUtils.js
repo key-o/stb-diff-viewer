@@ -22,6 +22,8 @@ import { colorManager } from '../../rendering/colorManager.js';
 import { IFCProfileFactory } from '../IFCProfileFactory.js';
 import { mapToProfileParams } from './ProfileParameterMapper.js';
 import { ElementGeometryUtils } from '../ElementGeometryUtils.js';
+// E4: 全レイヤー → common-stb/import/ は許可（STB読み込み共通カーネル）
+import { parseDimensionsFromShapeName } from '../../../common-stb/import/extractor/dimensionExtractors.js';
 
 /**
  * 有限数値への変換ヘルパー
@@ -74,6 +76,33 @@ export function isCrossHSection(sectionData) {
   }
 
   return false;
+}
+
+/**
+ * T形複合断面（shape_H + shape_T）かどうかを判定
+ * @param {Object} sectionData - 断面データ
+ * @returns {boolean}
+ */
+export function isShapeTSection(sectionData) {
+  if (!sectionData || typeof sectionData !== 'object') {
+    return false;
+  }
+  if (sectionData.isShapeT) return true;
+
+  const dimensions = sectionData.dimensions || {};
+  if (dimensions.shapeT_shapeH || dimensions.profile_hint === 'SHAPE_T') {
+    return true;
+  }
+
+  const candidates = [
+    sectionData.section_type,
+    sectionData.profile_type,
+    sectionData.sectionType,
+    dimensions.profile_hint,
+    sectionData.steelProfile?.section_type,
+    sectionData.steelProfile?.dimensions?.profile_hint,
+  ];
+  return candidates.some((c) => String(c || '').toUpperCase() === 'SHAPE_T');
 }
 
 /**
@@ -292,7 +321,7 @@ export function createBasePlateMesh(
   rollAngle,
   log,
 ) {
-  const { B_X, B_Y, t, offset_X, offset_Y } = basePlate;
+  const { B_X, B_Y, t, offset_X = 0, offset_Y = 0 } = basePlate;
 
   if (!B_X || !B_Y || !t) {
     log.warn(`${element.id}: ベースプレートの寸法が不足 (B_X=${B_X}, B_Y=${B_Y}, t=${t})`);
@@ -535,6 +564,165 @@ export function createCrossHSteelMeshes(params) {
 }
 
 /**
+ * 鋼材形状名から断面寸法を解決（steelSections優先、形状名解析でフォールバック）
+ * @param {string} shapeName - 鋼材形状名
+ * @param {Map} steelSections - 鋼材形状マップ
+ * @returns {Object} 寸法オブジェクト
+ */
+function resolveSteelDimsByName(shapeName, steelSections) {
+  const source = steelSections?.get(shapeName);
+  const dims = source?.dimensions || source;
+  if (dims && typeof dims === 'object' && Object.keys(dims).length > 0) {
+    return dims;
+  }
+  return parseDimensionsFromShapeName(shapeName) || {};
+}
+
+/**
+ * T形複合断面（shape_H + shape_T）をH形鋼1本＋T形鋼1本として生成
+ *
+ * STB仕様 StbSecColumn_SRC_*ShapeT（ver.2.0.2 図「T1/T2の例」）準拠。
+ * - H形鋼: 図心基準で (offset_HX, offset_HY) に配置。T1/T3 はウェブ水平、T2/T4 はウェブ鉛直。
+ * - T形鋼: H形鋼と「直交」する。ウェブの自由端を必ずH形鋼のウェブ線へ接合し、フランジは外側を向く
+ *   （T1=下/T2=左/T3=上/T4=右）。offset_T は H形鋼ウェブ中心からT形鋼ウェブまでの距離
+ *   （H形ウェブ方向に沿う）。
+ *
+ * @param {Object} params
+ * @param {Object} params.element - 要素データ
+ * @param {Object} params.placement - 配置情報
+ * @param {Object} params.shapeTDimensions - shapeT_* を含む寸法データ
+ * @param {Map} params.steelSections - 鋼材形状マップ
+ * @param {string} params.elementType - 要素タイプ
+ * @param {boolean} params.isJsonInput - JSON入力かどうか
+ * @param {Object} params.log - ロガー
+ * @param {Function} params.buildMetadata - メタデータ構築関数
+ * @param {number|null} [params.steelColor] - 鋼材部分のカラー
+ * @returns {Array<THREE.Mesh>|null}
+ */
+export function createShapeTSteelMeshes(params) {
+  const {
+    element,
+    placement,
+    shapeTDimensions,
+    steelSections,
+    elementType,
+    isJsonInput,
+    log,
+    buildMetadata,
+    steelColor = null,
+  } = params;
+
+  const dims = shapeTDimensions || {};
+  const shapeH = dims.shapeT_shapeH;
+  const shapeT = dims.shapeT_shapeT;
+  if (!shapeH || !shapeT) return null;
+
+  const direction = String(dims.shapeT_direction || 'T1').toUpperCase();
+  const offsetHX = toFiniteNumber(dims.shapeT_offsetHX, 0);
+  const offsetHY = toFiniteNumber(dims.shapeT_offsetHY, 0);
+  const offsetT = toFiniteNumber(dims.shapeT_offsetT, 0);
+
+  const meshes = [];
+  const matOptions = () => {
+    const o = { comparisonState: 'matched' };
+    if (steelColor) o.overrideColor = steelColor;
+    return o;
+  };
+
+  // 寸法解決（T形鋼のせい/2 = halfT を配置計算に使う）
+  const hDims = resolveHDimensions(shapeH, steelSections);
+  const tDims = resolveSteelDimsByName(shapeT, steelSections);
+  const tDepth = toFiniteNumber(tDims.overall_depth ?? tDims.H ?? tDims.height ?? tDims.A, 350);
+  const halfT = tDepth / 2;
+
+  // direction_type ごとの向き・配置（STB仕様 ver.2.0.2 図「T1/T2の例」準拠）
+  //   T形鋼はH形鋼と「直交」し、ウェブの自由端をH形鋼のウェブ線へ接合、フランジは外側を向く。
+  //   offset_T = H形鋼ウェブ中心からT形鋼ウェブまでの距離（H形ウェブ方向に沿う）。
+  //   hAngle : H形鋼のZ回り回転（T1/T3=ウェブ水平、T2/T4=ウェブ鉛直）
+  //   tAngle : T形鋼のZ回り回転（基準プロファイルはフランジ下・ウェブ上）
+  //   tCenter: T形鋼の幾何中心。ウェブ自由端（基準+Y側, 中心から halfT）をH形ウェブ線へ合わせる。
+  const DIR = {
+    // T1(⊤): H水平・T下（フランジ下, ステム上）, offset_TはX方向
+    T1: { hAngle: Math.PI / 2, tAngle: 0, tCenter: { x: offsetHX + offsetT, y: offsetHY - halfT } },
+    // T3(⊥): H水平・T上（フランジ上, ステム下）, offset_TはX方向
+    T3: {
+      hAngle: Math.PI / 2,
+      tAngle: Math.PI,
+      tCenter: { x: offsetHX + offsetT, y: offsetHY + halfT },
+    },
+    // T2(⊣): H鉛直・T左（フランジ左, ステム右）, offset_TはY方向
+    T2: {
+      hAngle: 0,
+      tAngle: -Math.PI / 2,
+      tCenter: { x: offsetHX - halfT, y: offsetHY + offsetT },
+    },
+    // T4(⊢): H鉛直・T右（フランジ右, ステム左）, offset_TはY方向
+    T4: { hAngle: 0, tAngle: Math.PI / 2, tCenter: { x: offsetHX + halfT, y: offsetHY + offsetT } },
+  };
+  const cfg = DIR[direction] || DIR.T1;
+
+  // --- H形鋼（図心を (offset_HX, offset_HY) に配置） ---
+  const hSectionData = { section_type: 'H', dimensions: hDims };
+  const hProfile = createSectionProfile(hSectionData, 'H', element.id, log);
+  if (hProfile?.shape) {
+    const hGeo = createExtrudeGeometry(hProfile.shape, placement.length);
+    if (hGeo) {
+      if (cfg.hAngle !== 0) hGeo.rotateZ(cfg.hAngle);
+      hGeo.translate(offsetHX, offsetHY, 0);
+      const hMesh = new THREE.Mesh(hGeo, colorManager.getMaterial('diff', matOptions()));
+      applyPlacementToMesh(hMesh, placement);
+      hMesh.userData = buildMetadata({
+        element,
+        elementType,
+        placement,
+        sectionType: 'H',
+        profileResult: hProfile,
+        sectionData: hSectionData,
+        isJsonInput,
+      });
+      hMesh.userData.srcComponentType = 'S';
+      hMesh.userData.isShapeTSteel = true;
+      hMesh.userData.shapeTPart = 'H';
+      hMesh.userData.shapeTShape = shapeH;
+      meshes.push(hMesh);
+    }
+  } else {
+    log.warn(`${element.id}: SHAPE_T H形鋼の断面生成に失敗 (${shapeH})`);
+  }
+
+  // --- T形鋼（H形鋼と直交、ウェブをH形ウェブ線へ接合） ---
+  const tSectionData = { section_type: 'T', dimensions: tDims };
+  const tProfile = createSectionProfile(tSectionData, 'T', element.id, log);
+  if (tProfile?.shape) {
+    const tGeo = createExtrudeGeometry(tProfile.shape, placement.length);
+    if (tGeo) {
+      if (cfg.tAngle !== 0) tGeo.rotateZ(cfg.tAngle);
+      tGeo.translate(cfg.tCenter.x, cfg.tCenter.y, 0);
+      const tMesh = new THREE.Mesh(tGeo, colorManager.getMaterial('diff', matOptions()));
+      applyPlacementToMesh(tMesh, placement);
+      tMesh.userData = buildMetadata({
+        element,
+        elementType,
+        placement,
+        sectionType: 'T',
+        profileResult: tProfile,
+        sectionData: tSectionData,
+        isJsonInput,
+      });
+      tMesh.userData.srcComponentType = 'S';
+      tMesh.userData.isShapeTSteel = true;
+      tMesh.userData.shapeTPart = 'T';
+      tMesh.userData.shapeTShape = shapeT;
+      meshes.push(tMesh);
+    }
+  } else {
+    log.warn(`${element.id}: SHAPE_T T形鋼の断面生成に失敗 (${shapeT})`);
+  }
+
+  return meshes.length > 0 ? meshes : null;
+}
+
+/**
  * 縦方向部材（柱・間柱）の共通メッシュ生成
  *
  * Column と Post の _createSingleMesh で重複していたロジックを統合。
@@ -585,6 +773,7 @@ export function createVerticalMemberMesh(element, context, generator, options = 
   let sectionType = generator._resolveGeometryProfileType(sectionData);
   let steelSectionData = sectionData;
   let isCrossH = isCrossHSection(sectionData);
+  let isShapeT = isShapeTSection(sectionData);
 
   if (sectionData.isSRC && sectionData.steelProfile?.section_type) {
     sectionType = generator._resolveGeometryProfileType(sectionData.steelProfile, {
@@ -596,6 +785,8 @@ export function createVerticalMemberMesh(element, context, generator, options = 
     };
     isCrossH =
       isCrossH || isCrossHSection(sectionData.steelProfile) || isCrossHSection(steelSectionData);
+    isShapeT =
+      isShapeT || isShapeTSection(sectionData.steelProfile) || isShapeTSection(steelSectionData);
     log.debug(
       `${elementName} ${element.id}: SRC造 S部分プロファイル: ${sectionType} (RC型から復元)`,
     );
@@ -673,6 +864,58 @@ export function createVerticalMemberMesh(element, context, generator, options = 
     `${elementName} ${element.id}: length=${placement.length.toFixed(1)}mm` +
       (supportMultiSection ? `, mode=${sectionData.mode || 'single'}` : ''),
   );
+
+  // T形複合断面（shape_H + shape_T）はH形鋼1本＋T形鋼1本として生成
+  if (isShapeT) {
+    const shapeTMeshes = createShapeTSteelMeshes({
+      element,
+      placement,
+      shapeTDimensions: steelSectionData?.dimensions || {},
+      steelSections,
+      elementType,
+      isJsonInput,
+      log,
+      buildMetadata: (args) => generator._buildColumnMetadata(args),
+      steelColor: srcColors?.steel || null,
+    });
+
+    if (shapeTMeshes && shapeTMeshes.length > 0) {
+      const extras = [];
+      if (sectionData.isSRC && sectionData.concreteProfile) {
+        const rcMesh = createSRCConcreteGeometry({
+          sectionData,
+          element,
+          placement,
+          elementType,
+          isJsonInput,
+          log,
+          buildMetadata: (args) => generator._buildColumnMetadata(args),
+          concreteColor: srcColors?.concrete || null,
+        });
+        if (rcMesh) {
+          log.debug(`${elementName} ${element.id}: SRC造 T形複合 - RC部分のメッシュを追加生成`);
+          extras.push(rcMesh);
+        }
+      }
+      if (sectionData.basePlate) {
+        const basePlateMesh = createBasePlateMesh(
+          sectionData.basePlate,
+          nodePositions.bottomNode,
+          element,
+          elementType,
+          isJsonInput,
+          rollAngle,
+          log,
+        );
+        if (basePlateMesh) extras.push(basePlateMesh);
+      }
+      return [...shapeTMeshes, ...extras];
+    }
+
+    log.warn(
+      `${elementName} ${element.id}: T形複合断面の生成に失敗したため単一断面にフォールバック`,
+    );
+  }
 
   // CROSS_H判定時は十字断面ではなく、90度回転したH鋼2本として生成
   if (isCrossH) {

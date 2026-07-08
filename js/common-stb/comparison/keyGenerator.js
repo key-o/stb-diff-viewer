@@ -163,7 +163,7 @@ export function getNodeStoryAxisKey(nodeId, storyAxisLookup) {
 /**
  * 要素から比較キーを生成する（キータイプに応じて位置ベースまたはGUIDベース）
  * @param {Element} element - XML要素
- * @param {string} keyType - 比較キータイプ（COMPARISON_KEY_TYPE.POSITION_BASED または GUID_BASED）
+ * @param {string} keyType - 比較キータイプ（COMPARISON_KEY_TYPE.POSITION_NODE_ONLY 等の位置情報系 または GUID_BASED）
  * @param {function} positionKeyGenerator - 位置ベースのキー生成関数
  * @returns {string|null} 生成されたキー文字列、GUIDモードでGUIDが無い場合はnull
  */
@@ -178,7 +178,7 @@ export function getElementKey(element, keyType, positionKeyGenerator) {
     return null;
   }
 
-  // 位置ベースのキー生成（POSITION_BASED および STORY_AXIS_BASED のフォールバック）
+  // 位置ベースのキー生成（位置情報系キータイプ および STORY_AXIS_BASED のフォールバック）
   return positionKeyGenerator();
 }
 

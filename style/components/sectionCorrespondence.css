@@ -1,0 +1,186 @@
+/**
+ * 断面対応表（異ソフト間比較モード）コンポーネントスタイル
+ *
+ * トップレベル断面の1:1対応（A4正準化キー）と形状トークンの一致/差を
+ * ファミリ別の表として表示するフローティングウィンドウのスタイル。
+ */
+
+#section-correspondence-float {
+  min-width: 480px;
+  max-width: 90vw;
+  width: 720px;
+  max-height: 80vh;
+}
+
+.section-correspondence-panel .float-window-content {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sec-corr-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  font-size: var(--font-size-sm);
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.sec-corr-total-rate {
+  font-size: var(--font-size-lg);
+  color: var(--text-primary);
+}
+
+.sec-corr-total-rate strong {
+  color: var(--color-matched);
+}
+
+.sec-corr-total-detail {
+  color: var(--text-secondary);
+}
+
+.sec-corr-count-equal {
+  color: var(--color-matched);
+  font-weight: var(--font-weight-semibold);
+}
+
+.sec-corr-count-diff {
+  color: var(--color-attribute-mismatch-type);
+  font-weight: var(--font-weight-semibold);
+}
+
+.sec-corr-note {
+  padding: 6px 10px;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.sec-corr-body {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sec-corr-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+/* ========================================
+   ファミリブロック
+   ======================================== */
+
+.sec-corr-family {
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  overflow: hidden;
+}
+
+.sec-corr-family-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  background: var(--bg-secondary, #f3f4f6);
+  font-size: var(--font-size-sm);
+}
+
+.sec-corr-family-name {
+  font-weight: var(--font-weight-semibold);
+}
+
+.sec-corr-family-stats {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+/* ========================================
+   対応表
+   ======================================== */
+
+.sec-corr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.sec-corr-table th,
+.sec-corr-table td {
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+  border-top: 1px solid var(--border-color-light);
+}
+
+.sec-corr-table thead th {
+  border-top: none;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-secondary);
+}
+
+.sec-corr-name {
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.sec-corr-tokens {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.sec-corr-token-line code {
+  padding: 0 3px;
+  border-radius: var(--border-radius-sm);
+  background: var(--bg-tertiary, #f3f4f6);
+  font-size: var(--font-size-xs);
+}
+
+.sec-corr-token-side {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* 片側のみバッジ（A=青系 / B=赤系。差分カラーと対応） */
+.sec-corr-badge-only-a {
+  background-color: #e3f2fd;
+  color: #1565c0;
+}
+
+.sec-corr-badge-only-b {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+/* 形状一致ペアの折りたたみ */
+.sec-corr-equal-details {
+  border-top: 1px solid var(--border-color-light);
+}
+
+.sec-corr-equal-details summary {
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.sec-corr-equal-details summary:hover {
+  background: var(--bg-secondary, #f3f4f6);
+}
+
+/* ========================================
+   ダークテーマ対応
+   ======================================== */
+
+[data-theme='dark'] .sec-corr-family-head {
+  background: #383838;
+}

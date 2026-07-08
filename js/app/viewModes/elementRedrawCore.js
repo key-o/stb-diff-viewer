@@ -7,7 +7,7 @@
 
 import * as THREE from 'three';
 import { createLogger } from '../../utils/logger.js';
-import { getModelContext } from './displayModeController.js';
+import { getModelContext } from './modelContext.js';
 import { parseElements } from '../../common-stb/import/parser/stbXmlParser.js';
 import {
   drawLineElements,
@@ -28,19 +28,25 @@ import {
   lineElementKeyExtractorV2,
   polyElementKeyExtractor,
   polyElementKeyExtractorV2,
-  createAttributeComparator,
+  compareStructuralAttributeDetails,
 } from '../../common-stb/comparison/index.js';
 import {
   COMPARISON_KEY_TYPE,
-  PLACEMENT_COMPARISON_MODE,
+  getPlacementModeForKeyType,
 } from '../../config/comparisonKeyConfig.js';
 import { getToleranceConfig } from '../../config/toleranceConfig.js';
 import comparisonKeyManager from '../comparisonKeyManager.js';
+import {
+  createSectionKeyResolvers,
+  getCachedExtractedSections,
+} from '../../modelLoader/elementComparison.js';
 import {
   normalizeComparisonResult,
   getCategoryCounts,
 } from '../../data/normalizeComparisonResult.js';
 import { COMPARISON_CATEGORY } from '../../constants/comparisonCategories.js';
+import { styleClonedAsModelBOverlay } from '../../constants/overlayStyle.js';
+import { getState } from '../../data/state/globalState.js';
 import { createWallLookup, drawWallOpeningOutlines } from './elementRedrawWalls.js';
 
 // ロガー
@@ -48,6 +54,92 @@ const log = createLogger('elementRedrawer');
 
 function isWallElementType(elementType) {
   return elementType === 'Wall' || elementType === 'ShearWall';
+}
+
+/**
+ * 断面一致基準に従う対応キー用リゾルバを構築する（描画パスを権威ある比較と一致させる: F2）。
+ * 返り値は (element, nodeMap) => keyPart。対象外要素・断面解決不可時は null を返すため、
+ * その場合キーは配置のみとなり現行挙動へ安全にフォールバックする。
+ * @param {string} elementType
+ * @param {Document|null} modelADocument
+ * @param {Document|null} modelBDocument
+ * @param {Map} nodeMapA - extractor 呼び出し時に渡すモデルAのノードマップ（A/B帰属判定に使用）
+ * @param {Map} nodeMapB - モデルBのノードマップ
+ * @returns {Function} (element, nodeMap) => (string|null)
+ */
+function buildSectionResolvers(elementType, modelADocument, modelBDocument, nodeMapA, nodeMapB) {
+  return createSectionKeyResolvers({
+    elementType,
+    sectionMatchCriterion: comparisonKeyManager.getSectionMatchCriterion(),
+    nodeMapA,
+    nodeMapB,
+    sectionMapsA: modelADocument ? getCachedExtractedSections(modelADocument) : null,
+    sectionMapsB: modelBDocument ? getCachedExtractedSections(modelBDocument) : null,
+    modelADocument,
+    modelBDocument,
+  });
+}
+
+function buildSectionKeyResolver(elementType, modelADocument, modelBDocument, nodeMapA, nodeMapB) {
+  const { resolveSectionKeyPart } = buildSectionResolvers(
+    elementType,
+    modelADocument,
+    modelBDocument,
+    nodeMapA,
+    nodeMapB,
+  );
+  return resolveSectionKeyPart;
+}
+
+function createRenderAttributeComparator(
+  elementType,
+  modelADocument,
+  modelBDocument,
+  nodeMapA,
+  nodeMapB,
+) {
+  const { resolveSectionContentSignature } = buildSectionResolvers(
+    elementType,
+    modelADocument,
+    modelBDocument,
+    nodeMapA,
+    nodeMapB,
+  );
+
+  return (dataA, dataB) => {
+    const elementA = dataA?.rawElement || dataA?.element || dataA;
+    const elementB = dataB?.rawElement || dataB?.element || dataB;
+    const instanceComparison = compareStructuralAttributeDetails(elementA, elementB);
+    const signatureA = resolveSectionContentSignature(elementA, nodeMapA);
+    const signatureB = resolveSectionContentSignature(elementB, nodeMapB);
+    const hasInstanceDiff = !instanceComparison.matches;
+    const hasTypeDiff = signatureA !== signatureB;
+
+    if (!hasInstanceDiff && !hasTypeDiff) {
+      return { matches: true };
+    }
+
+    const attributeMismatchKind =
+      hasInstanceDiff && hasTypeDiff ? 'both' : hasTypeDiff ? 'type' : 'instance';
+
+    return {
+      matches: false,
+      attributeMismatchKind,
+      attributeDiffScope: {
+        instance: hasInstanceDiff,
+        type: hasTypeDiff,
+      },
+      attributeDiffDetails: {
+        instance: instanceComparison.differences,
+        type: hasTypeDiff
+          ? {
+              sectionSignatureA: signatureA,
+              sectionSignatureB: signatureB,
+            }
+          : null,
+      },
+    };
+  };
 }
 
 function applyElementFilter(config, elements) {
@@ -97,6 +189,8 @@ function createSolidModeMeshes(
   const generatorMethod = generatorInfo.method;
   const openingElementsA = getOpeningElementsForType(elementType, stbDataA);
   const openingElementsB = getOpeningElementsForType(elementType, stbDataB);
+  // 断面が異なる一致要素でモデルB形状を半透明オーバーレイ表示するか
+  const overlayModelB = getState('viewModes.showMatchedModelBOverlay') === true;
 
   /**
    * 指定カテゴリのマッチ済みアイテムからメッシュを生成してグループに追加する
@@ -116,17 +210,86 @@ function createSolidModeMeshes(
       false,
       openingElementsA,
     );
-    const pairs = new Map(items.map((pair) => [pair.dataA.element.id, pair.dataB.element.id]));
+    const pairMeta = new Map(items.map((pair) => [pair.dataA.element.id, pair]));
     meshes.forEach((mesh) => {
+      const elementIdA = mesh.userData.elementId;
+      const pair = pairMeta.get(elementIdA);
       mesh.userData.modelSource = 'matched';
       mesh.userData.category = category;
-      mesh.userData.positionState = 'exact';
-      mesh.userData.attributeState = attributeState;
-      const elementIdA = mesh.userData.elementId;
-      const elementIdB = pairs.get(elementIdA);
+      mesh.userData.positionState = pair?.positionState || 'exact';
+      mesh.userData.attributeState = pair?.attributeState || attributeState;
+      mesh.userData.diffStatus = pair?.diffStatus || undefined;
+      mesh.userData.attributeMismatchKind = pair?.attributeMismatchKind || undefined;
+      const elementIdB = pair?.dataB?.element?.id;
       if (elementIdB) {
         mesh.userData.elementIdA = elementIdA;
         mesh.userData.elementIdB = elementIdB;
+      }
+      group.add(mesh);
+    });
+
+    // 形状が異なる一致要素については、モデルB側の形状を半透明で重ねて表示する。
+    // B側は必ず stbDataB 系（nodes/sections/steelSections）を使うこと。
+    // stbDataA を使うと断面取り違えで誤形状になる。
+    if (overlayModelB && category === COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH) {
+      addModelBOverlayMeshes(
+        items.filter((item) => isTypeAttributeMismatch(item)),
+        category,
+      );
+    }
+  }
+
+  function isTypeAttributeMismatch(item) {
+    return (
+      item?.attributeMismatchKind === 'type' ||
+      item?.attributeMismatchKind === 'both' ||
+      item?.diffStatus === 'attributeMismatchType' ||
+      item?.diffStatus === 'attributeMismatchBoth'
+    );
+  }
+
+  /**
+   * 一致ペアのモデルB側形状を半透明メッシュとして生成し追加する
+   * @param {Array} items - matchedペア配列（各要素は {dataA, dataB, ...}）
+   * @param {string} category - COMPARISON_CATEGORY の値
+   */
+  function addModelBOverlayMeshes(items, category) {
+    const elementsB = items.map((m) => m.dataB?.element).filter(Boolean);
+    if (elementsB.length === 0) return;
+    const meshesB = generator[generatorMethod](
+      elementsB,
+      stbDataB.nodes,
+      stbDataB[sectionsKey],
+      stbDataB.steelSections,
+      elementType,
+      false,
+      openingElementsB,
+    );
+    const pairMetaByB = new Map(
+      items.filter((p) => p.dataB?.element).map((pair) => [pair.dataB.element.id, pair]),
+    );
+    meshesB.forEach((mesh) => {
+      const elementIdB = mesh.userData.elementId;
+      const pair = pairMetaByB.get(elementIdB);
+      mesh.userData.modelSource = 'matched';
+      mesh.userData.category = category;
+      mesh.userData.positionState = pair?.positionState || 'exact';
+      mesh.userData.attributeState = pair?.attributeState || 'mismatch';
+      mesh.userData.diffStatus = pair?.diffStatus || undefined;
+      mesh.userData.attributeMismatchKind = pair?.attributeMismatchKind || undefined;
+      mesh.userData.isOverlayModelB = true;
+      mesh.userData.elementIdA = pair?.dataA?.element?.id;
+      mesh.userData.elementIdB = elementIdB;
+      // 装飾用オーバーレイはピック対象外にする。これによりクリックは背後の
+      // 実要素メッシュに透過し、選択・情報パネルは実要素に対して行われる。
+      mesh.raycast = () => {};
+      // 共有マテリアルを壊さないよう clone してから半透明化
+      if (mesh.material) {
+        mesh.material = styleClonedAsModelBOverlay(
+          Array.isArray(mesh.material)
+            ? mesh.material.map((m) => m.clone())
+            : mesh.material.clone(),
+        );
       }
       group.add(mesh);
     });
@@ -160,6 +323,9 @@ function createSolidModeMeshes(
   // EXACT要素（位置完全一致 + 属性一致）のメッシュを生成
   addMatchedMeshes(COMPARISON_CATEGORY.EXACT, 'matched');
 
+  // WITHIN_TOLERANCE要素（位置許容差内 + 属性一致）のメッシュを生成
+  addMatchedMeshes(COMPARISON_CATEGORY.WITHIN_TOLERANCE, 'matched');
+
   // ATTRIBUTE_MISMATCH要素（位置一致、属性が異なる）のメッシュを生成
   addMatchedMeshes(COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH, 'mismatch');
 
@@ -185,11 +351,19 @@ function createSolidModeLabels(comparisonResult, stbDataA, stbDataB, group, elem
   if (!createLabelsFlag) return;
 
   const exactItems = comparisonResult[COMPARISON_CATEGORY.EXACT] || [];
+  const withinToleranceItems = comparisonResult[COMPARISON_CATEGORY.WITHIN_TOLERANCE] || [];
   const mismatchItems = comparisonResult[COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH] || [];
 
   // EXACT要素のラベル
   const exactLabels = createLabelsForSolidElementsWithSource(
     exactItems.map((m) => m.dataA.element),
+    stbDataA.nodes,
+    elementType,
+    'matched',
+  );
+  // WITHIN_TOLERANCE要素のラベル
+  const withinToleranceLabels = createLabelsForSolidElementsWithSource(
+    withinToleranceItems.map((m) => m.dataA.element),
     stbDataA.nodes,
     elementType,
     'matched',
@@ -216,7 +390,13 @@ function createSolidModeLabels(comparisonResult, stbDataA, stbDataB, group, elem
     'B',
   );
 
-  const allLabels = [...exactLabels, ...mismatchLabels, ...onlyALabels, ...onlyBLabels];
+  const allLabels = [
+    ...exactLabels,
+    ...withinToleranceLabels,
+    ...mismatchLabels,
+    ...onlyALabels,
+    ...onlyBLabels,
+  ];
   log.debug(`[redraw${elementType}ForViewMode] solid mode - created ${allLabels.length} labels`);
   allLabels.forEach((label) => group.add(label));
   eventBus.emit(LabelEvents.ADD_LABELS, allLabels);
@@ -298,19 +478,42 @@ function drawPolyModeElements(config, modelContext, group) {
 
   const comparisonKeyType = comparisonKeyManager.getKeyType();
   const toleranceConfig = getToleranceConfig();
-  const placementMode = toleranceConfig.placementComparisonMode;
+  const placementMode = getPlacementModeForKeyType(comparisonKeyType);
   const useV2 =
-    placementMode &&
-    placementMode !== PLACEMENT_COMPARISON_MODE.NODE_POSITION_ONLY &&
-    Object.values(PLACEMENT_COMPARISON_MODE).includes(placementMode);
+    placementMode !== getPlacementModeForKeyType(COMPARISON_KEY_TYPE.POSITION_NODE_ONLY);
   const useTolerance = toleranceConfig.enabled && !toleranceConfig.strictMode;
   const comparisonOptions = {
+    attributeComparator: createRenderAttributeComparator(
+      elementType,
+      modelADocument,
+      modelBDocument,
+      nodeMapA,
+      nodeMapB,
+    ),
     classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
   };
-  const keyExtractor = (el, nm) =>
-    useV2
-      ? polyElementKeyExtractorV2(el, nm, 'StbNodeIdOrder', placementMode, comparisonKeyType)
-      : polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType);
+  const resolveSectionKeyPart = buildSectionKeyResolver(
+    elementType,
+    modelADocument,
+    modelBDocument,
+    nodeMapA,
+    nodeMapB,
+  );
+  const keyExtractor = (el, nm) => {
+    const extractorOptions = {
+      sectionSignatureResolver: (target) => resolveSectionKeyPart(target, nm),
+    };
+    return useV2
+      ? polyElementKeyExtractorV2(
+          el,
+          nm,
+          'StbNodeIdOrder',
+          placementMode,
+          comparisonKeyType,
+          extractorOptions,
+        )
+      : polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType, extractorOptions);
+  };
 
   const rawPolyResult = useTolerance
     ? compareElementsWithTolerance(
@@ -378,13 +581,27 @@ function drawLineModeElements(config, modelContext, group) {
   const elementsB = applyElementFilter(config, parseElements(modelBDocument, stbTagName));
   const comparisonKeyType = comparisonKeyManager.getKeyType();
   const toleranceConfig = getToleranceConfig();
-  const placementComparisonMode = toleranceConfig.placementComparisonMode;
+  const placementComparisonMode = getPlacementModeForKeyType(comparisonKeyType);
 
   const useTolerance = toleranceConfig.enabled && !toleranceConfig.strictMode;
   const comparisonOptions = {
+    attributeComparator: createRenderAttributeComparator(
+      elementType,
+      modelADocument,
+      modelBDocument,
+      nodeMapA,
+      nodeMapB,
+    ),
     classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
   };
 
+  const resolveSectionKeyPart = buildSectionKeyResolver(
+    elementType,
+    modelADocument,
+    modelBDocument,
+    nodeMapA,
+    nodeMapB,
+  );
   // V2 キー抽出関数を使用（配置要素比較モード対応）
   const lineKeyExtractor = (el, nm) =>
     lineElementKeyExtractorV2(
@@ -394,6 +611,7 @@ function drawLineModeElements(config, modelContext, group) {
       nodeEndAttr,
       placementComparisonMode,
       comparisonKeyType,
+      { sectionSignatureResolver: (target) => resolveSectionKeyPart(target, nm) },
     );
 
   const rawLineResult = useTolerance
@@ -454,14 +672,23 @@ function runSolidModeComparison(config, stbDataA, stbDataB, elementType) {
   const { nodeStartAttr, nodeEndAttr } = config;
   const comparisonKeyType = comparisonKeyManager.getKeyType();
   const toleranceConfig = getToleranceConfig();
-  const placementComparisonMode = toleranceConfig.placementComparisonMode;
+  const placementComparisonMode = getPlacementModeForKeyType(comparisonKeyType);
   const useV2 =
-    placementComparisonMode &&
-    placementComparisonMode !== PLACEMENT_COMPARISON_MODE.NODE_POSITION_ONLY &&
-    Object.values(PLACEMENT_COMPARISON_MODE).includes(placementComparisonMode);
+    placementComparisonMode !== getPlacementModeForKeyType(COMPARISON_KEY_TYPE.POSITION_NODE_ONLY);
   const useTolerance = toleranceConfig.enabled && !toleranceConfig.strictMode;
   const elementsA = getFilteredStbElements(stbDataA, config);
   const elementsB = getFilteredStbElements(stbDataB, config);
+
+  // 断面一致基準に従う対応キー用リゾルバ（描画パスを権威ある比較と一致させる: F2）。
+  // JSオブジェクト要素は id_section が解決できない場合 null を返し、配置のみへ安全にフォールバックする。
+  const { modelADocument, modelBDocument } = getModelContext();
+  const resolveSectionKeyPart = buildSectionKeyResolver(
+    elementType,
+    modelADocument,
+    modelBDocument,
+    stbDataA.nodes,
+    stbDataB.nodes,
+  );
 
   // 要素タイプに応じたキー抽出関数を選択し、元のJSオブジェクトを保持するラッパーで包む
   let baseExtractor;
@@ -470,16 +697,21 @@ function runSolidModeComparison(config, stbDataA, stbDataB, elementType) {
     isWallElementType(elementType) ||
     elementType === 'FrameDampingDevice'
   ) {
-    baseExtractor = (el, nm) =>
-      useV2
+    baseExtractor = (el, nm) => {
+      const extractorOptions = {
+        sectionSignatureResolver: (target) => resolveSectionKeyPart(target, nm),
+      };
+      return useV2
         ? polyElementKeyExtractorV2(
             el,
             nm,
             'StbNodeIdOrder',
             placementComparisonMode,
             comparisonKeyType,
+            extractorOptions,
           )
-        : polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType);
+        : polyElementKeyExtractor(el, nm, 'StbNodeIdOrder', comparisonKeyType, extractorOptions);
+    };
   } else {
     baseExtractor = (el, nm) =>
       lineElementKeyExtractorV2(
@@ -489,6 +721,7 @@ function runSolidModeComparison(config, stbDataA, stbDataB, elementType) {
         nodeEndAttr,
         placementComparisonMode,
         comparisonKeyType,
+        { sectionSignatureResolver: (target) => resolveSectionKeyPart(target, nm) },
       );
   }
 
@@ -501,8 +734,14 @@ function runSolidModeComparison(config, stbDataA, stbDataB, elementType) {
     return result;
   };
 
-  // 属性比較コールバックを作成（4カテゴリ分類: matched/mismatch/onlyA/onlyB）
-  const attributeComparator = createAttributeComparator((data) => data.element || data);
+  // 属性比較コールバックを作成（9カテゴリ差分フィルタと同じ細分類を返す）
+  const attributeComparator = createRenderAttributeComparator(
+    elementType,
+    modelADocument,
+    modelBDocument,
+    stbDataA.nodes,
+    stbDataB.nodes,
+  );
   const comparisonOptions = {
     attributeComparator,
     classifyNullKeysAsOnly: comparisonKeyType === COMPARISON_KEY_TYPE.GUID_BASED,
@@ -589,6 +828,19 @@ export function redrawElementForViewMode(
 
   // 既存のラベルを削除
   eventBus.emit(LabelEvents.REMOVE_BY_TYPE, elementType);
+  // モデルBオーバーレイは専用ジオメトリと clone マテリアル（共有プール外）を
+  // 持つため、group.clear() で捨てる前に明示的に dispose してリークを防ぐ。
+  // 通常メッシュのマテリアルは共有キャッシュ由来なのでここでは dispose しない。
+  group.children.forEach((obj) => {
+    if (!obj.userData || !obj.userData.isOverlayModelB) return;
+    if (obj.geometry && obj.geometry.dispose) obj.geometry.dispose();
+    const mat = obj.material;
+    if (Array.isArray(mat)) {
+      mat.forEach((m) => m && m.dispose && m.dispose());
+    } else if (mat && mat.dispose) {
+      mat.dispose();
+    }
+  });
   group.clear();
 
   const viewMode = displayModeManager.getDisplayMode(elementType);

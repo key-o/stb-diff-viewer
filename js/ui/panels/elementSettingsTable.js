@@ -40,7 +40,7 @@ const ELEMENT_SETTINGS = [
   },
   {
     type: 'Axis',
-    label: '通り芯 (StbAxis)',
+    label: '通り芯 (StbParallelAxis)',
     jpName: '通り芯',
     solidType: 'none',
     displayId: 'toggleAxisView',

@@ -8,9 +8,9 @@
  * 外部からは xsdSchemaParser.js 経由でアクセスしてください。
  */
 
-import { createLogger } from '../../../utils/logger.js';
+import { createKernelLogger } from '../config/kernelConfig.js';
 
-const log = createLogger('common-stb:import:parser:xsdTypeResolver');
+const log = createKernelLogger('common-stb:import:parser:xsdTypeResolver');
 
 // デバッグログの有効/無効（本番環境では false）
 const XSD_DEBUG = false;

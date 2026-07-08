@@ -13,6 +13,7 @@ import {
   getCurrentEditingElement,
 } from './EditMode.js';
 import { buildSingleModelTitle, resolveElementInfoModelSide } from './DisplayModelResolver.js';
+import { escapeHtml } from '../../../utils/htmlUtils.js';
 import {
   applyPanelSize,
   setupPanelResizeObserver,
@@ -241,9 +242,9 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
           : jointMeshData?.jointPosition === 'end'
             ? '終端'
             : '';
-      const parentInfoStr = `${jd.parent_element_type || ''} ID:${jd.parent_element_id || ''} ${posLabel}`;
+      const parentInfoStr = `${escapeHtml(jd.parent_element_type || '')} ID:${escapeHtml(jd.parent_element_id || '')} ${posLabel}`;
       const jointId = jointMeshData?.jointId || extractJointIdFromMeshId(idA || idB);
-      const jointBody = `継手 ID:${jointId} (${parentInfoStr})`;
+      const jointBody = `継手 ID:${escapeHtml(jointId)} (${parentInfoStr})`;
       const jointDisplaySide = resolveElementInfoModelSide({
         hasPrimaryA: !!jointMeshDataA,
         hasPrimaryB: !!jointMeshDataB,
@@ -279,7 +280,7 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
     if (attrCount > 0) {
       schemaInfo = ` <span style="color: green; font-size: var(--font-size-sm);">[XSD: ${attrCount}属性]</span>`;
     } else {
-      schemaInfo = ` <span style="color: orange; font-size: var(--font-size-sm);">[XSD: ${schemaElementName}未定義]</span>`;
+      schemaInfo = ` <span style="color: orange; font-size: var(--font-size-sm);">[XSD: ${escapeHtml(schemaElementName)}未定義]</span>`;
       logger.warn(`XSD schema loaded but ${schemaElementName} not found in definitions`);
     }
   } else {
@@ -288,7 +289,7 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
 
   const typeNote =
     actualElementType !== elementType && elementType !== 'Joint'
-      ? ` <span style="color: orange; font-size: var(--font-size-sm);">[実際は${actualElementType}]</span>`
+      ? ` <span style="color: orange; font-size: var(--font-size-sm);">[実際は${escapeHtml(actualElementType)}]</span>`
       : '';
 
   let parentInfo = '';
@@ -302,7 +303,7 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
           : jointMeshData.jointPosition === 'end'
             ? '終端'
             : '';
-      parentInfo = ` (${jd.parent_element_type || ''} ID:${jd.parent_element_id || ''} ${posLabel})`;
+      parentInfo = ` (${escapeHtml(jd.parent_element_type || '')} ID:${escapeHtml(jd.parent_element_id || '')} ${posLabel})`;
     }
   }
 
@@ -323,9 +324,9 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
           s4: 'S4',
         }[configId] || 'デフォルト';
 
-      const xsdLabel = activeXsdVersion === '2.1.0' ? '210' : '202';
+      const xsdLabel = (activeXsdVersion || '2.0.2').replace(/\./g, '');
 
-      return ` <span style="background: rgba(0,120,215,0.15); padding: 2px 6px; border-radius: 3px; font-size: var(--font-size-xs); font-weight: normal; margin-left: 4px;">[評価: ${shortName}, XSD:${xsdLabel}]</span>`;
+      return ` <span style="background: rgba(0,120,215,0.15); padding: 2px 6px; border-radius: 3px; font-size: var(--font-size-xs); font-weight: normal; margin-left: 4px;">[評価: ${shortName}, XSD:${escapeHtml(xsdLabel)}]</span>`;
     } catch (error) {
       logger.warn('Failed to generate evaluation badge:', error);
       return '';
@@ -345,16 +346,16 @@ export async function displayElementInfo(idA, idB, elementType, modelSource = nu
   if (nodeA && nodeB) {
     const idADisplay = nodeA.getAttribute('id') || idA;
     const idBDisplay = nodeB.getAttribute('id') || idB;
-    title = `比較: ${actualElementType}${parentInfo} (A: ${idADisplay}, B: ${idBDisplay})${typeNote}${schemaInfo}${evaluationBadge}`;
+    title = `比較: ${escapeHtml(actualElementType)}${parentInfo} (A: ${escapeHtml(idADisplay)}, B: ${escapeHtml(idBDisplay)})${typeNote}${schemaInfo}${evaluationBadge}`;
   } else if (nodeA) {
     title = buildSingleModelTitle(
       displayModelSide,
-      `${actualElementType}${parentInfo} (ID: ${displayId})${typeNote}${schemaInfo}${evaluationBadge}`,
+      `${escapeHtml(actualElementType)}${parentInfo} (ID: ${escapeHtml(displayId)})${typeNote}${schemaInfo}${evaluationBadge}`,
     );
   } else {
     title = buildSingleModelTitle(
       displayModelSide,
-      `${actualElementType}${parentInfo} (ID: ${displayId})${typeNote}${schemaInfo}${evaluationBadge}`,
+      `${escapeHtml(actualElementType)}${parentInfo} (ID: ${escapeHtml(displayId)})${typeNote}${schemaInfo}${evaluationBadge}`,
     );
   }
 

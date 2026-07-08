@@ -32,6 +32,36 @@
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('common-stb:comparison:BaseStrategy');
+
+export function evaluateAttributeComparator(attributeComparator, dataA, dataB) {
+  if (!attributeComparator) {
+    return { matches: true };
+  }
+
+  const result = attributeComparator(dataA, dataB);
+  if (typeof result === 'boolean') {
+    return { matches: result };
+  }
+  if (result && typeof result === 'object') {
+    const matches = result.matches ?? result.isEqual ?? result.match ?? false;
+    return { ...result, matches };
+  }
+  return { matches: Boolean(result) };
+}
+
+function createAttributeMismatchPair(dataA, dataB, attributeComparison = {}) {
+  return {
+    dataA,
+    dataB,
+    matchType: 'attributeMismatch',
+    attributeState: 'mismatch',
+    attributeMismatchKind: attributeComparison.attributeMismatchKind || attributeComparison.kind,
+    attributeDiffScope: attributeComparison.attributeDiffScope || attributeComparison.scope,
+    attributeDiffDetails:
+      attributeComparison.attributeDiffDetails || attributeComparison.differences,
+  };
+}
+
 export class BaseStrategy {
   /**
    * 戦略名を取得
@@ -134,8 +164,13 @@ export class BasicStrategy extends BaseStrategy {
     for (const [key, dataAItem] of keysA.entries()) {
       if (keysB.has(key)) {
         const dataBItem = keysB.get(key);
-        if (attributeComparator && !attributeComparator(dataAItem, dataBItem)) {
-          mismatch.push({ dataA: dataAItem, dataB: dataBItem });
+        const attributeComparison = evaluateAttributeComparator(
+          attributeComparator,
+          dataAItem,
+          dataBItem,
+        );
+        if (!attributeComparison.matches) {
+          mismatch.push(createAttributeMismatchPair(dataAItem, dataBItem, attributeComparison));
         } else {
           matched.push({ dataA: dataAItem, dataB: dataBItem });
         }

@@ -184,6 +184,16 @@ export class LoadDisplayManager {
       }
     }
 
+    // 部材荷重が無い場合は節点荷重（重量/方向力）からスケールを算出
+    if (maxLoad <= 1e-6) {
+      for (const w of this._calData.addedWeights || []) {
+        maxLoad = Math.max(maxLoad, Math.abs(w.weight));
+      }
+      for (const p of this._calData.pointLoads || []) {
+        maxLoad = Math.max(maxLoad, Math.hypot(p.P1 || 0, p.P2 || 0, p.P3 || 0));
+      }
+    }
+
     if (maxLoad > 1e-6) {
       this._scale = targetArrowLength / maxLoad;
     }
@@ -229,6 +239,9 @@ export class LoadDisplayManager {
 
     // 床面荷重を処理
     this._processSlabLoads();
+
+    // 節点荷重を処理
+    this._processNodeLoads();
   }
 
   /**
@@ -439,6 +452,151 @@ export class LoadDisplayManager {
   }
 
   /**
+   * 節点荷重を処理（重量系 StbCalNodeAddedWeight / 方向力系 StbCalPointLoad）
+   */
+  _processNodeLoads() {
+    this._processNodeWeightLoads();
+    this._processNodePointLoads();
+  }
+
+  /**
+   * 節点付加重量（StbCalNodeWeightArr）を処理
+   * 重量は等価鉛直荷重として下向き矢印で表示する
+   */
+  _processNodeWeightLoads() {
+    const arrangements = this._calData.loadArrangements?.nodeWeights;
+    if (!arrangements || arrangements.size === 0) return;
+    const defs = this._calData.addedWeights;
+    if (!defs || defs.length === 0) return;
+
+    const downDir = new THREE.Vector3(0, 0, -1);
+
+    for (const [nodeId, loadIds] of arrangements) {
+      const coord = this._nodeMap.get(nodeId);
+      if (!coord) continue;
+      const position = new THREE.Vector3(coord.x, coord.y, coord.z);
+
+      for (const loadId of loadIds) {
+        const def = defs.find((d) => String(d.id) === String(loadId));
+        if (!def || Math.abs(def.weight) < 1e-6) continue;
+        if (this._selectedLoadCase && def.loadCaseId !== this._selectedLoadCase) continue;
+
+        // 内部 N → 表示 kN
+        this._createNodeLoadDisplay({
+          mapKey: `NW_${loadId}_${nodeId}`,
+          position,
+          direction: downDir,
+          magnitude: Math.abs(def.weight),
+          labelText: `${(Math.abs(def.weight) / 1000).toFixed(this._labelPrecision)} ${this._labelUnit}`,
+          color: this._getLoadCaseColorById(def.loadCaseId),
+        });
+      }
+    }
+  }
+
+  /**
+   * 節点方向力（StbCalNodePointLoadArr）を処理
+   * P1..P3=Px,Py,Pz(N) は合成方向の矢印、P4..P6=Mx,My,Mz(Nmm) はラベルのみ
+   */
+  _processNodePointLoads() {
+    const arrangements = this._calData.loadArrangements?.nodePointLoads;
+    if (!arrangements || arrangements.size === 0) return;
+    const defs = this._calData.pointLoads;
+    if (!defs || defs.length === 0) return;
+
+    for (const [nodeId, loadIds] of arrangements) {
+      const coord = this._nodeMap.get(nodeId);
+      if (!coord) continue;
+      const position = new THREE.Vector3(coord.x, coord.y, coord.z);
+
+      for (const loadId of loadIds) {
+        const def = defs.find((d) => String(d.id) === String(loadId));
+        if (!def) continue;
+        if (this._selectedLoadCase && def.loadCaseId !== this._selectedLoadCase) continue;
+
+        const force = new THREE.Vector3(def.P1 || 0, def.P2 || 0, def.P3 || 0);
+        const forceMag = force.length();
+        const momentMag = Math.hypot(def.P4 || 0, def.P5 || 0, def.P6 || 0);
+        if (forceMag < 1e-6 && momentMag < 1e-6) continue;
+
+        // 内部 N/Nmm → 表示 kN/kNm（単位表記は setLabelOptions に追従）
+        const parts = [];
+        if (forceMag >= 1e-6) {
+          parts.push(`${(forceMag / 1000).toFixed(this._labelPrecision)} ${this._labelUnit}`);
+        }
+        if (momentMag >= 1e-6) {
+          parts.push(`${(momentMag / 1e6).toFixed(this._labelPrecision)} ${this._labelUnit}m`);
+        }
+
+        this._createNodeLoadDisplay({
+          mapKey: `NP_${loadId}_${nodeId}`,
+          position,
+          direction: forceMag >= 1e-6 ? force.normalize() : null,
+          magnitude: forceMag,
+          labelText: parts.join(' / '),
+          color: this._getLoadCaseColorById(def.loadCaseId),
+        });
+      }
+    }
+  }
+
+  /**
+   * 節点荷重の矢印+ラベルを生成（矢印先端が節点に接する）
+   * @param {Object} params
+   * @param {string} params.mapKey - arrowMap/labelMapのキー
+   * @param {THREE.Vector3} params.position - 節点座標
+   * @param {THREE.Vector3|null} params.direction - 荷重方向（null=矢印なし、ラベルのみ）
+   * @param {number} params.magnitude - 荷重の大きさ（スケール計算用）
+   * @param {string} params.labelText - ラベル文字列
+   * @param {number} params.color - 矢印色
+   */
+  _createNodeLoadDisplay({ mapKey, position, direction, magnitude, labelText, color }) {
+    const showArrows =
+      this._displayMode === LOAD_DISPLAY_MODE.ARROW || this._displayMode === LOAD_DISPLAY_MODE.BOTH;
+    const showLabels =
+      this._displayMode === LOAD_DISPLAY_MODE.LABEL || this._displayMode === LOAD_DISPLAY_MODE.BOTH;
+
+    let labelPosition = position;
+
+    if (showArrows && direction) {
+      const arrowLength = Math.max(
+        Math.min(magnitude * this._scale, this._maxArrowLength),
+        this._minArrowLength,
+      );
+      const hl = Math.min(this._headLength, arrowLength * 0.3);
+      const hw = Math.min(this._headWidth, hl);
+      const origin = position.clone().addScaledVector(direction, -arrowLength);
+
+      const arrow = new THREE.ArrowHelper(direction, origin, arrowLength, color, hl, hw);
+      arrow.userData = { loadId: mapKey, type: 'node' };
+      arrow.renderOrder = 999;
+      for (const child of arrow.children) {
+        child.renderOrder = 999;
+        if (child.material) child.material.depthTest = false;
+      }
+      this._loadGroup.add(arrow);
+      this._arrowMap.set(mapKey, [arrow]);
+      labelPosition = origin;
+    }
+
+    if (showLabels && labelText) {
+      const label = this._createTextLabel(labelPosition, labelText, { loadId: mapKey });
+      this._labelMap.set(mapKey, [label]);
+      this._scene.add(label);
+    }
+  }
+
+  /**
+   * 荷重ケースIDから表示色を取得
+   * @param {string} loadCaseId - 荷重ケースID
+   * @returns {number} 16進数色値
+   */
+  _getLoadCaseColorById(loadCaseId) {
+    const loadCase = this._calData.loadCases?.find((lc) => lc.id === loadCaseId);
+    return loadCase ? getLoadCaseColor(loadCase.kind) : this._arrowColor;
+  }
+
+  /**
    * スラブ多角形内にグリッド点を生成（X-Y平面投影、平均Z使用）
    * @param {THREE.Vector3[]} vertices
    * @returns {THREE.Vector3[]}
@@ -553,8 +711,7 @@ export class LoadDisplayManager {
     const memberLength = start.distanceTo(end);
 
     // 荷重ケースの色を取得
-    const loadCase = this._calData.loadCases.find((lc) => lc.id === load.loadCaseId);
-    const color = loadCase ? getLoadCaseColor(loadCase.kind) : this._arrowColor;
+    const color = this._getLoadCaseColorById(load.loadCaseId);
 
     const showArrows =
       this._displayMode === LOAD_DISPLAY_MODE.ARROW || this._displayMode === LOAD_DISPLAY_MODE.BOTH;
@@ -945,8 +1102,20 @@ export class LoadDisplayManager {
     const formattedValue = Math.abs(loadValue).toFixed(this._labelPrecision);
     const text = `${formattedValue} ${this._labelUnit}`;
 
+    return this._createTextLabel(position, text, { loadId: id, loadValue });
+  }
+
+  /**
+   * テキストラベル（CSS2DObject）を作成
+   * @param {THREE.Vector3} position - 位置
+   * @param {string} text - 表示文字列
+   * @param {Object} userData - ラベルに付与するuserData
+   * @param {string} [className] - 追加CSSクラス
+   * @returns {CSS2DObject}
+   */
+  _createTextLabel(position, text, userData, className = '') {
     const div = document.createElement('div');
-    div.className = 'load-label';
+    div.className = className ? `load-label ${className}` : 'load-label';
     div.textContent = text;
     div.style.fontSize = this._labelFontSize;
     div.style.color = this._labelColor;
@@ -959,7 +1128,7 @@ export class LoadDisplayManager {
 
     const label = new CSS2DObject(div);
     label.position.copy(position);
-    label.userData = { loadId: id, loadValue };
+    label.userData = userData;
 
     return label;
   }
@@ -984,23 +1153,12 @@ export class LoadDisplayManager {
         ? `${formattedW1} ${this._labelUnit}`
         : `${formattedW1}~${formattedW2} ${this._labelUnit}`;
 
-    const div = document.createElement('div');
-    div.className = 'load-label trapezoidal-load';
-    div.textContent = text;
-    div.style.fontSize = this._labelFontSize;
-    div.style.color = this._labelColor;
-    div.style.backgroundColor = this._labelBackgroundColor;
-    div.style.padding = '2px 6px';
-    div.style.borderRadius = '3px';
-    div.style.userSelect = 'none';
-    div.style.pointerEvents = 'none';
-    div.style.whiteSpace = 'nowrap';
-
-    const label = new CSS2DObject(div);
-    label.position.copy(position);
-    label.userData = { loadId: id, w1, w2, type: 'trapezoidal' };
-
-    return label;
+    return this._createTextLabel(
+      position,
+      text,
+      { loadId: id, w1, w2, type: 'trapezoidal' },
+      'trapezoidal-load',
+    );
   }
 
   /**

@@ -66,6 +66,9 @@
 .float-window-controls {
   display: flex;
   gap: var(--spacing-sm);
+  /* 上辺・右上コーナーのリサイズハンドル(z-index: 1000)より前面に出し、✕等のクリックを妨げない */
+  position: relative;
+  z-index: 1001;
 }
 
 .float-window-btn {
@@ -106,7 +109,7 @@
   font-size: inherit;
   line-height: 1.5;
   color: var(--text-primary);
-  background-color: #fff;
+  background-color: var(--bg-elevated);
   background-clip: padding-box;
   border: var(--border-width) solid var(--input-border-color);
   border-radius: var(--input-border-radius);
@@ -154,6 +157,27 @@
   max-width: 500px;
 }
 
+/* 差分サマリーウィンドウ
+   既定はビューポートに確実に収まる幅にして中央寄せ・移動を可能にする。
+   要素タイプ別表は列グループを展開すると広がるが、表だけが内部で横スクロールする。 */
+#diff-summary-float {
+  top: 12px;
+  left: 50%;
+  width: min(920px, calc(100vw - 32px));
+  min-width: min(360px, calc(100vw - 32px));
+  /* 要素タイプ別表を全グループ展開すると広くなるため、リサイズで画面幅いっぱいまで広げられるようにする。
+     収まらない分は表セクション内で横スクロールする。max-width は保存済み（localStorage）の
+     過大な幅も上限で抑える＝インラインの width より優先。 */
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 24px);
+  transform: translateX(-50%);
+  overflow: hidden;
+}
+
+#diff-summary-float .float-window-content {
+  overflow: auto;
+}
+
 /* 表示範囲設定ウィンドウ */
 #clipping-settings-float {
   min-width: 400px;
@@ -195,7 +219,7 @@
 
 /* ========================================
    トグルボタン共通スタイル
-   （style.css の #overlay > button[id^="toggle-"] で統一定義）
+   （style.css の #overlay .sidebar-group > button で統一定義）
    ======================================== */
 
 /* ========================================
@@ -203,7 +227,7 @@
    ======================================== */
 
 .grouping-mode-select {
-  background-color: #f8f9fa;
+  background-color: var(--bg-elevated);
   border: var(--border-width) solid var(--border-color-light);
   border-radius: var(--border-radius-sm);
   padding: 3px 6px;
@@ -214,7 +238,7 @@
 }
 
 .grouping-mode-select:hover {
-  background-color: #e9ecef;
+  background-color: var(--bg-hover);
 }
 
 /* ========================================
@@ -259,6 +283,26 @@
   background: linear-gradient(to bottom, transparent 0%, var(--color-primary, #0066cc) 100%);
 }
 
+/* 左辺ハンドル */
+.resize-handle-w {
+  top: var(--resize-handle-size);
+  left: 0;
+  width: 6px;
+  bottom: var(--resize-handle-size);
+  cursor: w-resize;
+  background: linear-gradient(to left, transparent 0%, var(--color-primary, #0066cc) 100%);
+}
+
+/* 上辺ハンドル */
+.resize-handle-n {
+  left: var(--resize-handle-size);
+  top: 0;
+  height: 6px;
+  right: var(--resize-handle-size);
+  cursor: n-resize;
+  background: linear-gradient(to top, transparent 0%, var(--color-primary, #0066cc) 100%);
+}
+
 /* 右下コーナーハンドル */
 .resize-handle-se {
   right: var(--resize-handle-inset);
@@ -273,6 +317,37 @@
 
 .resize-handle-se:hover {
   opacity: 1;
+}
+
+/* 左下・右上・左上コーナーハンドル（ホバー時のみ表示） */
+.resize-handle-sw {
+  left: var(--resize-handle-inset);
+  bottom: var(--resize-handle-inset);
+  width: var(--resize-handle-size);
+  height: var(--resize-handle-size);
+  cursor: sw-resize;
+  background: linear-gradient(225deg, transparent 0%, transparent 50%, var(--color-primary, #0066cc) 50%, var(--color-primary, #0066cc) 100%);
+  border-bottom-left-radius: var(--border-radius);
+}
+
+.resize-handle-ne {
+  right: var(--resize-handle-inset);
+  top: var(--resize-handle-inset);
+  width: var(--resize-handle-size);
+  height: var(--resize-handle-size);
+  cursor: ne-resize;
+  background: linear-gradient(45deg, transparent 0%, transparent 50%, var(--color-primary, #0066cc) 50%, var(--color-primary, #0066cc) 100%);
+  border-top-right-radius: var(--border-radius);
+}
+
+.resize-handle-nw {
+  left: var(--resize-handle-inset);
+  top: var(--resize-handle-inset);
+  width: var(--resize-handle-size);
+  height: var(--resize-handle-size);
+  cursor: nw-resize;
+  background: linear-gradient(315deg, transparent 0%, transparent 50%, var(--color-primary, #0066cc) 50%, var(--color-primary, #0066cc) 100%);
+  border-top-left-radius: var(--border-radius);
 }
 
 .floating-window.resizing {
@@ -320,7 +395,7 @@
   min-width: 70px;
   padding: var(--spacing-sm) var(--spacing-sm);
   border: var(--border-width) solid var(--border-color);
-  background: #fff;
+  background: var(--bg-elevated);
   color: var(--text-primary);
   border-radius: var(--border-radius);
   cursor: pointer;
@@ -329,7 +404,7 @@
 }
 
 #viewDirectionPanel .view-direction-buttons .btn:hover {
-  background-color: #f8f9fa;
+  background-color: var(--bg-hover);
   border-color: var(--color-primary);
   color: var(--text-primary);
 }

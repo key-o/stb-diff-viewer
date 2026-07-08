@@ -31,7 +31,7 @@ import { MeshMetadataBuilder } from './MeshMetadataBuilder.js';
 import {
   resolveGeometryProfileType,
   calculateRotationWithReference,
-} from '../../../common-stb/section/sectionTypeUtil.js';
+} from '../../../common-stb/import/section/sectionTypeUtil.js';
 import { createLogger } from '../../../utils/logger.js';
 
 /**

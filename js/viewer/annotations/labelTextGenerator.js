@@ -30,7 +30,9 @@ export function generateLabelText(element, elementType) {
       case LABEL_CONTENT_TYPES.NAME:
         return generateNameLabel(element, elementType);
       case LABEL_CONTENT_TYPES.SECTION:
-        return generateSectionLabel(element, elementType);
+        return generateSectionIdLabel(element, elementType);
+      case LABEL_CONTENT_TYPES.SECTION_NAME:
+        return generateSectionNameLabel(element, elementType);
       default:
         log.warn(`[LabelTextGenerator] Unknown content type: ${contentType}, falling back to ID`);
         return generateIdLabel(element, elementType);
@@ -70,55 +72,54 @@ function generateNameLabel(element, elementType) {
 }
 
 /**
- * 断面名表示用のラベルテキストを生成
+ * 断面IDを返す（id_section属性値）
  * @param {Object} element - 要素データ
  * @param {string} elementType - 要素タイプ
- * @returns {string} 断面名ラベル
+ * @returns {string} 断面IDラベル
  */
-function generateSectionLabel(element, elementType) {
-  if (element.sectionData && element.sectionData.name) {
-    return element.sectionData.name;
-  }
+function generateSectionIdLabel(element, elementType) {
+  if (element.id_section) return String(element.id_section);
+  return element.id || `${elementType}_no_section`;
+}
 
+/**
+ * 断面のname属性を返す（sectionMapsからname属性を引く）
+ * @param {Object} element - 要素データ
+ * @param {string} elementType - 要素タイプ
+ * @returns {string} 断面nameラベル
+ */
+function generateSectionNameLabel(element, elementType) {
   const sectionMaps = getState('models.sectionMaps');
   if (sectionMaps && element.id_section) {
-    let sectionMap = null;
-
-    switch (elementType) {
-      case 'Column':
-        sectionMap = sectionMaps.columnSections;
-        break;
-      case 'Girder':
-        sectionMap = sectionMaps.girderSections || sectionMaps.beamSections;
-        break;
-      case 'Beam':
-        sectionMap = sectionMaps.beamSections;
-        break;
-      case 'Brace':
-        sectionMap = sectionMaps.braceSections;
-        break;
-      case 'IsolatingDevice':
-        sectionMap = sectionMaps.isolatingDeviceSections;
-        break;
-      case 'DampingDevice':
-        sectionMap = sectionMaps.dampingDeviceSections;
-        break;
-      case 'FrameDampingDevice':
-        sectionMap = sectionMaps.dampingDeviceSections;
-        break;
-    }
-
-    if (sectionMap && sectionMap.has && sectionMap.has(element.id_section)) {
-      const sectionInfo = sectionMap.get(element.id_section);
-      if (sectionInfo && sectionInfo.name) {
-        return sectionInfo.name;
-      }
+    const sectionKey = parseInt(element.id_section, 10);
+    const key = isNaN(sectionKey) ? element.id_section : sectionKey;
+    const sectionMap = _getSectionMap(sectionMaps, elementType);
+    if (sectionMap?.has?.(key)) {
+      const sectionInfo = sectionMap.get(key);
+      if (sectionInfo?.name) return sectionInfo.name;
     }
   }
 
-  if (element.id_section) {
-    return element.id_section;
-  }
-
+  if (element.id_section) return String(element.id_section);
   return element.id || `${elementType}_no_section`;
+}
+
+function _getSectionMap(sectionMaps, elementType) {
+  switch (elementType) {
+    case 'Column':
+      return sectionMaps.columnSections;
+    case 'Girder':
+      return sectionMaps.girderSections || sectionMaps.beamSections;
+    case 'Beam':
+      return sectionMaps.beamSections;
+    case 'Brace':
+      return sectionMaps.braceSections;
+    case 'IsolatingDevice':
+      return sectionMaps.isolatingDeviceSections;
+    case 'DampingDevice':
+    case 'FrameDampingDevice':
+      return sectionMaps.dampingDeviceSections;
+    default:
+      return null;
+  }
 }

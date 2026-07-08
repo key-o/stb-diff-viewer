@@ -129,6 +129,34 @@
   font-size: var(--font-size-sm);
 }
 
+/* 識別子（guid / id 等）専用入力（直接入力 ＋ 自動生成ボタン） */
+.identity-input-row {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.identity-input-row .parameter-text-input {
+  flex: 1 1 auto;
+}
+
+.parameter-editor-generate-btn {
+  flex: 0 0 auto;
+  padding: var(--spacing-sm) 12px;
+  border: 2px solid #007bff;
+  border-radius: var(--border-radius);
+  background: #007bff;
+  color: #fff;
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.parameter-editor-generate-btn:hover {
+  background: #0069d9;
+}
+
 /* 混合モード */
 .mixed-mode .dropdown-section,
 .mixed-mode .text-section {

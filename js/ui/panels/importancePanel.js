@@ -244,7 +244,7 @@ class ImportancePanel {
     const panelHTML = `
       <div id="importance-panel" class="floating-window importance-panel">
         <div class="float-window-header" id="importance-panel-header">
-          <span class="float-window-title">🏷️ バリデーション設定</span>
+          <span class="float-window-title">🏷️ 重要度設定</span>
           <div class="float-window-controls">
             <button class="float-window-btn" id="importance-panel-close">✕</button>
           </div>
@@ -311,7 +311,7 @@ class ImportancePanel {
                     <option value="${IMPORTANCE_LEVELS.REQUIRED}">対象</option>
                     <option value="${IMPORTANCE_LEVELS.NOT_APPLICABLE}">対象外</option>
                   </select>
-                  <button id="importance-bulk-apply" class="btn-small">適用</button>
+                  <button id="importance-bulk-apply" class="btn btn-sm btn-primary">適用</button>
                </div>
             </div>
 

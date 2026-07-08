@@ -133,6 +133,9 @@ export const DIFF_COLORS = {
   // 内容差分
   positionTolerance: COLORS.AMBER, // 位置許容差内、属性一致（イエロー/アンバー）
   attributeMismatch: COLORS.ORANGE, // 位置一致、属性不一致（オレンジ）
+  attributeMismatchInstance: COLORS.ORANGE, // インスタンス属性差
+  attributeMismatchType: COLORS.CYAN, // タイプ情報差（断面定義など）
+  attributeMismatchBoth: COLORS.PURPLE, // インスタンス属性差 + タイプ情報差
   combined: COLORS.PURPLE, // 位置許容差内 + 属性不一致（紫）
   // レガシー互換
   mismatch: COLORS.ORANGE, // 後方互換: attributeMismatchと同義
@@ -146,7 +149,7 @@ export const TOLERANCE_DIFF_COLORS = {
   exact: COLORS.GREEN, // 完全一致
   withinTolerance: COLORS.AMBER, // 許容差内
   mismatch: COLORS.ORANGE, // 不一致
-  onlyA: COLORS.GREEN, // モデルAのみ
+  onlyA: COLORS.BLUE, // モデルAのみ
   onlyB: COLORS.RED, // モデルBのみ
 };
 

@@ -211,7 +211,7 @@ export function createPreviewResultsHTML(affectedPaths, selectedTypes) {
   const strong = document.createElement('strong');
   strong.textContent = 'プレビュー結果:';
   summary.appendChild(strong);
-  summary.appendChild(document.createTextNode(` ${affectedPaths.length} 個の要素が変更されます`));
+  summary.appendChild(document.createTextNode(` ${affectedPaths.length}個の要素が変更されます`));
   fragment.appendChild(summary);
 
   const details = document.createElement('div');

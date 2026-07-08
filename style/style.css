@@ -33,19 +33,91 @@ body {
     color var(--transition-base);
 }
 
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
 #overlay {
   width: 300px; /* Fixed width for the control panel */
-  padding: 15px;
+  padding: 16px;
   box-sizing: border-box; /* Include padding in width calculation */
   height: 100%; /* Make panel take full height of the flex container (body) */
   overflow-y: auto; /* Add scrollbar if content exceeds height */
   background-color: var(--bg-panel); /* Light background for the panel */
   border-left: var(--border-width) solid var(--border-color); /* 左に境界線を追加 */
   flex-shrink: 0; /* Prevent panel from shrinking */
+  scrollbar-gutter: stable;
+  transition:
+    width var(--transition-base),
+    padding var(--transition-base);
+}
+
+/* 右パネル折り畳み状態: パネルを閉じてキャンバスを全幅に */
+body.overlay-collapsed #overlay {
+  width: 0;
+  min-width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-left-width: 0;
+  overflow: hidden;
+}
+
+#overlay::-webkit-scrollbar {
+  width: 10px;
+}
+
+#overlay::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#overlay::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--border-color) 75%, transparent);
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+}
+
+/* 右パネル折り畳みトグルボタン（画面右端に固定） */
+.overlay-toggle-btn {
+  position: fixed;
+  top: 50%;
+  right: 300px;
+  transform: translateY(-50%);
+  z-index: var(--z-floating, 100);
+  width: 22px;
+  height: 56px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  color: var(--text-white);
+  background-color: var(--color-primary);
+  border: none;
+  border-radius: var(--border-radius) 0 0 var(--border-radius);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition:
+    right var(--transition-base),
+    filter var(--transition-fast);
+}
+
+.overlay-toggle-btn:hover {
+  filter: brightness(1.1);
+}
+
+body.overlay-collapsed .overlay-toggle-btn {
+  right: 0;
+}
+
+body.overlay-collapsed .canvas-drop-hint {
+  left: 50%;
+  width: min(560px, calc(100vw - 48px));
 }
 
 #three-canvas {
-  flex-grow: 1; /* Allow canvas to take the remaining width */
+  flex: 1 1 0; /* Allow canvas to take the remaining viewport area */
   height: 100%; /* Make canvas take full height */
   display: block; /* Ensure canvas behaves correctly */
   /* デバッグ用: 明示的に幅を指定し、最小幅を0にすることでflexでの折り返し問題を回避 */
@@ -56,6 +128,126 @@ body {
   outline: 2px dashed rgba(255, 255, 255, 0.08);
   position: relative; /* キャンバス要素の絶対配置用 */
   overflow: hidden;
+}
+
+/* ドラッグ&ドロップ受け入れ中のキャンバスハイライト */
+#three-canvas.drag-over {
+  outline: 2px dashed var(--color-primary);
+  outline-offset: -6px;
+}
+
+/* モデル未読み込み時の空状態ヒント（ドロップ案内） */
+.canvas-drop-hint {
+  position: fixed;
+  top: 50%;
+  left: calc((100vw - var(--panel-width)) / 2);
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: min(560px, calc(100vw - var(--panel-width) - 48px));
+  max-width: calc(100vw - 48px);
+  padding: 30px 36px;
+  border: 1px dashed color-mix(in srgb, var(--color-primary) 35%, var(--border-color));
+  border-radius: var(--border-radius-lg);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-elevated) 94%, transparent), var(--bg-panel)),
+    var(--bg-panel);
+  box-shadow: var(--shadow-lg);
+  color: var(--text-secondary);
+  text-align: center;
+  pointer-events: none;
+  user-select: none;
+  z-index: var(--z-panel);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.canvas-drop-hint-icon {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--bg-elevated));
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--border-color-light));
+  font-size: 30px;
+  line-height: 1;
+}
+
+.canvas-drop-hint-main {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-heading);
+}
+
+.canvas-drop-hint-sub {
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  max-width: 480px;
+}
+
+.canvas-drop-hint-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: var(--font-size-xs);
+}
+
+.canvas-drop-hint-actions span {
+  padding: 4px 8px;
+  border: 1px solid var(--border-color-light);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg-elevated) 80%, var(--bg-secondary));
+  color: var(--text-secondary);
+}
+
+/* 中央のモデル読込ボタン（ファイルステージ後に表示） */
+.canvas-load-btn {
+  margin-top: 12px;
+  padding: 10px 24px;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-white);
+  background-color: var(--color-primary);
+  border: none;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  pointer-events: auto; /* 親ヒントの pointer-events:none を打ち消す */
+  transition:
+    background-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.canvas-load-btn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.canvas-load-btn.hidden {
+  display: none;
+}
+
+/* ドラッグ中はヒントを強調する */
+#three-canvas.drag-over ~ .canvas-drop-hint {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  box-shadow: var(--shadow-xl);
+  transform: translate(-50%, -50%) scale(1.01);
+}
+
+/* ファイル入力欄へのドラッグ中ハイライト */
+.file-input-wrapper.drag-over {
+  outline: 2px dashed var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--border-radius);
 }
 
 /* #legendPanel は panels.css で定義 */
@@ -243,10 +435,12 @@ label {
    ======================================== */
 
 /* サイドバー内のトグルボタン共通スタイル（ウィンドウを開くボタン） */
-#overlay > button[id^='toggle-'] {
-  display: block;
+#overlay .sidebar-group > button {
+  display: flex;
+  align-items: center;
   width: 100%;
-  padding: 12px var(--spacing-md);
+  min-height: 44px;
+  padding: 10px 12px;
   margin: 0;
   margin-bottom: var(--spacing-sm);
   background: var(--sidebar-btn-bg);
@@ -260,9 +454,30 @@ label {
   text-align: left;
 }
 
-#overlay > button[id^='toggle-']:hover {
+#overlay .sidebar-group > button:hover {
   background: var(--sidebar-btn-hover-bg);
   border-color: var(--color-primary-light);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+#overlay .sidebar-group > button[aria-expanded='true'] {
+  background: color-mix(in srgb, var(--color-primary) 12%, var(--sidebar-btn-bg));
+  border-color: var(--color-primary);
+  color: var(--text-heading);
+}
+
+/* サイドバーのボタングループ見出し */
+.sidebar-group {
+  margin-bottom: var(--spacing-md);
+}
+
+.sidebar-group-title {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+  margin: var(--spacing-md) 0 var(--spacing-sm) 2px;
+  user-select: none;
 }
 
 /* 一般的なボタン（フォールバック） */
@@ -330,6 +545,21 @@ canvas {
 #component-info h4 {
   margin-top: 1em;
   margin-bottom: 0.5em;
+}
+
+@media (max-width: 900px) {
+  .canvas-drop-hint {
+    width: min(560px, calc(100vw - 48px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }
 
 /* 色付けモード状況表示 */

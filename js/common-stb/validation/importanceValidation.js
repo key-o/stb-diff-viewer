@@ -10,6 +10,7 @@
 
 /* global XPathResult */
 
+import { STB_TAG_NAMES } from '../../constants/elementTypes.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('validation/importanceValidation');
@@ -240,14 +241,14 @@ export function validateElementPath(elementPath) {
 
     // 既知のSTB要素名かチェック
     const knownElements = [
-      'StbColumn',
-      'StbGirder',
-      'StbBeam',
-      'StbBrace',
-      'StbNode',
-      'StbSlab',
-      'StbWall',
-      'StbStory',
+      STB_TAG_NAMES.COLUMN,
+      STB_TAG_NAMES.GIRDER,
+      STB_TAG_NAMES.BEAM,
+      STB_TAG_NAMES.BRACE,
+      STB_TAG_NAMES.NODE,
+      STB_TAG_NAMES.SLAB,
+      STB_TAG_NAMES.WALL,
+      STB_TAG_NAMES.STORY,
       'StbAxis',
       'StbDrawingLineAxis',
       'StbDrawingArcAxis',

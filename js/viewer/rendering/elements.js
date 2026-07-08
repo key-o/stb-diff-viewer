@@ -348,7 +348,17 @@ function processMatchedLineItem(
     log.warn(`Skipping undefined item in matched for ${elementType}`);
     return { processed: false, skipped: false };
   }
-  const { dataA, dataB, importance, matchType, category, positionState, attributeState } = item;
+  const {
+    dataA,
+    dataB,
+    importance,
+    matchType,
+    category,
+    positionState,
+    attributeState,
+    diffStatus,
+    attributeMismatchKind,
+  } = item;
 
   // dataAまたはdataBがundefinedの場合はスキップ
   if (!dataA || !dataB) {
@@ -401,6 +411,7 @@ function processMatchedLineItem(
     false,
     idA,
     matchType,
+    { diffStatus, positionState, attributeState },
   );
   if (index < 3) {
     log.trace(`Material for matched item ${index}:`, material);
@@ -443,6 +454,8 @@ function processMatchedLineItem(
     category: category || matchType || 'exact',
     positionState: positionState || 'exact',
     attributeState: attributeState || 'matched',
+    diffStatus: diffStatus || undefined,
+    attributeMismatchKind: attributeMismatchKind || undefined,
     isLine: true,
     sectionId: getSectionIdFromElement(sourceElementA || sourceElementB) || undefined,
   };
@@ -610,6 +623,8 @@ function processPolyItem(
     category,
     positionState,
     attributeState,
+    diffStatus,
+    attributeMismatchKind,
   } = item;
   const points = [];
   let validPoints = true;
@@ -657,6 +672,7 @@ function processPolyItem(
       true,
       id,
       matchType,
+      { diffStatus, positionState, attributeState },
     );
   }
 
@@ -672,6 +688,8 @@ function processPolyItem(
     category: category || matchType || undefined,
     positionState: positionState || undefined,
     attributeState: attributeState || undefined,
+    diffStatus: diffStatus || undefined,
+    attributeMismatchKind: attributeMismatchKind || undefined,
     isPoly: true,
     sectionId: getSectionIdFromElement(sourceElement) || undefined,
   };
@@ -787,6 +805,8 @@ export function drawPolyElements(comparisonResult, group, labelToggle, modelBoun
       category: item.category,
       positionState: item.positionState,
       attributeState: item.attributeState,
+      diffStatus: item.diffStatus,
+      attributeMismatchKind: item.attributeMismatchKind,
     })),
     elementType,
     getMaterialForElementWithMode(
@@ -843,7 +863,17 @@ export function drawNodes(comparisonResult, group, labelToggle, modelBounds) {
       log.warn('Skipping undefined item in matched for Node');
       return;
     }
-    const { dataA, dataB, importance, matchType, category, positionState, attributeState } = item;
+    const {
+      dataA,
+      dataB,
+      importance,
+      matchType,
+      category,
+      positionState,
+      attributeState,
+      diffStatus,
+      attributeMismatchKind,
+    } = item;
     const coords = dataA.coords;
     const idA = dataA.id;
     const idB = dataB.id;
@@ -856,7 +886,11 @@ export function drawNodes(comparisonResult, group, labelToggle, modelBounds) {
       const pos = new THREE.Vector3(coords.x, coords.y, coords.z);
       const sphere = new THREE.Mesh(
         getSharedNodeSphereGeometry(),
-        getMaterialForElementWithMode('Node', 'matched', false, false, idA, matchType),
+        getMaterialForElementWithMode('Node', 'matched', false, false, idA, matchType, {
+          diffStatus,
+          positionState,
+          attributeState,
+        }),
       );
       sphere.position.copy(pos);
       sphere.userData = {
@@ -869,6 +903,8 @@ export function drawNodes(comparisonResult, group, labelToggle, modelBounds) {
         category: category || matchType || 'exact',
         positionState: positionState || 'exact',
         attributeState: attributeState || 'matched',
+        diffStatus: diffStatus || undefined,
+        attributeMismatchKind: attributeMismatchKind || undefined,
       };
 
       // 重要度による視覚調整を適用

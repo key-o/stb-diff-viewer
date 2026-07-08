@@ -13,6 +13,8 @@
  *   許容差ルートでも正しく判定される。
  */
 
+export { compareGeometryCenterDirection as compareGeometryCenterDirectionWithTolerance } from './geometrySignature.js';
+
 /**
  * 座標 + オフセットを加算する（null セーフ）
  * @param {{x: number, y: number, z: number}} coords
@@ -80,6 +82,13 @@ export function compareCoordinatesWithTolerance(coords1, coords2, tolerance) {
  * @returns {{match: boolean, type: string, differences: Object}}
  */
 export function compareElementDataWithTolerance(dataA, dataB, toleranceConfig) {
+  // 識別子ベース要素（Story/Axis/Joint等、座標を持たない）の比較。
+  // この関数はキー一致後の再検証として呼ばれるため、座標データを持たない要素は
+  // 幾何比較の対象外とし、キー一致のみで完全一致とみなす。
+  if (!dataA.coords && !dataA.startCoords && !dataA.vertexCoordsList) {
+    return { match: true, type: 'exact', differences: {} };
+  }
+
   // StbNode（基準点）の比較
   if (dataA.coords && dataB.coords) {
     return compareCoordinatesWithTolerance(dataA.coords, dataB.coords, toleranceConfig.basePoint);
@@ -223,68 +232,8 @@ export function compareElementDataWithTolerance(dataA, dataB, toleranceConfig) {
 }
 
 // ============================================
-// 配置要素オフセット・回転角比較
+// 配置要素回転角比較
 // ============================================
-
-/**
- * 2つのオフセット値が許容差内で一致するかチェック
- * @param {{x?: number, y?: number, z?: number}} offset1 - オフセット値1
- * @param {{x?: number, y?: number, z?: number}} offset2 - オフセット値2
- * @param {{x?: number, y?: number, z?: number}} tolerance - 許容差（offset設定）
- * @returns {{match: boolean, type: string, differences: {x: number, y: number, z: number}}}
- */
-export function compareOffsetsWithTolerance(offset1, offset2, tolerance = {}) {
-  const o1 = {
-    x: offset1?.x || 0,
-    y: offset1?.y || 0,
-    z: offset1?.z || 0,
-  };
-  const o2 = {
-    x: offset2?.x || 0,
-    y: offset2?.y || 0,
-    z: offset2?.z || 0,
-  };
-  const tol = {
-    x: tolerance?.x || 0,
-    y: tolerance?.y || 0,
-    z: tolerance?.z || 0,
-  };
-
-  // 差分を計算
-  const diff = {
-    x: Math.abs(o1.x - o2.x),
-    y: Math.abs(o1.y - o2.y),
-    z: Math.abs(o1.z - o2.z),
-  };
-
-  // 完全一致チェック
-  const isExactMatch = diff.x === 0 && diff.y === 0 && diff.z === 0;
-  if (isExactMatch) {
-    return {
-      match: true,
-      type: 'exact',
-      differences: diff,
-    };
-  }
-
-  // 許容差内チェック
-  const withinTolerance = diff.x <= tol.x && diff.y <= tol.y && diff.z <= tol.z;
-
-  if (withinTolerance) {
-    return {
-      match: true,
-      type: 'withinTolerance',
-      differences: diff,
-    };
-  }
-
-  // 不一致
-  return {
-    match: false,
-    type: 'mismatch',
-    differences: diff,
-  };
-}
 
 /**
  * 2つの回転角が許容差内で一致するかチェック（360度ラップ考慮）

@@ -46,7 +46,7 @@ export function updateStorySelector() {
   stories.forEach((story) => {
     const option = document.createElement('option');
     option.value = story.id;
-    option.textContent = `${story.name} (高さ: ${story.height}mm)`;
+    option.textContent = `${story.name} (高さ: ${story.height} mm)`;
     storySelector.appendChild(option);
   });
 
@@ -134,12 +134,12 @@ function updateYAxisSelector(yAxes) {
 
 function getAxisOptionText(axis, axisType) {
   if (axis.axisKind === 'arc') {
-    return `${axis.name} (R: ${axis.radius}mm)`;
+    return `${axis.name} (R: ${axis.radius} mm)`;
   }
   if (axis.axisKind === 'radial') {
-    return `${axis.name} (${axis.angle}deg)`;
+    return `${axis.name} (${axis.angle}°)`;
   }
-  return `${axis.name} (${axisType}: ${axis.distance}mm)`;
+  return `${axis.name} (${axisType}: ${axis.distance} mm)`;
 }
 
 /**

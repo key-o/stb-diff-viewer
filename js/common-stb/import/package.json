@@ -1,0 +1,9 @@
+{
+  "name": "stb-import-kernel",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "ST-Bridge (STB) import kernel - application-independent STB XML loading/parsing/extraction shared by StbDiffViewer and MatrixCalc",
+  "main": "index.js",
+  "private": true,
+  "license": "MIT"
+}

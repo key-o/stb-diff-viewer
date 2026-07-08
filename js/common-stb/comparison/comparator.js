@@ -63,6 +63,14 @@ const STB_NAMESPACE = 'https://www.building-smart.or.jp/dl'; // ST-Bridge 名前
 const basicStrategy = new BasicStrategy();
 const toleranceStrategy = new ToleranceStrategy();
 
+function isGeometryCenterDirectionKeyType(keyType) {
+  return keyType === COMPARISON_KEY_TYPE.GEOMETRY_CENTER_DIRECTION_BASED;
+}
+
+function appendSectionSignature(baseKey, sectionSignature) {
+  return baseKey && sectionSignature ? `${baseKey}|sec:${sectionSignature}` : baseKey;
+}
+
 // --- 要素比較ロジック ---
 /**
  * 2つの要素リスト（モデルAとB）を比較し、一致、Aのみ、Bのみの要素を分類する。
@@ -94,7 +102,7 @@ export function compareElements(
  * @param {Map<string, {x: number, y: number, z: number}>} nodeMap - 対応するノードマップ。
  * @param {string} idStartAttr - 始点ノードIDの属性名。
  * @param {string} idEndAttr - 終点ノードIDの属性名。
- * @param {string} [keyType] - 比較キータイプ（省略時はPOSITION_BASED）
+ * @param {string} [keyType] - 比較キータイプ（省略時はPOSITION_NODE_ONLY）
  * @param {Object} [options={}] - オプション
  * @param {function} [options.sectionSignatureResolver] - 断面シグネチャ解決関数
  * @param {Map} [options.storyAxisLookup] - 所属階・通芯ルックアップ（STORY_AXIS_BASEDモード用）
@@ -105,7 +113,7 @@ export function lineElementKeyExtractor(
   nodeMap,
   idStartAttr,
   idEndAttr,
-  keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+  keyType = COMPARISON_KEY_TYPE.POSITION_NODE_ONLY,
   options = {},
 ) {
   let startId = getAttr(element, idStartAttr);
@@ -204,14 +212,17 @@ export function lineElementKeyExtractor(
       const startSaKey = getNodeStoryAxisKey(startId, options.storyAxisLookup);
       const endSaKey = getNodeStoryAxisKey(endId, options.storyAxisLookup);
       baseKey = startSaKey && endSaKey ? [startSaKey, endSaKey].sort().join('|') : null;
+    } else if (isGeometryCenterDirectionKeyType(keyType)) {
+      baseKey = 'geometry:line';
     } else {
       baseKey = getElementKey(element, keyType, () => getLineElementKey(startCoords, endCoords));
     }
     const sectionSignature =
+      !isGeometryCenterDirectionKeyType(keyType) &&
       typeof options.sectionSignatureResolver === 'function'
         ? options.sectionSignatureResolver(element)
         : null;
-    const key = baseKey && sectionSignature ? `${baseKey}|sec:${sectionSignature}` : baseKey;
+    const key = appendSectionSignature(baseKey, sectionSignature);
 
     return {
       key,
@@ -221,6 +232,8 @@ export function lineElementKeyExtractor(
         id: elementId,
         name: name || undefined,
         guid: guid || undefined,
+        // 許容差フォールバックで断面キー部の一致を検証するために保持
+        sectionSignature: sectionSignature ?? undefined,
         element: elementData,
         rawElement: element,
       },
@@ -230,12 +243,47 @@ export function lineElementKeyExtractor(
   return { key: null, data: null };
 }
 
+/**
+ * ポリゴン要素から頂点ノードIDリストを抽出する。
+ * ST-Bridge 2.x のテキスト形式（<StbNodeIdOrder>1 2 3 4</StbNodeIdOrder>）と
+ * JSオブジェクト形式（element.node_ids 配列）の両方をサポートする。
+ * 解決順: ①NS付きDOM検索 → ②非NS DOM検索（ST-Bridge 1.x / モック用）→ ③node_ids 配列。
+ * 頂点数の下限（ポリゴンとして>=3）の検証は呼び出し側が行う。
+ * @param {Element|Object} element - ポリゴン要素（XML DOMまたはJSオブジェクト）。
+ * @param {string} nodeOrderTag - 頂点ノードIDリストが含まれるタグ名。
+ * @returns {Array<string>|null} ノードID文字列の配列、取得できない場合はnull。
+ */
+function extractPolygonNodeIds(element, nodeOrderTag) {
+  if (!element) return null;
+
+  let orderElem = null;
+  if (typeof element.getElementsByTagNameNS === 'function') {
+    orderElem = element.getElementsByTagNameNS(STB_NAMESPACE, nodeOrderTag)[0] || null;
+  }
+  if (!orderElem && typeof element.getElementsByTagName === 'function') {
+    orderElem = element.getElementsByTagName(nodeOrderTag)[0] || null;
+  }
+  if (orderElem && typeof orderElem.textContent === 'string') {
+    const text = orderElem.textContent.trim();
+    if (text) {
+      return text.split(/\s+/);
+    }
+  }
+
+  // JSオブジェクト形式
+  if (Array.isArray(element.node_ids) && element.node_ids.length > 0) {
+    return element.node_ids.map(String);
+  }
+
+  return null;
+}
+
 /*
  * ポリゴン要素（スラブ、壁など）から比較キーと関連データ（頂点座標リスト、要素ID）を抽出する。
  * @param {Element} element - ポリゴン要素のXML要素。
  * @param {Map<string, {x: number, y: number, z: number}>} nodeMap - 対応するノードマップ。
  * @param {string} [nodeOrderTag="StbNodeIdOrder"] - 頂点ノードIDリストが含まれるタグ名。
- * @param {string} [keyType] - 比較キータイプ（省略時はPOSITION_BASED）
+ * @param {string} [keyType] - 比較キータイプ（省略時はPOSITION_NODE_ONLY）
  * @param {Object} [options={}] - オプション
  * @param {function} [options.sectionSignatureResolver] - 断面シグネチャ解決関数
  * @param {Map} [options.storyAxisLookup] - 所属階・通芯ルックアップ（STORY_AXIS_BASEDモード用）
@@ -245,21 +293,12 @@ export function polyElementKeyExtractor(
   element,
   nodeMap,
   nodeOrderTag = 'StbNodeIdOrder',
-  keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+  keyType = COMPARISON_KEY_TYPE.POSITION_NODE_ONLY,
   options = {},
 ) {
   const elementId = getAttr(element, 'id');
 
-  // ノードID取得: XML DOM (getElementsByTagNameNS) または JSオブジェクト (node_ids)
-  let nodeIds = null;
-  if (typeof element.getElementsByTagNameNS === 'function') {
-    const orderElem = element.getElementsByTagNameNS(STB_NAMESPACE, nodeOrderTag)[0];
-    if (orderElem && orderElem.textContent) {
-      nodeIds = orderElem.textContent.trim().split(/\s+/);
-    }
-  } else if (element.node_ids && Array.isArray(element.node_ids)) {
-    nodeIds = element.node_ids;
-  }
+  const nodeIds = extractPolygonNodeIds(element, nodeOrderTag);
 
   if (nodeIds) {
     const vertexCoordsList = nodeIds
@@ -277,14 +316,17 @@ export function polyElementKeyExtractor(
           getNodeStoryAxisKey(String(id), options.storyAxisLookup),
         );
         baseKey = vertexSaKeys.every((k) => k !== null) ? vertexSaKeys.sort().join(',') : null;
+      } else if (isGeometryCenterDirectionKeyType(keyType)) {
+        baseKey = 'geometry:polygon';
       } else {
         baseKey = getElementKey(element, keyType, () => getPolyElementKey(vertexCoordsList));
       }
       const sectionSignature =
+        !isGeometryCenterDirectionKeyType(keyType) &&
         typeof options.sectionSignatureResolver === 'function'
           ? options.sectionSignatureResolver(element)
           : null;
-      const key = baseKey && sectionSignature ? `${baseKey}|sec:${sectionSignature}` : baseKey;
+      const key = appendSectionSignature(baseKey, sectionSignature);
 
       return {
         key,
@@ -293,6 +335,8 @@ export function polyElementKeyExtractor(
           id: elementId,
           name: name || undefined,
           guid: guid || undefined,
+          // 許容差フォールバックで断面キー部の一致を検証するために保持
+          sectionSignature: sectionSignature ?? undefined,
           element,
           rawElement: element,
         },
@@ -312,7 +356,7 @@ export function polyElementKeyExtractor(
  * 節点要素から比較キーと関連データ（座標、ノードID）を抽出する。
  * @param {Element} element - 節点要素のXML要素 (StbNode)。
  * @param {Map<string, {x: number, y: number, z: number}>} nodeMap - 対応するノードマップ。
- * @param {string} [keyType] - 比較キータイプ（省略時はPOSITION_BASED）
+ * @param {string} [keyType] - 比較キータイプ（省略時はPOSITION_NODE_ONLY）
  * @param {Object} [options={}] - オプション
  * @param {Map} [options.storyAxisLookup] - 所属階・通芯ルックアップ（STORY_AXIS_BASEDモード用）
  * @returns {{key: string|null, data: {coords: object, id: string}|null}} キーとデータのオブジェクト。
@@ -320,7 +364,7 @@ export function polyElementKeyExtractor(
 export function nodeElementKeyExtractor(
   element,
   nodeMap,
-  keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+  keyType = COMPARISON_KEY_TYPE.POSITION_NODE_ONLY,
   options = {},
 ) {
   const nodeId = getAttr(element, 'id');
@@ -662,7 +706,7 @@ export function compareElementsWithTolerance(
   nodeMapB,
   keyExtractor,
   toleranceConfig = null,
-  keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+  keyType = COMPARISON_KEY_TYPE.POSITION_NODE_ONLY,
   strategyOptions = {},
 ) {
   // ToleranceStrategyに委譲
@@ -695,7 +739,7 @@ export function lineElementKeyExtractorV2(
   idStartAttr,
   idEndAttr,
   placementMode,
-  keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+  keyType = COMPARISON_KEY_TYPE.POSITION_NODE_ONLY,
   options = {},
 ) {
   // Mode 1（NODE_POSITION_ONLY）またはモード未設定はMode 1の関数に委譲（後方互換）
@@ -777,17 +821,26 @@ export function lineElementKeyExtractorV2(
   }
 
   if (startCoords && endCoords) {
-    let key = null;
+    let baseKey = null;
 
-    if (placementMode === PLACEMENT_COMPARISON_MODE.NODE_POSITION_WITH_OFFSET) {
-      key = getLineElementKeyMode2(startCoords, startOffset, endCoords, endOffset);
+    if (isGeometryCenterDirectionKeyType(keyType)) {
+      baseKey = 'geometry:line';
+    } else if (placementMode === PLACEMENT_COMPARISON_MODE.NODE_POSITION_WITH_OFFSET) {
+      baseKey = getLineElementKeyMode2(startCoords, startOffset, endCoords, endOffset);
     } else if (placementMode === PLACEMENT_COMPARISON_MODE.PLACEMENT_POSITION_COMPLETE) {
-      key = getLineElementKeyMode3(startCoords, startOffset, endCoords, endOffset, rotate);
+      baseKey = getLineElementKeyMode3(startCoords, startOffset, endCoords, endOffset, rotate);
     }
 
-    if (key !== null) {
+    if (baseKey !== null) {
+      // Mode 1 と同様に断面シグネチャをキーへ付加する（断面一致基準をオフセット/回転モードでも尊重）
+      const sectionSignature =
+        !isGeometryCenterDirectionKeyType(keyType) &&
+        typeof options.sectionSignatureResolver === 'function'
+          ? options.sectionSignatureResolver(element)
+          : null;
+
       return {
-        key,
+        key: appendSectionSignature(baseKey, sectionSignature),
         data: {
           startCoords,
           endCoords,
@@ -795,6 +848,8 @@ export function lineElementKeyExtractorV2(
           endOffset,
           rotate,
           id: elementId,
+          // 許容差フォールバックで断面キー部の一致を検証するために保持
+          sectionSignature: sectionSignature ?? undefined,
           element,
           rawElement: element,
         },
@@ -860,7 +915,7 @@ export function polyElementKeyExtractorV2(
   nodeMap,
   nodeOrderTag,
   placementMode,
-  keyType = COMPARISON_KEY_TYPE.POSITION_BASED,
+  keyType = COMPARISON_KEY_TYPE.POSITION_NODE_ONLY,
   options = {},
 ) {
   // Mode 1（NODE_POSITION_ONLY）またはモード未設定はMode 1の関数に委譲（後方互換）
@@ -876,13 +931,9 @@ export function polyElementKeyExtractorV2(
   const name = getAttr(element, 'name');
   const guid = getAttr(element, 'guid');
 
-  // ノード順序タグからノードIDリストを取得
-  const nodeOrderElems = element.getElementsByTagName(nodeOrderTag);
-  if (nodeOrderElems.length > 0) {
-    const nodeIds = Array.from(nodeOrderElems[0].children)
-      .map((child) => getAttr(child, 'ref'))
-      .filter((id) => id);
-
+  // ノード順序タグからノードIDリストを取得（Mode 1と同一の抽出ロジック）
+  const nodeIds = extractPolygonNodeIds(element, nodeOrderTag);
+  if (nodeIds) {
     // 節点ごとオフセット (StbSlabOffsetList / StbWallOffsetList)
     const offsetByNode = extractPerVertexOffsetMap(element);
 
@@ -890,21 +941,29 @@ export function polyElementKeyExtractorV2(
     const thickness = getAttr(element, 'thickness') || 0;
 
     // 各頂点座標を取得
-    const vertexCoordsList = nodeIds.map((nodeId) => nodeMap.get(nodeId)).filter((c) => c);
+    const vertexCoordsList = nodeIds.map((nodeId) => nodeMap.get(String(nodeId))).filter((c) => c);
 
-    if (vertexCoordsList.length === nodeIds.length && vertexCoordsList.length > 0) {
+    if (vertexCoordsList.length === nodeIds.length && vertexCoordsList.length >= 3) {
       const perVertexOffsets = nodeIds.map((nodeId) => offsetByNode.get(String(nodeId)) || null);
-
-      let key = null;
-      if (placementMode === PLACEMENT_COMPARISON_MODE.NODE_POSITION_WITH_OFFSET) {
-        key = getPolyElementKeyPerVertexMode2(vertexCoordsList, perVertexOffsets);
+      let baseKey = null;
+      if (isGeometryCenterDirectionKeyType(keyType)) {
+        baseKey = 'geometry:polygon';
+      } else if (placementMode === PLACEMENT_COMPARISON_MODE.NODE_POSITION_WITH_OFFSET) {
+        baseKey = getPolyElementKeyPerVertexMode2(vertexCoordsList, perVertexOffsets);
       } else if (placementMode === PLACEMENT_COMPARISON_MODE.PLACEMENT_POSITION_COMPLETE) {
-        key = getPolyElementKeyPerVertexMode3(vertexCoordsList, perVertexOffsets, thickness);
+        baseKey = getPolyElementKeyPerVertexMode3(vertexCoordsList, perVertexOffsets, thickness);
       }
 
-      if (key !== null) {
+      if (baseKey !== null) {
+        // Mode 1 と同様に断面シグネチャをキーへ付加する（断面一致基準をオフセット/回転モードでも尊重）
+        const sectionSignature =
+          !isGeometryCenterDirectionKeyType(keyType) &&
+          typeof options.sectionSignatureResolver === 'function'
+            ? options.sectionSignatureResolver(element)
+            : null;
+
         return {
-          key,
+          key: appendSectionSignature(baseKey, sectionSignature),
           data: {
             vertexCoordsList,
             perVertexOffsets,
@@ -912,6 +971,8 @@ export function polyElementKeyExtractorV2(
             id: elementId,
             name: name || undefined,
             guid: guid || undefined,
+            // 許容差フォールバックで断面キー部の一致を検証するために保持
+            sectionSignature: sectionSignature ?? undefined,
             element,
             rawElement: element,
           },

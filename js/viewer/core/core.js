@@ -30,19 +30,18 @@ let CameraControlsPromise = null;
 if (typeof window !== 'undefined') {
   // Start loading CameraControls asynchronously and keep the promise so
   // initRenderer can wait for it before instantiating controls.
-  CameraControlsPromise =
-    import('https://unpkg.com/camera-controls@3.1.0/dist/camera-controls.module.js')
-      .then((mod) => {
-        CameraControls = mod.default || mod;
-        // install THREE reference into CameraControls (some distributions require this)
-        if (CameraControls && typeof CameraControls.install === 'function') {
-          CameraControls.install({ THREE });
-        }
-      })
-      .catch((err) => {
-        log.warn('CameraControls の読み込みに失敗しました:', err);
-        CameraControls = null;
-      });
+  CameraControlsPromise = import('camera-controls')
+    .then((mod) => {
+      CameraControls = mod.default || mod;
+      // install THREE reference into CameraControls (some distributions require this)
+      if (CameraControls && typeof CameraControls.install === 'function') {
+        CameraControls.install({ THREE });
+      }
+    })
+    .catch((err) => {
+      log.warn('CameraControls の読み込みに失敗しました:', err);
+      CameraControls = null;
+    });
 }
 
 // --- 定数 ---
@@ -63,6 +62,7 @@ let renderRequested = true;
 // 複数のカメラ（Perspective/Orthographic）を切り替え可能にする
 // デフォルトはPerspectiveCamera（3Dモード）
 export let activeCamera = null; // 初期化後にcameraを代入
+let viewportResizeObserver = null;
 
 if (typeof window !== 'undefined') {
   // ブラウザ環境での初期化
@@ -151,6 +151,23 @@ export function requestRender() {
   renderRequested = true;
 }
 
+/**
+ * キャンバスのCSS表示サイズを取得する。
+ * WebGLの描画バッファサイズは、windowではなく実際に表示されるcanvasサイズへ同期する。
+ * @param {HTMLCanvasElement} canvas
+ * @returns {{width: number, height: number}}
+ */
+export function getCanvasDisplaySize(canvas) {
+  const rect = canvas.getBoundingClientRect?.();
+  const width = canvas.clientWidth || rect?.width || window.innerWidth || 1;
+  const height = canvas.clientHeight || rect?.height || window.innerHeight || 1;
+
+  return {
+    width: Math.max(1, Math.round(width)),
+    height: Math.max(1, Math.round(height)),
+  };
+}
+
 // --- ライト設定 ---
 const light = new THREE.DirectionalLight(0xffffff, 1);
 light.position.set(1, 1, 1).normalize();
@@ -201,8 +218,10 @@ export async function initRenderer() {
     } catch (e) {
       log.warn('WebGL context check failed:', e);
     }
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    canvas.style.width = '';
+    canvas.style.height = '';
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    updateViewportSize();
     renderer.localClippingEnabled = true;
     // WebXR対応: xr.enabledをtrueにしても通常モードには影響なし
     renderer.xr.enabled = true;
@@ -394,39 +413,54 @@ let _clock = new THREE.Clock();
 
 // --- ウィンドウリサイズ処理 ---
 /**
+ * ビューポートサイズをウィンドウに合わせて更新
+ * カメラのアスペクト比とレンダラーサイズを再計算する
+ */
+export function updateViewportSize() {
+  if (!renderer) return;
+
+  const canvas = renderer.domElement;
+  const { width: w, height: h } = getCanvasDisplaySize(canvas);
+  const aspect = w / h;
+
+  // PerspectiveCamera の更新
+  if (camera && camera.aspect !== undefined) {
+    camera.aspect = aspect;
+    camera.updateProjectionMatrix();
+  }
+
+  // OrthographicCamera の更新（frustumサイズを維持してアスペクト比を調整）
+  if (orthographicCamera) {
+    const frustumSize = orthographicCamera.top * 2; // 現在のfrustumサイズを取得
+    orthographicCamera.left = (-frustumSize * aspect) / 2;
+    orthographicCamera.right = (frustumSize * aspect) / 2;
+    orthographicCamera.top = frustumSize / 2;
+    orthographicCamera.bottom = -frustumSize / 2;
+    orthographicCamera.updateProjectionMatrix();
+  }
+
+  renderer.setSize(w, h, false);
+  requestRender();
+}
+
+/**
  * ビューポートリサイズハンドラーを設定
  * PerspectiveCameraとOrthographicCameraの両方に対応
  * @param {THREE.Camera} _defaultCamera - デフォルトカメラ（後方互換性のため）
  */
 export function setupViewportResizeHandler(_defaultCamera) {
-  window.addEventListener(
-    'resize',
-    () => {
-      if (!renderer) return;
+  const syncViewport = () => {
+    // XRプレゼンテーション中はサイズ変更不可（セッション終了時に再同期する）
+    if (_xrSessionActive || renderer?.xr?.isPresenting) return;
+    updateViewportSize();
+  };
 
-      const aspect = window.innerWidth / window.innerHeight;
+  window.addEventListener('resize', () => requestAnimationFrame(syncViewport), false);
 
-      // PerspectiveCamera の更新
-      if (camera && camera.aspect !== undefined) {
-        camera.aspect = aspect;
-        camera.updateProjectionMatrix();
-      }
-
-      // OrthographicCamera の更新（frustumサイズを維持してアスペクト比を調整）
-      if (orthographicCamera) {
-        const frustumSize = orthographicCamera.top * 2; // 現在のfrustumサイズを取得
-        orthographicCamera.left = (-frustumSize * aspect) / 2;
-        orthographicCamera.right = (frustumSize * aspect) / 2;
-        orthographicCamera.top = frustumSize / 2;
-        orthographicCamera.bottom = -frustumSize / 2;
-        orthographicCamera.updateProjectionMatrix();
-      }
-
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      requestRender();
-    },
-    false,
-  );
+  if (typeof ResizeObserver !== 'undefined' && renderer?.domElement && !viewportResizeObserver) {
+    viewportResizeObserver = new ResizeObserver(() => requestAnimationFrame(syncViewport));
+    viewportResizeObserver.observe(renderer.domElement);
+  }
 }
 
 // --- Lights ---

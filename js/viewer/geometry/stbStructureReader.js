@@ -44,8 +44,11 @@ import {
   applyJointArrangementsToElements, // 継手IDを部材に適用
   extractStripFootingElements, // 布基礎要素の抽出
 } from '../../common-stb/import/parser/stbXmlParser.js';
-import { extractAllSections } from '../../common-stb/import/extractor/sectionExtractor.js';
-import { resolveGeometryProfileTypeInPlace } from '../../common-stb/section/sectionTypeUtil.js';
+import {
+  extractAllSections,
+  refreshSectionsForElementType,
+} from '../../common-stb/import/extractor/sectionExtractor.js';
+import { resolveGeometryProfileTypeInPlace } from '../../common-stb/import/section/sectionTypeUtil.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('viewer:geometry:stbStructureReader');
@@ -95,6 +98,143 @@ export function clearParseCache(modelKey) {
   } else {
     parseCache.clear();
   }
+}
+
+// ============================================
+// 編集反映用インプレース更新API
+// 全再パース（大規模モデルで秒単位）を避け、キャッシュ済みパース結果へ
+// 編集内容を直接反映する。Map/配列は参照を保ったまま中身を更新するため、
+// 同じ参照を持つ globalState・modelContext にも自動的に反映される。
+// ============================================
+
+/** @type {Object.<string, {arrayKey: string, extract: function(Document): Array}>} */
+const ELEMENT_REFRESH_CONFIG = {
+  Column: { arrayKey: 'columnElements', extract: extractColumnElements },
+  Post: { arrayKey: 'postElements', extract: extractPostElements },
+  Girder: { arrayKey: 'girderElements', extract: extractGirderElements },
+  Beam: { arrayKey: 'beamElements', extract: extractBeamElements },
+  Brace: { arrayKey: 'braceElements', extract: extractBraceElements },
+  IsolatingDevice: { arrayKey: 'isolatingDeviceElements', extract: extractIsolatingDeviceElements },
+  DampingDevice: { arrayKey: 'dampingDeviceElements', extract: extractDampingDeviceElements },
+  FrameDampingDevice: {
+    arrayKey: 'frameDampingDeviceElements',
+    extract: extractFrameDampingDeviceElements,
+  },
+  Pile: { arrayKey: 'pileElements', extract: extractPileElements },
+  Footing: { arrayKey: 'footingElements', extract: extractFootingElements },
+  FoundationColumn: {
+    arrayKey: 'foundationColumnElements',
+    extract: extractFoundationColumnElements,
+  },
+  Slab: { arrayKey: 'slabElements', extract: extractSlabElements },
+  Wall: { arrayKey: 'wallElements', extract: extractWallElements },
+  Parapet: { arrayKey: 'parapetElements', extract: extractParapetElements },
+  StripFooting: { arrayKey: 'stripFootingElements', extract: extractStripFootingElements },
+  Open: { arrayKey: 'openingElements', extract: extractOpeningElements },
+  Joint: { arrayKey: 'jointElements', extract: extractJointElements },
+};
+
+/**
+ * キャッシュ済みパース結果の節点座標を更新する。
+ * buildNodeMap の再実行（大規模モデルで2秒超）を避けるための差分更新。
+ * @param {string} modelKey - 'A' または 'B'
+ * @param {string} nodeId - 節点ID
+ * @param {{x: number, y: number, z: number}} coords - 新しい座標
+ * @returns {boolean} 更新できた場合 true（キャッシュ未生成なら false）
+ */
+export function updateCachedNodeCoordinate(modelKey, nodeId, coords) {
+  const cached = parseCache.get(modelKey);
+  if (!cached || !coords) return false;
+
+  const id = String(nodeId);
+  const { x, y, z } = coords;
+
+  const vec = cached.nodes.get(id);
+  if (vec) {
+    vec.set(x, y, z);
+  } else {
+    cached.nodes.set(id, new THREE.Vector3(x, y, z));
+  }
+
+  if (cached.nodeMapRaw) {
+    const raw = cached.nodeMapRaw.get(id);
+    if (raw) {
+      raw.x = x;
+      raw.y = y;
+      raw.z = z;
+    } else {
+      cached.nodeMapRaw.set(id, { x, y, z });
+    }
+  }
+  return true;
+}
+
+/**
+ * キャッシュ済み節点を削除する（新規節点追加の Undo 用）。
+ * @param {string} modelKey - 'A' または 'B'
+ * @param {string} nodeId - 節点ID
+ * @returns {boolean} 削除できた場合 true（キャッシュ未生成なら false）
+ */
+export function removeCachedNode(modelKey, nodeId) {
+  const cached = parseCache.get(modelKey);
+  if (!cached) return false;
+
+  const id = String(nodeId);
+  cached.nodes?.delete(id);
+  cached.nodeMapRaw?.delete(id);
+  return true;
+}
+
+/**
+ * 指定要素タイプの要素配列をXMLから再抽出し、キャッシュ済み配列へインプレース反映する。
+ * 既存要素はidでマージ（オブジェクト参照と継手ID等の付加情報を維持）、追加・削除も反映する。
+ * @param {string} modelKey - 'A' または 'B'
+ * @param {Document} xmlDoc - 編集済みのXMLドキュメント
+ * @param {string} elementType - 要素タイプ（'Column' 等、ELEMENT_REFRESH_CONFIG のキー）
+ * @returns {boolean} 更新できた場合 true
+ */
+export function refreshCachedElementsForType(modelKey, xmlDoc, elementType) {
+  const cached = parseCache.get(modelKey);
+  if (!cached || !xmlDoc) return false;
+
+  const config = ELEMENT_REFRESH_CONFIG[elementType];
+  if (!config) {
+    log.warn(`[Edit] 要素再抽出: 未対応タイプ ${elementType}`);
+    return false;
+  }
+  const cachedArray = cached[config.arrayKey];
+  if (!Array.isArray(cachedArray)) return false;
+
+  const freshElements = config.extract(xmlDoc);
+  const cachedById = new Map(cachedArray.map((el) => [String(el.id), el]));
+  const merged = freshElements.map((freshEl) => {
+    const existing = cachedById.get(String(freshEl.id));
+    return existing ? Object.assign(existing, freshEl) : freshEl;
+  });
+  cachedArray.length = 0;
+  cachedArray.push(...merged);
+  return true;
+}
+
+/**
+ * 指定要素タイプの断面Mapを再抽出し、キャッシュへインプレース反映する。
+ * 鋼材寸法の付加（enrich）も再適用する。
+ * @param {string} modelKey - 'A' または 'B'
+ * @param {Document} xmlDoc - 編集済みのXMLドキュメント
+ * @param {string} elementType - 要素タイプ（'Column' 等、SECTION_CONFIG のキー）
+ * @returns {boolean} 更新できた場合 true
+ */
+export function refreshCachedSectionsForType(modelKey, xmlDoc, elementType) {
+  if (!xmlDoc) return false;
+
+  const refreshedMap = refreshSectionsForElementType(xmlDoc, elementType);
+  if (!refreshedMap) return false;
+
+  const cached = parseCache.get(modelKey);
+  if (cached?.steelSections) {
+    enrichSectionMapWithSteelDimensions(refreshedMap, cached.steelSections);
+  }
+  return true;
 }
 
 /**
@@ -457,34 +597,38 @@ function enrichSectionMapsWithSteelDimensions(sectionMaps, steelSections) {
     sectionMaps.wallSections,
   ];
   for (const m of maps) {
-    if (!m) continue;
-    for (const section of m.values()) {
-      if (!section || !section.shapeName) continue;
-      const steel = steelSections.get(section.shapeName);
-      if (!steel) continue;
-      section.steelShape = steel;
-      if (!section.id_steel && steel && steel.name) {
-        section.id_steel = steel.name;
-      }
-      // 断面タイプを正確に決定（steelのタグ/パラメータを常に優先）
-      // 1) elementTagから決定
-      let typeBySteel = classifySteelElementTag(steel.elementTag);
+    enrichSectionMapWithSteelDimensions(m, steelSections);
+  }
+}
 
-      // 2) elementTagで決まらなければパラメータから推定
-      if (!typeBySteel) {
-        typeBySteel = inferSectionTypeFromParameters(steel);
-      }
+function enrichSectionMapWithSteelDimensions(sectionMap, steelSections) {
+  if (!sectionMap || !steelSections || !steelSections.size) return;
+  for (const section of sectionMap.values()) {
+    if (!section || !section.shapeName) continue;
+    const steel = steelSections.get(section.shapeName);
+    if (!steel) continue;
+    section.steelShape = steel;
+    if (!section.id_steel && steel && steel.name) {
+      section.id_steel = steel.name;
+    }
+    // 断面タイプを正確に決定（steelのタグ/パラメータを常に優先）
+    // 1) elementTagから決定
+    let typeBySteel = classifySteelElementTag(steel.elementTag);
 
-      // 3) steel由来の種別を適用（既存値に関わらず上書き：名前依存を排除）
-      if (typeBySteel) {
-        section.section_type = typeBySteel;
-      }
-      resolveGeometryProfileTypeInPlace(section);
-      // 寸法抽出
-      const dims = deriveDimensionsFromSteelShape(steel);
-      if (dims) {
-        section.dimensions = dims;
-      }
+    // 2) elementTagで決まらなければパラメータから推定
+    if (!typeBySteel) {
+      typeBySteel = inferSectionTypeFromParameters(steel);
+    }
+
+    // 3) steel由来の種別を適用（既存値に関わらず上書き：名前依存を排除）
+    if (typeBySteel) {
+      section.section_type = typeBySteel;
+    }
+    resolveGeometryProfileTypeInPlace(section);
+    // 寸法抽出
+    const dims = deriveDimensionsFromSteelShape(steel);
+    if (dims) {
+      section.dimensions = dims;
     }
   }
 }

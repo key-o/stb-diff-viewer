@@ -157,6 +157,7 @@ export {
 
 // パフォーマンスユーティリティの再エクスポート
 export { getElementRegistry } from './utils/ElementRegistry.js';
+export { findElementInGroup, getBatchElementCenter } from './utils/batchElementLookup.js';
 export { getFrustumCuller } from './rendering/FrustumCuller.js';
 export { getLabelVisibilityCuller } from './annotations/labelVisibilityCuller.js';
 export {
@@ -223,7 +224,15 @@ export {
 export { ElementGeometryUtils } from './geometry/ElementGeometryUtils.js';
 
 // STB構造パーサー
-export { clearParseCache, setStateProvider, parseStbFile } from './geometry/stbStructureReader.js';
+export {
+  clearParseCache,
+  setStateProvider,
+  parseStbFile,
+  updateCachedNodeCoordinate,
+  removeCachedNode,
+  refreshCachedElementsForType,
+  refreshCachedSectionsForType,
+} from './geometry/stbStructureReader.js';
 
 // プロファイル計算
 export {
@@ -253,12 +262,6 @@ export {
 } from './camera/cameraManagerImpl.js';
 
 // ビュー管理（setView, VIEW_DIRECTIONS は既にエクスポート済み）
-
-// ============================================
-// 要素動的更新 (elementUpdater.js)
-// ============================================
-
-export { regenerateElementGeometry } from './elementUpdater.js';
 
 // ============================================
 // AR/WebXR (ar/)

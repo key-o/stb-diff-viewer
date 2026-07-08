@@ -15,7 +15,8 @@
  * サブモジュールの関数を再エクスポートします。
  */
 
-import { createLogger } from '../../../utils/logger.js';
+import { createKernelLogger } from '../config/kernelConfig.js';
+import { STB_TAG_NAMES } from '../constants/stbTagNames.js';
 
 // サブモジュール
 import {
@@ -45,7 +46,7 @@ import {
   resolveAttributeGroupReference,
 } from './xsdTypeResolver.js';
 
-const log = createLogger('common-stb:import:parser:xsdSchemaParser');
+const log = createKernelLogger('common-stb:import:parser:xsdSchemaParser');
 const XSD_DEBUG = false;
 
 function debugLog(..._args) {
@@ -468,8 +469,8 @@ function parseElementDefinitions() {
 
     debugLog(`Registered element definition: ${elementName} with ${attributes.size} attributes`);
 
-    // StbColumnの詳細ログ
-    if (elementName === 'StbColumn') {
+    // 柱要素の詳細ログ
+    if (elementName === STB_TAG_NAMES.COLUMN) {
       debugLog(`=== StbColumn Debug Info ===`);
       debugLog(`Type reference: ${element.getAttribute('type')}`);
       debugLog(`Direct attributes: ${attributeElements.length}`);

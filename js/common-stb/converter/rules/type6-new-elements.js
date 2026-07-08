@@ -297,32 +297,79 @@ export function handleNewElementsTo210(stbRoot) {
 }
 
 /**
- * Remove v2.1.0 specific elements when converting to v2.0.2
+ * v2.1.x-only child elements per container, derived from the 210 vs 202 XSD diff.
+ * StbOpenArrangements / StbJointArrangements / StbSecPilePrecast are converted by
+ * type5 / type7 / type11 beforehand; removal here only catches unconverted leftovers.
+ */
+const V21X_ONLY_CHILDREN = {
+  root: ['StbExportInformation'],
+  common: [
+    'StbReinforcementStrengthListPile',
+    'StbStandardPlateThicknessList',
+    'StbConnectionSpecs',
+    'StbWeldCommon',
+    'StbAdditionalInformation',
+  ],
+  model: ['StbConnections', 'StbWeld'],
+  members: [
+    'StbIsolatingDevices',
+    'StbDampingDevices',
+    'StbFrameDampingDevices',
+    'StbOpenArrangements',
+    'StbPenetrationArrangements',
+    'StbJointArrangements',
+    'StbPanelZoneArrangements',
+    'StbConnectionArrangements',
+  ],
+  sections: [
+    'StbSecSlabLoad',
+    'StbSecWallLoad',
+    'StbSecIsolatingDevice',
+    'StbSecDampingDevice',
+    'StbSecPilePrecast',
+    'StbSecPenetration_S',
+    'StbSecPanelZone',
+  ],
+};
+
+/**
+ * Remove v2.1.x specific elements when converting to v2.0.2
  * @param {object} stbRoot - ST-Bridge root element
  */
 export function removeNewElementsTo202(stbRoot) {
   const root = getStbRoot(stbRoot);
-  const model = root?.[0]?.['StbModel']?.[0];
-  if (!model) return;
+  const rootData = Array.isArray(root) ? root[0] : root;
+  if (!rootData) return;
 
   let removedCount = 0;
 
-  // Note: StbJointArrangements are now converted in type7-joint-elements.js
-  // They should not be deleted here anymore
+  const removeChildren = (container, names) => {
+    if (!container) return;
+    names.forEach((name) => {
+      if (container[name]) {
+        delete container[name];
+        removedCount++;
+        logger.warn(`Removed ${name} - not supported in v2.0.2`);
+      }
+    });
+  };
 
-  // Remove StbReinforcementStrengthListPile from StbCommon
-  const common = model['StbCommon']?.[0];
-  if (common?.['StbReinforcementStrengthListPile']) {
-    delete common['StbReinforcementStrengthListPile'];
-    removedCount++;
-    logger.warn('Removed StbReinforcementStrengthListPile - not supported in v2.0.2');
+  removeChildren(rootData, V21X_ONLY_CHILDREN.root);
+  // StbCommon is a sibling of StbModel directly under the ST_BRIDGE root
+  removeChildren(rootData['StbCommon']?.[0], V21X_ONLY_CHILDREN.common);
+
+  const model = rootData['StbModel']?.[0];
+  if (model) {
+    removeChildren(model, V21X_ONLY_CHILDREN.model);
+    removeChildren(model['StbMembers']?.[0], V21X_ONLY_CHILDREN.members);
+    removeChildren(model['StbSections']?.[0], V21X_ONLY_CHILDREN.sections);
   }
 
   // Remove any other v2.1.0 specific elements
   removeV210SpecificAttributes(stbRoot);
 
   if (removedCount > 0) {
-    logger.info(`Removed ${removedCount} v2.1.0 specific elements`);
+    logger.info(`Removed ${removedCount} v2.1.x specific elements`);
   }
 }
 
@@ -396,7 +443,8 @@ function removeV210SpecificAttributes(stbRoot) {
  */
 export function checkDataLossTo202(stbRoot) {
   const root = getStbRoot(stbRoot);
-  const model = root?.[0]?.['StbModel']?.[0];
+  const rootData = Array.isArray(root) ? root[0] : root;
+  const model = rootData?.['StbModel']?.[0];
   const report = {
     jointArrangements: 0,
     pileStrengthList: false,
@@ -412,8 +460,8 @@ export function checkDataLossTo202(stbRoot) {
       members['StbJointArrangements'][0]?.['StbJointArrangement']?.length || 0;
   }
 
-  // Check StbReinforcementStrengthListPile
-  const common = model['StbCommon']?.[0];
+  // Check StbReinforcementStrengthListPile (StbCommon is a sibling of StbModel)
+  const common = rootData?.['StbCommon']?.[0];
   if (common?.['StbReinforcementStrengthListPile']) {
     report.pileStrengthList = true;
   }

@@ -108,16 +108,22 @@ export function handleTreeElementSelection(
     log.info(`${sourceName}: 複数選択 (${selectedElement.selectedElements.length}要素)`);
 
     const objectsToSelect = [];
+    let skippedBatched = 0;
     for (const elem of selectedElement.selectedElements) {
-      const obj = find3DObjectByElement(
+      const hit = find3DObjectByElement(
         elem.elementType,
         elem.elementId,
         elem.modelSource,
         elementGroups,
       );
-      if (obj) {
-        objectsToSelect.push(obj);
+      if (!hit) continue;
+      if (hit.kind !== 'object') {
+        // バッチ描画（InstancedMesh/LineSegmentsバッチ）の個別要素は共有マテリアルのため
+        // 複数ハイライトができない。複数選択では対象外とする。
+        skippedBatched++;
+        continue;
       }
+      objectsToSelect.push(hit.object);
     }
 
     if (objectsToSelect.length > 0) {
@@ -125,6 +131,9 @@ export function handleTreeElementSelection(
       log.info(`${sourceName}: ${objectsToSelect.length}個の3D要素を選択しました`);
     } else {
       log.warn(`${sourceName}: 3Dビューアーで要素が見つかりませんでした`);
+    }
+    if (skippedBatched > 0) {
+      log.info(`${sourceName}: バッチ描画のため複数ハイライト対象外: ${skippedBatched}件`);
     }
     return;
   }
@@ -162,79 +171,41 @@ export function handleTreeElementSelection(
     `${sourceName}: 要素を検索中: タイプ=${elementType}, ID=${elementId}, ソース=${modelSource}`,
   );
 
-  let found = false;
-  let searchedCount = 0;
-  const candidateMatches = enableDebugInfo ? [] : null;
+  // バッチ描画（InstancedMesh）にも対応した検索。個別要素は userData.instances[] に格納される。
+  const hit = find3DObjectByElement(elementType, elementId, modelSource, elementGroups);
 
-  elementGroup.traverse((obj) => {
-    if (found) return;
+  if (hit) {
+    log.info(`${sourceName}: 要素が見つかりました: ${elementType} ${elementId}`);
+    const ud = hit.userData || {};
 
-    if (obj.userData && obj.userData.elementType === elementType) {
-      searchedCount++;
-
-      // デバッグ用: 最初の5個の候補を記録
-      if (candidateMatches && candidateMatches.length < 5) {
-        const objId = obj.userData.elementIdA || obj.userData.elementIdB || obj.userData.elementId;
-        candidateMatches.push({
-          objId: objId,
-          objIdType: typeof objId,
-          modelSource: obj.userData.modelSource,
-        });
-      }
-
-      const objId = obj.userData.elementIdA || obj.userData.elementIdB || obj.userData.elementId;
-      const objIdStr = String(objId);
-      const elementIdStr = String(elementId);
-
-      // modelSourceの柔軟な比較
-      const modelSourceMatches =
-        obj.userData.modelSource === modelSource ||
-        (modelSource === 'onlyA' && obj.userData.modelSource === 'A') ||
-        (modelSource === 'onlyB' && obj.userData.modelSource === 'B') ||
-        (modelSource === 'matched' && obj.userData.modelSource === 'matched');
-
-      if (objIdStr === elementIdStr && modelSourceMatches) {
-        found = true;
-        log.info(`${sourceName}: 要素が見つかりました: ${elementType} ${elementId}`);
-
-        // 要素情報を表示用のIDを決定
-        let idA = null;
-        let idB = null;
-        if (modelSource === 'matched') {
-          idA = obj.userData.elementIdA || obj.userData.elementId;
-          idB = obj.userData.elementIdB;
-        } else if (modelSource === 'onlyA' || modelSource === 'A') {
-          idA = obj.userData.elementId;
-        } else if (modelSource === 'onlyB' || modelSource === 'B') {
-          idB = obj.userData.elementId;
-        }
-
-        // 要素情報を表示
-        displayElementInfo(idA, idB, elementType, modelSource).catch((err) =>
-          log.error(`${sourceName}: displayElementInfo エラー:`, err),
-        );
-
-        // 3D選択
-        try {
-          selectElement3D(obj, scheduleRender);
-          log.info(`${sourceName}: 3D要素の選択が完了しました`);
-        } catch (err) {
-          log.error(`${sourceName}: selectElement3D エラー:`, err);
-        }
-      }
+    // 要素情報を表示用のIDを決定
+    let idA = null;
+    let idB = null;
+    if (modelSource === 'matched') {
+      idA = ud.elementIdA || ud.elementId;
+      idB = ud.elementIdB;
+    } else if (modelSource === 'onlyA' || modelSource === 'A') {
+      idA = ud.elementId || ud.elementIdA;
+    } else if (modelSource === 'onlyB' || modelSource === 'B') {
+      idB = ud.elementId || ud.elementIdB;
     }
-  });
 
-  if (!found) {
+    // 要素情報を表示
+    displayElementInfo(idA, idB, elementType, modelSource).catch((err) =>
+      log.error(`${sourceName}: displayElementInfo エラー:`, err),
+    );
+
+    // 3D選択（バッチ要素は batchHit を渡してフォーカス表示する）
+    try {
+      selectElement3D(hit.object, scheduleRender, { batchHit: hit });
+      log.info(`${sourceName}: 3D要素の選択が完了しました`);
+    } catch (err) {
+      log.error(`${sourceName}: selectElement3D エラー:`, err);
+    }
+  } else {
     log.warn(
       `${sourceName}: 3Dビューアーで要素が見つかりませんでした: ${elementType} ${elementId} (${modelSource})`,
     );
-    if (enableDebugInfo) {
-      log.warn(`検索した要素数: ${searchedCount}`);
-      if (candidateMatches && candidateMatches.length > 0) {
-        log.warn('最初の候補オブジェクト (デバッグ用):', candidateMatches);
-      }
-    }
 
     // 3D上で見つからなくても、XMLから情報表示は可能なのでフォールバックする
     const { idA, idB } = resolveElementInfoIds(selectedElement);

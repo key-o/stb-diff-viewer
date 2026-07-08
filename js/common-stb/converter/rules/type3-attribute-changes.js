@@ -6,6 +6,7 @@
 
 import logger from '../utils/converter-logger.js';
 import { getStbRoot } from '../utils/xml-helper.js';
+import { STB_TAG_NAMES } from '../../../constants/elementTypes.js';
 import {
   REMOVED_IN_210,
   RESTORED_IN_202,
@@ -148,7 +149,8 @@ function fixZeroLengthAttrsTo210(stbRoot) {
     Object.keys(element).forEach((key) => {
       if (key === '$') {
         lengthAttrs.forEach((attr) => {
-          if (element['$'][attr] === '0' || element['$'][attr] === 0) {
+          // Covers '0', '0.0', 0 etc. (stb:length is minExclusive > 0)
+          if (element['$'][attr] !== undefined && parseFloat(element['$'][attr]) === 0) {
             element['$'][attr] = '1'; // Minimum valid value
             count++;
           }
@@ -589,11 +591,15 @@ function removeInvalidNodeIdOrderTo210(stbRoot) {
 
   // Map from member type to collection element name and via node type
   const memberConfigs = [
-    { collection: 'StbGirders', element: 'StbGirder', viaNode: 'StbGirderViaNode' },
-    { collection: 'StbBeams', element: 'StbBeam', viaNode: 'StbBeamViaNode' },
-    { collection: 'StbBraces', element: 'StbBrace', viaNode: 'StbBraceViaNode' },
-    { collection: 'StbSlabs', element: 'StbSlab', viaNode: 'StbViaNode' },
-    { collection: 'StbWalls', element: 'StbWall', viaNode: 'StbViaNode' },
+    {
+      collection: STB_TAG_NAMES.GIRDERS,
+      element: STB_TAG_NAMES.GIRDER,
+      viaNode: 'StbGirderViaNode',
+    },
+    { collection: STB_TAG_NAMES.BEAMS, element: STB_TAG_NAMES.BEAM, viaNode: 'StbBeamViaNode' },
+    { collection: STB_TAG_NAMES.BRACES, element: STB_TAG_NAMES.BRACE, viaNode: 'StbBraceViaNode' },
+    { collection: STB_TAG_NAMES.SLABS, element: STB_TAG_NAMES.SLAB, viaNode: 'StbViaNode' },
+    { collection: STB_TAG_NAMES.WALLS, element: STB_TAG_NAMES.WALL, viaNode: 'StbViaNode' },
   ];
 
   memberConfigs.forEach(({ collection, element, viaNode }) => {
@@ -1142,13 +1148,13 @@ function addLegacyGuidsTo202(stbRoot) {
 
   const members = rootData?.['StbModel']?.[0]?.['StbMembers']?.[0];
   [
-    ['StbColumns', 'StbColumn'],
-    ['StbGirders', 'StbGirder'],
-    ['StbBeams', 'StbBeam'],
-    ['StbBraces', 'StbBrace'],
-    ['StbWalls', 'StbWall'],
-    ['StbParapets', 'StbParapet'],
-    ['StbSlabs', 'StbSlab'],
+    [STB_TAG_NAMES.COLUMNS, STB_TAG_NAMES.COLUMN],
+    [STB_TAG_NAMES.GIRDERS, STB_TAG_NAMES.GIRDER],
+    [STB_TAG_NAMES.BEAMS, STB_TAG_NAMES.BEAM],
+    [STB_TAG_NAMES.BRACES, STB_TAG_NAMES.BRACE],
+    [STB_TAG_NAMES.WALLS, STB_TAG_NAMES.WALL],
+    [STB_TAG_NAMES.PARAPETS, STB_TAG_NAMES.PARAPET],
+    [STB_TAG_NAMES.SLABS, STB_TAG_NAMES.SLAB],
   ].forEach(([collection, element]) => {
     count += ensureGuid(members?.[collection]?.[0]?.[element]);
   });
@@ -1277,13 +1283,27 @@ const ENUM_RENAME_211_TO_210 = Object.fromEntries(
 );
 
 /**
+ * Element+attribute-scoped enum value changes: v2.1.0 -> v2.1.1.
+ * Numeric values must not be replaced globally (would corrupt dimension values),
+ * so these are applied only on the named element/attribute pair.
+ */
+const SCOPED_VALUE_RENAME_210_TO_211 = [
+  { element: 'StbSecBaseProduct', attr: 'direction_type', from: '280', to: '270' },
+];
+
+const SCOPED_VALUE_RENAME_211_TO_210 = SCOPED_VALUE_RENAME_210_TO_211.map(
+  ({ element, attr, from, to }) => ({ element, attr, from: to, to: from }),
+);
+
+/**
  * Walk the XML tree renaming attributes and enum values.
  * @param {object} node - Current node
  * @param {Array} attrRenames - Array of { element, old, new }
  * @param {object} enumRenames - Map of old enum -> new enum
+ * @param {Array} scopedValueRenames - Array of { element, attr, from, to }
  * @returns {number} Total renames performed
  */
-function walkAndRenameAttributes(node, attrRenames, enumRenames) {
+function walkAndRenameAttributes(node, attrRenames, enumRenames, scopedValueRenames = []) {
   if (!node || typeof node !== 'object') return 0;
   let count = 0;
 
@@ -1306,6 +1326,14 @@ function walkAndRenameAttributes(node, attrRenames, enumRenames) {
         count++;
       }
     }
+    // Element+attribute-scoped value changes (e.g. direction_type 280 -> 270)
+    for (const { element, attr, from, to } of scopedValueRenames) {
+      if (element !== nodeName) continue;
+      if (attrs[attr] === from) {
+        attrs[attr] = to;
+        count++;
+      }
+    }
   }
 
   for (const key of Object.keys(node)) {
@@ -1315,13 +1343,13 @@ function walkAndRenameAttributes(node, attrRenames, enumRenames) {
       child.forEach((item) => {
         if (item && typeof item === 'object') {
           item._elementName = key;
-          count += walkAndRenameAttributes(item, attrRenames, enumRenames);
+          count += walkAndRenameAttributes(item, attrRenames, enumRenames, scopedValueRenames);
           delete item._elementName;
         }
       });
     } else if (child && typeof child === 'object') {
       child._elementName = key;
-      count += walkAndRenameAttributes(child, attrRenames, enumRenames);
+      count += walkAndRenameAttributes(child, attrRenames, enumRenames, scopedValueRenames);
       delete child._elementName;
     }
   }
@@ -1334,7 +1362,12 @@ function walkAndRenameAttributes(node, attrRenames, enumRenames) {
  * @param {object} stbRoot - ST-Bridge root element
  */
 export function applyAttributeRenamesTo211(stbRoot) {
-  const count = walkAndRenameAttributes(stbRoot, ATTR_RENAME_210_TO_211, ENUM_RENAME_210_TO_211);
+  const count = walkAndRenameAttributes(
+    stbRoot,
+    ATTR_RENAME_210_TO_211,
+    ENUM_RENAME_210_TO_211,
+    SCOPED_VALUE_RENAME_210_TO_211,
+  );
   if (count > 0) {
     logger.info(`Attribute renaming (2.1.0->2.1.1) complete: ${count} renames`);
   }
@@ -1345,7 +1378,12 @@ export function applyAttributeRenamesTo211(stbRoot) {
  * @param {object} stbRoot - ST-Bridge root element
  */
 export function applyAttributeRenamesTo210from211(stbRoot) {
-  const count = walkAndRenameAttributes(stbRoot, ATTR_RENAME_211_TO_210, ENUM_RENAME_211_TO_210);
+  const count = walkAndRenameAttributes(
+    stbRoot,
+    ATTR_RENAME_211_TO_210,
+    ENUM_RENAME_211_TO_210,
+    SCOPED_VALUE_RENAME_211_TO_210,
+  );
   if (count > 0) {
     logger.info(`Attribute renaming (2.1.1->2.1.0) complete: ${count} renames`);
   }

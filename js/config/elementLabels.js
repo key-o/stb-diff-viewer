@@ -33,7 +33,11 @@ export const ELEMENT_LABELS = {
   Footing: '基礎',
   StripFooting: '布基礎',
   FoundationColumn: '基礎柱',
+  IsolatingDevice: '免震装置',
+  DampingDevice: 'ダンパー',
+  FrameDampingDevice: '制振装置フレーム',
   Undefined: '未定義断面',
+  StbDefinition: 'STB定義',
 };
 
 /**
@@ -83,6 +87,9 @@ export const ELEMENT_ICONS = {
   Footing: '⊏',
   StripFooting: '⊐',
   FoundationColumn: '🏛️',
+  IsolatingDevice: '⊙',
+  DampingDevice: '⇔',
+  FrameDampingDevice: '⊟',
 };
 
 // ============================================================================
@@ -123,6 +130,20 @@ const ELEMENT_TO_STB_NAME = {
  * @returns {string} 日本語表示名（未定義の場合は元のタイプ名）
  */
 function getElementLabel(elementType) {
+  return ELEMENT_LABELS[elementType] || elementType;
+}
+
+/**
+ * 要素タイプ（単一 or 複数）の表示名を取得する。
+ * 配列（例: ['Girder','Beam']）は各ラベルを「・」で連結する。
+ * @param {string|string[]|null|undefined} elementType
+ * @returns {string} 日本語表示名（空なら空文字）
+ */
+export function getElementTypeFilterLabel(elementType) {
+  if (!elementType) return '';
+  if (Array.isArray(elementType)) {
+    return elementType.map((t) => ELEMENT_LABELS[t] || t).join('・');
+  }
   return ELEMENT_LABELS[elementType] || elementType;
 }
 

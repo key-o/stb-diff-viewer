@@ -38,7 +38,7 @@ import {
   inferSectionTypeFromDimensions,
 } from './core/GeometryCalculator.js';
 import { convertProfileToThreeShape } from './core/ThreeJSConverter.js';
-import { resolveGeometryProfileTypeInPlace } from '../../common-stb/section/sectionTypeUtil.js';
+import { resolveGeometryProfileTypeInPlace } from '../../common-stb/import/section/sectionTypeUtil.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('viewer:geometry:utils');

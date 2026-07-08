@@ -13,7 +13,8 @@
 /* global XMLSerializer, Blob */
 
 import { loadStbXmlAutoEncoding } from '../import/loader/stbXmlLoader.js';
-import { validateStbDocument, SEVERITY, CATEGORY } from './stbValidator.js';
+import { validateStbDocument } from './stbValidator.js';
+import { SEVERITY, SUGGESTION_TYPE } from './validationConstants.js';
 import { initializeMvdData } from './mvdValidator.js';
 import { autoRepairDocument } from '../repair/stbRepairEngine.js';
 import { setSchemaError, clearSchemaErrors } from './schemaErrorStore.js';
@@ -46,15 +47,7 @@ export const WORKFLOW_STEP = {
   ERROR: 'error',
 };
 
-/**
- * バリデーション結果のサジェストタイプ
- */
-export const SUGGESTION_TYPE = {
-  AUTO_REPAIR: 'auto_repair', // 自動修復可能
-  MANUAL_REVIEW: 'manual_review', // 手動確認が必要
-  MANUAL_FIX: 'manual_fix', // 手動修正が必要
-  INFO_ONLY: 'info_only', // 情報のみ（修正不要）
-};
+// SUGGESTION_TYPE は validationConstants.js に移動（循環依存解消）
 
 /**
  * バリデーション・修復マネージャークラス
@@ -748,15 +741,5 @@ export function getElementsByStatus(status) {
   return result;
 }
 
-// Re-exports from sub-modules
-export { SEVERITY, CATEGORY };
-export {
-  runCompleteWorkflow,
-  generateIntegratedReport,
-  quickRepair,
-} from './validationWorkflow.js';
-export {
-  generateValidationSummaryHtml,
-  generateValidationInfoHtml,
-  getValidationStyles,
-} from './validationHtmlRenderer.js';
+// 旧再export（SEVERITY/CATEGORY, validationWorkflow, validationHtmlRenderer）は
+// 循環依存解消のため削除。利用側は各モジュールを直接importする。

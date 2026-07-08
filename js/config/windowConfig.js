@@ -16,6 +16,16 @@
  * @type {Object.<string, Object>}
  */
 export const WINDOW_DEFINITIONS = {
+  'diff-summary-float': {
+    title: '差分サマリー',
+    icon: '📈',
+    toggleButtonId: 'toggle-diff-summary-btn',
+    draggable: true,
+    resizable: true,
+    autoShow: false,
+    isDynamic: true, // JSで動的生成
+    template: 'diff-summary',
+  },
   'tree-view-float': {
     title: 'ツリービュー',
     icon: '🌳',
@@ -43,7 +53,7 @@ export const WINDOW_DEFINITIONS = {
     toggleButtonId: 'toggle-component-info-btn',
     draggable: true,
     resizable: true,
-    autoShow: true,
+    autoShow: false,
     isDynamic: false,
     cssClass: 'component-info-resizable',
   },
@@ -124,6 +134,14 @@ export const WINDOW_DEFINITIONS = {
  * @type {Object.<string, Object>}
  */
 export const WINDOW_TEMPLATES = {
+  'diff-summary': {
+    headerExtra: '',
+    content: `
+      <div id="diff-summary-content">
+        <div class="diff-stat-item">比較を実行すると結果が表示されます</div>
+      </div>
+    `,
+  },
   'tree-view': {
     headerExtra: '',
     content: `

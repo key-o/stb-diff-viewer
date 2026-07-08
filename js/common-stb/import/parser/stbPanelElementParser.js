@@ -8,6 +8,7 @@
 
 import { getLogger, parseElements, parseStbExtensions } from './stbParserCore.js';
 import { detectStbVersion } from './utils/versionDetector.js';
+import { STB_TAG_NAMES } from '../constants/stbTagNames.js';
 
 /**
  * 床(Slab)要素データを抽出する
@@ -17,7 +18,7 @@ import { detectStbVersion } from './utils/versionDetector.js';
 export function extractSlabElements(xmlDoc) {
   const logger = getLogger();
   const slabElementsData = [];
-  const slabElements = parseElements(xmlDoc, 'StbSlab');
+  const slabElements = parseElements(xmlDoc, STB_TAG_NAMES.SLAB);
 
   for (const slabEl of slabElements) {
     const id = slabEl.getAttribute('id');
@@ -62,7 +63,7 @@ export function extractSlabElements(xmlDoc) {
         node_ids: nodeIds,
         offsets: offsets,
       };
-      const slabExtMap = parseStbExtensions(slabEl.ownerDocument, 'StbSlab');
+      const slabExtMap = parseStbExtensions(slabEl.ownerDocument, STB_TAG_NAMES.SLAB);
       const slabExtProps = slabExtMap.get(id);
       if (slabExtProps) {
         for (const [key, value] of Object.entries(slabExtProps)) {
@@ -86,7 +87,7 @@ export function extractSlabElements(xmlDoc) {
 export function extractWallElements(xmlDoc) {
   const logger = getLogger();
   const wallElementsData = [];
-  const wallElements = parseElements(xmlDoc, 'StbWall');
+  const wallElements = parseElements(xmlDoc, STB_TAG_NAMES.WALL);
 
   for (const wallEl of wallElements) {
     const id = wallEl.getAttribute('id');
@@ -141,7 +142,7 @@ export function extractWallElements(xmlDoc) {
         open_ids: openIds,
       };
       // SS7原典配置情報（StbExtensionsから読み込み）
-      const wallExtMap = parseStbExtensions(wallEl.ownerDocument, 'StbWall');
+      const wallExtMap = parseStbExtensions(wallEl.ownerDocument, STB_TAG_NAMES.WALL);
       const wallExtProps = wallExtMap.get(id);
       if (wallExtProps) {
         if (wallExtProps.ss7_story) elementData.ss7_story = wallExtProps.ss7_story;
@@ -168,7 +169,7 @@ export function extractWallElements(xmlDoc) {
 export function extractParapetElements(xmlDoc) {
   const logger = getLogger();
   const parapetElementsData = [];
-  const parapetElements = parseElements(xmlDoc, 'StbParapet');
+  const parapetElements = parseElements(xmlDoc, STB_TAG_NAMES.PARAPET);
 
   for (const parapetEl of parapetElements) {
     const id = parapetEl.getAttribute('id');
@@ -234,7 +235,7 @@ export function extractOpeningElements(xmlDoc) {
  * @param {Map} openingMap - 開口マップ
  */
 function extractOpeningsFromStbOpen(xmlDoc, openingMap) {
-  const openElements = parseElements(xmlDoc, 'StbOpen');
+  const openElements = parseElements(xmlDoc, STB_TAG_NAMES.OPEN);
 
   for (const openEl of openElements) {
     const id = openEl.getAttribute('id');

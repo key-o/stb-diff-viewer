@@ -19,6 +19,7 @@
 
 import logger from '../utils/converter-logger.js';
 import { getStbRoot, renameKey } from '../utils/xml-helper.js';
+import { STB_TAG_NAMES } from '../../../constants/elementTypes.js';
 
 // ----------------------------------------------------------------
 // 1. StbSecBarPile_RC_TopBottom attribute rename
@@ -397,13 +398,13 @@ function fixEmptyBooleanAttrs(stbRoot) {
   const REQUIRED_BOOL_DEFAULT = { isFoundation: 'false' };
   const OPTIONAL_BOOL_ATTRS = ['isOffset', 'isHingeStart', 'isHingeEnd', 'isCanti'];
   const MEMBER_TYPES = [
-    ['StbGirders', 'StbGirder'],
-    ['StbBeams', 'StbBeam'],
-    ['StbColumns', 'StbColumn'],
-    ['StbPosts', 'StbPost'],
-    ['StbBraces', 'StbBrace'],
-    ['StbSlabs', 'StbSlab'],
-    ['StbWalls', 'StbWall'],
+    [STB_TAG_NAMES.GIRDERS, STB_TAG_NAMES.GIRDER],
+    [STB_TAG_NAMES.BEAMS, STB_TAG_NAMES.BEAM],
+    [STB_TAG_NAMES.COLUMNS, STB_TAG_NAMES.COLUMN],
+    [STB_TAG_NAMES.POSTS, STB_TAG_NAMES.POST],
+    [STB_TAG_NAMES.BRACES, STB_TAG_NAMES.BRACE],
+    [STB_TAG_NAMES.SLABS, STB_TAG_NAMES.SLAB],
+    [STB_TAG_NAMES.WALLS, STB_TAG_NAMES.WALL],
   ];
 
   MEMBER_TYPES.forEach(([coll, elem]) => {
@@ -568,6 +569,171 @@ function fixBarArrangementFoundationEmpty(stbRoot) {
 }
 
 // ----------------------------------------------------------------
+// 12. StbFoundationColumn: optional id_section_* = '0' は参照なしの意味なので削除
+//     (xs:positiveInteger violation)
+// ----------------------------------------------------------------
+const FOUNDATION_COLUMN_OPTIONAL_ID_ATTRS = ['id_section_WR', 'id_section_FD'];
+
+function fixFoundationColumnZeroIds(stbRoot) {
+  const root = getStbRoot(stbRoot);
+  if (!root) return;
+  const rootData = Array.isArray(root) ? root[0] : root;
+  const cols =
+    rootData?.['StbModel']?.[0]?.['StbMembers']?.[0]?.['StbFoundationColumns']?.[0]?.[
+      'StbFoundationColumn'
+    ];
+  if (!Array.isArray(cols)) return;
+
+  let count = 0;
+  cols.forEach((col) => {
+    const attrs = col['$'];
+    if (!attrs) return;
+    FOUNDATION_COLUMN_OPTIONAL_ID_ATTRS.forEach((attr) => {
+      if (attrs[attr] === '0') {
+        delete attrs[attr];
+        count++;
+      }
+    });
+  });
+  if (count > 0) logger.info(`Removed ${count} StbFoundationColumn id_section_*="0" attributes`);
+}
+
+// ----------------------------------------------------------------
+// 13. 不正な guid の正規化/削除
+//     スキーマの guid 型は [0-9a-f]{32}。ハイフン付きUUIDや大文字は正規化し、
+//     それでも合わない値は削除する（guid は全バージョンで optional）。
+// ----------------------------------------------------------------
+const GUID_RE = /^[0-9a-f]{32}$/;
+
+export function fixInvalidGuids(stbRoot) {
+  let normalized = 0;
+  let removed = 0;
+
+  const walk = (node) => {
+    if (!node || typeof node !== 'object') return;
+    const attrs = node['$'];
+    if (attrs && attrs.guid !== undefined) {
+      const candidate = String(attrs.guid).replace(/-/g, '').toLowerCase();
+      if (GUID_RE.test(candidate)) {
+        if (candidate !== attrs.guid) {
+          attrs.guid = candidate;
+          normalized++;
+        }
+      } else {
+        delete attrs.guid;
+        removed++;
+      }
+    }
+    for (const key of Object.keys(node)) {
+      if (key === '$' || key === '_') continue;
+      const child = node[key];
+      if (Array.isArray(child)) child.forEach(walk);
+      else if (child && typeof child === 'object') walk(child);
+    }
+  };
+  walk(stbRoot);
+
+  if (normalized > 0 || removed > 0) {
+    logger.warn(`guid fixup: ${normalized} normalized, ${removed} removed (invalid format)`);
+  }
+}
+
+// ----------------------------------------------------------------
+// 14. StbMembers / StbSections の子要素を XSD の xs:sequence 順に並べ替え
+//     (変換で後から追加された要素が末尾に付くと順序違反になる)
+// ----------------------------------------------------------------
+const MEMBERS_ORDER_21X = [
+  'StbColumns',
+  'StbPosts',
+  'StbGirders',
+  'StbBeams',
+  'StbBraces',
+  'StbSlabs',
+  'StbWalls',
+  'StbIsolatingDevices',
+  'StbDampingDevices',
+  'StbFrameDampingDevices',
+  'StbFootings',
+  'StbStripFootings',
+  'StbPiles',
+  'StbFoundationColumns',
+  'StbParapets',
+  'StbOpenArrangements',
+  'StbPenetrationArrangements',
+  'StbJointArrangements',
+  'StbPanelZoneArrangements',
+  'StbConnectionArrangements',
+];
+
+const SECTIONS_ORDER_21X = [
+  'StbSecColumn_RC',
+  'StbSecColumn_S',
+  'StbSecColumn_SRC',
+  'StbSecColumn_CFT',
+  'StbSecBeam_RC',
+  'StbSecBeam_S',
+  'StbSecBeam_SRC',
+  'StbSecBrace_S',
+  'StbSecSlab_RC',
+  'StbSecSlabDeck',
+  'StbSecSlabPrecast',
+  'StbSecSlabLoad',
+  'StbSecWall_RC',
+  'StbSecWallLoad',
+  'StbSecIsolatingDevice',
+  'StbSecDampingDevice',
+  'StbSecFoundation_RC',
+  'StbSecPile_RC',
+  'StbSecPile_S',
+  'StbSecPilePrecast',
+  'StbSecParapet_RC',
+  'StbSecOpen_RC',
+  'StbSecPenetration_S',
+  'StbSecPanelZone',
+  'StbSecSteel',
+  'StbSecUndefined',
+];
+
+/**
+ * Reorder a container's child element keys to match the canonical xs:sequence order.
+ * Keys not in the canonical list (e.g. '$') keep their position.
+ * @param {object} container
+ * @param {string[]} canonicalOrder
+ * @returns {number} 1 if reordered, 0 if already in order
+ */
+function reorderChildren(container, canonicalOrder) {
+  if (!container) return 0;
+  const present = canonicalOrder.filter((k) => container[k] !== undefined);
+  const current = Object.keys(container).filter((k) => present.includes(k));
+  if (current.every((k, i) => k === present[i])) return 0;
+
+  const saved = {};
+  present.forEach((k) => {
+    saved[k] = container[k];
+    delete container[k];
+  });
+  present.forEach((k) => {
+    container[k] = saved[k];
+  });
+  return 1;
+}
+
+export function applyCanonicalChildOrder(stbRoot) {
+  const root = getStbRoot(stbRoot);
+  if (!root) return;
+  const rootData = Array.isArray(root) ? root[0] : root;
+  const model = rootData?.['StbModel']?.[0];
+  if (!model) return;
+
+  let count = 0;
+  count += reorderChildren(model['StbMembers']?.[0], MEMBERS_ORDER_21X);
+  count += reorderChildren(model['StbSections']?.[0], SECTIONS_ORDER_21X);
+  if (count > 0) {
+    logger.info(`Reordered ${count} container(s) to canonical v2.1.x child order`);
+  }
+}
+
+// ----------------------------------------------------------------
 // Reverse fixups: undo 211 compliance changes for 202 output
 // ----------------------------------------------------------------
 
@@ -631,4 +797,7 @@ export function applySchemaComplianceFixups(stbRoot) {
   fixEmptyBooleanAttrs(stbRoot);
   fixPileRcAttrs(stbRoot);
   fixJointArrangementDistance(stbRoot);
+  fixFoundationColumnZeroIds(stbRoot);
+  fixInvalidGuids(stbRoot);
+  applyCanonicalChildOrder(stbRoot);
 }

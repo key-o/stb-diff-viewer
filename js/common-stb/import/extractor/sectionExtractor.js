@@ -8,11 +8,13 @@
  * @module common/stb/parser/sectionExtractor
  */
 
-import { resolveGeometryProfileTypeInPlace } from '../../section/sectionTypeUtil.js';
-import { SECTION_CONFIG } from '../../section/sectionConfig.js';
+import { resolveGeometryProfileTypeInPlace } from '../section/sectionTypeUtil.js';
+import { getSectionConfig } from '../config/kernelConfig.js';
 import {
   extractSteelDimensions,
   extractConcreteDimensions,
+  extractConcreteTaperDimensions,
+  extractConcreteHaunchDimensions,
   extractSteelPileDimensions,
   extractPileProductDimensions,
 } from './dimensionExtractors.js';
@@ -29,12 +31,11 @@ import { parseStbExtensions } from '../parser/stbParserCore.js';
 // STB 名前空間（querySelector がヒットしない場合にフォールバック）
 const STB_NS = 'https://www.building-smart.or.jp/dl';
 
-import { createLogger } from '../../../utils/logger.js';
+import { createKernelLogger } from '../config/kernelConfig.js';
 
-const _log = createLogger('common-stb:extractor:sectionExtractor');
+const _log = createKernelLogger('common-stb:extractor:sectionExtractor');
 
-// プロジェクト固有の設定とロガーを直接使用
-const _sectionConfig = SECTION_CONFIG;
+// 設定は kernelConfig 経由で取得（setSectionConfig で注入可能）
 const _logger = {
   log: (...args) => _log.info(...args),
   debug: (...args) => _log.debug(...args),
@@ -81,7 +82,7 @@ export function extractAllSections(xmlDoc) {
   const result = {};
 
   // 設定に基づいて各要素タイプを処理
-  Object.entries(_sectionConfig).forEach(([elementType, config]) => {
+  Object.entries(getSectionConfig()).forEach(([elementType, config]) => {
     const sectionMap = extractSectionsByType(xmlDoc, elementType, config);
     const keys = getSectionResultKeys(elementType);
     keys.forEach((sectionKey) => {
@@ -95,6 +96,45 @@ export function extractAllSections(xmlDoc) {
   _extractAllSectionsCache.set(xmlDoc, result);
 
   return result;
+}
+
+/**
+ * 指定要素タイプの断面のみ再抽出し、キャッシュ済み結果のMapをインプレース更新する。
+ * 編集後のリアルタイム反映用（extractAllSections の全再抽出は大規模モデルで秒単位かかるため）。
+ * Map参照を保持したまま中身を入れ替えるので、このMapを参照する全モジュール
+ * （パースキャッシュ・globalState・比較キャッシュ）に自動的に反映される。
+ * @param {Document} xmlDoc - 編集済みのXMLドキュメント
+ * @param {string} elementType - SECTION_CONFIG のキー（'Column' 等）
+ * @returns {Map|null} 更新後の断面Map（キャッシュ未生成・設定なしの場合は null）
+ */
+export function refreshSectionsForElementType(xmlDoc, elementType) {
+  if (!xmlDoc || !_extractAllSectionsCache.has(xmlDoc)) return null;
+  const config = getSectionConfig()[elementType];
+  if (!config) return null;
+
+  const cached = _extractAllSectionsCache.get(xmlDoc);
+  const targetMap = cached[getSectionResultKeys(elementType)[0]];
+  if (!(targetMap instanceof Map)) return null;
+
+  const freshMap = extractSectionsByType(xmlDoc, elementType, config);
+  targetMap.clear();
+  for (const [key, value] of freshMap) {
+    targetMap.set(key, value);
+  }
+  return targetMap;
+}
+
+/**
+ * 断面XMLタグ名から、その断面を抽出対象とする要素タイプを逆引きする。
+ * 1つのタグが複数タイプに対応する場合がある（例: StbSecColumn_RC → Column と Post）。
+ * @param {string} tagName - 断面XMLタグ名（'StbSecColumn_RC' 等）
+ * @returns {string[]} SECTION_CONFIG のキー配列
+ */
+export function getSectionTypesForTagName(tagName) {
+  if (!tagName) return [];
+  return Object.entries(getSectionConfig())
+    .filter(([, config]) => config.selectors?.includes(tagName))
+    .map(([elementType]) => elementType);
 }
 
 /**
@@ -250,6 +290,8 @@ function extractSectionData(element, config) {
   const parsedId = parseInt(idAttr, 10);
   const id = isNaN(parsedId) ? idAttr : parsedId;
 
+  const guid = element.getAttribute('guid');
+
   const sectionData = {
     id: id,
     name: name,
@@ -258,6 +300,9 @@ function extractSectionData(element, config) {
       (steelFigureInfo?.primaryShape || steelFigureInfo?.fallbackShape || null) ??
       extractShapeName(element, config),
   };
+
+  // 断面GUID（断面一致基準=GUID で対応キーに使用。無い場合は付与しない）
+  if (guid !== null && guid !== '') sectionData.guid = guid;
 
   // SS7エクスポート用: 断面の適用階と片持フラグを抽出
   const floor = element.getAttribute('floor');
@@ -330,6 +375,11 @@ function extractSectionData(element, config) {
       if (steelDims.profile_hint === 'CROSS_H') {
         sectionData.isCrossH = true;
       }
+
+      // T形複合断面フラグ（shape_H / shape_T を持つSRC造柱専用断面）
+      if (steelDims.profile_hint === 'SHAPE_T') {
+        sectionData.isShapeT = true;
+      }
     }
   }
 
@@ -375,6 +425,79 @@ function extractSectionData(element, config) {
     }
   } catch (e) {
     _logger.warn(`[Data] 断面: コンクリート寸法解析失敗 (id=${id})`, e);
+  }
+
+  // RC/SRC梁のテーパー断面（STB 2.0.2: pos=START/END、STB 2.1.0: start_*/end_*属性）
+  // 代表寸法は始端断面に統一する（2.0.2では要素マージにより終端寸法が残ってしまうため）
+  try {
+    const concreteTaper = extractConcreteTaperDimensions(element, config);
+    if (concreteTaper) {
+      sectionData.dimensions = {
+        ...(sectionData.dimensions || {}),
+        ...concreteTaper.start,
+      };
+      // 2.0.2では要素マージで終端値が残るため、overall_* も始端に揃える
+      if (sectionData.dimensions.overall_depth !== undefined) {
+        sectionData.dimensions.overall_depth = concreteTaper.start.depth;
+      }
+      if (sectionData.dimensions.overall_width !== undefined) {
+        sectionData.dimensions.overall_width = concreteTaper.start.width;
+      }
+      if (concreteDimsClean) {
+        Object.assign(concreteDimsClean, concreteTaper.start);
+      }
+      if (!sectionData.section_type) {
+        sectionData.section_type = 'RECTANGLE';
+      }
+      sectionData.shapeStations = [
+        {
+          pos: 'START',
+          section_type: 'RECTANGLE',
+          dimensions: concreteTaper.start,
+        },
+        {
+          pos: 'END',
+          section_type: 'RECTANGLE',
+          dimensions: concreteTaper.end,
+        },
+      ];
+
+      // SRC造はRC外形＋内蔵鉄骨の専用経路で描画されるため、多断面モードへは切り替えない。
+      // 鉄骨多断面（Haunch等）が既に設定されている場合もそちらを優先する。
+      const hasSteelMultiSection = sectionData.mode === 'double' || sectionData.mode === 'multi';
+      const isSrcSection = /_SRC$/i.test(element.tagName);
+      if (!hasSteelMultiSection && !isSrcSection) {
+        const startName = `RECT_${concreteTaper.start.width}x${concreteTaper.start.height}`;
+        const endName = `RECT_${concreteTaper.end.width}x${concreteTaper.end.height}`;
+        sectionData.shapeName = startName;
+        sectionData.mode = 'double';
+        sectionData.multiSectionType = 'ConcreteTaper';
+        sectionData.shapes = [
+          { pos: 'START', shapeName: startName, dimensions: concreteTaper.start },
+          { pos: 'END', shapeName: endName, dimensions: concreteTaper.end },
+        ];
+      }
+    }
+  } catch (e) {
+    _logger.warn(`[Data] 断面: テーパー寸法解析失敗 (id=${id})`, e);
+  }
+
+  // RC/SRC梁のハンチ断面（STB 2.0.2: pos=START/[CENTER]/END の2〜3断面）
+  // pos ごとに断面が変化しうるため、pos 別寸法を形状等価判定(GSS)専用フィールド
+  // shapeStations に保持する（buildGeometryShapeSignature が参照する）。
+  // 描画・エクスポート等が参照する mode/shapes/dimensions は変更せず、
+  // 従来挙動を維持したうえで等価判定にのみ pos 別情報を供給する。
+  try {
+    const concreteHaunch = extractConcreteHaunchDimensions(element, config);
+    if (concreteHaunch && concreteHaunch.length >= 2) {
+      sectionData.shapeStations = concreteHaunch.map((s) => ({
+        pos: s.pos,
+        section_type: 'RECTANGLE',
+        dimensions: { width: s.width, height: s.height, depth: s.depth },
+      }));
+    }
+  } catch (e) {
+    _logger.warn(`[Data] 断面: ハンチ寸法解析失敗 (id=${id})`, e);
   }
 
   // 鋼管杭(StbSecPile_S)の寸法抽出
@@ -536,7 +659,7 @@ function extractShapeName(element, config) {
  */
 function createEmptyResult() {
   const result = {};
-  Object.keys(_sectionConfig).forEach((elementType) => {
+  Object.keys(getSectionConfig()).forEach((elementType) => {
     const keys = getSectionResultKeys(elementType);
     keys.forEach((sectionKey) => {
       result[sectionKey] = new Map();

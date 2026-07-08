@@ -5,8 +5,8 @@
  * サマリー表示、要素情報パネル用表示、CSSスタイル定義を含みます。
  */
 
-import { SEVERITY } from './stbValidator.js';
-import { SUGGESTION_TYPE } from './validationManager.js';
+import { SEVERITY } from './validationConstants.js';
+import { SUGGESTION_TYPE } from './validationConstants.js';
 import { getElementValidation, sharedManager } from './validationManager.js';
 import { escapeHtml } from '../../utils/htmlUtils.js';
 

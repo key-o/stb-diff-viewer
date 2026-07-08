@@ -23,7 +23,7 @@ import {
   isVersionLoaded,
   stripNsPrefix,
 } from '../import/parser/xsdSchemaParser.js';
-import { SEVERITY, CATEGORY } from './stbValidator.js';
+import { SEVERITY, CATEGORY } from './validationConstants.js';
 
 /**
  * XSDスキーマに基づいてSTB XMLドキュメントを検証

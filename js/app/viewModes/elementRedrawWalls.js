@@ -302,6 +302,11 @@ export function drawWallOpeningOutlines(
       false,
       String(wallId),
       matchType,
+      {
+        diffStatus: item?.diffStatus || null,
+        positionState: item?.positionState || null,
+        attributeState: item?.attributeState || null,
+      },
     );
     const lineMaterial = baseLineMaterial.clone();
     lineMaterial.depthTest = false;

@@ -8,6 +8,8 @@
  * 外部からは xsdSchemaParser.js 経由でアクセスしてください。
  */
 
+import { STB_TAG_NAMES } from '../constants/stbTagNames.js';
+
 // デバッグログの有効/無効（本番環境では false）
 const XSD_DEBUG = false;
 
@@ -76,8 +78,8 @@ export function getElementAttributes(elementType) {
       debugLog(`No definition found for ${elementType}`);
       debugLog(`Total definitions available: ${_state.elementDefinitions.size}`);
 
-      // StbColumnが見つからない場合は、類似の要素を検索
-      if (elementType === 'StbColumn') {
+      // 柱要素が見つからない場合は、類似の要素を検索
+      if (elementType === STB_TAG_NAMES.COLUMN) {
         const columnRelated = Array.from(_state.elementDefinitions.keys()).filter((key) =>
           key.toLowerCase().includes('column'),
         );

@@ -9,7 +9,11 @@
  * @module data/extractors/columnSectionListExtractor
  */
 
-import { isVersion210, isVersion202 } from '../../constants/stbVersionDetection.js';
+import {
+  isVersion210,
+  isVersion202,
+} from '../../common-stb/import/parser/utils/stbVersionDetection.js';
+import { STB_TAG_NAMES } from '../../constants/elementTypes.js';
 import {
   querySelector,
   querySelectorAll,
@@ -29,7 +33,7 @@ const log = createLogger('data:extractors:columnSectionListExtractor');
  */
 function extractColumns(xmlDoc) {
   const columns = [];
-  const columnElements = querySelectorAll(xmlDoc, 'StbColumn');
+  const columnElements = querySelectorAll(xmlDoc, STB_TAG_NAMES.COLUMN);
 
   columnElements.forEach((el) => {
     const id = el.getAttribute('id');
@@ -120,13 +124,18 @@ function extractRcColumnSectionDetail(sectionElement) {
   };
 
   // 寸法情報を抽出（矩形または円形）
+  // SS7生成: StbSecFigureColumn_RC > StbSecColumnRect / StbSecColumnCircle
   const rectFigure =
     querySelector(sectionElement, 'StbSecColumn_RC_Rect') ||
-    querySelector(querySelector(sectionElement, 'StbSecFigure'), 'StbSecColumn_RC_Rect');
+    querySelector(querySelector(sectionElement, 'StbSecFigure'), 'StbSecColumn_RC_Rect') ||
+    querySelector(querySelector(sectionElement, 'StbSecFigureColumn_RC'), 'StbSecColumnRect') ||
+    querySelector(sectionElement, 'StbSecColumnRect');
 
   const circleFigure =
     querySelector(sectionElement, 'StbSecColumn_RC_Circle') ||
-    querySelector(querySelector(sectionElement, 'StbSecFigure'), 'StbSecColumn_RC_Circle');
+    querySelector(querySelector(sectionElement, 'StbSecFigure'), 'StbSecColumn_RC_Circle') ||
+    querySelector(querySelector(sectionElement, 'StbSecFigureColumn_RC'), 'StbSecColumnCircle') ||
+    querySelector(sectionElement, 'StbSecColumnCircle');
 
   if (rectFigure) {
     result.dimensions.type = 'RECTANGLE';
@@ -143,11 +152,13 @@ function extractRcColumnSectionDetail(sectionElement) {
   const barArrangement = querySelector(sectionElement, 'StbSecBarArrangementColumn_RC');
   if (barArrangement) {
     // 矩形配筋: STB v2.0.2対応（RectSame/RectNotSame を優先、旧Rectにフォールバック）
+    // SS7生成: StbSecBarColumnRectSame > StbSecBarColumnRectSameSimple
     let rectBar = null;
     const rectBarSelectors = [
       'StbSecBarColumn_RC_RectSame', // v2.0.2
       'StbSecBarColumn_RC_RectNotSame', // v2.0.2（配列）
       'StbSecBarColumn_RC_Rect', // 旧バージョン
+      'StbSecBarColumnRectSame', // SS7生成
     ];
 
     for (const selector of rectBarSelectors) {
@@ -157,6 +168,9 @@ function extractRcColumnSectionDetail(sectionElement) {
         if (selector === 'StbSecBarColumn_RC_RectNotSame') {
           const elements = querySelectorAll(barArrangement, selector);
           rectBar = elements[0];
+        } else if (selector === 'StbSecBarColumnRectSame') {
+          // SS7生成: 属性は子要素 StbSecBarColumnRectSameSimple に存在する
+          rectBar = querySelector(element, 'StbSecBarColumnRectSameSimple') || element;
         } else {
           rectBar = element;
         }
@@ -169,11 +183,13 @@ function extractRcColumnSectionDetail(sectionElement) {
     }
 
     // 円形配筋: STB v2.0.2対応（CircleSame/CircleNotSame を優先、旧Circleにフォールバック）
+    // SS7生成: StbSecBarColumnCircleSame > StbSecBarColumnCircleSameSimple
     let circleBar = null;
     const circleBarSelectors = [
       'StbSecBarColumn_RC_CircleSame', // v2.0.2
       'StbSecBarColumn_RC_CircleNotSame', // v2.0.2（配列）
       'StbSecBarColumn_RC_Circle', // 旧バージョン
+      'StbSecBarColumnCircleSame', // SS7生成
     ];
 
     for (const selector of circleBarSelectors) {
@@ -182,6 +198,9 @@ function extractRcColumnSectionDetail(sectionElement) {
         if (selector === 'StbSecBarColumn_RC_CircleNotSame') {
           const elements = querySelectorAll(barArrangement, selector);
           circleBar = elements[0];
+        } else if (selector === 'StbSecBarColumnCircleSame') {
+          // SS7生成: 属性は子要素 StbSecBarColumnCircleSameSimple に存在する
+          circleBar = querySelector(element, 'StbSecBarColumnCircleSameSimple') || element;
         } else {
           circleBar = element;
         }
@@ -203,19 +222,21 @@ function extractRcColumnSectionDetail(sectionElement) {
  * @param {Object} result - 結果オブジェクト
  */
 function extractRectBarInfo(rectBar, result) {
-  // 主筋本数（X方向）- 3段階フォールバック（v2.0.2 → v1.x → 旧版）
+  // 主筋本数（X方向）- フォールバック（v2.0.2 → v1.x → SS7生成 → 旧版）
   const nMainX =
     parseInt(
       rectBar.getAttribute('N_main_X_1st') || // v2.0.2
         rectBar.getAttribute('N_main_X') || // v1.x
+        rectBar.getAttribute('N_X') || // SS7生成
         rectBar.getAttribute('count_main_X'), // 旧版
     ) || 0;
 
-  // 主筋本数（Y方向）- 3段階フォールバック
+  // 主筋本数（Y方向）- フォールバック（v2.0.2 → v1.x → SS7生成 → 旧版）
   const nMainY =
     parseInt(
       rectBar.getAttribute('N_main_Y_1st') || // v2.0.2
         rectBar.getAttribute('N_main_Y') || // v1.x
+        rectBar.getAttribute('N_Y') || // SS7生成
         rectBar.getAttribute('count_main_Y'), // 旧版
     ) || 0;
 
@@ -287,6 +308,7 @@ function extractRectBarInfo(rectBar, result) {
     parseFloat(
       rectBar.getAttribute('pitch_band') || // v2.0.2（最優先）
         rectBar.getAttribute('pitch_stirrup') ||
+        rectBar.getAttribute('pitch_hoop') || // SS7生成
         rectBar.getAttribute('pitch'),
     ) || 100;
 
@@ -295,6 +317,7 @@ function extractRectBarInfo(rectBar, result) {
     rectBar.getAttribute('strength_band') || // v2.0.2（最優先）
     rectBar.getAttribute('grade_band') ||
     rectBar.getAttribute('strength_stirrup') ||
+    rectBar.getAttribute('strength_hoop') || // SS7生成
     rectBar.getAttribute('grade_stirrup') ||
     'SD295';
 
@@ -374,6 +397,7 @@ function extractCircleBarInfo(circleBar, result) {
     parseFloat(
       circleBar.getAttribute('pitch_band') || // v2.0.2（最優先）
         circleBar.getAttribute('pitch_stirrup') ||
+        circleBar.getAttribute('pitch_hoop') || // SS7生成
         circleBar.getAttribute('pitch'),
     ) || 100;
 
@@ -382,6 +406,7 @@ function extractCircleBarInfo(circleBar, result) {
     circleBar.getAttribute('strength_band') || // v2.0.2（最優先）
     circleBar.getAttribute('grade_band') ||
     circleBar.getAttribute('strength_stirrup') ||
+    circleBar.getAttribute('strength_hoop') || // SS7生成
     circleBar.getAttribute('grade_stirrup') ||
     'SD295';
 

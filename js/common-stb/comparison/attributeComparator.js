@@ -7,6 +7,7 @@
 
 import { NUMERIC_TOLERANCE } from '../../config/geometryConfig.js';
 import { getToleranceConfig } from '../../config/toleranceConfig.js';
+import { isIdentityAttribute } from './identityAttributes.js';
 
 /**
  * 要素からプロパティ値を取得する（XML DOM/JSオブジェクト両対応）
@@ -38,12 +39,20 @@ function getProperty(element, attrName) {
  * @type {string[]}
  */
 const STRUCTURAL_ATTRIBUTES = [
-  'id_sec',
   'kind',
+  'kind_structure',
+  'kind_layout',
+  'kind_wall',
   'rotate',
   'offset_X',
   'offset_Y',
   'offset_Z',
+  'offset_bottom_X',
+  'offset_bottom_Y',
+  'offset_bottom_Z',
+  'offset_top_X',
+  'offset_top_Y',
+  'offset_top_Z',
   'level_top',
   'level_bottom',
   'condition_bottom',
@@ -58,6 +67,21 @@ const STRUCTURAL_ATTRIBUTES = [
 ];
 
 /**
+ * STB仕様上の既定値が0で、欠落を0と同値に扱う属性。
+ * 柱・間柱の偏心はツールにより「offsetで符号化」「節点座標に織り込み（offset無し）」と
+ * 表現が分かれるため、欠落と明示的な0を区別すると偽差分になる。
+ * @type {Set<string>}
+ */
+const ZERO_DEFAULT_ATTRIBUTES = new Set([
+  'offset_bottom_X',
+  'offset_bottom_Y',
+  'offset_bottom_Z',
+  'offset_top_X',
+  'offset_top_Y',
+  'offset_top_Z',
+]);
+
+/**
  * 2つの要素の構造属性を比較する
  * @param {Element|Object} elementA - モデルAの要素
  * @param {Element|Object} elementB - モデルBの要素
@@ -65,14 +89,37 @@ const STRUCTURAL_ATTRIBUTES = [
  * @returns {boolean} 属性が一致すればtrue
  */
 export function compareStructuralAttributes(elementA, elementB, tolerance) {
+  return compareStructuralAttributeDetails(elementA, elementB, tolerance).matches;
+}
+
+/**
+ * 2つの要素の構造属性を比較し、差分属性名も返す
+ * @param {Element|Object} elementA - モデルAの要素
+ * @param {Element|Object} elementB - モデルBの要素
+ * @param {number} [tolerance] - 数値属性の許容差（省略時は toleranceConfig から取得）
+ * @returns {{matches: boolean, differences: Array<{attribute: string, valueA: *, valueB: *}>}}
+ */
+export function compareStructuralAttributeDetails(elementA, elementB, tolerance) {
   const numTolerance =
     tolerance !== undefined
       ? tolerance
       : (getToleranceConfig().attributeNumericTolerance ?? NUMERIC_TOLERANCE);
+  const differences = [];
 
   for (const attr of STRUCTURAL_ATTRIBUTES) {
-    const valueA = getProperty(elementA, attr);
-    const valueB = getProperty(elementB, attr);
+    if (isIdentityAttribute(attr)) {
+      continue;
+    }
+
+    let valueA = getProperty(elementA, attr);
+    let valueB = getProperty(elementB, attr);
+
+    // 既定値0の属性は欠落を0として比較する
+    if (ZERO_DEFAULT_ATTRIBUTES.has(attr)) {
+      if (valueA === undefined && valueB === undefined) continue;
+      valueA = valueA ?? 0;
+      valueB = valueB ?? 0;
+    }
 
     // 両方とも未定義なら一致とみなす
     if (valueA === undefined && valueB === undefined) {
@@ -81,23 +128,27 @@ export function compareStructuralAttributes(elementA, elementB, tolerance) {
 
     // 片方だけ定義されている場合は不一致
     if (valueA === undefined || valueB === undefined) {
-      return false;
+      differences.push({ attribute: attr, valueA, valueB });
+      continue;
     }
 
     // 数値の場合はしきい値で比較
     if (typeof valueA === 'number' && typeof valueB === 'number') {
       if (Math.abs(valueA - valueB) > numTolerance) {
-        return false;
+        differences.push({ attribute: attr, valueA, valueB });
       }
     } else {
       // その他の型は厳密比較
       if (String(valueA) !== String(valueB)) {
-        return false;
+        differences.push({ attribute: attr, valueA, valueB });
       }
     }
   }
 
-  return true;
+  return {
+    matches: differences.length === 0,
+    differences,
+  };
 }
 
 /**

@@ -117,7 +117,7 @@ export function initializeXmlViewer() {
 
   // 編集イベントリスナー: 表示中のモデルが編集された場合にXMLを再表示
   eventBus.on(EditEvents.ATTRIBUTE_CHANGED, ({ modelSource }) => {
-    const isViewerVisible = floatingWindowManager.isVisible('xml-viewer-float');
+    const isViewerVisible = floatingWindowManager.isWindowVisible('xml-viewer-float');
     const editedModel = normalizeModelSource(modelSource);
     if (!editedModel) return;
     if (isViewerVisible && currentModel === editedModel) {
@@ -379,7 +379,7 @@ function renderXml() {
 
   const doc = getState(currentModel === 'A' ? 'models.documentA' : 'models.documentB');
   if (!doc) {
-    pre.textContent = `(モデル${currentModel}は未読み込みです)`;
+    pre.textContent = `(モデル${currentModel}は読み込まれていません)`;
     lastRawXml = '';
     return;
   }
@@ -402,7 +402,7 @@ async function runValidationAndMark() {
   // XML未表示（初回表示前など）の場合は自動でレンダリングしてから続行する
   if (!lastRawXml) renderXml();
   if (!lastRawXml) {
-    showWarning('モデルが未読み込みです');
+    showWarning('モデルが読み込まれていません');
     return;
   }
 
@@ -417,7 +417,7 @@ async function runValidationAndMark() {
   try {
     const doc = getState(currentModel === 'A' ? 'models.documentA' : 'models.documentB');
     if (!doc) {
-      showWarning(`モデル${currentModel}が未読み込みです`);
+      showWarning(`モデル${currentModel}が読み込まれていません`);
       return;
     }
 

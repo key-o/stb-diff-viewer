@@ -129,13 +129,30 @@ export function drawLineElementsBatched(
   });
 
   // カテゴリごとにバッチャーを作成
-  const matchedBatcher = new LineBatcher();
+  const matchedBatchers = new Map();
   const onlyABatcher = new LineBatcher();
   const onlyBBatcher = new LineBatcher();
 
+  const getMatchedBatcher = (diffStatus) => {
+    const key = diffStatus || 'matched';
+    if (!matchedBatchers.has(key)) {
+      matchedBatchers.set(key, new LineBatcher());
+    }
+    return matchedBatchers.get(key);
+  };
+
   // Matched要素を処理
   comparisonResult.matched.forEach((item) => {
-    const { dataA, dataB, importance, matchType } = item;
+    const {
+      dataA,
+      dataB,
+      importance,
+      matchType,
+      positionState,
+      attributeState,
+      diffStatus,
+      attributeMismatchKind,
+    } = item;
     const startCoords = dataA.startCoords;
     const endCoords = dataA.endCoords;
 
@@ -146,7 +163,7 @@ export function drawLineElementsBatched(
     const startVec = new THREE.Vector3(startCoords.x, startCoords.y, startCoords.z);
     const endVec = new THREE.Vector3(endCoords.x, endCoords.y, endCoords.z);
 
-    matchedBatcher.addLine(startVec, endVec, {
+    getMatchedBatcher(diffStatus).addLine(startVec, endVec, {
       elementType,
       elementIdA: dataA.id,
       elementIdB: dataB.id,
@@ -155,6 +172,10 @@ export function drawLineElementsBatched(
       id: dataA.id,
       importance,
       toleranceState: matchType,
+      positionState,
+      attributeState,
+      diffStatus,
+      attributeMismatchKind,
       isLine: true,
     });
 
@@ -251,10 +272,22 @@ export function drawLineElementsBatched(
   });
 
   // バッチをビルドしてグループに追加
-  if (matchedBatcher.count > 0) {
-    const material = getMaterialForElementWithMode(elementType, 'matched', true, false, null);
-    const batchedLines = matchedBatcher.build(material);
+  for (const [diffStatus, batcher] of matchedBatchers.entries()) {
+    if (batcher.count === 0) continue;
+    const material = getMaterialForElementWithMode(
+      elementType,
+      'matched',
+      true,
+      false,
+      null,
+      null,
+      {
+        diffStatus,
+      },
+    );
+    const batchedLines = batcher.build(material);
     batchedLines.userData.batchType = 'matched';
+    batchedLines.userData.diffStatus = diffStatus;
     group.add(batchedLines);
   }
 
@@ -262,6 +295,7 @@ export function drawLineElementsBatched(
     const material = getMaterialForElementWithMode(elementType, 'onlyA', true, false, null);
     const batchedLines = onlyABatcher.build(material);
     batchedLines.userData.batchType = 'onlyA';
+    batchedLines.userData.modelSource = 'A';
     group.add(batchedLines);
   }
 
@@ -269,11 +303,15 @@ export function drawLineElementsBatched(
     const material = getMaterialForElementWithMode(elementType, 'onlyB', true, false, null);
     const batchedLines = onlyBBatcher.build(material);
     batchedLines.userData.batchType = 'onlyB';
+    batchedLines.userData.modelSource = 'B';
     group.add(batchedLines);
   }
 
   log.info(`Batched ${elementType} rendering summary:`, {
-    matchedSegments: matchedBatcher.count,
+    matchedSegments: Array.from(matchedBatchers.values()).reduce(
+      (sum, batcher) => sum + batcher.count,
+      0,
+    ),
     onlyASegments: onlyABatcher.count,
     onlyBSegments: onlyBBatcher.count,
     totalDrawCalls: 3, // matched, onlyA, onlyB
@@ -442,7 +480,16 @@ export function drawNodesBatched(comparisonResult, materials, group, labelToggle
 
   // Matched要素を処理
   comparisonResult.matched.forEach((item) => {
-    const { dataA, dataB, importance, matchType } = item;
+    const {
+      dataA,
+      dataB,
+      importance,
+      matchType,
+      positionState,
+      attributeState,
+      diffStatus,
+      attributeMismatchKind,
+    } = item;
     const coords = dataA.coords;
     const idA = dataA.id;
     const idB = dataB.id;
@@ -456,7 +503,7 @@ export function drawNodesBatched(comparisonResult, materials, group, labelToggle
     modelBounds.expandByPoint(pos);
 
     // matchType ごとにグループ化
-    const typeKey = matchType || 'exact';
+    const typeKey = diffStatus || matchType || 'exact';
     if (!matchedByType.has(typeKey)) {
       matchedByType.set(typeKey, []);
     }
@@ -466,6 +513,10 @@ export function drawNodesBatched(comparisonResult, materials, group, labelToggle
       idB,
       importance,
       matchType,
+      positionState,
+      attributeState,
+      diffStatus,
+      attributeMismatchKind,
     });
 
     if (labelToggle) {
@@ -542,8 +593,9 @@ export function drawNodesBatched(comparisonResult, materials, group, labelToggle
   const sphereGeometry = getSharedSphereGeometry();
 
   // Matched ノードの InstancedMesh を作成（matchType ごと）
-  matchedByType.forEach((nodes, matchType) => {
+  matchedByType.forEach((nodes, statusKey) => {
     if (nodes.length === 0) return;
+    const firstNode = nodes[0];
 
     const material = getMaterialForElementWithMode(
       'Node',
@@ -551,7 +603,12 @@ export function drawNodesBatched(comparisonResult, materials, group, labelToggle
       false,
       false,
       null,
-      matchType,
+      firstNode.matchType,
+      {
+        diffStatus: firstNode.diffStatus,
+        positionState: firstNode.positionState,
+        attributeState: firstNode.attributeState,
+      },
     );
 
     const instancedMesh = new THREE.InstancedMesh(sphereGeometry, material, nodes.length);
@@ -568,6 +625,10 @@ export function drawNodesBatched(comparisonResult, materials, group, labelToggle
         elementIdB: node.idB,
         modelSource: 'matched',
         toleranceState: node.matchType,
+        positionState: node.positionState,
+        attributeState: node.attributeState,
+        diffStatus: node.diffStatus,
+        attributeMismatchKind: node.attributeMismatchKind,
       });
     });
 
@@ -577,6 +638,8 @@ export function drawNodesBatched(comparisonResult, materials, group, labelToggle
       isInstanced: true,
       elementType: 'Node',
       batchType: 'matched',
+      diffStatus: firstNode.diffStatus || statusKey,
+      attributeMismatchKind: firstNode.attributeMismatchKind,
       instanceCount: nodes.length,
       instances: instanceUserData,
     };
@@ -609,6 +672,7 @@ export function drawNodesBatched(comparisonResult, materials, group, labelToggle
       isInstanced: true,
       elementType: 'Node',
       batchType: 'onlyA',
+      modelSource: 'A',
       instanceCount: onlyANodes.length,
       instances: instanceUserData,
     };
@@ -641,6 +705,7 @@ export function drawNodesBatched(comparisonResult, materials, group, labelToggle
       isInstanced: true,
       elementType: 'Node',
       batchType: 'onlyB',
+      modelSource: 'B',
       instanceCount: onlyBNodes.length,
       instances: instanceUserData,
     };

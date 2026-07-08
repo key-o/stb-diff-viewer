@@ -35,17 +35,3 @@ export function getCurrentColorMode() {
 export function setCurrentColorModeInternal(mode) {
   currentColorMode = mode;
 }
-
-/**
- * 全要素に指定した色付けモードを適用するラッパー関数を生成するファクトリ
- *
- * @param {string} modeName - applyColorModeToAllObjects に渡すモード名
- * @returns {Function} 引数なしのラッパー関数
- */
-export function createApplyColorMode(modeName) {
-  return function () {
-    import('./index.js').then(({ applyColorModeToAllObjects }) => {
-      applyColorModeToAllObjects(modeName);
-    });
-  };
-}

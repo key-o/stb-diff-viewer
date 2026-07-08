@@ -5,7 +5,7 @@
  */
 
 import { STRUCTURAL_SYSTEM } from '../constants/structuralSystems.js';
-import { SECTION_TYPE } from '../constants/sectionTypes.js';
+import { SECTION_TYPE } from '../common-stb/import/constants/sectionTypes.js';
 
 const RC_TYPES = new Set([SECTION_TYPE.RECTANGLE, SECTION_TYPE.CIRCLE]);
 const STEEL_ONLY_TYPES = new Set([

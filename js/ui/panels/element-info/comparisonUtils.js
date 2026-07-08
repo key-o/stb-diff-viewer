@@ -7,6 +7,7 @@
 
 import { getElementValidation } from '../../../common-stb/validation/validationManager.js';
 import { getToleranceConfig } from '../../../config/toleranceConfig.js';
+import { isIdentityAttribute } from '../../../common-stb/comparison/identityAttributes.js';
 
 /**
  * 属性値が「異なる」かどうかを判定する。
@@ -24,6 +25,18 @@ export function attributesDiffer(valA, valB) {
     return Math.abs(numA - numB) > tolerance;
   }
   return String(valA) !== String(valB);
+}
+
+/**
+ * 属性名も加味して、比較テーブル上で差分表示すべきかを判定する。
+ * ID/GUID系属性は対応付け・参照用の値として扱い、属性差分ハイライトから除外する。
+ * @param {string} attrName
+ * @param {string|number|null|undefined} valA
+ * @param {string|number|null|undefined} valB
+ * @returns {boolean}
+ */
+export function comparableAttributeDiffers(attrName, valA, valB) {
+  return !isIdentityAttribute(attrName) && attributesDiffer(valA, valB);
 }
 
 /**

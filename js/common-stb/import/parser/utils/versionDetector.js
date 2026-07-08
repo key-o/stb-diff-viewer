@@ -18,4 +18,4 @@ export {
   isSameVersion,
   ROOT_ELEMENT_NAMES,
   STB_NAMESPACE,
-} from '../../../../constants/stbVersionDetection.js';
+} from './stbVersionDetection.js';

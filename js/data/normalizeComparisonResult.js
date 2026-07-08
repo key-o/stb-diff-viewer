@@ -132,14 +132,20 @@ function normalizeToleranceResult(rawResult) {
 function decorateMatchedItem(item, category) {
   // 既にデコレート済みの場合はcategoryだけ更新
   if (item.category) {
-    return { ...item, category };
+    return {
+      ...item,
+      category,
+      diffStatus: item.diffStatus || determineDiffStatus(category, item),
+    };
   }
 
   const positionState =
-    category === COMPARISON_CATEGORY.WITHIN_TOLERANCE ? 'withinTolerance' : 'exact';
+    item.positionState ||
+    (category === COMPARISON_CATEGORY.WITHIN_TOLERANCE ? 'withinTolerance' : 'exact');
 
   const attributeState =
-    category === COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH ? 'mismatch' : 'matched';
+    item.attributeState ||
+    (category === COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH ? 'mismatch' : 'matched');
 
   return {
     ...item,
@@ -147,7 +153,36 @@ function decorateMatchedItem(item, category) {
     matchType: item.matchType || category,
     positionState,
     attributeState,
+    diffStatus:
+      item.diffStatus || determineDiffStatus(category, item, positionState, attributeState),
   };
+}
+
+function determineDiffStatus(
+  category,
+  item,
+  positionState = item.positionState,
+  attributeState = item.attributeState,
+) {
+  if (category === COMPARISON_CATEGORY.EXACT) return 'matched';
+  if (category === COMPARISON_CATEGORY.WITHIN_TOLERANCE) return 'positionTolerance';
+  if (category !== COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH && item.diffStatus)
+    return item.diffStatus;
+
+  if (category === COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH || attributeState === 'mismatch') {
+    switch (item.attributeMismatchKind) {
+      case 'instance':
+        return 'attributeMismatchInstance';
+      case 'type':
+        return 'attributeMismatchType';
+      case 'both':
+        return 'attributeMismatchBoth';
+      default:
+        return positionState === 'withinTolerance' ? 'combined' : 'attributeMismatch';
+    }
+  }
+
+  return 'matched';
 }
 
 /**
@@ -229,4 +264,47 @@ export function getCategoryCounts(normalizedResult) {
     matched: exact + withinTolerance + attributeMismatch,
     total: exact + withinTolerance + attributeMismatch + onlyA + onlyB,
   };
+}
+
+/**
+ * 正規化結果を差分表示ステータス別に集計する。
+ * 3D色分けフィルタやサマリーの細分類表示で使用する。
+ *
+ * @param {Object} normalizedResult - 正規化された比較結果
+ * @returns {Object.<string, number>} diffStatus別カウント
+ */
+export function getDiffStatusCounts(normalizedResult) {
+  const counts = {
+    matched: 0,
+    onlyA: 0,
+    onlyB: 0,
+    positionTolerance: 0,
+    attributeMismatch: 0,
+    attributeMismatchInstance: 0,
+    attributeMismatchType: 0,
+    attributeMismatchBoth: 0,
+    combined: 0,
+  };
+
+  if (!normalizedResult) {
+    return counts;
+  }
+
+  counts.matched += normalizedResult[COMPARISON_CATEGORY.EXACT]?.length || 0;
+  counts.positionTolerance += normalizedResult[COMPARISON_CATEGORY.WITHIN_TOLERANCE]?.length || 0;
+  counts.onlyA += normalizedResult[COMPARISON_CATEGORY.ONLY_A]?.length || 0;
+  counts.onlyB += normalizedResult[COMPARISON_CATEGORY.ONLY_B]?.length || 0;
+
+  const attributeItems = normalizedResult[COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH] || [];
+  for (const item of attributeItems) {
+    const status =
+      item.diffStatus || determineDiffStatus(COMPARISON_CATEGORY.ATTRIBUTE_MISMATCH, item);
+    if (Object.prototype.hasOwnProperty.call(counts, status)) {
+      counts[status]++;
+    } else {
+      counts.attributeMismatch++;
+    }
+  }
+
+  return counts;
 }

@@ -3,7 +3,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { getModelContext } from './displayModeController.js';
+import { getModelContext } from './modelContext.js';
 import {
   drawLineElements,
   drawLineElementsBatched,

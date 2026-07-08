@@ -9,7 +9,11 @@
  */
 
 import { IfcToStbBrowserConverter } from './IfcToStbBrowserConverter.js';
-import { SOURCE_TYPES, IMPORT_STAGES, createImportMetadata } from '../constants/importTypes.js';
+import {
+  SOURCE_TYPES,
+  IMPORT_STAGES,
+  createImportMetadata,
+} from '../common-stb/import/constants/importTypes.js';
 
 /** IFC変換パイプラインのステージ → 進捗率マッピング */
 const STAGE_PROGRESS = {
@@ -25,7 +29,7 @@ const STAGE_PROGRESS = {
  * @param {File} file - ブラウザの File オブジェクト
  * @param {Object} [options]
  * @param {function} [options.onProgress] - 進捗コールバック ({stage, progress, message}) => void
- * @returns {Promise<import('../constants/importTypes.js').ImportResult>}
+ * @returns {Promise<import('../common-stb/import/constants/importTypes.js').ImportResult>}
  */
 export async function convertIfcToStbDocument(file, options = {}) {
   const { onProgress } = options;

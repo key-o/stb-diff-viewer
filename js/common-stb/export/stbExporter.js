@@ -129,50 +129,6 @@ export function setDynamicImportPaths(paths) {
 // ======================================================================
 
 /**
- * STBドキュメントを修正してエクスポート
- * @param {Document} originalDoc - 元のXMLドキュメント
- * @param {Array<Object>} modifications - 修正データの配列
- * @param {string} filename - エクスポートファイル名
- * @returns {Promise<boolean>} エクスポート成功可否
- */
-export async function exportModifiedStb(originalDoc, modifications, filename = 'modified.stb') {
-  try {
-    // 元ドキュメントのコピーを作成
-    const modifiedDoc = /** @type {Document} */ (originalDoc.cloneNode(true));
-
-    // 修正を適用
-    const validationResults = [];
-    for (const mod of modifications) {
-      const result = applyModification(modifiedDoc, mod);
-      if (result.validation) {
-        validationResults.push(result.validation);
-      }
-    }
-
-    // バリデーション結果をコンソールに出力
-    if (validationResults.length > 0) {
-      logger.debug('Validation results:', validationResults);
-    }
-
-    // XMLを文字列にシリアライズ
-    const serializer = new XMLSerializer();
-    const xmlString = serializer.serializeToString(modifiedDoc);
-
-    // フォーマット調整（改行とインデント）
-    const formattedXml = formatXml(xmlString);
-
-    // ファイルとしてダウンロード
-    await downloadStbFile(formattedXml, filename);
-
-    logger.debug(`STB file exported successfully as ${filename}`);
-    return true;
-  } catch (error) {
-    logger.error('Error exporting STB file:', error);
-    return false;
-  }
-}
-
-/**
  * STBドキュメントを指定バージョンでエクスポート
  * @param {Document} doc - XMLドキュメント
  * @param {ExportStbDocumentOptions} [options] - オプション
@@ -244,50 +200,6 @@ function applyVersionOverrides(doc, targetVersion) {
 }
 
 /**
- * 単一の修正をXMLドキュメントに適用
- * @param {Document} doc - XMLドキュメント
- * @param {Object} modification - 修正データ {elementType, id, attribute, newValue}
- * @returns {Object} 適用結果とバリデーション情報
- */
-function applyModification(doc, modification) {
-  const { elementType, id, attribute, newValue } = modification;
-
-  // 要素を検索
-  const tagName = elementType === 'Node' ? 'StbNode' : `Stb${elementType}`;
-  const element = doc.querySelector(`${tagName}[id="${id}"]`);
-
-  if (!element) {
-    logger.warn(`Element ${tagName} with ID ${id} not found`);
-    return { success: false, error: 'Element not found' };
-  }
-
-  // 属性値を設定
-  if (newValue === null || newValue === undefined || newValue === '') {
-    element.removeAttribute(attribute);
-  } else {
-    element.setAttribute(attribute, newValue);
-  }
-
-  // XSDスキーマが利用可能な場合はバリデーション
-  let validation = null;
-  if (validatorFunctions.isSchemaLoaded()) {
-    const currentAttributes = {};
-    for (const attr of Array.from(element.attributes)) {
-      currentAttributes[attr.name] = attr.value;
-    }
-
-    validation = validatorFunctions.validateElement(tagName, currentAttributes);
-    validation.elementId = id;
-    validation.elementType = elementType;
-  }
-
-  return {
-    success: true,
-    validation: validation,
-  };
-}
-
-/**
  * エクスポート前の全体バリデーション
  * @param {Document} doc - XMLドキュメント
  * @returns {Object} バリデーション結果
@@ -350,8 +262,13 @@ export function generateModificationReport(modifications) {
 
   modifications.forEach((mod, index) => {
     report += `${index + 1}. ${mod.elementType} (ID: ${mod.id})\n`;
-    report += `   属性: ${mod.attribute}\n`;
-    report += `   新しい値: ${mod.newValue}\n\n`;
+    if (mod.op === 'add') {
+      report += `   操作: 新規追加\n\n`;
+    } else {
+      report += `   属性: ${mod.attribute}\n`;
+      report += `   変更前の値: ${mod.oldValue}\n`;
+      report += `   新しい値: ${mod.newValue}\n\n`;
+    }
   });
 
   return report;

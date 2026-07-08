@@ -491,6 +491,9 @@ export class ProfileBasedBeamGenerator extends BaseElementGenerator {
       if (steelShape) {
         tempSectionData.steelShape = steelShape;
         tempSectionData.dimensions = steelShape.dimensions || steelShape;
+      } else if (shapeInfo.dimensions) {
+        // RC等: 断面ごとの寸法が直接与えられている場合（コンクリートテーパー梁）
+        tempSectionData.dimensions = shapeInfo.dimensions;
       }
 
       // variantから追加の属性情報をコピー（strength等）

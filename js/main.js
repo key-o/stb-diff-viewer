@@ -14,6 +14,11 @@
  * 7. 開発ツールのセットアップ
  */
 
+// STB読み込み共通カーネルへのDI注入（副作用import）。
+// ESMの評価順は依存グラフ順のため最初に実行される保証はないが、
+// createKernelLogger がログ出力時に遅延解決するため注入後のロガーが使われる
+
+import './app/initialization/stbKernelSetup.js';
 import { createLogger } from './utils/logger.js';
 import {
   camera,
@@ -39,12 +44,15 @@ import {
 } from './app/initialization/systemInitializer.js';
 import { initializeEnvironment } from './app/initialization/environmentInitializer.js';
 import { initializeCompareFileInputs } from './app/initialization/fileInputInitializer.js';
+import { initializeGlobalErrorHandling } from './app/initialization/globalErrorHandler.js';
 import { setupDevelopmentTools } from './app/initialization/devToolsInitializer.js';
 import { initArButton } from './ui/ar/arButton.js';
 
 // --- 初期化フラグ ---
 let rendererInitialized = false;
 const log = createLogger('app');
+
+initializeGlobalErrorHandling();
 
 // --- 再描画をリクエストする関数 ---
 function scheduleRender() {

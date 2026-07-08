@@ -22,6 +22,7 @@ import {
 import { scheduleRender } from '../utils/renderScheduler.js';
 import { createLogger } from '../utils/logger.js';
 import { ViewEvents } from '../data/events/index.js';
+import { getCurrentColorMode, COLOR_MODES } from './colorModeState.js';
 
 const log = createLogger('colorModes:importanceColorMode');
 const IMPORTANCE_DISPLAY_FILTERS = {
@@ -207,11 +208,9 @@ export function initializeImportanceColorControls() {
 
         visibilityCheckbox?.addEventListener('change', (e) => {
           IMPORTANCE_DISPLAY_FILTERS[filterKey] = e.target.checked;
-          import('./index.js').then(({ getCurrentColorMode, COLOR_MODES }) => {
-            if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
-              applyImportanceVisibilityFilterToAll();
-            }
-          });
+          if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
+            applyImportanceVisibilityFilterToAll();
+          }
         });
 
         item.addEventListener('click', (e) => {
@@ -241,13 +240,11 @@ export function initializeImportanceColorControls() {
         '陦ｨ遉ｺ荳ｭ: <strong id="importance-visible-count">0</strong> / <span id="importance-total-count">0</span>';
       container.appendChild(summary);
 
-      import('./index.js').then(({ getCurrentColorMode, COLOR_MODES }) => {
-        if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
-          applyImportanceVisibilityFilterToAll();
-        } else {
-          updateImportanceVisibilitySummary(0, 0);
-        }
-      });
+      if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
+        applyImportanceVisibilityFilterToAll();
+      } else {
+        updateImportanceVisibilitySummary(0, 0);
+      }
     },
   );
 }
@@ -262,12 +259,10 @@ function updateImportanceColor(importanceLevel, color) {
   colorManager.setImportanceColor(importanceLevel, color);
 
   // 驥崎ｦ∝ｺｦ繝｢繝ｼ繝峨′譛牙柑縺ｪ蝣ｴ蜷医・蜊ｳ蠎ｧ縺ｫ驕ｩ逕ｨ
-  import('./index.js').then(({ getCurrentColorMode, COLOR_MODES, updateElementsForColorMode }) => {
-    if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
-      clearImportanceMaterialCache();
-      updateElementsForColorMode();
-    }
-  });
+  if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
+    clearImportanceMaterialCache();
+    eventBus.emit(ViewEvents.COLOR_MODE_REFRESH_REQUESTED);
+  }
 }
 
 /**
@@ -284,14 +279,10 @@ export function resetImportanceColors() {
     initializeImportanceColorControls();
 
     // 驥崎ｦ∝ｺｦ繝｢繝ｼ繝峨′譛牙柑縺ｪ蝣ｴ蜷医・蜊ｳ蠎ｧ縺ｫ驕ｩ逕ｨ
-    import('./index.js').then(
-      ({ getCurrentColorMode, COLOR_MODES, updateElementsForColorMode }) => {
-        if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
-          clearImportanceMaterialCache();
-          updateElementsForColorMode();
-        }
-      },
-    );
+    if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
+      clearImportanceMaterialCache();
+      eventBus.emit(ViewEvents.COLOR_MODE_REFRESH_REQUESTED);
+    }
   });
 }
 
@@ -301,23 +292,21 @@ export function resetImportanceColors() {
 export function setupImportanceChangeListeners() {
   // 驥崎ｦ∝ｺｦ險ｭ螳壼､画峩譎ゅ・繧ｰ繝ｭ繝ｼ繝舌Ν繧､繝吶Φ繝医Μ繧ｹ繝翫・・・ventBus邨檎罰・・
   eventBus.on(ImportanceEvents.SETTINGS_CHANGED, (_data) => {
-    import('./index.js').then(({ getCurrentColorMode, COLOR_MODES }) => {
-      if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
-        // 蟆代＠驕・ｻｶ縺輔○縺ｦ螳溯｡鯉ｼ郁ｦ∫ｴ縺ｮ驥崎ｦ∝ｺｦ繝・・繧ｿ譖ｴ譁ｰ繧貞ｾ・▽・・
-        setTimeout(() => {
-          applyImportanceColorModeToAll();
+    if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
+      // 蟆代＠驕・ｻｶ縺輔○縺ｦ螳溯｡鯉ｼ郁ｦ∫ｴ縺ｮ驥崎ｦ∝ｺｦ繝・・繧ｿ譖ｴ譁ｰ繧貞ｾ・▽・・
+      setTimeout(() => {
+        applyImportanceColorModeToAll();
 
-          // UI螻､縺ｫ螟画峩繧帝夂衍・・ventBus邨檎罰縺ｧ繝ｬ繧､繝､繝ｼ驕募渚隗｣豸茨ｼ・
-          eventBus.emit(ViewEvents.COLOR_MODE_CHANGED, {
-            mode: 'importance',
-            trigger: 'settingsChanged',
-          });
+        // UI螻､縺ｫ螟画峩繧帝夂衍・・ventBus邨檎罰縺ｧ繝ｬ繧､繝､繝ｼ驕募渚隗｣豸茨ｼ・
+        eventBus.emit(ViewEvents.COLOR_MODE_CHANGED, {
+          mode: 'importance',
+          trigger: 'settingsChanged',
+        });
 
-          // 蜀肴緒逕ｻ繧偵Μ繧ｯ繧ｨ繧ｹ繝・
-          scheduleRender();
-        }, UI_TIMING.COLOR_MODE_APPLY_DELAY_MS);
-      }
-    });
+        // 蜀肴緒逕ｻ繧偵Μ繧ｯ繧ｨ繧ｹ繝・
+        scheduleRender();
+      }, UI_TIMING.COLOR_MODE_APPLY_DELAY_MS);
+    }
   });
 
   // 驥崎ｦ∝ｺｦ繝輔ぅ繝ｫ繧ｿ螟画峩譎ゅ・繧､繝吶Φ繝医Μ繧ｹ繝翫・
@@ -327,15 +316,13 @@ export function setupImportanceChangeListeners() {
 
   // 繝｢繝・Ν豈碑ｼ・ｮ御ｺ・凾縺ｮ繧､繝吶Φ繝医Μ繧ｹ繝翫・
   eventBus.on(ComparisonEvents.UPDATE_STATISTICS, (_data) => {
-    import('./index.js').then(({ getCurrentColorMode, COLOR_MODES }) => {
-      if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
-        setTimeout(() => {
-          applyImportanceColorModeToAll();
+    if (getCurrentColorMode() === COLOR_MODES.IMPORTANCE) {
+      setTimeout(() => {
+        applyImportanceColorModeToAll();
 
-          scheduleRender();
-        }, UI_TIMING.IMPORTANCE_COLOR_APPLY_DELAY_MS);
-      }
-    });
+        scheduleRender();
+      }, UI_TIMING.IMPORTANCE_COLOR_APPLY_DELAY_MS);
+    }
   });
 }
 
@@ -419,14 +406,12 @@ export function showImportancePerformanceStats() {
     });
   }
 
-  import('./index.js').then(({ getCurrentColorMode, COLOR_MODES }) => {
-    const perfInfo = {
-      totalObjects,
-      ...stats,
-      currentColorMode: getCurrentColorMode(),
-      isImportanceMode: getCurrentColorMode() === COLOR_MODES.IMPORTANCE,
-    };
+  const perfInfo = {
+    totalObjects,
+    ...stats,
+    currentColorMode: getCurrentColorMode(),
+    isImportanceMode: getCurrentColorMode() === COLOR_MODES.IMPORTANCE,
+  };
 
-    return perfInfo;
-  });
+  return perfInfo;
 }

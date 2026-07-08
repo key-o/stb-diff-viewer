@@ -3,8 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'sha256-D8yVzjsfq7ph+oOYxslR/o/28zRTlivxWXAyIRBw860=' https://cdn.jsdelivr.net https://unpkg.com https://esm.sh; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://cdn.jsdelivr.net https://unpkg.com https://esm.sh; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'"
+    />
     <title>STB Diff Viewer</title>
-    <link rel="icon" href="data:," />
+    <link rel="icon" href="./favicon.ico" />
     <link rel="stylesheet" href="./style/variables.css" />
     <link rel="stylesheet" href="./style/style.css" />
     <link rel="stylesheet" href="./style/utilities.css" />
@@ -24,13 +28,15 @@
     <link rel="stylesheet" href="./style/components/importance-colors.css" />
     <link rel="stylesheet" href="./style/components/dxf.css" />
     <link rel="stylesheet" href="./style/components/diffList.css" />
-    <link rel="stylesheet" href="./style/components/theme.css" />
+    <link rel="stylesheet" href="./style/components/rawXmlDiff.css" />
+    <link rel="stylesheet" href="./style/components/sectionCorrespondence.css" />
     <link rel="stylesheet" href="./style/components/toast.css" />
     <link rel="stylesheet" href="./style/components/load-visualization.css" />
     <link rel="stylesheet" href="./style/components/view-cube.css" />
     <link rel="stylesheet" href="./style/components/section-list.css" />
     <link rel="stylesheet" href="./style/components/beam-section-list.css" />
     <link rel="stylesheet" href="./style/components/parameter-editor.css" />
+    <link rel="stylesheet" href="./style/components/add-member-form.css" />
     <link rel="stylesheet" href="./style/components/ar-mode.css" />
     <link rel="stylesheet" href="./style/components/validation-panel.css" />
     <link rel="stylesheet" href="./style/components/measurement.css" />
@@ -46,12 +52,26 @@
           "html2canvas": "https://esm.sh/html2canvas@1.4.1",
           "jspdf": "https://esm.sh/jspdf@2.5.1",
           "ajv": "https://esm.sh/ajv@8.17.1",
-          "web-ifc": "https://cdn.jsdelivr.net/npm/web-ifc@0.0.74/web-ifc-api.js"
+          "web-ifc": "https://cdn.jsdelivr.net/npm/web-ifc@0.0.74/web-ifc-api.js",
+          "encoding-japanese": "https://esm.sh/encoding-japanese@2.2.0"
         }
       }
     </script>
   </head>
   <body>
+    <!-- 右パネル折り畳みトグル -->
+    <button
+      type="button"
+      id="overlay-toggle-btn"
+      class="overlay-toggle-btn"
+      aria-label="サイドパネルを折り畳む"
+      aria-controls="overlay"
+      aria-expanded="true"
+      title="サイドパネルの表示切替"
+    >
+      ▶
+    </button>
+
     <div id="overlay">
       <!-- 表示モード切替（常時表示） -->
       <div class="view-mode-toggle">
@@ -140,7 +160,7 @@
               <button type="button" class="custom-file-btn" data-target="fileA">選択</button>
             </div>
             <span class="file-name-display" id="fileNameA">未選択</span>
-            <input type="file" id="fileA" accept=".stb,.xml,.ifc" />
+            <input type="file" id="fileA" accept=".stb,.xml,.csv,.ss7,.ifc" />
           </div>
 
           <div class="file-input-wrapper" id="wrapperB">
@@ -150,7 +170,7 @@
               <button type="button" class="custom-file-btn" data-target="fileB">選択</button>
             </div>
             <span class="file-name-display" id="fileNameB">未選択</span>
-            <input type="file" id="fileB" accept=".stb,.xml,.ifc" />
+            <input type="file" id="fileB" accept=".stb,.xml,.csv,.ss7,.ifc" />
           </div>
 
           <hr class="section-divider" />
@@ -158,87 +178,104 @@
           <button type="button" id="compareButton" class="btn-primary compare-button">
             🔍 読込 / 比較実行
           </button>
-
-          <!-- 差分結果サマリー表示エリア -->
-          <div id="diff-summary" class="hidden">
-            <div class="diff-summary-title">📈 差分サマリー</div>
-            <div id="diff-summary-content">
-              <!-- 動的に生成される差分統計 -->
-            </div>
-          </div>
         </div>
       </div>
 
-      <!-- 表示設定ボタン（直接表示） -->
-      <button
-        type="button"
-        id="toggle-element-settings-btn"
-        class="btn-white"
-        aria-controls="element-settings-float"
-        aria-expanded="false"
-      >
-        🏗️ 表示要素設定
-      </button>
-      <button
-        type="button"
-        id="toggle-clipping-settings-btn"
-        class="btn-white"
-        aria-controls="clipping-settings-float"
-        aria-expanded="false"
-      >
-        ✂️ 表示範囲設定
-      </button>
+      <!-- 表示設定グループ -->
+      <div class="sidebar-group">
+        <div class="sidebar-group-title">表示設定</div>
+        <button
+          type="button"
+          id="toggle-element-settings-btn"
+          aria-controls="element-settings-float"
+          aria-expanded="false"
+        >
+          🏗️ 表示要素設定
+        </button>
+        <button
+          type="button"
+          id="toggle-clipping-settings-btn"
+          aria-controls="clipping-settings-float"
+          aria-expanded="false"
+        >
+          ✂️ 表示範囲設定
+        </button>
+        <button
+          type="button"
+          id="toggle-display-settings-btn"
+          aria-controls="display-settings-float"
+          aria-expanded="false"
+        >
+          🎨 色付けモード設定
+        </button>
+      </div>
 
-      <button
-        type="button"
-        id="toggle-display-settings-btn"
-        aria-controls="display-settings-float"
-        aria-expanded="false"
-      >
-        🎨 色付けモード設定
-      </button>
-      <button
-        type="button"
-        id="toggle-component-info-btn"
-        aria-controls="component-info"
-        aria-expanded="false"
-      >
-        📋 要素情報
-      </button>
-      <button type="button" id="toggle-tree-view-btn">🌳 ツリービュー</button>
-      <button
-        type="button"
-        id="toggle-importance-panel-btn"
-        aria-controls="importance-panel"
-        aria-expanded="false"
-      >
-        🏷️ バリデーション設定
-      </button>
-      <button
-        type="button"
-        id="toggle-validation-panel-btn"
-        aria-controls="validation-panel-float"
-        aria-expanded="false"
-      >
-        ✅ STBバリデーション
-      </button>
-      <button
-        type="button"
-        id="toggle-xml-viewer-btn"
-        aria-controls="xml-viewer-float"
-        aria-expanded="false"
-      >
-        🔍 生XMLビュー
-      </button>
-      <button
-        type="button"
-        id="toggle-measurement-btn"
-        class="btn-white"
-        aria-controls="measurement-panel"
-        aria-expanded="false"
-      >
-        📏 寸法測定
-      </button>
+      <!-- 情報・検証グループ -->
+      <div class="sidebar-group">
+        <div class="sidebar-group-title">情報・検証</div>
+        <!-- 差分サマリーは独立フローティングウィンドウ (#diff-summary-float) で表示 -->
+        <button
+          type="button"
+          id="toggle-diff-summary-btn"
+          aria-controls="diff-summary-float"
+          aria-expanded="false"
+        >
+          📈 差分サマリー
+        </button>
+        <button
+          type="button"
+          id="toggle-component-info-btn"
+          aria-controls="component-info"
+          aria-expanded="false"
+        >
+          📋 要素情報
+        </button>
+        <button
+          type="button"
+          id="toggle-tree-view-btn"
+          aria-controls="tree-view-float"
+          aria-expanded="false"
+        >
+          🌳 ツリービュー
+        </button>
+        <button
+          type="button"
+          id="toggle-importance-panel-btn"
+          aria-controls="importance-panel"
+          aria-expanded="false"
+        >
+          🏷️ 重要度設定
+        </button>
+        <button
+          type="button"
+          id="toggle-validation-panel-btn"
+          aria-controls="validation-panel-float"
+          aria-expanded="false"
+        >
+          ✅ STBバリデーション
+        </button>
+        <button
+          type="button"
+          id="toggle-xml-viewer-btn"
+          aria-controls="xml-viewer-float"
+          aria-expanded="false"
+        >
+          🔍 生XMLビュー
+        </button>
+      </div>
+
+      <!-- ツールグループ -->
+      <div class="sidebar-group">
+        <div class="sidebar-group-title">ツール</div>
+        <button
+          type="button"
+          id="toggle-measurement-btn"
+          aria-controls="measurement-panel"
+          aria-expanded="false"
+        >
+          📏 寸法測定
+        </button>
+      </div>
 
       <!-- 出力・変換セクション -->
       <div class="accordion-section">
@@ -253,15 +290,6 @@
           <span class="accordion-arrow">▼</span>
         </button>
         <div class="accordion-content collapsed" id="other-settings" aria-hidden="true" inert>
-          <div class="theme-settings">
-            <span class="theme-settings-label">テーマ:</span>
-            <div class="theme-button-group" id="theme-button-group">
-              <button type="button" data-theme="light" class="active">ライト</button>
-              <button type="button" data-theme="dark">ダーク</button>
-              <button type="button" data-theme="system">自動</button>
-            </div>
-          </div>
-
           <!-- DXF/IFC出力セクション -->
           <div class="export-settings">
             <label><strong>エクスポート</strong></label>
@@ -270,6 +298,14 @@
             </button>
             <button type="button" id="exportIfcBtn" class="btn btn-secondary">
               📦 IFCファイルに変換
+            </button>
+            <button
+              type="button"
+              id="exportSs7Btn"
+              class="btn btn-secondary"
+              title="STBモデルをSS7入力形式CSV（Shift-JIS）として出力"
+            >
+              📊 SS7 CSV出力
             </button>
             <button
               type="button"
@@ -305,7 +341,7 @@
             </button>
           </div>
 
-          <!-- STBファイル出力セクション（バージョン変換・IFC変換後モデルに対応） -->
+          <!-- STBファイル出力セクション（バージョン変換・SS7/IFC変換後モデルに対応） -->
           <div class="export-settings">
             <label><strong>STBファイル出力</strong></label>
             <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center">
@@ -340,10 +376,32 @@
               type="button"
               id="exportStbBtn"
               class="btn btn-secondary"
-              title="読み込み済みモデル（IFCから変換されたものを含む）をSTBファイルとして出力"
+              title="読み込み済みモデル（他形式から変換されたものを含む）をSTBファイルとして出力"
             >
               📦 STBファイルを出力
             </button>
+          </div>
+
+          <!-- モデル編集セクション（編集モード／部材の直接作成） -->
+          <div class="export-settings">
+            <label><strong>モデル編集</strong></label>
+            <button
+              type="button"
+              id="edit-mode-button"
+              class="btn btn-secondary"
+              title="既存部材の属性を編集するモード。要素を選択し、各属性の✏️で編集します"
+            >
+              ✏️ 編集モード
+            </button>
+            <button
+              type="button"
+              id="add-member-button"
+              class="btn btn-secondary"
+              title="新規部材（節点・柱）をフォーム入力で直接作成します"
+            >
+              ＋ 部材を直接作成
+            </button>
+            <span id="editing-summary" class="editing-summary-text">修正: 0件</span>
           </div>
         </div>
       </div>
@@ -351,6 +409,58 @@
 
     <!-- 3Dビューアキャンバス -->
     <canvas id="three-canvas"></canvas>
+
+    <!-- AR専用オーバーレイ（ARセッション中のみ表示・DOM Overlayルート） -->
+    <div id="ar-overlay" class="ar-overlay" hidden>
+      <div class="ar-overlay-top">
+        <span id="arGuidanceText" class="ar-guidance">平面を検出しています…</span>
+        <button type="button" id="arExitButton" class="ar-exit-btn">✕ AR終了</button>
+      </div>
+      <!-- 要素情報カード（配置済みモデルのタップで表示） -->
+      <div id="arElementInfo" class="ar-element-info" hidden>
+        <div class="ar-element-info-body">
+          <span id="arElementInfoTitle" class="ar-element-info-title"></span>
+          <span id="arElementInfoDetail" class="ar-element-info-detail"></span>
+        </div>
+        <button
+          type="button"
+          id="arElementInfoClose"
+          class="ar-element-info-close"
+          aria-label="閉じる"
+        >
+          ✕
+        </button>
+      </div>
+      <div class="ar-overlay-bottom">
+        <button type="button" id="arRepositionButton" class="ar-ctrl-btn" hidden>
+          再配置
+        </button>
+        <div class="ar-scale-presets" role="group" aria-label="縮尺切替">
+          <button type="button" class="ar-ctrl-btn" data-ar-scale="0.005">1/200</button>
+          <button type="button" class="ar-ctrl-btn" data-ar-scale="0.01">1/100</button>
+          <button type="button" class="ar-ctrl-btn" data-ar-scale="0.02">1/50</button>
+          <button type="button" class="ar-ctrl-btn" data-ar-scale="1">実寸</button>
+        </div>
+        <span id="arScaleLabel" class="ar-scale-label">1/100</span>
+      </div>
+    </div>
+
+    <!-- モデル未読み込み時の空状態ヒント（ドロップ案内） -->
+    <div id="canvas-drop-hint" class="canvas-drop-hint">
+      <div class="canvas-drop-hint-icon" aria-hidden="true">📂</div>
+      <div class="canvas-drop-hint-main">モデルを読み込んで確認を開始</div>
+      <div class="canvas-drop-hint-sub">
+        STB / IFC / SS7 / CSV をここにドロップ。2ファイルならモデルA/Bとして比較します。
+      </div>
+      <div class="canvas-drop-hint-actions" aria-label="読み込み方法">
+        <span>1ファイル: 単体表示</span>
+        <span>2ファイル: 差分比較</span>
+        <span>右パネルの選択ボタンも利用可</span>
+      </div>
+      <button type="button" id="canvas-load-btn" class="canvas-load-btn hidden">
+        📥 モデル読込
+      </button>
+    </div>
 
     <!-- 寸法測定：ステップインジケーター（キャンバス上に重ねて表示） -->
     <div id="measurement-step-indicator" class="measurement-step-indicator hidden" aria-live="polite" aria-atomic="true">
@@ -396,6 +506,13 @@
         <div class="legend-item"><span>回転: 左ドラッグ</span></div>
         <div class="legend-item"><span>平行移動: 右ドラッグ</span></div>
         <div class="legend-item"><span>ズーム: ホイール</span></div>
+        <hr />
+        <div class="legend-item">
+          <span><b>ショートカット:</b></span>
+        </div>
+        <div class="legend-item"><span>A / B: モデルA / Bの表示切替</span></div>
+        <div class="legend-item"><span>L: 凡例の表示切替</span></div>
+        <div class="legend-item"><span>R: 表示範囲のリセット</span></div>
       </div>
     </div>
 
@@ -404,6 +521,16 @@
       <div class="float-window-header" id="component-info-header">
         <span class="float-window-title">📋 要素情報</span>
         <div class="float-window-controls">
+          <button
+            class="float-window-btn"
+            id="dock-component-info-btn"
+            aria-label="左端にドッキング"
+            title="左端にドッキング / フローティング切替"
+            aria-pressed="false"
+            type="button"
+          >
+            ⫷
+          </button>
           <button
             class="float-window-btn"
             id="close-component-info-btn"
@@ -416,15 +543,6 @@
       </div>
       <div class="float-window-content" id="component-info-content-wrapper">
         <div id="editing-controls" class="editing-controls-muted">
-          <button
-            id="edit-mode-button"
-            class="btn btn-sm"
-            title="高度な編集機能（開発者向け)"
-            type="button"
-          >
-            編集
-          </button>
-          <span id="editing-summary" class="editing-summary-text">修正: 0件</span>
           <button
             id="exportElementInfoJsonBtn"
             class="btn btn-sm"
@@ -482,7 +600,8 @@
           >
             <option value="id">タグ（デフォルト）</option>
             <option value="name">インスタンス名（Name）</option>
-            <option value="section">断面名（Section）</option>
+            <option value="section">断面ID（id_section）</option>
+            <option value="sectionName">断面名（name属性）</option>
           </select>
 
           <hr class="section-divider" />
@@ -554,6 +673,13 @@
             </label>
           </div>
 
+          <div class="matched-overlay-control">
+            <label for="toggleMatchedModelBOverlay">
+              <input type="checkbox" id="toggleMatchedModelBOverlay" />
+              断面が異なる一致要素でモデルB形状を半透明で重ねて表示
+            </label>
+          </div>
+
           <hr class="section-divider" />
 
           <div class="axis-dimension-control">
@@ -593,7 +719,7 @@
       </div>
       <div class="float-window-content">
         <div id="color-mode-controls">
-          <label><strong>色分けモード</strong></label>
+          <label><strong>色付けモード</strong></label>
           <div class="diff-mode-description">差分確認には「差分表示」を推奨します</div>
           <select id="colorModeSelector" class="form-control" title="色付けモードを選択">
             <option value="diff">🔍 差分表示（推奨）</option>
@@ -607,56 +733,8 @@
             <div id="comparison-key-selector-container"></div>
           </div>
 
-          <div id="diff-filter-settings" class="diff-filter-settings">
-            <hr class="settings-separator" />
-            <label class="color-setting-label">差分フィルタ:</label>
-            <div class="color-setting-help">
-              ※ 表示する差分ステータスを選択できます（6カテゴリ）
-            </div>
-            <div class="diff-filter-presets">
-              <button
-                type="button"
-                class="btn btn-sm preset-btn"
-                data-preset="all"
-                title="すべての要素を表示"
-              >
-                全表示
-              </button>
-              <button
-                type="button"
-                class="btn btn-sm preset-btn"
-                data-preset="differencesOnly"
-                title="差分（モデルA/Bのみ）を表示"
-              >
-                差分のみ
-              </button>
-              <button
-                type="button"
-                class="btn btn-sm preset-btn"
-                data-preset="matchedOnly"
-                title="両方のモデルにある要素を表示"
-              >
-                共通のみ
-              </button>
-              <button
-                type="button"
-                class="btn btn-sm preset-btn"
-                data-preset="changesOnly"
-                title="変更があった要素のみ表示"
-              >
-                変更のみ
-              </button>
-            </div>
-            <div class="color-legend-container" id="diff-filter-legend">
-              <!-- 差分フィルタ凡例はconfig/diffFilterConfig.jsから動的生成されます -->
-            </div>
-            <div class="diff-filter-summary">
-              <span
-                >表示中: <strong id="diff-visible-count">0</strong> /
-                <span id="diff-total-count">0</span> 要素</span
-              >
-            </div>
-
+          <!-- 差分フィルタは「差分サマリー」ウィンドウへ移設（config/windowConfig.js） -->
+          <div id="tolerance-settings-section" class="tolerance-settings-section">
             <hr class="settings-separator" />
 
             <!-- 許容差設定（色付けモード設定内に統合） -->

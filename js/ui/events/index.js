@@ -39,6 +39,7 @@ import {
   setupIfcExportListener,
   setupStbExportListener,
   setupReportExportListener,
+  setupSs7ExportListener,
 } from './exportListeners.js';
 
 import {
@@ -61,7 +62,10 @@ import { setupKeyboardShortcuts, setupWindowResizeListener } from './keyboardLis
 
 import { setupMasterToggleListeners } from './masterToggleListeners.js';
 
+import { setupFileDropListeners } from './fileDropListeners.js';
+
 import { setupAppEventBridge } from './appEventBridge.js';
+import { SS7_ENABLED } from '../../config/featureFlags.js';
 import { createLogger } from '../../utils/logger.js';
 
 const log = createLogger('ui:events:index');
@@ -81,12 +85,19 @@ export function setupUIEventListeners() {
     setupIfcExportListener();
     setupStbExportListener();
     setupReportExportListener();
+    if (SS7_ENABLED) {
+      setupSs7ExportListener();
+    } else {
+      // 公開ビルド（SS7無効）では SS7 CSV出力ボタンを DOM から除去する
+      document.getElementById('exportSs7Btn')?.remove();
+    }
     setupAccordionListeners();
     setupClippingRangeListeners();
     setupClippingButtonListeners();
     setupKeyboardShortcuts();
     setupWindowResizeListener();
     setupMasterToggleListeners();
+    setupFileDropListeners();
   } catch (error) {
     log.error('UIイベントリスナーの設定中にエラーが発生しました:', error);
   }

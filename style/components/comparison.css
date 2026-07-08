@@ -74,13 +74,60 @@
    ======================================== */
 
 .selector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 10px;
+}
+
+/* 用語ヘルプボタン（点/線/面基準・オフセット・許容差の解説モーダルを開く） */
+.selector-help-btn {
+  flex: 0 0 auto;
+  background: none;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: var(--font-size-xs);
+  color: #495057;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.selector-help-btn:hover {
+  background: #e7f5ff;
+  border-color: #1c7ed6;
+  color: #1c7ed6;
+}
+
+/* 断面比較グループ（部材レベルの断面の判定基準＋定義レベルの判定基準を束ねる） */
+.selector-group-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #e9ecef;
+}
+
+/* グループ見出し（断面比較） */
+.selector-header-section {
+  margin-bottom: 8px;
 }
 
 .selector-label {
   font-weight: var(--font-weight-semibold);
   font-size: var(--font-size-base);
   color: #495057;
+}
+
+/* グループ内の小見出し（断面の判定基準（部材） / 断面定義の判定基準） */
+.selector-subheader {
+  margin: 10px 0 6px;
+}
+
+.selector-sublabel {
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  color: #6c757d;
 }
 
 .selector-options {

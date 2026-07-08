@@ -121,6 +121,65 @@ export function convertSlabSectionsTo210(stbRoot) {
   if (convertedCount > 0) {
     logger.info(`RC Slab sections: Converted ${convertedCount} slabs to v2.1.0 format`);
   }
+
+  convertSlabDeckSectionsTo210(sections);
+}
+
+/**
+ * Convert deck slab sections to v2.1.x structure.
+ *
+ * STB 2.0.2:
+ *   <StbSecSlabDeck id name product_type="FLAT|COMPOSITE">
+ *     <StbSecFigureSlabDeck><StbSecSlabDeckStraight depth="..."/></StbSecFigureSlabDeck>
+ *     <StbSecBarArrangementSlabDeck .../>
+ *     <StbSecProductSlabDeck product_code="..." depth_deck="..."/>
+ *   </StbSecSlabDeck>
+ *
+ * STB 2.1.x:
+ *   <StbSecSlabDeck id name>
+ *     <StbSecSlabDeckProduct product_code release_time top_concrete/>
+ *   </StbSecSlabDeck>
+ * @param {object} sections - StbSections element
+ */
+function convertSlabDeckSectionsTo210(sections) {
+  const deckElements = sections['StbSecSlabDeck'];
+  if (!deckElements || !Array.isArray(deckElements)) return;
+
+  let count = 0;
+
+  deckElements.forEach((deck) => {
+    if (deck['StbSecSlabDeckProduct']) return; // already v2.1.x structure
+
+    const productAttrs = deck['StbSecProductSlabDeck']?.[0]?.['$'] || {};
+    const figureDepth =
+      deck['StbSecFigureSlabDeck']?.[0]?.['StbSecSlabDeckStraight']?.[0]?.['$']?.depth;
+    // top_concrete is stb:length (> 0 required)
+    const topConcrete = parseFloat(figureDepth) > 0 ? figureDepth : '1';
+
+    deck['StbSecSlabDeckProduct'] = [
+      {
+        $: {
+          product_code: productAttrs.product_code || 'Undefined',
+          release_time: productAttrs.release_time || '',
+          top_concrete: topConcrete,
+        },
+      },
+    ];
+    if (deck['StbSecBarArrangementSlabDeck']) {
+      logger.warn(
+        `StbSecSlabDeck ${deck['$']?.id}: StbSecBarArrangementSlabDeck dropped (no v2.1.x equivalent)`,
+      );
+    }
+    delete deck['StbSecFigureSlabDeck'];
+    delete deck['StbSecBarArrangementSlabDeck'];
+    delete deck['StbSecProductSlabDeck'];
+    if (deck['$']) delete deck['$'].product_type; // not allowed in v2.1.x
+    count++;
+  });
+
+  if (count > 0) {
+    logger.info(`Deck slab sections: Converted ${count} decks to v2.1.x format (lossy)`);
+  }
 }
 
 export default convertSlabSectionsTo210;
@@ -212,5 +271,39 @@ export function convertSlabSectionsTo202(stbRoot) {
 
   if (convertedCount > 0) {
     logger.info(`RC Slab sections: Reverted ${convertedCount} slabs to v2.0.2 format`);
+  }
+
+  convertSlabDeckSectionsTo202(sections);
+}
+
+/**
+ * Convert deck slab sections from v2.1.x back to v2.0.2 structure.
+ * @param {object} sections - StbSections element
+ */
+function convertSlabDeckSectionsTo202(sections) {
+  const deckElements = sections['StbSecSlabDeck'];
+  if (!deckElements || !Array.isArray(deckElements)) return;
+
+  let count = 0;
+
+  deckElements.forEach((deck) => {
+    const product = deck['StbSecSlabDeckProduct']?.[0]?.['$'];
+    if (!product) return; // already v2.0.2 structure
+
+    // depth is stb:length (> 0 required)
+    const depth = parseFloat(product.top_concrete) > 0 ? product.top_concrete : '1';
+    deck['StbSecFigureSlabDeck'] = [{ StbSecSlabDeckStraight: [{ $: { depth } }] }];
+    deck['StbSecProductSlabDeck'] = [
+      { $: { product_code: product.product_code || 'Undefined', depth_deck: '0' } },
+    ];
+    delete deck['StbSecSlabDeckProduct'];
+
+    if (!deck['$']) deck['$'] = {};
+    if (!deck['$'].product_type) deck['$'].product_type = 'FLAT'; // required in v2.0.2
+    count++;
+  });
+
+  if (count > 0) {
+    logger.info(`Deck slab sections: Reverted ${count} decks to v2.0.2 format`);
   }
 }

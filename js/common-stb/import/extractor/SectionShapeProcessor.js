@@ -96,6 +96,19 @@ const CROSS_H_PATTERNS = [
   'StbSecSteelColumn_SRC_ShapeCross2',
 ];
 
+// SRC造柱のT形複合断面パターン（shape_H + shape_T 属性でH形鋼とT形鋼を組み合わせる断面）
+// T形鋼のウェブは必ずH形鋼の同一ウェブ線に接合される。direction_type(T1〜T4)でフランジ向きを表す。
+// STB 2.0.2: Same/NotSame/ThreeTypes 要素の子要素として定義
+// STB 2.1.0: Figure要素の直接子要素として定義
+const SHAPE_T_PATTERNS = [
+  // STB 2.0.2 patterns (子要素として shape_H/shape_T を持つ)
+  'StbSecColumn_SRC_SameShapeT',
+  'StbSecColumn_SRC_NotSameShapeT',
+  'StbSecColumn_SRC_ThreeTypesShapeT',
+  // STB 2.1.0 patterns
+  'StbSecSteelColumn_SRC_ShapeT',
+];
+
 // STB 2.1.0 Figure structure wrappers
 const V210_FIGURE_WRAPPERS = [
   'StbSecSteelFigureBeam_S',
@@ -341,14 +354,15 @@ export class SectionShapeProcessor {
     const notSameVariants = this.processNotSamePattern();
     const beamMultiSectionVariants = this.processBeamMultiSectionPattern();
 
-    // クロスH断面の検出（shape_X / shape_Y を持つ要素）
+    // クロスH断面・T形複合断面の検出（shape_X/shape_Y または shape_H/shape_T を持つ要素）
     // Same/NotSame パターンが見つからない場合のみ試行
     const hasOtherPatterns =
       sameVariant || notSameVariants.length || beamMultiSectionVariants.length;
-    const crossHPattern = hasOtherPatterns ? null : this.processCrossHPattern();
+    const shapeTPattern = hasOtherPatterns ? null : this.processShapeTPattern();
+    const crossHPattern = hasOtherPatterns || shapeTPattern ? null : this.processCrossHPattern();
 
     const fallbackVariant =
-      hasOtherPatterns || v210Variants.length || crossHPattern
+      hasOtherPatterns || v210Variants.length || crossHPattern || shapeTPattern
         ? null
         : this._extractFallbackShape();
 
@@ -362,8 +376,8 @@ export class SectionShapeProcessor {
       variants.push(fallbackVariant);
     }
 
-    // クロスH断面はvariantsとは別フィールドで返す（shape が無いため）
-    if (!variants.length && !crossHPattern) {
+    // クロスH断面・T形複合断面はvariantsとは別フィールドで返す（単一 shape が無いため）
+    if (!variants.length && !crossHPattern && !shapeTPattern) {
       return null;
     }
 
@@ -374,6 +388,7 @@ export class SectionShapeProcessor {
       (v210Variants.length ? v210Variants[0].shape : null) ||
       fallbackVariant?.shape ||
       crossHPattern?.shapeX || // クロスH断面はX方向を代表形状とする
+      shapeTPattern?.shapeH || // T形複合断面はH形鋼を代表形状とする
       null;
 
     return {
@@ -385,6 +400,7 @@ export class SectionShapeProcessor {
       fallbackShape: fallbackVariant?.shape || null,
       isV210Structure: v210Variants.length > 0 && !hasOtherPatterns,
       crossH: crossHPattern || null, // クロスH断面情報（{ shapeX, shapeY, isCrossH: true }）
+      shapeT: shapeTPattern || null, // T形複合断面情報（{ shapeH, shapeT, directionType, offsets, isShapeT: true }）
     };
   }
 
@@ -438,6 +454,76 @@ export class SectionShapeProcessor {
       const elems = findChildren(root, pattern);
       if (elems.length > 0) return elems[0];
       // 孫要素にも探索（STB 2.0.2 の Same > ShapeCross 構造に対応）
+      const children = root.children || [];
+      for (let i = 0; i < children.length; i++) {
+        const childElems = findChildren(children[i], pattern);
+        if (childElems.length > 0) return childElems[0];
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * T形複合断面（shape_H / shape_T を持つ要素）を抽出
+   *
+   * STB仕様でH形鋼とT形鋼を組み合わせたSRC造柱専用の断面形式。
+   * T形鋼のウェブは必ずH形鋼の同一ウェブ線に接合される。
+   * @returns {Object|null} { shapeH, shapeT, directionType, offsets, tagName, attributes, isShapeT } or null
+   */
+  processShapeTPattern() {
+    if (!this.figureElement) return null;
+
+    // figureElement 配下を再帰的に探索して shape_H 属性を持つ要素を見つける
+    const tElem = this._findShapeTElement(this.figureElement);
+    if (!tElem) return null;
+
+    const shapeH = tElem.getAttribute('shape_H');
+    const shapeT = tElem.getAttribute('shape_T');
+    if (!shapeH || !shapeT) return null;
+
+    const toNum = (v) => {
+      const n = parseFloat(v);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    return {
+      shapeH,
+      shapeT,
+      directionType: tElem.getAttribute('direction_type') || 'T1',
+      offsetHX: toNum(tElem.getAttribute('offset_HX')),
+      offsetHY: toNum(tElem.getAttribute('offset_HY')),
+      offsetT: toNum(tElem.getAttribute('offset_T')),
+      tagName: tElem.tagName,
+      attributes: collectAttributes(tElem),
+      isShapeT: true,
+    };
+  }
+
+  /**
+   * @private
+   * shape_H 属性を持つT形複合要素を再帰的に探す
+   * @param {Element} root
+   * @returns {Element|null}
+   */
+  _findShapeTElement(root) {
+    if (!root) return null;
+
+    // querySelectorAll で shape_H 属性を持つ要素を一括検索（高速パス）
+    if (typeof root.querySelectorAll === 'function') {
+      try {
+        const found = root.querySelectorAll('[shape_H]');
+        if (found && found.length > 0) return found[0];
+      } catch (_) {
+        // 名前空間付きの場合は失敗することがある
+      }
+    }
+
+    // タグ名による探索（SHAPE_T_PATTERNS リスト）
+    for (const pattern of SHAPE_T_PATTERNS) {
+      const elems = findChildren(root, pattern);
+      if (elems.length > 0) return elems[0];
+      // 孫要素にも探索（STB 2.0.2 の Same > ShapeT 構造に対応）
       const children = root.children || [];
       for (let i = 0; i < children.length; i++) {
         const childElems = findChildren(children[i], pattern);
@@ -589,6 +675,7 @@ export {
   NOT_SAME_PATTERNS,
   BEAM_MULTI_SECTION_PATTERNS,
   CROSS_H_PATTERNS,
+  SHAPE_T_PATTERNS,
   V210_FIGURE_WRAPPERS,
   V210_SHAPE_WRAPPERS,
 };

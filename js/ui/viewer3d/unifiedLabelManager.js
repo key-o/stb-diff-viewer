@@ -35,11 +35,19 @@ const pendingLabelUpdates = new Set();
 // CONTENT_TYPE_DESCRIPTIONS は LABEL_CONTENT_DESCRIPTIONS のエイリアス
 const CONTENT_TYPE_DESCRIPTIONS = LABEL_CONTENT_DESCRIPTIONS;
 
+// ラベル再生成の実装（labelRegeneration.js との循環依存を避けるため初期化時に注入）
+/** @type {(() => void)|null} */
+let regenerateAllLabelsImpl = null;
+
 /**
  * 統合ラベル管理システムを初期化
+ * @param {Object} [options] - オプション
+ * @param {Function} [options.regenerateAllLabels] - 全ラベル再生成関数（labelRegeneration.js）
  */
-export function initializeLabelManager() {
+export function initializeLabelManager(options = {}) {
   log.info('[LabelManager] Initializing label management system');
+
+  regenerateAllLabelsImpl = options.regenerateAllLabels || regenerateAllLabelsImpl;
 
   // ラベル内容選択リスナーを設定
   setupLabelContentListener();
@@ -90,8 +98,12 @@ function handleLabelContentChange(event) {
   // グローバル状態を更新
   setState('ui.labelContentType', newContentType);
 
-  // 全ラベルを再生成・更新
-  regenerateAllLabels();
+  // 全ラベルを再生成・更新（初期化時に注入された実装を使用）
+  if (regenerateAllLabelsImpl) {
+    regenerateAllLabelsImpl();
+  } else {
+    log.warn('[LabelManager] regenerateAllLabels が未注入のため再生成をスキップ');
+  }
 }
 
 /**
@@ -283,22 +295,8 @@ function isLabelModelVisible(label) {
   return true;
 }
 
-/**
- * 全ラベルを再生成
- */
-export function regenerateAllLabels() {
-  log.info('[LabelManager] Regenerating all labels');
-
-  // ラベル再生成ロジック
-  import('./labelRegeneration.js').then(({ regenerateAllLabels: regenerateAllLabelsImpl }) => {
-    if (regenerateAllLabelsImpl) {
-      regenerateAllLabelsImpl();
-    }
-
-    // 再生成後に表示状態を更新
-    updateLabelVisibility();
-  });
-}
+// regenerateAllLabels は ui/viewer3d/labelRegeneration.js が実体を提供する
+// （旧ラッパーは labelRegeneration との循環依存解消のため削除）
 
 /**
  * ラベル内容タイプの説明を取得

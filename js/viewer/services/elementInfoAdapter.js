@@ -17,6 +17,16 @@
 let elementInfoService = null;
 
 /**
+ * サービス注入前に設定されたプロバイダーを保持するバッファ。
+ *
+ * 初期化フェーズの都合上、`setElementInfoProviders`（Phase 2）が
+ * `injectElementInfoService`（Phase 4・遅延 dynamic import）より先に走るため、
+ * サービス未注入時のプロバイダーを退避し、注入時に反映する。
+ * @type {Object|null}
+ */
+let pendingProviders = null;
+
+/**
  * 要素情報サービスを注入
  *
  * アプリケーション初期化時にmain.jsから呼び出されます。
@@ -32,6 +42,12 @@ let elementInfoService = null;
  */
 export function injectElementInfoService(service) {
   elementInfoService = service;
+
+  // 注入前に設定されたプロバイダーがあれば反映する（順序非依存にするため）
+  if (pendingProviders && service && service.setProviders) {
+    service.setProviders(pendingProviders);
+    pendingProviders = null;
+  }
 }
 
 /**
@@ -53,6 +69,9 @@ export function injectElementInfoService(service) {
 export function setElementInfoProviders(providers) {
   if (elementInfoService && elementInfoService.setProviders) {
     elementInfoService.setProviders(providers);
+  } else {
+    // サービス未注入の場合はバッファし、injectElementInfoService 時に反映する
+    pendingProviders = providers;
   }
 }
 

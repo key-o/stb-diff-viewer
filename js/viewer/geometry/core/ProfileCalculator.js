@@ -276,16 +276,22 @@ export function calculateTShapeProfile(params = {}) {
 
   const halfFlangeWidth = flangeWidth / 2;
   const halfWebThickness = webThickness / 2;
+  // H形鋼や IFCProfileFactory.createTShapeGeometry と同様に、断面の幾何中心を
+  // 原点に合わせる（フランジ下端 y=-halfDepth、ウェブ上端 y=+halfDepth）。
+  // 中心化しないと SRC造の内蔵鉄骨や天端基準(top-aligned)配置で
+  // overallDepth/2 だけずれて描画される。
+  const halfDepth = overallDepth / 2;
+  const flangeTopY = -halfDepth + flangeThickness;
 
   const vertices = [
-    { x: -halfFlangeWidth, y: 0 },
-    { x: halfFlangeWidth, y: 0 },
-    { x: halfFlangeWidth, y: flangeThickness },
-    { x: halfWebThickness, y: flangeThickness },
-    { x: halfWebThickness, y: overallDepth },
-    { x: -halfWebThickness, y: overallDepth },
-    { x: -halfWebThickness, y: flangeThickness },
-    { x: -halfFlangeWidth, y: flangeThickness },
+    { x: -halfFlangeWidth, y: -halfDepth },
+    { x: halfFlangeWidth, y: -halfDepth },
+    { x: halfFlangeWidth, y: flangeTopY },
+    { x: halfWebThickness, y: flangeTopY },
+    { x: halfWebThickness, y: halfDepth },
+    { x: -halfWebThickness, y: halfDepth },
+    { x: -halfWebThickness, y: flangeTopY },
+    { x: -halfFlangeWidth, y: flangeTopY },
   ];
 
   return { vertices, holes: [] };

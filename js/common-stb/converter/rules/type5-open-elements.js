@@ -78,75 +78,78 @@ export function convertOpensTo210(stbRoot) {
 
   const openArrangements = [];
 
-  // Process Walls
-  const walls = members['StbWalls']?.[0]?.['StbWall'] || [];
-  walls.forEach((wall) => {
-    const openIdList = wall['StbOpenIdList']?.[0];
-    if (!openIdList) return;
+  // v2.1.x requires id_section on StbOpenArrangement. v2.0.2 allowed StbOpen without
+  // id_section (dimensions held directly on length_X/length_Y), so synthesize a
+  // StbSecOpen_RC section per unique size and reference it.
+  const sectionsContainer = model['StbSections']?.[0];
+  let nextSectionId = 1;
+  if (sectionsContainer) {
+    Object.values(sectionsContainer).forEach((sectionList) => {
+      if (!Array.isArray(sectionList)) return;
+      sectionList.forEach((el) => {
+        const idNum = parseInt(el?.['$']?.id, 10);
+        if (!Number.isNaN(idNum) && idNum >= nextSectionId) nextSectionId = idNum + 1;
+      });
+    });
+  }
+  const synthSectionBySize = new Map();
+  const resolveIdSection = (openId, openAttrs) => {
+    if (openAttrs.id_section) return openAttrs.id_section;
+    const { length_X: lengthX, length_Y: lengthY } = openAttrs;
+    if (!(parseFloat(lengthX) > 0) || !(parseFloat(lengthY) > 0) || !sectionsContainer) {
+      logger.warn(
+        `StbOpen ${openId}: no id_section and no usable length_X/length_Y to synthesize a StbSecOpen_RC. Skipping.`,
+      );
+      return null;
+    }
+    const key = `${lengthX}x${lengthY}`;
+    if (!synthSectionBySize.has(key)) {
+      const id = String(nextSectionId++);
+      if (!sectionsContainer['StbSecOpen_RC']) sectionsContainer['StbSecOpen_RC'] = [];
+      sectionsContainer['StbSecOpen_RC'].push({
+        $: { id, name: `OP_${key}`, length_X: lengthX, length_Y: lengthY },
+      });
+      synthSectionBySize.set(key, id);
+      logger.info(`Synthesized StbSecOpen_RC ${id} (${key}) for openings without id_section`);
+    }
+    return synthSectionBySize.get(key);
+  };
 
-    const openIds = openIdList['StbOpenId'] || [];
-    openIds.forEach((openIdRef) => {
-      const openId = openIdRef['$']?.id;
-      const open = openMap.get(openId);
+  const collectArrangements = (memberElements, kindMember) => {
+    memberElements.forEach((member) => {
+      const openIdList = member['StbOpenIdList']?.[0];
+      if (!openIdList) return;
 
-      if (open) {
+      const openIds = openIdList['StbOpenId'] || [];
+      openIds.forEach((openIdRef) => {
+        const openId = openIdRef['$']?.id;
+        const open = openMap.get(openId);
+        if (!open) return;
+
         const openAttrs = open['$'] || {};
-        const positionX = openAttrs.position_X ?? openAttrs.offset_X ?? '0';
-        const positionY = openAttrs.position_Y ?? openAttrs.offset_Y ?? '0';
-        const rotate = openAttrs.rotate ?? '0';
+        const idSection = resolveIdSection(openId, openAttrs);
+        if (idSection === null) return;
+
         openArrangements.push({
           $: {
             id: openId,
-            id_member: wall['$']?.id,
-            kind_member: 'WALL',
+            id_member: member['$']?.id,
+            kind_member: kindMember,
             name: openAttrs.name,
-            id_section: openAttrs.id_section,
-            position_X: positionX,
-            position_Y: positionY,
-            rotate,
+            id_section: idSection,
+            position_X: openAttrs.position_X ?? openAttrs.offset_X ?? '0',
+            position_Y: openAttrs.position_Y ?? openAttrs.offset_Y ?? '0',
+            rotate: openAttrs.rotate ?? '0',
           },
         });
-      }
+      });
+
+      delete member['StbOpenIdList'];
     });
+  };
 
-    // Remove StbOpenIdList from wall
-    delete wall['StbOpenIdList'];
-  });
-
-  // Process Slabs
-  const slabs = members['StbSlabs']?.[0]?.['StbSlab'] || [];
-  slabs.forEach((slab) => {
-    const openIdList = slab['StbOpenIdList']?.[0];
-    if (!openIdList) return;
-
-    const openIds = openIdList['StbOpenId'] || [];
-    openIds.forEach((openIdRef) => {
-      const openId = openIdRef['$']?.id;
-      const open = openMap.get(openId);
-
-      if (open) {
-        const openAttrs = open['$'] || {};
-        const positionX = openAttrs.position_X ?? openAttrs.offset_X ?? '0';
-        const positionY = openAttrs.position_Y ?? openAttrs.offset_Y ?? '0';
-        const rotate = openAttrs.rotate ?? '0';
-        openArrangements.push({
-          $: {
-            id: openId,
-            id_member: slab['$']?.id,
-            kind_member: 'SLAB',
-            name: openAttrs.name,
-            id_section: openAttrs.id_section,
-            position_X: positionX,
-            position_Y: positionY,
-            rotate,
-          },
-        });
-      }
-    });
-
-    // Remove StbOpenIdList from slab
-    delete slab['StbOpenIdList'];
-  });
+  collectArrangements(members['StbWalls']?.[0]?.['StbWall'] || [], 'WALL');
+  collectArrangements(members['StbSlabs']?.[0]?.['StbSlab'] || [], 'SLAB');
 
   // Remove StbOpens from the location where it was found
   if (opensFromMembers.length > 0) {

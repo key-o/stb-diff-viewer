@@ -35,6 +35,8 @@ export class ParameterEditor {
    * @param {string} config.elementId - 要素ID
    * @param {boolean} config.allowFreeText - フリーテキスト入力許可
    * @param {boolean} config.required - 必須属性かどうか
+   * @param {Object} [config.schema] - スキーマ属性定義（type / fixed / constraints）。
+   *   入力コントロール（列挙ドロップダウン・数値入力・固定値）の決定に用いる
    * @returns {Promise<string|null>} 編集後の値、またはキャンセル時はnull
    */
   static async show(config) {
@@ -152,22 +154,254 @@ export class ParameterEditor {
     const section = document.createElement('div');
     section.className = 'parameter-editor-input-section';
 
-    const hasEnumeration = suggestions.length > 0;
-    const useDropdownOnly = hasEnumeration && suggestions.length <= 10 && !allowFreeText;
-    const useMixedMode = hasEnumeration && (suggestions.length > 10 || allowFreeText);
+    // 識別子（guid / id）など「一意な新規値を入力・生成する」用途は、専用入力
+    // （直接入力＋自動生成ボタン）を最優先で用いる。既存値サジェストによる
+    // ドロップダウン固定を避けるための特別扱い。呼び出し元が config.generate を
+    // 与えることで有効化される。
+    if (typeof this.currentConfig.generate === 'function') {
+      section.appendChild(this.createIdentityInput(currentValue));
+      return section;
+    }
 
-    if (useDropdownOnly) {
-      // ドロップダウンのみモード
-      section.appendChild(this.createDropdownInput(suggestions, currentValue));
-    } else if (useMixedMode) {
-      // 混合モード（ドロップダウン + フリーテキスト）
-      section.appendChild(this.createMixedInput(suggestions, currentValue));
+    // スキーマ定義がある場合は、それに従って入力コントロールを決定する（最優先）
+    const schemaMode = this.resolveSchemaInputMode();
+
+    if (schemaMode.mode === 'fixed') {
+      // 固定値（const）: 読み取り専用表示
+      section.appendChild(this.createFixedInput(schemaMode.value));
+    } else if (schemaMode.mode === 'enum') {
+      // 列挙値・boolean: スキーマ定義値のみの厳格なドロップダウン
+      section.appendChild(this.createEnumSelect(schemaMode.options, currentValue));
+    } else if (schemaMode.mode === 'number') {
+      // 数値: min/max/step 付きの数値入力（候補は datalist で補助）
+      section.appendChild(this.createNumberInput(schemaMode, currentValue, suggestions));
     } else {
-      // フリーテキストのみモード
-      section.appendChild(this.createTextInput(currentValue));
+      // スキーマ非定義: サジェスト候補に基づく従来のモード選択
+      const hasEnumeration = suggestions.length > 0;
+      const useDropdownOnly = hasEnumeration && suggestions.length <= 10 && !allowFreeText;
+      const useMixedMode = hasEnumeration && (suggestions.length > 10 || allowFreeText);
+
+      if (useDropdownOnly) {
+        section.appendChild(this.createDropdownInput(suggestions, currentValue));
+      } else if (useMixedMode) {
+        section.appendChild(this.createMixedInput(suggestions, currentValue));
+      } else {
+        section.appendChild(this.createTextInput(currentValue));
+      }
     }
 
     return section;
+  }
+
+  /**
+   * スキーマ定義から入力コントロールの種別を判定する
+   * @returns {{mode: 'fixed'|'enum'|'number'|null, value?: string, options?: string[],
+   *   isInteger?: boolean, min?: number|null, max?: number|null,
+   *   minExclusive?: number|null, maxExclusive?: number|null}}
+   */
+  resolveSchemaInputMode() {
+    const schema = this.currentConfig.schema;
+    if (!schema) return { mode: null };
+
+    // const（固定値）
+    if (schema.fixed !== null && schema.fixed !== undefined) {
+      return { mode: 'fixed', value: String(schema.fixed) };
+    }
+
+    const constraints = schema.constraints || {};
+    const enumerations = Array.isArray(constraints.enumerations) ? constraints.enumerations : [];
+
+    // 列挙値
+    if (enumerations.length > 0) {
+      return { mode: 'enum', options: enumerations.map(String) };
+    }
+
+    // boolean は true / false の2択
+    if (schema.type === 'boolean') {
+      return { mode: 'enum', options: ['true', 'false'] };
+    }
+
+    // 数値（min/max 制約を反映）
+    if (schema.type === 'number' || schema.type === 'integer') {
+      return {
+        mode: 'number',
+        isInteger: schema.type === 'integer',
+        min: constraints.minInclusive ?? null,
+        max: constraints.maxInclusive ?? null,
+        minExclusive: constraints.minExclusive ?? null,
+        maxExclusive: constraints.maxExclusive ?? null,
+      };
+    }
+
+    return { mode: null };
+  }
+
+  /**
+   * 固定値（const）の読み取り専用入力を作成
+   * @param {string} fixedValue - スキーマで固定された値
+   * @returns {HTMLElement}
+   */
+  createFixedInput(fixedValue) {
+    const container = document.createElement('div');
+    container.className = 'input-container fixed-only';
+
+    const label = document.createElement('label');
+    label.textContent = '値（固定）:';
+    label.setAttribute('for', 'param-text');
+
+    const input = document.createElement('input');
+    input.id = 'param-text';
+    input.type = 'text';
+    input.className = 'parameter-text-input';
+    input.value = fixedValue;
+    input.readOnly = true;
+
+    const help = document.createElement('small');
+    help.className = 'input-help';
+    help.textContent = 'この属性の値はスキーマで固定されています';
+
+    container.appendChild(label);
+    container.appendChild(input);
+    container.appendChild(help);
+
+    return container;
+  }
+
+  /**
+   * 列挙値（enum / boolean）の厳格なドロップダウンを作成
+   *
+   * スキーマで許可された値のみを選択肢にする。現在値がスキーマ外の場合は
+   * 区別できるオプションとして先頭に追加し、選択状態を保持する。
+   * @param {string[]} options - スキーマで許可された値
+   * @param {string} currentValue - 現在の値
+   * @returns {HTMLElement}
+   */
+  createEnumSelect(options, currentValue) {
+    const container = document.createElement('div');
+    container.className = 'input-container dropdown-only';
+
+    const label = document.createElement('label');
+    label.textContent = '値を選択:';
+    label.setAttribute('for', 'param-dropdown');
+
+    const select = document.createElement('select');
+    select.id = 'param-dropdown';
+    select.className = 'parameter-dropdown';
+
+    // 空の選択肢（未選択状態）
+    const emptyOption = document.createElement('option');
+    emptyOption.value = '';
+    emptyOption.textContent = '-- 選択してください --';
+    select.appendChild(emptyOption);
+
+    // 現在値がスキーマ定義外の場合は、区別できる形で先頭付近に追加
+    if (currentValue && !options.includes(currentValue)) {
+      const invalidOption = document.createElement('option');
+      invalidOption.value = currentValue;
+      invalidOption.textContent = `${currentValue}（スキーマ外）`;
+      invalidOption.selected = true;
+      select.appendChild(invalidOption);
+    }
+
+    options.forEach((value) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = value;
+      if (value === currentValue) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    });
+
+    const help = document.createElement('small');
+    help.className = 'input-help';
+    help.textContent = 'スキーマで定義された値から選択してください';
+
+    container.appendChild(label);
+    container.appendChild(select);
+    container.appendChild(help);
+
+    return container;
+  }
+
+  /**
+   * 数値（number / integer）入力を作成
+   *
+   * min / max / step を HTML 属性として設定し、サジェスト候補は datalist で補助する。
+   * @param {Object} schemaMode - resolveSchemaInputMode の結果
+   * @param {string} currentValue - 現在の値
+   * @param {Array<Object>} suggestions - サジェスト候補
+   * @returns {HTMLElement}
+   */
+  createNumberInput(schemaMode, currentValue, suggestions) {
+    const container = document.createElement('div');
+    container.className = 'input-container number-only';
+
+    const label = document.createElement('label');
+    label.textContent = '値を入力:';
+    label.setAttribute('for', 'param-text');
+
+    const input = document.createElement('input');
+    input.id = 'param-text';
+    input.type = 'number';
+    // 既存のイベント配線・値取得が .parameter-text-input を前提とするため両クラスを付与
+    input.className = 'parameter-text-input parameter-number-input';
+    input.value = currentValue || '';
+    input.step = schemaMode.isInteger ? '1' : 'any';
+
+    // min / max を反映（exclusive は HTML 属性では厳密に表現できないためバリデーションで担保）
+    const min = schemaMode.min ?? schemaMode.minExclusive;
+    const max = schemaMode.max ?? schemaMode.maxExclusive;
+    if (min !== null && min !== undefined) input.min = String(min);
+    if (max !== null && max !== undefined) input.max = String(max);
+
+    // 既存モデル値などの候補を datalist で補助
+    const numericSuggestions = (suggestions || [])
+      .map((entry) => this.normalizeSuggestionEntry(entry))
+      .filter((entry) => entry && entry.value !== '' && !isNaN(Number(entry.value)));
+
+    if (numericSuggestions.length > 0) {
+      const listId = 'param-number-list';
+      input.setAttribute('list', listId);
+      const datalist = document.createElement('datalist');
+      datalist.id = listId;
+      numericSuggestions.forEach((entry) => {
+        const option = document.createElement('option');
+        option.value = entry.value;
+        datalist.appendChild(option);
+      });
+      container.appendChild(datalist);
+    }
+
+    const help = document.createElement('small');
+    help.className = 'input-help';
+    help.textContent = this.buildNumberHelpText(schemaMode);
+
+    container.appendChild(label);
+    container.appendChild(input);
+    container.appendChild(help);
+
+    return container;
+  }
+
+  /**
+   * 数値入力の制約ヒント文を生成
+   * @param {Object} schemaMode - resolveSchemaInputMode の結果
+   * @returns {string}
+   */
+  buildNumberHelpText(schemaMode) {
+    const parts = [schemaMode.isInteger ? '整数を入力してください' : '数値を入力してください'];
+
+    if (schemaMode.min !== null && schemaMode.min !== undefined)
+      parts.push(`${schemaMode.min} 以上`);
+    if (schemaMode.minExclusive !== null && schemaMode.minExclusive !== undefined)
+      parts.push(`${schemaMode.minExclusive} より大きい`);
+    if (schemaMode.max !== null && schemaMode.max !== undefined)
+      parts.push(`${schemaMode.max} 以下`);
+    if (schemaMode.maxExclusive !== null && schemaMode.maxExclusive !== undefined)
+      parts.push(`${schemaMode.maxExclusive} 未満`);
+
+    return parts.join(' / ');
   }
 
   /**
@@ -386,6 +620,53 @@ export class ParameterEditor {
   }
 
   /**
+   * 識別子（guid / id 等）専用入力（直接入力 ＋ 自動生成ボタン）を作成
+   *
+   * 既存値サジェストに依存せず、常にテキスト直接入力を許可する。
+   * 「自動生成」ボタンは config.generate() の戻り値を入力欄へ反映する。
+   * ボタン文言は config.generateLabel、補助文は config.inputHelp で差し替え可能。
+   * @param {string} currentValue - 現在の値
+   * @returns {HTMLElement}
+   */
+  createIdentityInput(currentValue) {
+    const container = document.createElement('div');
+    container.className = 'input-container text-only identity-input';
+
+    const label = document.createElement('label');
+    label.textContent = '値を入力:';
+    label.setAttribute('for', 'param-text');
+
+    const inputRow = document.createElement('div');
+    inputRow.className = 'identity-input-row';
+
+    const input = document.createElement('input');
+    input.id = 'param-text';
+    input.type = 'text';
+    input.className = 'parameter-text-input';
+    input.value = currentValue || '';
+    input.setAttribute('aria-describedby', 'text-help');
+
+    const generateBtn = document.createElement('button');
+    generateBtn.type = 'button';
+    generateBtn.className = 'parameter-editor-generate-btn';
+    generateBtn.textContent = this.currentConfig.generateLabel || '🔄 自動生成';
+
+    inputRow.appendChild(input);
+    inputRow.appendChild(generateBtn);
+
+    const help = document.createElement('small');
+    help.id = 'text-help';
+    help.className = 'input-help';
+    help.textContent = this.currentConfig.inputHelp || '値を直接入力するか、自動生成してください';
+
+    container.appendChild(label);
+    container.appendChild(inputRow);
+    container.appendChild(help);
+
+    return container;
+  }
+
+  /**
    * イベントリスナーを設定
    */
   setupEventListeners() {
@@ -412,6 +693,12 @@ export class ParameterEditor {
     if (textInput) {
       textInput.addEventListener('input', (e) => this.handleTextInputChange(e));
       textInput.addEventListener('keydown', (e) => this.handleKeydown(e));
+    }
+
+    // 識別子（guid / id 等）の自動生成ボタン
+    const generateBtn = this.modal.querySelector('.parameter-editor-generate-btn');
+    if (generateBtn) {
+      generateBtn.addEventListener('click', () => this.handleIdentityGenerate());
     }
 
     // ESCキーでキャンセル
@@ -442,6 +729,9 @@ export class ParameterEditor {
       this.handleTextInputChange({ target: textInput });
     } else {
       this.validateCurrentInput();
+      if (this.currentConfig.onPreview && selectedValue) {
+        this.currentConfig.onPreview(selectedValue);
+      }
     }
   }
 
@@ -460,6 +750,24 @@ export class ParameterEditor {
     }
 
     this.validateCurrentInput();
+
+    // プレビューコールバック（デバウンスは呼び出し元で管理）
+    if (this.currentConfig.onPreview && currentValue) {
+      this.currentConfig.onPreview(currentValue);
+    }
+  }
+
+  /**
+   * 識別子の自動生成ボタン処理
+   *
+   * config.generate() の値をテキスト入力へ反映し、バリデーション・プレビューを更新する。
+   */
+  handleIdentityGenerate() {
+    const textInput = this.modal.querySelector('.parameter-text-input');
+    if (!textInput || typeof this.currentConfig.generate !== 'function') return;
+    textInput.value = this.currentConfig.generate();
+    this.handleTextInputChange({ target: textInput });
+    textInput.focus();
   }
 
   /**
@@ -525,6 +833,17 @@ export class ParameterEditor {
             .slice(0, 3)
             .join(', ')}</small>`;
         }
+      }
+    }
+
+    // 追加バリデーション（呼び出し元が与える文脈依存チェック。id の一意性など）。
+    // XSD で問題が無い場合のみ評価し、メッセージが返れば編集を確定不可（blocking）にする。
+    if (isValid && typeof this.currentConfig.extraValidate === 'function' && currentValue) {
+      const extraMessage = this.currentConfig.extraValidate(currentValue);
+      if (extraMessage) {
+        isValid = false;
+        isBlocking = true;
+        message = `⚠️ ${extraMessage}`;
       }
     }
 

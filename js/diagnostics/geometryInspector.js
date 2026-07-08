@@ -1,5 +1,5 @@
 import { createLogger } from '../utils/logger.js';
-import { resolveGeometryProfileTypeInPlace } from '../common-stb/section/sectionTypeUtil.js';
+import { resolveGeometryProfileTypeInPlace } from '../common-stb/import/section/sectionTypeUtil.js';
 import { getWidth, getHeight } from '../data/accessors/sectionDataAccessor.js';
 
 const log = createLogger('diagnostics:geom');

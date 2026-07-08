@@ -6,12 +6,60 @@
  */
 
 import { getState } from '../../../data/state/globalState.js';
-import { SECTION_CONFIG } from '../../../common-stb/section/sectionConfig.js';
+import { SECTION_CONFIG } from '../../../common-stb/import/config/sectionConfig.js';
+import { extractAllSections } from '../../../common-stb/import/extractor/sectionExtractor.js';
+import { escapeHtml } from '../../../utils/htmlUtils.js';
 
 const SECTION_LOOKUP_ALIASES = {
   FrameDampingDevice: 'DampingDevice',
   ShearWall: 'Wall',
 };
+
+// 梁/大梁のみ GSS（形状等価）対象。elementType → extractAllSections の断面マップキー。
+const GEOMETRY_SECTION_MAP_KEY = {
+  Girder: 'girderSections',
+  Beam: 'beamSections',
+};
+
+// ドキュメント単位の断面抽出キャッシュ（選択の都度の全断面抽出を回避）。
+const extractedSectionsCache = new WeakMap();
+
+function getExtractedSections(doc) {
+  if (!doc) return null;
+  if (extractedSectionsCache.has(doc)) return extractedSectionsCache.get(doc);
+  let maps = null;
+  try {
+    maps = extractAllSections(doc);
+  } catch {
+    maps = null;
+  }
+  extractedSectionsCache.set(doc, maps);
+  return maps;
+}
+
+/**
+ * 梁/大梁の断面 id からカーネル抽出済みの断面データ（shapeStations 等を含む）を取得する。
+ * GSS（形状等価）判定・記述に用いる。対象外要素や未取得なら null。
+ *
+ * @param {XMLDocument|null} doc
+ * @param {string|number} sectionId
+ * @param {string} elementType
+ * @returns {Object|null}
+ */
+export function getGeometrySectionData(doc, sectionId, elementType) {
+  const mapKey = GEOMETRY_SECTION_MAP_KEY[elementType];
+  if (!mapKey || sectionId == null) return null;
+  const maps = getExtractedSections(doc);
+  const map = maps?.[mapKey];
+  if (!(map instanceof Map)) return null;
+  const numeric = Number(sectionId);
+  return (
+    (Number.isFinite(numeric) ? map.get(numeric) : null) ??
+    map.get(String(sectionId)) ??
+    map.get(sectionId) ??
+    null
+  );
+}
 
 function getLookupElementType(elementType) {
   if (!elementType) {
@@ -161,11 +209,68 @@ export function extractSectionData(sectionNode) {
 }
 
 /**
- * 等価性評価結果のHTML生成（テーブル行形式）
- * @param {Object} result - 評価結果オブジェクト
+ * 選択中の断面一致基準を示す小行を生成する（F1: 表示を設定に追従）。
+ * criterionLabel が無い場合は空文字（Phase 1 の後方互換）。
+ * @param {string|null} criterionLabel - 断面一致基準の表示名
+ * @returns {string} HTML（テーブルセル内の div 行）
+ */
+function renderSelectedCriterionLine(criterionLabel) {
+  if (!criterionLabel) return '';
+  return `<div style="margin-top: 2px; color: #777; font-size: var(--font-size-sm);">断面一致基準（設定）: <strong>${escapeHtml(
+    criterionLabel,
+  )}</strong></div>`;
+}
+
+/**
+ * 形状等価（GSS）判定のHTML生成（テーブル行形式）。
+ * 差分一覧の分類根拠と一致する「作成されるジオメトリ立体形状」で等価かを表示する。
+ * 材質・強度・鉄筋などの非形状属性は等価判定に含めない（断面情報の各行で確認できる）。
+ *
+ * @param {Object} geom - {equivalent, descA, descB, signatureA, signatureB}
+ * @param {string|null} [criterionLabel] - 選択中の断面一致基準の表示名（F1: 表示を設定に追従）
  * @returns {string} テーブル行のHTML
  */
-export function generateEquivalenceSection(result) {
+export function generateGeometryEquivalenceSection(geom, criterionLabel = null) {
+  const statusColor = geom.equivalent ? '#28a745' : '#dc3545';
+  const statusText = geom.equivalent ? '✓ 形状等価' : '✗ 形状非等価';
+  const statusBg = geom.equivalent ? 'rgba(40, 167, 69, 0.1)' : 'rgba(220, 53, 69, 0.1)';
+  const note = geom.equivalent
+    ? '作成されるジオメトリ立体が同一（Straight/Haunch/Taper 等の記述差・材質・強度・鉄筋は除く）'
+    : '断面形状が異なります';
+
+  let html = `
+    <tr class="equivalence-status-row">
+      <td colspan="3" style="background-color: ${statusBg}; padding: 8px; border-left: 4px solid ${statusColor};">
+        <div>
+          <strong style="color: ${statusColor}; font-size: var(--font-size-lg);">${statusText}</strong>
+          <span style="margin-left: 10px; color: #666; font-size: var(--font-size-sm);">${note}</span>
+        </div>
+        <div style="margin-top: 4px; color: #555; font-size: var(--font-size-sm);">断面判定基準: <strong>形状（GSS）</strong></div>
+        ${renderSelectedCriterionLine(criterionLabel)}
+      </td>
+    </tr>
+  `;
+
+  const descA = geom.descA != null ? escapeHtml(geom.descA) : '—';
+  const descB = geom.descB != null ? escapeHtml(geom.descB) : '—';
+  html += `
+    <tr class="equivalence-check-row">
+      <td style="padding-left: 2em; font-weight: var(--font-weight-bold);">断面形状</td>
+      <td style="font-size: var(--font-size-sm); color: #555;">${descA}</td>
+      <td style="font-size: var(--font-size-sm); color: #555;">${descB}</td>
+    </tr>
+  `;
+
+  return html;
+}
+
+/**
+ * 等価性評価結果のHTML生成（テーブル行形式）
+ * @param {Object} result - 評価結果オブジェクト
+ * @param {string|null} [criterionLabel] - 選択中の断面一致基準の表示名（F1: 表示を設定に追従）
+ * @returns {string} テーブル行のHTML
+ */
+export function generateEquivalenceSection(result, criterionLabel = null) {
   const statusColor = result.isEquivalent ? '#28a745' : '#dc3545';
   const statusText = result.isEquivalent ? '✓ 等価' : '✗ 非等価';
   const statusBg = result.isEquivalent ? 'rgba(40, 167, 69, 0.1)' : 'rgba(220, 53, 69, 0.1)';
@@ -179,6 +284,8 @@ export function generateEquivalenceSection(result) {
             <span style="margin-left: 10px; color: #666; font-size: var(--font-size-sm);">${result.summary} (${result.passRate}%)</span>
           </div>
         </div>
+        <div style="margin-top: 4px; color: #555; font-size: var(--font-size-sm);">断面判定基準: <strong>断面種別・寸法・材質・強度</strong></div>
+        ${renderSelectedCriterionLine(criterionLabel)}
       </td>
     </tr>
   `;

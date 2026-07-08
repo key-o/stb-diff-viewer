@@ -41,6 +41,7 @@ export {
   generateTables,
   generateBlocks,
   generateLine,
+  generateCircle,
   generateText,
   generateEntities,
   generateDxfContent,

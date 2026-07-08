@@ -23,7 +23,7 @@ import {
 } from './elementRedrawer.js';
 import { eventBus, LabelEvents } from '../../data/events/index.js';
 import { updateStbExportStatus } from '../dxfLoader.js';
-import { getState } from '../../data/state/globalState.js';
+import { getState, setState } from '../../data/state/globalState.js';
 import {
   isVisibleByStructuralFilter,
   setStructuralSystemVisible,
@@ -282,6 +282,25 @@ export function setupViewModeListeners(scheduleRender) {
       log.info(`${elementType}表示モード:`, mode);
     });
   });
+
+  // ==========================================================================
+  // モデルB形状オーバーレイ切替リスナー
+  // 断面が異なる一致要素について、モデルB側の形状を半透明で重ねて表示する。
+  const overlayModelBCheckbox = document.getElementById('toggleMatchedModelBOverlay');
+  if (overlayModelBCheckbox) {
+    overlayModelBCheckbox.addEventListener('change', function () {
+      setState('viewModes.showMatchedModelBOverlay', this.checked);
+      log.info('モデルB形状オーバーレイ:', this.checked);
+      // 全要素を再描画してオーバーレイメッシュの追加/削除を反映
+      import('./displayModeController.js')
+        .then(({ redrawAllElementsForViewMode }) => {
+          redrawAllElementsForViewMode(scheduleRender);
+        })
+        .catch((err) => {
+          log.error('モデルBオーバーレイ再描画に失敗:', err);
+        });
+    });
+  }
 
   // ==========================================================================
   // 節点表示切替リスナー

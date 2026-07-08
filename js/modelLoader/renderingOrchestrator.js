@@ -134,6 +134,14 @@ export function registerElementsToRegistry() {
 function renderElementType(elementType, comparisonResult, modelBounds, _globalData) {
   const group = elementGroups[elementType];
   if (!group) {
+    if (comparisonResult?.isRenderable === false) {
+      return {
+        meshCount: 0,
+        labels: [],
+        groupVisible: false,
+        skipped: true,
+      };
+    }
     throw new Error(`Element group not found for type: ${elementType}`);
   }
 

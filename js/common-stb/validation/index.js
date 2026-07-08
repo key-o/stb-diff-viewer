@@ -17,9 +17,10 @@ export {
   getIssuesByCategory,
   getIssuesByElementType,
   logValidationSummary,
-  SEVERITY,
-  CATEGORY,
 } from './stbValidator.js';
+
+// バリデーション共通定数
+export { SEVERITY, CATEGORY, SUGGESTION_TYPE } from './validationConstants.js';
 
 // 修復エンジン
 export {
@@ -30,15 +31,12 @@ export {
 } from '../repair/stbRepairEngine.js';
 
 // ワークフロー管理＆統合
+export { ValidationManager, WORKFLOW_STEP } from './validationManager.js';
 export {
-  ValidationManager,
-  ValidationManager as ValidationWorkflow, // 後方互換性エイリアス
   runCompleteWorkflow,
   generateIntegratedReport,
   quickRepair,
-  WORKFLOW_STEP,
-  SUGGESTION_TYPE,
-} from './validationManager.js';
+} from './validationWorkflow.js';
 
 // 重要度設定検証
 export {
@@ -54,10 +52,12 @@ export {
   getSectionValidation,
   getLastValidationResult,
   clearValidationData,
+} from './validationManager.js';
+export {
   generateValidationInfoHtml,
   generateValidationSummaryHtml,
   getValidationStyles,
-} from './validationManager.js';
+} from './validationHtmlRenderer.js';
 
 // JSON Schemaスキーマ検証（メイン）
 export { validateJsonSchema } from './jsonSchemaValidator.js';
@@ -73,6 +73,6 @@ export { quickValidate } from './stbValidator.js';
 
 // processStbFile
 export async function processStbFile(file, options = {}) {
-  const { runCompleteWorkflow } = await import('./validationManager.js');
+  const { runCompleteWorkflow } = await import('./validationWorkflow.js');
   return runCompleteWorkflow(file, options);
 }

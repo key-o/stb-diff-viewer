@@ -27,7 +27,7 @@ function placeBarSymbol(svg, dia, cx, cy, scale = 1) {
 export class RcColumnVisualRenderer {
   constructor(options = {}) {
     this.settings = {
-      barRadius: options.barRadius || 7,
+      barRadius: options.barRadius || 4,
       barScale: options.barScale || 1.0,
       maxWidth: options.maxWidth || 150,
       maxHeight: options.maxHeight || 150,
@@ -101,11 +101,15 @@ export class RcColumnVisualRenderer {
     const coverScaled = cover * scale;
 
     // 帯筋描画（外周フープ + 多脚中間フープ）
+    // フープ矩形の中心位置 = cover + フープ径の半径（DXFと同じ計算式）
+    const barRadius = this.settings.barRadius;
     if (hoop && hoop.dia) {
-      const hoopLeft = rectX + coverScaled - 3;
-      const hoopRight = rectX + rectW - coverScaled + 3;
-      const hoopTop = rectY + coverScaled - 3;
-      const hoopBottom = rectY + rectH - coverScaled + 3;
+      const hoopDiaN = parseInt(String(hoop.dia).match(/\d+/)?.[0] || '0', 10);
+      const hoopBarR = hoopDiaN > 0 ? (hoopDiaN / 2) * scale : barRadius;
+      const hoopLeft = rectX + coverScaled + hoopBarR;
+      const hoopRight = rectX + rectW - coverScaled - hoopBarR;
+      const hoopTop = rectY + coverScaled + hoopBarR;
+      const hoopBottom = rectY + rectH - coverScaled - hoopBarR;
 
       // 外周フープ
       svg.appendChild(
@@ -409,10 +413,12 @@ export class RcColumnVisualRenderer {
       }),
     );
 
-    // 帯筋描画
+    // 帯筋描画（フープ中心 = radiusScaled - coverScaled - フープ径の半径、DXFと同じ計算式）
     if (hoop && hoop.dia) {
       const coverScaled = cover * scale;
-      const hoopRadius = radiusScaled - coverScaled;
+      const hoopDiaN = parseInt(String(hoop.dia).match(/\d+/)?.[0] || '0', 10);
+      const hoopBarR = hoopDiaN > 0 ? (hoopDiaN / 2) * scale : 0;
+      const hoopRadius = radiusScaled - coverScaled - hoopBarR;
 
       svg.appendChild(
         createSvgElement('circle', {

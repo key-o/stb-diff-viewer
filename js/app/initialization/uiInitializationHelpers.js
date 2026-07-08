@@ -3,7 +3,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { initializeTheme, setThemeSetting, getThemeSetting } from '../../ui/common/theme.js';
+import { initializeTheme } from '../../ui/common/theme.js';
 import {
   initializeToast,
   showSuccess,
@@ -13,6 +13,7 @@ import {
   initializeToastEventListeners,
 } from '../../ui/common/toast.js';
 import { initializeFloatingWindow } from '../../ui/panels/floatingWindow.js';
+import { initializeOverlayToggle } from '../../ui/panels/overlayPanelToggle.js';
 import { initializeTreeView } from '../../ui/panels/elementTreeView.js';
 import {
   initializeSectionTreeView,
@@ -28,6 +29,7 @@ import { initSectionBoxEventListeners } from '../../ui/viewer3d/sectionBox.js';
 import { injectElementInfoService } from '../../viewer/services/elementInfoAdapter.js';
 import { initializeValidationPanel } from '../../ui/panels/validationPanelIntegration.js';
 import { initializeXmlViewer } from '../../ui/panels/xmlViewer.js';
+import { initializeRawXmlDiffViewer } from '../../ui/panels/rawXmlDiffViewer.js';
 import { getState } from '../../data/state/globalState.js';
 import { convertComparisonResultsForTree } from '../../data/converters/comparison-to-tree.js';
 import { handleTreeElementSelection } from './eventHandlers.js';
@@ -48,28 +50,7 @@ export function initializeThemeSystem() {
     },
   });
 
-  const buttonGroup = document.getElementById('theme-button-group');
-  if (!buttonGroup) {
-    return;
-  }
-
-  const buttons = buttonGroup.querySelectorAll('button[data-theme]');
-  buttons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const theme = button.dataset.theme;
-      setThemeSetting(theme);
-
-      buttons.forEach((candidate) => candidate.classList.remove('active'));
-      button.classList.add('active');
-    });
-  });
-
-  const currentSetting = getThemeSetting();
-  buttons.forEach((button) => {
-    button.classList.toggle('active', button.dataset.theme === currentSetting);
-  });
-
-  log.info('テーマシステムが初期化されました');
+  log.info('ライトテーマを適用しました');
 }
 
 /**
@@ -94,6 +75,12 @@ export function initializeSharedPanels() {
     if (typeof elementInfo.initializeExportJsonButton === 'function') {
       elementInfo.initializeExportJsonButton();
     }
+    if (typeof elementInfo.initializeDockButton === 'function') {
+      elementInfo.initializeDockButton();
+    }
+    if (typeof elementInfo.initAddMemberForm === 'function') {
+      elementInfo.initAddMemberForm();
+    }
     log.info('要素情報サービスが注入されました');
   });
 
@@ -102,6 +89,8 @@ export function initializeSharedPanels() {
   initializeFloatingWindow();
   initializeValidationPanel();
   initializeXmlViewer();
+  initializeRawXmlDiffViewer();
+  initializeOverlayToggle();
 
   log.info('共通UIパネルが初期化されました');
 }

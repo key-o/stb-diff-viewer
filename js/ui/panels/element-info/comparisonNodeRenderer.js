@@ -6,6 +6,7 @@
  */
 
 import { getState } from '../../../data/state/globalState.js';
+import { escapeHtml } from '../../../utils/htmlUtils.js';
 
 /**
  * 単一ノードの折りたたみ可能な座標ブロックを生成する
@@ -30,13 +31,13 @@ export function renderStbNodeBlock(
   parentRowId,
 ) {
   const nodeId = nodeIdA || nodeIdB;
-  const nodeRowId = `row_StbNode_${nodeId}_${Math.random().toString(36).slice(2, 7)}`;
+  const nodeRowId = `row_StbNode_${Math.random().toString(36).slice(2, 7)}`;
 
   // 要素行: StbNode[@id="37"]
   let html = `<tr class="element-row" data-id="${nodeRowId}" data-parent="${parentRowId}">`;
   html += `<td style="${elementIndentStyle} white-space: nowrap;">`;
   html += `<span class="toggle-btn" data-target-id="${nodeRowId}" style="margin-right:5px;display:inline-block;width:1em;text-align:center;font-weight:var(--font-weight-bold);cursor:pointer;color:#666;">-</span>`;
-  html += `<span class="tag-name">StbNode[@id="${nodeId}"]</span>`;
+  html += `<span class="tag-name">StbNode[@id="${escapeHtml(nodeId)}"]</span>`;
   html += '</td>';
   if (showSingleColumn) {
     html += '<td></td>';
@@ -51,7 +52,7 @@ export function renderStbNodeBlock(
       const coord = coordA || coordB;
       const val = coord ? coord[axis].toFixed(1) : '-';
       html += `<tr data-parent="${nodeRowId}">`;
-      html += `<td style="${attrIndentStyle}"><span class="attr-name">${axis}</span></td>`;
+      html += `<td style="${attrIndentStyle}"><span class="attr-name">${escapeHtml(axis)}</span></td>`;
       html += `<td style="color: #555;">${val}</td>`;
       html += '</tr>';
     } else {
@@ -60,7 +61,7 @@ export function renderStbNodeBlock(
       const differs = coordA && coordB && coordA[axis] !== coordB[axis];
       const highlightClass = differs ? ' class="differs"' : '';
       html += `<tr data-parent="${nodeRowId}">`;
-      html += `<td style="${attrIndentStyle}"><span class="attr-name">${axis}</span></td>`;
+      html += `<td style="${attrIndentStyle}"><span class="attr-name">${escapeHtml(axis)}</span></td>`;
       html += `<td${highlightClass} style="color: #555;">${valA}</td>`;
       html += `<td${highlightClass} style="color: #555;">${valB}</td>`;
       html += '</tr>';

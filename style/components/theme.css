@@ -39,6 +39,7 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-sm);
+  justify-content: space-between;
   margin-bottom: var(--spacing-md);
 }
 
@@ -50,14 +51,23 @@
 /* テーマ選択ボタングループ */
 .theme-button-group {
   display: flex;
-  gap: 4px;
+  gap: 0;
+  padding: 2px;
+  border: 1px solid var(--border-color-light);
+  border-radius: var(--border-radius);
+  background: var(--bg-elevated);
 }
 
-.theme-button-group button {
+.theme-button-group button,
+#overlay .theme-button-group button {
+  display: inline-block;
+  width: auto;
+  margin: 0;
+  white-space: nowrap;
   padding: var(--btn-padding-y-sm) var(--btn-padding-x-sm);
   font-size: var(--font-size-sm);
-  background: var(--bg-secondary);
-  border: var(--border-width) solid var(--border-color-light);
+  background: transparent;
+  border: var(--border-width) solid transparent;
   border-radius: var(--border-radius-sm);
   color: var(--text-primary);
   cursor: pointer;
@@ -73,6 +83,7 @@
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: var(--text-white);
+  box-shadow: var(--shadow-sm);
 }
 
 /* テーマトランジション（スムーズな切り替え） */

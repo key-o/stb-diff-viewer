@@ -3,8 +3,41 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
+import { t } from '../../config/i18n.js';
+import { getAcceptAttribute, getEnabledFileTypes } from '../../config/fileTypeConfig.js';
 
 const log = createLogger('app:initialization:fileInputInitializer');
+
+/** ドロップ案内に表示するファイルタイプ別ラベル（有効なタイプのみ列挙） */
+const DROP_HINT_LABELS = {
+  stb: 'STB',
+  ifc: 'IFC',
+  ss7: 'SS7 / CSV',
+};
+
+/**
+ * 有効なファイルタイプに応じて accept 属性・ドロップ案内を同期する。
+ * SS7 等の無効な形式は featureFlags 経由で fileTypeConfig から外れるため、
+ * 公開ビルドでは自動的に UI から除外される。
+ */
+function applyEnabledFileTypesUi() {
+  const accept = getAcceptAttribute();
+  for (const id of ['fileA', 'fileB']) {
+    const input = document.getElementById(id);
+    if (input) {
+      input.accept = accept;
+    }
+  }
+
+  const dropHint = document.querySelector('#canvas-drop-hint .canvas-drop-hint-sub');
+  if (dropHint) {
+    const labels = getEnabledFileTypes()
+      .map((ft) => DROP_HINT_LABELS[ft.id])
+      .filter(Boolean)
+      .join(' / ');
+    dropHint.textContent = `${labels} をここにドロップ。2ファイルならモデルA/Bとして比較します。`;
+  }
+}
 
 function updateCompareButtonLabel() {
   const compareButton = document.getElementById('compareButton');
@@ -19,16 +52,16 @@ function updateCompareButtonLabel() {
   const hasB = inputB.files && inputB.files.length > 0;
 
   if (hasA && hasB) {
-    compareButton.textContent = '🔍 比較実行';
+    compareButton.textContent = t('app.compare.execute');
     return;
   }
 
   if (hasA || hasB) {
-    compareButton.textContent = '🔍 モデル読込';
+    compareButton.textContent = t('app.compare.loadModel');
     return;
   }
 
-  compareButton.textContent = '🔍 読込 / 比較実行';
+  compareButton.textContent = t('app.compare.loadOrCompare');
 }
 
 function wire(targetId, suffix) {
@@ -59,7 +92,7 @@ function wire(targetId, suffix) {
         wrapper.classList.add('has-file');
       }
     } else if (nameEl) {
-      nameEl.textContent = '未選択';
+      nameEl.textContent = t('file.unselected');
       nameEl.title = '';
       btn.classList.remove('has-file');
       if (wrapper) {
@@ -77,6 +110,7 @@ function wire(targetId, suffix) {
 export function initializeCompareFileInputs() {
   log.info('比較用ファイル入力の初期化を開始します');
 
+  applyEnabledFileTypesUi();
   wire('fileA', 'A');
   wire('fileB', 'B');
 

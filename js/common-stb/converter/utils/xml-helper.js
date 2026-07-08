@@ -2,10 +2,105 @@
  * XML Helper Utilities for STB Version Converter
  */
 
-import { parseString, Builder } from 'xml2js';
-
 // Root element names (both forms are valid in STB)
 export const ROOT_ELEMENT_NAMES = ['ST-Bridge', 'ST_BRIDGE'];
+
+function escapeXmlText(value) {
+  return String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escapeXmlAttribute(value) {
+  return escapeXmlText(value).replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+async function createDomParser() {
+  if (typeof DOMParser !== 'undefined') {
+    return new DOMParser();
+  }
+
+  const { DOMParser: XmldomParser } = await import('@xmldom/xmldom');
+  return new XmldomParser({
+    errorHandler: {
+      warning: () => {},
+      error: (message) => {
+        throw new Error(message);
+      },
+      fatalError: (message) => {
+        throw new Error(message);
+      },
+    },
+  });
+}
+
+function parseElement(element) {
+  const result = {};
+
+  if (element.attributes?.length) {
+    result.$ = {};
+    for (let i = 0; i < element.attributes.length; i++) {
+      const attr = element.attributes.item(i);
+      result.$[attr.name] = attr.value;
+    }
+  }
+
+  for (let i = 0; i < (element.childNodes?.length || 0); i++) {
+    const child = element.childNodes.item(i);
+    if (child.nodeType === 1) {
+      const childName = child.nodeName;
+      result[childName] ??= [];
+      result[childName].push(parseElement(child));
+      continue;
+    }
+
+    if (child.nodeType === 3 || child.nodeType === 4) {
+      const text = child.nodeValue?.trim();
+      if (text) {
+        result._ = result._ ? `${result._}${text}` : text;
+      }
+    }
+  }
+
+  return result;
+}
+
+function buildElement(name, value, depth = 0) {
+  const indent = '  '.repeat(depth);
+
+  if (value === null || value === undefined) {
+    return `${indent}<${name}/>`;
+  }
+
+  if (typeof value !== 'object') {
+    return `${indent}<${name}>${escapeXmlText(value)}</${name}>`;
+  }
+
+  const attrs = value.$ || {};
+  const attrText = Object.entries(attrs)
+    .map(([key, attrValue]) => ` ${key}="${escapeXmlAttribute(attrValue)}"`)
+    .join('');
+
+  const childEntries = Object.entries(value).filter(([key]) => key !== '$' && key !== '_');
+  const text = value._ !== undefined ? escapeXmlText(value._) : '';
+
+  if (!text && childEntries.length === 0) {
+    return `${indent}<${name}${attrText}/>`;
+  }
+
+  if (childEntries.length === 0) {
+    return `${indent}<${name}${attrText}>${text}</${name}>`;
+  }
+
+  const children = [];
+  for (const [childName, childValue] of childEntries) {
+    const childItems = Array.isArray(childValue) ? childValue : [childValue];
+    for (const item of childItems) {
+      children.push(buildElement(childName, item, depth + 1));
+    }
+  }
+
+  const content = text ? `${text}\n${children.join('\n')}` : children.join('\n');
+  return `${indent}<${name}${attrText}>\n${content}\n${indent}</${name}>`;
+}
 
 /**
  * Get the root element from STB object
@@ -32,26 +127,27 @@ export function getStbRoot(stbRoot) {
 }
 
 /**
- * Parse XML string to JavaScript object
+ * Parse XML string to JavaScript object.
+ * The returned shape intentionally matches the subset of xml2js used by the
+ * converter: element names map to arrays, attributes live under "$", and text
+ * content lives under "_".
  * @param {string} xmlString - XML content
  * @returns {Promise<object>} Parsed object
  */
-export function parseXml(xmlString) {
-  return new Promise((resolve, reject) => {
-    parseString(
-      xmlString,
-      {
-        explicitArray: true,
-        preserveChildrenOrder: true,
-        attrkey: '$',
-        charkey: '_',
-      },
-      (err, result) => {
-        if (err) reject(err);
-        else resolve(result);
-      },
-    );
-  });
+export async function parseXml(xmlString) {
+  const parser = await createDomParser();
+  const doc = parser.parseFromString(xmlString, 'application/xml');
+  const parseError = doc.getElementsByTagName?.('parsererror')?.[0];
+  if (parseError) {
+    throw new Error(parseError.textContent || 'Invalid XML');
+  }
+
+  const root = doc.documentElement;
+  if (!root) {
+    throw new Error('Missing XML document element');
+  }
+
+  return { [root.nodeName]: [parseElement(root)] };
 }
 
 /**
@@ -60,13 +156,14 @@ export function parseXml(xmlString) {
  * @returns {string} XML string
  */
 export function buildXml(obj) {
-  const builder = new Builder({
-    xmldec: { version: '1.0', encoding: 'UTF-8' },
-    renderOpts: { pretty: true, indent: '  ', newline: '\n' },
-    attrkey: '$',
-    charkey: '_',
-  });
-  return builder.buildObject(obj);
+  const roots = Object.entries(obj || {});
+  const body = roots
+    .flatMap(([name, value]) => {
+      const items = Array.isArray(value) ? value : [value];
+      return items.map((item) => buildElement(name, item));
+    })
+    .join('\n');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n${body}`;
 }
 
 /**

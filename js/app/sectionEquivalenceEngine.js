@@ -13,7 +13,7 @@
  * @module sectionEquivalenceEngine
  */
 
-import { normalizeProfileTypeToken } from '../common-stb/section/sectionTypeUtil.js';
+import { normalizeProfileTypeToken } from '../common-stb/import/section/sectionTypeUtil.js';
 
 /**
  * 断面等価性評価の設定

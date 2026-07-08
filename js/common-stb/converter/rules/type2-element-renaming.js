@@ -581,6 +581,59 @@ export const ELEMENT_RENAME_MAP_211_TO_210 = Object.fromEntries(
 );
 
 /**
+ * Parent-scoped element renames: v2.1.0 -> v2.1.1.
+ * v2.1.0 mistakenly referenced StbSecIsolatingDeviceSpecificationChange inside
+ * StbSecDampingDeviceFriction; v2.1.1 fixed the reference. The name must only be
+ * changed under that parent (it is legitimate elsewhere).
+ */
+const SCOPED_ELEMENT_RENAME_210_TO_211 = [
+  {
+    parent: 'StbSecDampingDeviceFriction',
+    old: 'StbSecIsolatingDeviceSpecificationChange',
+    new: 'StbSecDampingDeviceSpecificationChange',
+  },
+];
+
+const SCOPED_ELEMENT_RENAME_211_TO_210 = SCOPED_ELEMENT_RENAME_210_TO_211.map(
+  ({ parent, old: o, new: n }) => ({ parent, old: n, new: o }),
+);
+
+/**
+ * Walk the tree renaming child elements only under a named parent element.
+ * @param {object} node - Current XML node
+ * @param {Array} scopedRenames - Array of { parent, old, new }
+ * @returns {number} Number of renames performed
+ */
+function walkAndRenameScoped(node, scopedRenames) {
+  if (!node || typeof node !== 'object') return 0;
+  let count = 0;
+
+  const visit = (key, item) => {
+    if (!item || typeof item !== 'object') return;
+    for (const { parent, old: oldName, new: newName } of scopedRenames) {
+      if (key === parent && Object.prototype.hasOwnProperty.call(item, oldName)) {
+        renameKey(item, oldName, newName);
+        count++;
+        logger.debug(`Renamed element (scoped to ${parent}): ${oldName} -> ${newName}`);
+      }
+    }
+    count += walkAndRenameScoped(item, scopedRenames);
+  };
+
+  for (const key of Object.keys(node)) {
+    if (key === '$' || key === '_') continue;
+    const children = node[key];
+    if (Array.isArray(children)) {
+      children.forEach((item) => visit(key, item));
+    } else {
+      visit(key, children);
+    }
+  }
+
+  return count;
+}
+
+/**
  * Walk the entire STB tree and apply element renames from a flat map.
  * This is used for 2.1.x typo-fix renames that can appear anywhere in the document.
  * @param {object} node - Current XML node
@@ -619,7 +672,9 @@ function walkAndRename(node, map) {
  * @param {object} stbRoot - ST-Bridge root element
  */
 export function renameElementsTo211(stbRoot) {
-  const count = walkAndRename(stbRoot, ELEMENT_RENAME_MAP_210_TO_211);
+  const count =
+    walkAndRename(stbRoot, ELEMENT_RENAME_MAP_210_TO_211) +
+    walkAndRenameScoped(stbRoot, SCOPED_ELEMENT_RENAME_210_TO_211);
   if (count > 0) {
     logger.info(`Element renaming (2.1.0->2.1.1) complete: ${count} elements renamed`);
   }
@@ -630,7 +685,9 @@ export function renameElementsTo211(stbRoot) {
  * @param {object} stbRoot - ST-Bridge root element
  */
 export function renameElementsTo210from211(stbRoot) {
-  const count = walkAndRename(stbRoot, ELEMENT_RENAME_MAP_211_TO_210);
+  const count =
+    walkAndRename(stbRoot, ELEMENT_RENAME_MAP_211_TO_210) +
+    walkAndRenameScoped(stbRoot, SCOPED_ELEMENT_RENAME_211_TO_210);
   if (count > 0) {
     logger.info(`Element renaming (2.1.1->2.1.0) complete: ${count} elements renamed`);
   }

@@ -95,6 +95,8 @@ export function parseStbCalData(doc) {
     loadCondition: parseLoadCondition(calData),
     loadCases: parseLoadCases(calData),
     memberLoads: parseMemberLoads(calData),
+    pointLoads: parsePointLoads(calData),
+    addedWeights: parseAddedWeights(calData),
     loadArrangements: parseLoadArrangements(calData),
     slabFinishDefs: parseSlabFinishDefs(calData),
   };
@@ -300,7 +302,87 @@ function parseLoadArrangements(calData) {
     beams: parseBeamLoadArrangements(arrangements),
     slabFinishes: parseSlabFinishArrangements(arrangements),
     slabLiveloads: parseSlabLiveLoadArrangements(arrangements),
+    nodeWeights: parseNodeArrangements(arrangements, {
+      arr: 'StbCalNodeWeightArr',
+      loadList: 'StbCalNodeWeightLoadList',
+      nodeList: 'StbCalNodeWeightNodeList',
+    }),
+    nodePointLoads: parseNodeArrangements(arrangements, {
+      arr: 'StbCalNodePointLoadArr',
+      loadList: 'StbCalNodePointLoadList',
+      nodeList: 'StbCalNodePointLoadNodeList',
+    }),
   };
+}
+
+/**
+ * 節点付加重量を解析 (StbCalLoad > StbCalAddedWeights > StbCalNodeAddedWeight)
+ * @param {Element} calData - StbCalData要素
+ * @returns {Array} 付加重量配列
+ */
+function parseAddedWeights(calData) {
+  const addedWeightsEl = calData.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalAddedWeights')[0];
+  if (!addedWeightsEl) return [];
+
+  const weights = addedWeightsEl.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalNodeAddedWeight');
+  return Array.from(weights).map((el) => ({
+    id: el.getAttribute('id'),
+    loadCaseId: el.getAttribute('id_loadcase'),
+    loadCaseName: el.getAttribute('loadcase'),
+    weight: parseFloat(el.getAttribute('weight')) || 0,
+    description: el.getAttribute('description') || '',
+  }));
+}
+
+/**
+ * 節点集中荷重を解析 (StbCalAdditionalLoads > StbCalPointLoad)
+ * @param {Element} calData - StbCalData要素
+ * @returns {Array} 集中荷重配列
+ */
+function parsePointLoads(calData) {
+  const additionalLoads = calData.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalAdditionalLoads')[0];
+  if (!additionalLoads) return [];
+
+  const pointLoads = additionalLoads.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalPointLoad');
+  return Array.from(pointLoads).map((el) => ({
+    id: el.getAttribute('id'),
+    loadCaseId: el.getAttribute('id_loadcase'),
+    loadCaseName: el.getAttribute('loadcase'),
+    P1: parseFloat(el.getAttribute('P1')) || 0,
+    P2: parseFloat(el.getAttribute('P2')) || 0,
+    P3: parseFloat(el.getAttribute('P3')) || 0,
+    P4: parseFloat(el.getAttribute('P4')) || 0,
+    P5: parseFloat(el.getAttribute('P5')) || 0,
+    P6: parseFloat(el.getAttribute('P6')) || 0,
+    description: el.getAttribute('description') || '',
+  }));
+}
+
+/**
+ * 節点荷重配置を解析 (StbCalNodeWeightArr / StbCalNodePointLoadArr)
+ * 要素名は不規則のため明示指定する（NodeWeight→...WeightLoadList, NodePointLoad→...PointLoadList）。
+ * @param {Element} arrangements - StbCalLoadArrangements要素
+ * @param {{arr: string, loadList: string, nodeList: string}} names - 解析対象の要素名（スキーマ準拠）
+ * @returns {Map} 節点ID→荷重IDマッピング
+ */
+function parseNodeArrangements(arrangements, names) {
+  const result = new Map();
+  const arrs = Array.from(arrangements.getElementsByTagNameNS(STB_NAMESPACE, names.arr));
+
+  for (const arr of arrs) {
+    const loadListEl = arr.getElementsByTagNameNS(STB_NAMESPACE, names.loadList)[0];
+    const nodeListEl = arr.getElementsByTagNameNS(STB_NAMESPACE, names.nodeList)[0];
+    if (!loadListEl || !nodeListEl) continue;
+
+    const loadIds = loadListEl.textContent.trim().split(/\s+/);
+    const nodeIds = nodeListEl.textContent.trim().split(/\s+/);
+    for (const nodeId of nodeIds) {
+      if (!result.has(nodeId)) result.set(nodeId, []);
+      result.get(nodeId).push(...loadIds);
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -328,7 +410,9 @@ function parseSlabFinishDefs(calData) {
  */
 function parseSlabFinishArrangements(arrangements) {
   const result = new Map();
-  const arrs = arrangements.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabFinish_RC_Arr');
+  const arrs = Array.from(
+    arrangements.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabFinish_RC_Arr'),
+  );
   for (const arr of arrs) {
     const loadListEl = arr.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabFinish_RC_LoadList')[0];
     const memListEl = arr.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabFinish_RC_MemList')[0];
@@ -348,7 +432,9 @@ function parseSlabFinishArrangements(arrangements) {
  */
 function parseSlabLiveLoadArrangements(arrangements) {
   const result = new Map();
-  const arrs = arrangements.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabLiveLoadArr');
+  const arrs = Array.from(
+    arrangements.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabLiveLoadArr'),
+  );
   for (const arr of arrs) {
     const loadListEl = arr.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabLiveLoadList')[0];
     const memListEl = arr.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalSlabLiveLoadMemList')[0];
@@ -370,9 +456,8 @@ function parseSlabLiveLoadArrangements(arrangements) {
  */
 function parseColumnLoadArrangements(arrangements) {
   const result = new Map();
-  const columnArrs = arrangements.getElementsByTagNameNS(
-    STB_NAMESPACE,
-    'StbCalColumnMemberLoadArr',
+  const columnArrs = Array.from(
+    arrangements.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalColumnMemberLoadArr'),
   );
 
   for (const arr of columnArrs) {
@@ -402,9 +487,8 @@ function parseColumnLoadArrangements(arrangements) {
  */
 function parseGirderLoadArrangements(arrangements) {
   const result = new Map();
-  const girderArrs = arrangements.getElementsByTagNameNS(
-    STB_NAMESPACE,
-    'StbCalGirderMemberLoadArr',
+  const girderArrs = Array.from(
+    arrangements.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalGirderMemberLoadArr'),
   );
 
   for (const arr of girderArrs) {
@@ -434,7 +518,9 @@ function parseGirderLoadArrangements(arrangements) {
  */
 function parseBeamLoadArrangements(arrangements) {
   const result = new Map();
-  const beamArrs = arrangements.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalBeamMemberLoadArr');
+  const beamArrs = Array.from(
+    arrangements.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalBeamMemberLoadArr'),
+  );
 
   for (const arr of beamArrs) {
     const loadListEl = arr.getElementsByTagNameNS(STB_NAMESPACE, 'StbCalBeamMemberLoadList')[0];
@@ -523,7 +609,7 @@ export function getLoadCaseColor(kind) {
     S: 0x00bcd4, // シアン: 積雪荷重
     W: 0x9c27b0, // 紫: 風荷重
     K: 0xf44336, // 赤: 地震荷重
-    T: 0xff9800, // オレンジ: 温度荷重
+    T: 0xff9800, // オレンジ: 温度荷重・その他（OTHER正規化後）
   };
   return colors[kind] || 0x757575;
 }

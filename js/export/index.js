@@ -30,7 +30,6 @@ export {
 
 // STB エクスポート
 export {
-  exportModifiedStb,
   exportStbDocument,
   validateDocumentForExport,
   generateModificationReport,

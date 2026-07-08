@@ -18,8 +18,9 @@ import {
 } from '../common-stb/validation/validationManager.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
 import { getState } from '../data/state/globalState.js';
-import { showColorModeStatus } from './colorModeManager.js';
-import { createApplyColorMode } from './colorModeState.js';
+import { showColorModeStatus } from './colorModeStatus.js';
+import { getCurrentColorMode, COLOR_MODES } from './colorModeState.js';
+import { eventBus, ViewEvents } from '../data/events/index.js';
 import {
   buildSchemaKey,
   setSchemaError,
@@ -390,17 +391,12 @@ export function resetSchemaColors() {
   updateColorInput('schema-warning-color', DEFAULT_SCHEMA_COLORS.warning);
   updateColorInput('schema-error-color', DEFAULT_SCHEMA_COLORS.error);
 
-  // スキーマエラーモードが有効な場合は即座に適用
-  import('./index.js').then(({ getCurrentColorMode, COLOR_MODES, updateElementsForColorMode }) => {
-    if (getCurrentColorMode() === COLOR_MODES.SCHEMA) {
-      updateSchemaErrorMaterials();
-      updateElementsForColorMode();
-    }
-  });
+  // スキーマエラーモードが有効な場合は即座に適用（eventBus経由で循環依存解消）
+  if (getCurrentColorMode() === COLOR_MODES.SCHEMA) {
+    updateSchemaErrorMaterials();
+    eventBus.emit(ViewEvents.COLOR_MODE_REFRESH_REQUESTED);
+  }
 }
-
-/** 全要素にスキーマエラー色分けを適用 */
-export const applySchemaColorModeToAll = createApplyColorMode('SchemaColorMode');
 
 /**
  * スキーマモード用バリデーション実行

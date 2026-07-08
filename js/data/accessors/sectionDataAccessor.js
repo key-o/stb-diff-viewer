@@ -18,7 +18,7 @@ import {
   HEIGHT_KEYS,
   DIAMETER_KEYS,
   THICKNESS_KEYS,
-} from '../../constants/attributeKeys.js';
+} from '../../common-stb/import/constants/attributeKeys.js';
 
 /**
  * 断面データから寸法オブジェクトを取得

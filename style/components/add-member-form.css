@@ -1,0 +1,205 @@
+/**
+ * 新規部材追加フォーム（フローティング版）
+ * ウィンドウ枠は floating-window スタイルを再利用し、入力行のみここで補う。
+ */
+
+/* フローティングウィンドウとしての初期配置・サイズ */
+.add-member-window {
+  top: 80px;
+  right: 24px;
+  width: 360px;
+  max-height: 80vh;
+  overflow: auto;
+  z-index: 210; /* floatingWindowManager の上限(200)より前面に固定 */
+}
+
+.add-member-fields {
+  margin-top: var(--spacing-sm);
+}
+
+.add-member-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.add-member-label {
+  flex: 0 0 110px;
+  font-size: var(--font-size-sm);
+  color: #495057;
+}
+
+.add-member-row .parameter-dropdown,
+.add-member-row .parameter-text-input {
+  flex: 1 1 auto;
+}
+
+/* 断面ビルダー：スキーマ階層を示す入れ子ブロック */
+.section-builder-group {
+  margin: var(--spacing-sm) 0;
+  padding-left: var(--spacing-md);
+  border-left: 2px solid var(--color-border, #dee2e6);
+}
+
+.section-builder-group-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #343a40;
+  margin: var(--spacing-xs) 0;
+}
+
+.section-builder-group-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+}
+
+.section-builder-group-body {
+  margin-top: var(--spacing-xs);
+}
+
+/* 3D節点ピックボタン */
+.add-member-pick-btn {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 4px;
+  background: #f1f3f5;
+}
+
+.add-member-pick-btn:hover {
+  background: #e9ecef;
+}
+
+/* ピック待ち（3Dクリック待機中）の強調表示 */
+.add-member-pick-btn.picking {
+  background: #ffe08a;
+  border-color: #f59f00;
+  font-weight: 600;
+}
+
+.add-member-snap-row {
+  justify-content: flex-end;
+}
+
+/* ピックモード中は3Dビュー上でクロスヘアカーソル */
+body.node-pick-active #three-canvas {
+  cursor: crosshair;
+}
+
+/* 面材（床・壁）の輪郭節点リスト */
+.add-member-nodelist {
+  margin: var(--spacing-sm) 0;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 4px;
+  background: #f8f9fa;
+}
+
+.add-member-nodelist-label {
+  flex: none;
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+}
+
+.add-member-nodelist-items {
+  margin: 0 0 var(--spacing-sm);
+  padding-left: 0;
+  list-style: none;
+}
+
+.add-member-nodelist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.add-member-nodelist-item:nth-child(odd) {
+  background: #eef1f4;
+}
+
+.add-member-nodelist-id {
+  font-size: var(--font-size-sm);
+  color: #343a40;
+}
+
+.add-member-nodelist-empty {
+  font-size: var(--font-size-sm);
+  color: #868e96;
+  font-style: italic;
+}
+
+.add-member-nodelist-controls {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.add-member-nodelist-btn {
+  padding: 0 6px;
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  cursor: pointer;
+  border: 1px solid var(--color-border, #dee2e6);
+  border-radius: 3px;
+  background: #fff;
+}
+
+.add-member-nodelist-btn:hover:not(:disabled) {
+  background: #e9ecef;
+}
+
+.add-member-nodelist-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.add-member-nodelist-add {
+  width: 100%;
+}
+
+/* 確認サマリ */
+.add-member-summary {
+  margin: var(--spacing-sm) 0;
+  padding: var(--spacing-sm);
+  border-radius: 4px;
+  background: #f8f9fa;
+  font-size: var(--font-size-sm);
+}
+
+.add-member-summary-desc {
+  font-weight: 600;
+  color: #343a40;
+  margin-bottom: var(--spacing-xs);
+}
+
+.add-member-issues {
+  margin: 0;
+  padding-left: var(--spacing-md);
+  list-style: none;
+}
+
+.add-member-issue-error {
+  color: #c92a2a;
+}
+
+.add-member-issue-warning {
+  color: #b08900;
+}
+
+.add-member-ok {
+  color: #2b8a3e;
+}
+
+/* 作成不可（検証エラー）時の送信ボタン */
+.add-member-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

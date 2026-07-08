@@ -2,15 +2,13 @@
  * @fileoverview 許容差設定管理モジュール
  *
  * このファイルは、要素比較時の許容差設定を管理します：
- * - 基準点(StbNode)座標の許容差
- * - オフセット値の許容差
- * - 回転角の許容差（度単位）
- * - 配置要素比較モード（段階1～3）
+ * - 基準点(StbNode)座標の許容差（位置情報系キータイプ全般に適用。オフセット・回転角を
+ *   加味した最終座標もこの許容差で判定される）
+ * - 回転角の許容差（度単位。「節点位置 + オフセット + 回転」キータイプで使用）
+ * - ジオメトリ中心・方向の許容差（「ジオメトリ中心・方向」キータイプで使用）
  * - 許容差機能の有効/無効切り替え
  * - 厳密モード（完全一致のみ）の設定
  */
-
-import { DEFAULT_PLACEMENT_COMPARISON_MODE } from './comparisonKeyConfig.js';
 
 /**
  * 許容差設定のデフォルト値
@@ -18,27 +16,41 @@ import { DEFAULT_PLACEMENT_COMPARISON_MODE } from './comparisonKeyConfig.js';
  */
 export const DEFAULT_TOLERANCE_CONFIG = {
   // 基準点(StbNode)座標の許容差 (mm)
+  // 位置情報系キータイプ（節点位置のみ/+オフセット/+オフセット+回転）すべてで、
+  // オフセット加算後の最終座標に対して使用される
   basePoint: {
     x: 10.0,
     y: 10.0,
     z: 10.0,
   },
 
-  // オフセット値の許容差 (mm)
-  offset: {
-    x: 5.0,
-    y: 5.0,
-    z: 5.0,
+  // 回転角の許容差 (度)
+  // 「節点位置 + オフセット + 回転」キータイプでのみ使用
+  rotate: 0.5,
+
+  // ジオメトリ中心の許容差 (mm)
+  // 「ジオメトリ中心・方向」キータイプでのみ使用
+  geometryCenter: {
+    x: 10.0,
+    y: 10.0,
+    z: 10.0,
   },
 
-  // 回転角の許容差 (度)
-  rotate: 0.5,
+  // ジオメトリ方向角の許容差 (度)
+  // 「ジオメトリ中心・方向」キータイプでのみ使用
+  directionAngle: 1.0,
+
+  // 線材の長さ差の許容差 (mm)
+  geometryLength: 10.0,
+
+  // 面材の面積差の許容差 (mm^2)
+  geometryArea: 100.0,
+
+  // 逆方向の軸・法線を同一方向として扱う
+  directionOppositeEquivalent: true,
 
   // 属性値の数値比較しきい値（rotate, offset_X 等の数値属性に適用）
   attributeNumericTolerance: 0.001,
-
-  // 配置要素比較モード（PLACEMENT_COMPARISON_MODE 参照）
-  placementComparisonMode: DEFAULT_PLACEMENT_COMPARISON_MODE,
 
   // 許容差機能の有効/無効
   enabled: true,
@@ -54,7 +66,7 @@ export const DEFAULT_TOLERANCE_CONFIG = {
 let currentToleranceConfig = {
   ...DEFAULT_TOLERANCE_CONFIG,
   basePoint: { ...DEFAULT_TOLERANCE_CONFIG.basePoint },
-  offset: { ...DEFAULT_TOLERANCE_CONFIG.offset },
+  geometryCenter: { ...DEFAULT_TOLERANCE_CONFIG.geometryCenter },
 };
 
 /**
@@ -65,7 +77,7 @@ export function getToleranceConfig() {
   return {
     ...currentToleranceConfig,
     basePoint: { ...currentToleranceConfig.basePoint },
-    offset: { ...currentToleranceConfig.offset },
+    geometryCenter: { ...currentToleranceConfig.geometryCenter },
   };
 }
 
@@ -81,15 +93,31 @@ export function setToleranceConfig(config) {
     };
   }
 
-  if (config.offset) {
-    currentToleranceConfig.offset = {
-      ...currentToleranceConfig.offset,
-      ...config.offset,
+  if (config.geometryCenter) {
+    currentToleranceConfig.geometryCenter = {
+      ...currentToleranceConfig.geometryCenter,
+      ...config.geometryCenter,
     };
   }
 
   if (typeof config.rotate === 'number') {
     currentToleranceConfig.rotate = config.rotate;
+  }
+
+  if (typeof config.directionAngle === 'number') {
+    currentToleranceConfig.directionAngle = config.directionAngle;
+  }
+
+  if (typeof config.geometryLength === 'number') {
+    currentToleranceConfig.geometryLength = config.geometryLength;
+  }
+
+  if (typeof config.geometryArea === 'number') {
+    currentToleranceConfig.geometryArea = config.geometryArea;
+  }
+
+  if (typeof config.directionOppositeEquivalent === 'boolean') {
+    currentToleranceConfig.directionOppositeEquivalent = config.directionOppositeEquivalent;
   }
 
   if (typeof config.enabled === 'boolean') {
@@ -103,10 +131,6 @@ export function setToleranceConfig(config) {
   if (typeof config.attributeNumericTolerance === 'number') {
     currentToleranceConfig.attributeNumericTolerance = config.attributeNumericTolerance;
   }
-
-  if (typeof config.placementComparisonMode === 'string') {
-    currentToleranceConfig.placementComparisonMode = config.placementComparisonMode;
-  }
 }
 
 /**
@@ -115,12 +139,15 @@ export function setToleranceConfig(config) {
 export function resetToleranceConfig() {
   currentToleranceConfig = {
     basePoint: { ...DEFAULT_TOLERANCE_CONFIG.basePoint },
-    offset: { ...DEFAULT_TOLERANCE_CONFIG.offset },
+    geometryCenter: { ...DEFAULT_TOLERANCE_CONFIG.geometryCenter },
     rotate: DEFAULT_TOLERANCE_CONFIG.rotate,
+    directionAngle: DEFAULT_TOLERANCE_CONFIG.directionAngle,
+    geometryLength: DEFAULT_TOLERANCE_CONFIG.geometryLength,
+    geometryArea: DEFAULT_TOLERANCE_CONFIG.geometryArea,
+    directionOppositeEquivalent: DEFAULT_TOLERANCE_CONFIG.directionOppositeEquivalent,
     enabled: DEFAULT_TOLERANCE_CONFIG.enabled,
     strictMode: DEFAULT_TOLERANCE_CONFIG.strictMode,
     attributeNumericTolerance: DEFAULT_TOLERANCE_CONFIG.attributeNumericTolerance,
-    placementComparisonMode: DEFAULT_TOLERANCE_CONFIG.placementComparisonMode,
   };
 }
 
@@ -145,16 +172,34 @@ export function validateToleranceConfig(config) {
     }
   }
 
-  // オフセットの検証
-  if (config.offset) {
-    if (typeof config.offset.x !== 'number' || config.offset.x < 0) {
-      errors.push('offset.x must be a non-negative number');
+  // ジオメトリ中心の検証
+  if (config.geometryCenter) {
+    if (typeof config.geometryCenter.x !== 'number' || config.geometryCenter.x < 0) {
+      errors.push('geometryCenter.x must be a non-negative number');
     }
-    if (typeof config.offset.y !== 'number' || config.offset.y < 0) {
-      errors.push('offset.y must be a non-negative number');
+    if (typeof config.geometryCenter.y !== 'number' || config.geometryCenter.y < 0) {
+      errors.push('geometryCenter.y must be a non-negative number');
     }
-    if (typeof config.offset.z !== 'number' || config.offset.z < 0) {
-      errors.push('offset.z must be a non-negative number');
+    if (typeof config.geometryCenter.z !== 'number' || config.geometryCenter.z < 0) {
+      errors.push('geometryCenter.z must be a non-negative number');
+    }
+  }
+
+  if (config.directionAngle !== undefined) {
+    if (typeof config.directionAngle !== 'number' || config.directionAngle < 0) {
+      errors.push('directionAngle must be a non-negative number');
+    }
+  }
+
+  if (config.geometryLength !== undefined) {
+    if (typeof config.geometryLength !== 'number' || config.geometryLength < 0) {
+      errors.push('geometryLength must be a non-negative number');
+    }
+  }
+
+  if (config.geometryArea !== undefined) {
+    if (typeof config.geometryArea !== 'number' || config.geometryArea < 0) {
+      errors.push('geometryArea must be a non-negative number');
     }
   }
 

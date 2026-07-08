@@ -351,12 +351,32 @@ export function generateText(text) {
 }
 
 /**
+ * DXF CIRCLE エンティティを生成（R12形式）
+ * @param {Object} circle - 円情報 {center: {x, y}, radius: number, layer: string}
+ * @returns {string} DXF CIRCLEエンティティ文字列
+ */
+export function generateCircle(circle) {
+  const lines = [];
+  addPairs(
+    lines,
+    [0, 'CIRCLE'],
+    [8, circle.layer],
+    [10, circle.center.x.toFixed(6)],
+    [20, circle.center.y.toFixed(6)],
+    [30, '0.0'],
+    [40, circle.radius.toFixed(6)],
+  );
+  return lines.join('\n');
+}
+
+/**
  * DXF ENTITIESセクションを生成
  * @param {Array} lines2D - 2D線分の配列
  * @param {Array} texts2D - 2Dテキストの配列（オプション）
+ * @param {Array} circles2D - 2D円の配列（オプション）
  * @returns {string} DXFエンティティ文字列
  */
-export function generateEntities(lines2D, texts2D = []) {
+export function generateEntities(lines2D, texts2D = [], circles2D = []) {
   const entityStrings = [];
 
   addPairs(entityStrings, [0, 'SECTION'], [2, 'ENTITIES']);
@@ -364,6 +384,11 @@ export function generateEntities(lines2D, texts2D = []) {
   // 線分を出力
   for (const line of lines2D) {
     entityStrings.push(generateLine(line));
+  }
+
+  // 円を出力
+  for (const circle of circles2D) {
+    entityStrings.push(generateCircle(circle));
   }
 
   // テキスト（ラベル）を出力
@@ -385,9 +410,10 @@ export function generateEntities(lines2D, texts2D = []) {
  * @param {Array<string>} layers - レイヤー一覧
  * @param {Array} lines2D - 2D線分の配列
  * @param {Array} texts2D - 2Dテキストの配列
+ * @param {Array} circles2D - 2D円の配列（オプション）
  * @returns {string} 完全なDXFファイル内容
  */
-export function generateDxfContent(bounds, layers, lines2D, texts2D = []) {
+export function generateDxfContent(bounds, layers, lines2D, texts2D = [], circles2D = []) {
   // ハンドルをリセット
   resetHandles();
 
@@ -395,7 +421,7 @@ export function generateDxfContent(bounds, layers, lines2D, texts2D = []) {
     generateHeader(bounds),
     generateTables(layers, texts2D.length > 0, bounds),
     generateBlocks(),
-    generateEntities(lines2D, texts2D),
+    generateEntities(lines2D, texts2D, circles2D),
     dxfPair(0, 'EOF'),
   ];
 

@@ -24,6 +24,7 @@ import {
   getModelBounds,
 } from '../../viewer/index.js';
 import { initEditComparisonSync } from '../controllers/editComparisonSyncController.js';
+import { initEditGeometrySync } from '../controllers/editGeometrySyncController.js';
 
 const log = createLogger('systemInitializer');
 
@@ -60,6 +61,9 @@ export function initializeIntegratedSystems() {
 
   // 編集→再比較同期コントローラーの初期化
   initEditComparisonSync();
+
+  // 編集→3D再描画コントローラーの初期化
+  initEditGeometrySync();
 
   log.info('重要度統合システムが初期化されました');
   log.info('差分ステータスフィルタが初期化されました');

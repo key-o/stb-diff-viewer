@@ -6,12 +6,9 @@
  */
 
 // displayModeController.js からの再エクスポート
-export {
-  initViewModes,
-  resetViewModes,
-  getModelContext,
-  syncDisplayModeFromUI,
-} from './displayModeController.js';
+export { initViewModes, resetViewModes, syncDisplayModeFromUI } from './displayModeController.js';
+
+export { getModelContext } from './modelContext.js';
 
 // elementRedrawer.js からの再エクスポート
 export {

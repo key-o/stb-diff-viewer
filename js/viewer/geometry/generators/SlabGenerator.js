@@ -200,6 +200,7 @@ export class SlabGenerator extends BaseElementGenerator {
    */
   static _createHorizontalSlabGeometry(vertices, center, depth) {
     const n = vertices.length;
+    const isCounterClockwise = this._calculateSignedAreaXY(vertices) >= 0;
 
     // 上面と下面の頂点を構築（center相対座標）
     const positions = [];
@@ -216,24 +217,55 @@ export class SlabGenerator extends BaseElementGenerator {
 
     // 上面のファン三角形分割
     for (let i = 1; i < n - 1; i++) {
-      indices.push(0, i, i + 1);
+      if (isCounterClockwise) {
+        indices.push(0, i, i + 1);
+      } else {
+        indices.push(0, i + 1, i);
+      }
     }
     // 下面のファン三角形分割（逆回り）
     for (let i = 1; i < n - 1; i++) {
-      indices.push(n, n + i + 1, n + i);
+      if (isCounterClockwise) {
+        indices.push(n, n + i + 1, n + i);
+      } else {
+        indices.push(n, n + i, n + i + 1);
+      }
     }
     // 側面
     for (let i = 0; i < n; i++) {
       const next = (i + 1) % n;
-      indices.push(i, next, n + next);
-      indices.push(i, n + next, n + i);
+      if (isCounterClockwise) {
+        indices.push(i, next, n + next);
+        indices.push(i, n + next, n + i);
+      } else {
+        indices.push(i, n + next, next);
+        indices.push(i, n + i, n + next);
+      }
     }
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geometry.setIndex(indices);
-    geometry.computeVertexNormals();
-    return geometry;
+    const flatGeometry = geometry.toNonIndexed();
+    geometry.dispose();
+    flatGeometry.computeVertexNormals();
+    return flatGeometry;
+  }
+
+  /**
+   * XY平面上の符号付き面積を計算する
+   * @param {Array<THREE.Vector3>} vertices - 頂点配列
+   * @returns {number} 反時計回りなら正、時計回りなら負
+   */
+  static _calculateSignedAreaXY(vertices) {
+    let area = 0;
+    const n = vertices.length;
+    for (let i = 0; i < n; i++) {
+      const current = vertices[i];
+      const next = vertices[(i + 1) % n];
+      area += current.x * next.y - next.x * current.y;
+    }
+    return area / 2;
   }
 
   /**

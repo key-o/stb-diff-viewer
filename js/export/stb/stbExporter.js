@@ -24,7 +24,6 @@ import {
   setLogger,
   setValidatorFunctions,
   setDynamicImportPaths,
-  exportModifiedStb as _exportModifiedStb,
   exportStbDocument as _exportStbDocument,
   validateDocumentForExport as _validateDocumentForExport,
   generateModificationReport as _generateModificationReport,
@@ -73,18 +72,6 @@ function normalizeExportOptions(filenameOrOptions, options) {
 }
 
 // イベント発行ラッパー: メインのエクスポート関数にイベント通知を追加
-async function exportModifiedStb(originalDoc, modifications, filename) {
-  eventBus.emit(ExportEvents.STARTED, { type: 'stb', fileName: filename });
-  try {
-    const result = await _exportModifiedStb(originalDoc, modifications, filename);
-    eventBus.emit(ExportEvents.COMPLETED, { type: 'stb', fileName: filename });
-    return result;
-  } catch (error) {
-    eventBus.emit(ExportEvents.ERROR, { type: 'stb', error });
-    throw error;
-  }
-}
-
 async function exportStbDocument(doc, filenameOrOptions, options) {
   const exportOptions = normalizeExportOptions(filenameOrOptions, options);
   eventBus.emit(ExportEvents.STARTED, { type: 'stb', fileName: exportOptions.filename });
@@ -125,7 +112,6 @@ async function validateRepairAndExport(doc, filename, options) {
 
 // 全機能を再エクスポート
 export {
-  exportModifiedStb,
   exportStbDocument,
   _validateDocumentForExport as validateDocumentForExport,
   _generateModificationReport as generateModificationReport,

@@ -21,6 +21,7 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
+import { storageHelper } from '../../utils/storageHelper.js';
 import {
   getWindowDefinition,
   getWindowTemplate,
@@ -28,6 +29,9 @@ import {
 } from '../../config/windowConfig.js';
 
 const log = createLogger('ui/floatingWindowManager');
+
+/** ウィンドウ位置・サイズ保存用のストレージキープレフィックス */
+const WINDOW_BOUNDS_KEY_PREFIX = 'windowBounds:';
 
 export class FloatingWindowManager {
   constructor() {
@@ -234,6 +238,9 @@ export class FloatingWindowManager {
       windowInfo.resizeCleanup = this.makeResizable(windowElement);
     }
 
+    // 前回セッションの位置・サイズを復元
+    this._restoreWindowBounds(windowElement);
+
     this.windows.set(windowId, windowInfo);
 
     // 初期表示、または非表示なら inert を付与
@@ -259,10 +266,65 @@ export class FloatingWindowManager {
   }
 
   /**
+   * ウィンドウの位置・サイズをlocalStorageに保存する
+   * @param {HTMLElement} element - 対象要素（idがウィンドウID）
+   */
+  _saveWindowBounds(element) {
+    if (!element.id) return;
+    const rect = element.getBoundingClientRect();
+    storageHelper.set(WINDOW_BOUNDS_KEY_PREFIX + element.id, {
+      left: rect.left,
+      top: rect.top,
+      width: element.style.width ? rect.width : null,
+      height: element.style.height ? rect.height : null,
+    });
+  }
+
+  /**
+   * 保存済みのウィンドウ位置・サイズを復元する
+   * @param {HTMLElement} element - 対象要素（idがウィンドウID）
+   */
+  _restoreWindowBounds(element) {
+    if (!element.id) return;
+    const bounds = storageHelper.get(WINDOW_BOUNDS_KEY_PREFIX + element.id);
+    if (!bounds || typeof bounds.left !== 'number' || typeof bounds.top !== 'number') {
+      return;
+    }
+
+    element.style.transform = 'none';
+    element.style.right = 'auto';
+    element.style.bottom = 'auto';
+    element.style.left = `${bounds.left}px`;
+    element.style.top = `${bounds.top}px`;
+    if (typeof bounds.width === 'number') {
+      element.style.width = `${bounds.width}px`;
+    }
+    if (typeof bounds.height === 'number') {
+      element.style.height = `${bounds.height}px`;
+    }
+
+    // 保存時よりビューポートが小さくなっていても画面内に収める
+    this._clampToViewport(element);
+  }
+
+  /**
+   * トグルボタンのaria-expandedをウィンドウ表示状態と同期する
+   * @param {Object} windowInfo - ウィンドウ情報
+   * @param {boolean} expanded - 表示状態
+   */
+  _syncToggleButtonState(windowInfo, expanded) {
+    if (windowInfo.toggleButton) {
+      windowInfo.toggleButton.setAttribute('aria-expanded', String(expanded));
+    }
+  }
+
+  /**
    * ウィンドウをビューポート内に収める
    * @param {HTMLElement} element - 対象要素
    */
   _clampToViewport(element) {
+    this._shrinkToViewport(element);
+
     const rect = element.getBoundingClientRect();
     let left = rect.left;
     let top = rect.top;
@@ -276,11 +338,30 @@ export class FloatingWindowManager {
     top = Math.max(0, Math.min(maxTop, top));
 
     if (left !== rect.left || top !== rect.top) {
-      element.style.transform = '';
+      element.style.transform = 'none';
       element.style.right = 'auto';
       element.style.bottom = 'auto';
       element.style.left = `${left}px`;
       element.style.top = `${top}px`;
+    }
+  }
+
+  /**
+   * 保存済みサイズが現在のビューポートより大きい場合に縮小する
+   * @param {HTMLElement} element - 対象要素
+   */
+  _shrinkToViewport(element) {
+    const rect = element.getBoundingClientRect();
+    const computed = window.getComputedStyle(element);
+    const padding = 20;
+    const maxWidth = Math.max(parseFloat(computed.minWidth) || 300, window.innerWidth - padding);
+    const maxHeight = Math.max(parseFloat(computed.minHeight) || 200, window.innerHeight - padding);
+
+    if (rect.width > maxWidth) {
+      element.style.width = `${maxWidth}px`;
+    }
+    if (rect.height > maxHeight) {
+      element.style.height = `${maxHeight}px`;
     }
   }
 
@@ -320,6 +401,7 @@ export class FloatingWindowManager {
     windowInfo.element.classList.add('visible');
     windowInfo.element.removeAttribute('inert');
     windowInfo.isVisible = true;
+    this._syncToggleButtonState(windowInfo, true);
 
     // 表示時に前面へ
     this.bringToFront(windowId);
@@ -349,6 +431,7 @@ export class FloatingWindowManager {
     windowInfo.element.classList.add('hidden');
     windowInfo.element.setAttribute('inert', '');
     windowInfo.isVisible = false;
+    this._syncToggleButtonState(windowInfo, false);
 
     // コールバック実行
     if (windowInfo.onHide) {
@@ -391,6 +474,7 @@ export class FloatingWindowManager {
    * @returns {Function} クリーンアップ関数
    */
   makeDraggable(element, handle) {
+    const saveBounds = () => this._saveWindowBounds(element);
     let isDragging = false;
     let startMouseX;
     let startMouseY;
@@ -406,7 +490,7 @@ export class FloatingWindowManager {
       // ドラッグ開始時点の要素位置を left/top で確定する
       // transform や right で配置されている場合も getBoundingClientRect で吸収する
       const rect = element.getBoundingClientRect();
-      element.style.transform = '';
+      element.style.transform = 'none';
       element.style.right = 'auto';
       element.style.bottom = 'auto';
       element.style.left = `${rect.left}px`;
@@ -436,7 +520,9 @@ export class FloatingWindowManager {
     }
 
     function dragEnd() {
+      if (!isDragging) return;
       isDragging = false;
+      saveBounds();
     }
 
     handle.addEventListener('mousedown', dragStart);
@@ -452,11 +538,12 @@ export class FloatingWindowManager {
   }
 
   /**
-   * 要素をリサイズ可能にする（右・下・右下ハンドル）
+   * 要素をリサイズ可能にする（上下左右の辺＋四隅ハンドル）
    * @param {HTMLElement} element - リサイズ対象の要素
    * @returns {Function} クリーンアップ関数
    */
   makeResizable(element) {
+    const saveBounds = () => this._saveWindowBounds(element);
     // 既存ハンドルを削除して再生成
     for (const handle of element.querySelectorAll('.resize-handle')) {
       handle.remove();
@@ -465,7 +552,12 @@ export class FloatingWindowManager {
     const handles = [
       { className: 'resize-handle resize-handle-e', direction: 'e' },
       { className: 'resize-handle resize-handle-s', direction: 's' },
+      { className: 'resize-handle resize-handle-w', direction: 'w' },
+      { className: 'resize-handle resize-handle-n', direction: 'n' },
       { className: 'resize-handle resize-handle-se', direction: 'se' },
+      { className: 'resize-handle resize-handle-sw', direction: 'sw' },
+      { className: 'resize-handle resize-handle-ne', direction: 'ne' },
+      { className: 'resize-handle resize-handle-nw', direction: 'nw' },
     ];
 
     for (const { className, direction } of handles) {
@@ -478,7 +570,9 @@ export class FloatingWindowManager {
 
     let isResizing = false;
     let direction = null;
-    let startX, startY, startWidth, startHeight;
+    let startX, startY, startWidth, startHeight, startLeft, startTop;
+    let boxDeltaX = 0;
+    let boxDeltaY = 0;
 
     function resizeStart(e) {
       if (e.button !== 0) return;
@@ -489,18 +583,22 @@ export class FloatingWindowManager {
       startWidth = element.offsetWidth;
       startHeight = element.offsetHeight;
 
-      // インラインで left が未設定の場合、CSSの right/bottom で配置されている可能性がある
-      // その場合 left/top に変換して左端・上端を固定する
-      // （right固定のままwidthを変えると左端が動いてしまう）
+      // offsetWidth はborder込み・style.width はcontent幅（content-box）のため、
+      // 差分を補正しないとリサイズのたびにborder分ずれて反対側の辺がドリフトする
+      const computed = window.getComputedStyle(element);
+      boxDeltaX = startWidth - parseFloat(computed.width) || 0;
+      boxDeltaY = startHeight - parseFloat(computed.height) || 0;
+
+      // transform や right/bottom で配置されている場合も left/top 固定に変換する
+      // （左・上ハンドルは left/top を動かして反対側の辺を固定するため必須）
       const rect = element.getBoundingClientRect();
-      if (!element.style.left) {
-        element.style.left = `${rect.left}px`;
-        element.style.right = 'auto';
-      }
-      if (!element.style.top) {
-        element.style.top = `${rect.top}px`;
-        element.style.bottom = 'auto';
-      }
+      startLeft = rect.left;
+      startTop = rect.top;
+      element.style.transform = 'none';
+      element.style.left = `${rect.left}px`;
+      element.style.right = 'auto';
+      element.style.top = `${rect.top}px`;
+      element.style.bottom = 'auto';
 
       element.classList.add('resizing');
       e.preventDefault();
@@ -512,19 +610,45 @@ export class FloatingWindowManager {
 
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
-      const maxWidth = window.innerWidth - 20;
-      const maxHeight = window.innerHeight - 20;
 
-      // CSSで定義されたmin-width/min-heightを尊重する
+      // CSSで定義されたmin/max-width/heightを尊重する
+      // （max を超えて style.width を設定すると、左・上リサイズ時に反対側の辺がずれる）
+      // CSSのmin/maxはcontent-box値のため、boxDeltaを足して外形サイズに揃えて比較する
       const computedStyle = window.getComputedStyle(element);
-      const minWidth = parseFloat(computedStyle.minWidth) || 300;
-      const minHeight = parseFloat(computedStyle.minHeight) || 200;
+      const minWidth = (parseFloat(computedStyle.minWidth) || 300) + boxDeltaX;
+      const minHeight = (parseFloat(computedStyle.minHeight) || 200) + boxDeltaY;
+      const cssMaxWidth = parseFloat(computedStyle.maxWidth);
+      const cssMaxHeight = parseFloat(computedStyle.maxHeight);
+      const maxWidth = Math.min(
+        window.innerWidth - 20,
+        Number.isNaN(cssMaxWidth) ? Infinity : cssMaxWidth + boxDeltaX,
+      );
+      const maxHeight = Math.min(
+        window.innerHeight - 20,
+        Number.isNaN(cssMaxHeight) ? Infinity : cssMaxHeight + boxDeltaY,
+      );
 
-      if (direction === 'e' || direction === 'se') {
-        element.style.width = `${Math.max(minWidth, Math.min(maxWidth, startWidth + deltaX))}px`;
+      if (direction.includes('e')) {
+        const newWidth = Math.max(minWidth, Math.min(maxWidth, startWidth + deltaX));
+        element.style.width = `${newWidth - boxDeltaX}px`;
       }
-      if (direction === 's' || direction === 'se') {
-        element.style.height = `${Math.max(minHeight, Math.min(maxHeight, startHeight + deltaY))}px`;
+      if (direction.includes('s')) {
+        const newHeight = Math.max(minHeight, Math.min(maxHeight, startHeight + deltaY));
+        element.style.height = `${newHeight - boxDeltaY}px`;
+      }
+      if (direction.includes('w')) {
+        // 右辺を固定したまま左辺を動かす（left >= 0 の範囲まで拡大可能）
+        const limit = Math.min(maxWidth, startLeft + startWidth);
+        const newWidth = Math.max(minWidth, Math.min(limit, startWidth - deltaX));
+        element.style.width = `${newWidth - boxDeltaX}px`;
+        element.style.left = `${startLeft + startWidth - newWidth}px`;
+      }
+      if (direction.includes('n')) {
+        // 下辺を固定したまま上辺を動かす（top >= 0 の範囲まで拡大可能）
+        const limit = Math.min(maxHeight, startTop + startHeight);
+        const newHeight = Math.max(minHeight, Math.min(limit, startHeight - deltaY));
+        element.style.height = `${newHeight - boxDeltaY}px`;
+        element.style.top = `${startTop + startHeight - newHeight}px`;
       }
     }
 
@@ -543,6 +667,7 @@ export class FloatingWindowManager {
           element.style.left = `${newLeft}px`;
           element.style.top = `${newTop}px`;
         }
+        saveBounds();
       }
     }
 

@@ -10,9 +10,21 @@
  */
 
 import { createLogger } from '../../utils/logger.js';
-import { SEVERITY, CATEGORY } from './stbValidator.js';
+import { SEVERITY, CATEGORY } from './validationConstants.js';
 
 const logger = createLogger('validation:mvdValidator');
+
+function resolveRuntimeAssetUrl(appRelativePath, moduleRelativePath) {
+  if (typeof document !== 'undefined' && document.baseURI) {
+    try {
+      return new URL(appRelativePath, document.baseURI).href;
+    } catch {
+      // jsdom の about:blank など、相対 URL を解決できないテスト環境では
+      // モジュール相対の file URL にフォールバックする。
+    }
+  }
+  return new URL(moduleRelativePath, import.meta.url).href;
+}
 
 /**
  * MVD データキャッシュ
@@ -38,9 +50,8 @@ export async function initializeMvdData() {
 
   loadingPromise = (async () => {
     try {
-      const s2Url = new URL('../../../config/mvd-s2.json', import.meta.url).href;
-      const s4Url = new URL('../../../config/mvd-s4.json', import.meta.url).href;
-
+      const s2Url = resolveRuntimeAssetUrl('config/mvd-s2.json', '../../../config/mvd-s2.json');
+      const s4Url = resolveRuntimeAssetUrl('config/mvd-s4.json', '../../../config/mvd-s4.json');
       const [s2Res, s4Res] = await Promise.all([fetch(s2Url), fetch(s4Url)]);
 
       if (!s2Res.ok) throw new Error(`mvd-s2.json のロードに失敗: ${s2Res.status}`);

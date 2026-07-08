@@ -11,12 +11,7 @@
  */
 
 import { UI_TIMING } from '../config/uiTimingConfig.js';
-import {
-  elementGroups,
-  colorManager,
-  clearImportanceMaterialCache,
-  getMaterialForElementWithMode,
-} from '../viewer/index.js';
+import { colorManager, clearImportanceMaterialCache } from '../viewer/index.js';
 import { scheduleRender } from '../utils/renderScheduler.js';
 import { eventBus, ViewEvents } from '../data/events/index.js';
 import { getState } from '../data/state/globalState.js';
@@ -28,18 +23,17 @@ export { COLOR_MODES, getCurrentColorMode };
 // スキーマエラーストア（循環依存解消のため分離）
 import { getSchemaError } from '../common-stb/validation/schemaErrorStore.js';
 
+// 一括適用・状況メッセージ（循環依存解消のため分離）
+import { applyColorModeToAllObjects } from './applyColorMode.js';
+import { showColorModeStatus } from './colorModeStatus.js';
+
 // 各色付けモードのモジュールをインポート
 import {
   initializeElementColorControls,
-  applyElementColorModeToAll,
   setElementColorInputsEnabled,
 } from './elementColorMode.js';
 
-import {
-  initializeSchemaColorControls,
-  applySchemaColorModeToAll,
-  runValidationForSchemaMode,
-} from './schemaColorMode.js';
+import { initializeSchemaColorControls, runValidationForSchemaMode } from './schemaColorMode.js';
 
 import {
   initializeImportanceColorControls,
@@ -47,7 +41,6 @@ import {
   setupImportanceChangeListeners,
 } from './importanceColorMode.js';
 
-import { applyDiffColorModeToAll } from './diffColorMode.js';
 import { createLogger } from '../utils/logger.js';
 
 const log = createLogger('colorModes:colorModeManager');
@@ -55,6 +48,8 @@ const log = createLogger('colorModes:colorModeManager');
 // 色モード変更のロック機構（非同期競合防止）
 let isColorModeChanging = false;
 let pendingColorMode = null;
+// eventBusリスナーの重複登録防止（setupColorModeListenersが複数回呼ばれた場合）
+let isRefreshListenerRegistered = false;
 
 /**
  * 色付けモードを設定
@@ -134,7 +129,7 @@ function updateColorModeUI() {
   const schemaSettings = document.getElementById('schema-color-settings');
   const importanceSettings = document.getElementById('importance-color-settings');
   const comparisonKeySettings = document.getElementById('comparison-key-settings');
-  const diffFilterSettings = document.getElementById('diff-filter-settings');
+  const toleranceSettingsSection = document.getElementById('tolerance-settings-section');
 
   const currentMode = getCurrentColorMode();
 
@@ -173,8 +168,8 @@ function updateColorModeUI() {
     comparisonKeySettings.classList.toggle('hidden', !shouldShowDiffSettings);
   }
 
-  if (diffFilterSettings) {
-    diffFilterSettings.style.display = shouldShowDiffSettings ? 'block' : 'none';
+  if (toleranceSettingsSection) {
+    toleranceSettingsSection.style.display = shouldShowDiffSettings ? 'block' : 'none';
   }
 }
 
@@ -200,6 +195,14 @@ export function setupColorModeListeners() {
 
   // 重要度設定変更時のイベントリスナーを追加
   setupImportanceChangeListeners();
+
+  // 各モードモジュールからの再適用要求を購読（循環依存解消のためeventBus経由）
+  if (!isRefreshListenerRegistered) {
+    isRefreshListenerRegistered = true;
+    eventBus.on(ViewEvents.COLOR_MODE_REFRESH_REQUESTED, () => {
+      updateElementsForColorMode();
+    });
+  }
 
   // 初期化
   colorManager.clearMaterialCache();
@@ -227,133 +230,32 @@ export function updateElementsForColorMode() {
     case COLOR_MODES.SCHEMA:
       // スキーマモードの場合は実際のバリデーションを実行
       runValidationForSchemaMode();
-      applySchemaColorModeToAll();
+      applyColorModeToAllObjects('SchemaColorMode');
       break;
 
     case COLOR_MODES.ELEMENT:
       // 部材別色付けモードの場合
-      applyElementColorModeToAll();
+      applyColorModeToAllObjects('ElementColorMode');
       break;
 
     case COLOR_MODES.DIFF:
     default:
       // 差分表示モード（デフォルト）
-      applyDiffColorModeToAll();
+      applyColorModeToAllObjects('DiffColorMode');
       break;
   }
 
   // Note: Slab/Wallの再描画は不要（viewModes.jsのredrawElementForViewModeで
   // updateElementsForColorModeが呼ばれるため、ここで再度redrawすると循環依存になる）
-  // マテリアルの更新は各色付けモード関数（applyDiffColorModeToAll等）で処理される
+  // マテリアルの更新は applyColorModeToAllObjects で処理される
 
   // UI層に色付けモード変更を通知（eventBus経由でレイヤー違反解消）
   // ラベル管理、凡例更新、要素情報パネル更新はUI側のリスナーが処理
   eventBus.emit(ViewEvents.COLOR_MODE_CHANGED, { mode: getCurrentColorMode() });
 }
 
-/**
- * 色付けモード変更時の再描画をリクエスト
- */
-export function requestColorModeRedraw() {
-  scheduleRender();
-
-  // さらに確実にするため、少し遅延させて再度描画をリクエスト
-  setTimeout(() => {
-    scheduleRender();
-  }, UI_TIMING.COLOR_MODE_APPLY_DELAY_MS);
-}
-
-/**
- * 共通: 全要素にマテリアルを適用
- * @param {string} modeName - モード名（ログ用）
- */
-export function applyColorModeToAllObjects(modeName) {
-  // elementGroupsは直接インポートしたものを使用
-  if (!elementGroups || Object.keys(elementGroups).length === 0) {
-    log.warn(`[Render] ${modeName}: elementGroupsが未設定`);
-    return;
-  }
-
-  // 全オブジェクトを収集
-  const allObjects = [];
-  const groups = Array.isArray(elementGroups) ? elementGroups : Object.values(elementGroups);
-
-  groups.forEach((group) => {
-    group.traverse((object) => {
-      if ((object.isMesh || object.isLine) && object.userData && object.userData.elementType) {
-        allObjects.push(object);
-      }
-    });
-  });
-
-  // マテリアルを適用（現在のカラーモードに基づいて自動選択される）
-  const CHUNK_SIZE = 200;
-  {
-    let index = 0;
-
-    function processChunk() {
-      const end = Math.min(index + CHUNK_SIZE, allObjects.length);
-
-      for (; index < end; index++) {
-        const object = allObjects[index];
-        const elementType = object.userData.elementType;
-
-        if (elementType === 'Axis' || elementType === 'Story') {
-          continue;
-        }
-
-        const modelSource = object.userData.modelSource || 'matched';
-        let comparisonState;
-        switch (modelSource) {
-          case 'A':
-            comparisonState = 'onlyA';
-            break;
-          case 'B':
-            comparisonState = 'onlyB';
-            break;
-          case 'solid':
-          case 'line':
-            comparisonState = 'matched';
-            break;
-          default:
-            comparisonState = modelSource;
-        }
-        const isLine = object.isLine || object.userData.isLine || false;
-        const isPoly = object.userData.isPoly || false;
-        const elementId = object.userData.elementId || null;
-        const toleranceState = object.userData.toleranceState || null;
-        const materialOptions = {
-          isTransparent: object.userData.isSRCConcrete === true,
-          srcComponentType: object.userData.srcComponentType || null,
-          modelSource: object.userData.modelSource || null,
-        };
-
-        const newMaterial = getMaterialForElementWithMode(
-          elementType,
-          comparisonState,
-          isLine,
-          isPoly,
-          elementId,
-          toleranceState,
-          materialOptions,
-        );
-
-        if (newMaterial) {
-          object.material = newMaterial;
-        }
-      }
-
-      if (index < allObjects.length) {
-        scheduleRender();
-        requestAnimationFrame(processChunk);
-      } else {
-        requestColorModeRedraw();
-      }
-    }
-
-    processChunk();
-  }
-}
+// requestColorModeRedraw / applyColorModeToAllObjects は
+// applyColorMode.js に移動（循環依存解消）
 
 /**
  * 要素タイプに基づいてマテリアルを取得
@@ -424,26 +326,7 @@ function getModeDisplayName(mode) {
   return displayNames[mode] || mode;
 }
 
-/**
- * 色付けモード状況メッセージを表示
- * @param {string} message - 表示するメッセージ
- * @param {number} duration - 表示時間（ミリ秒、0で自動非表示なし）
- */
-export function showColorModeStatus(message, duration = 5000) {
-  const statusElement = document.getElementById('color-mode-status');
-  const textElement = document.getElementById('color-mode-status-text');
-
-  if (statusElement && textElement) {
-    textElement.textContent = message;
-    statusElement.classList.remove('hidden');
-
-    if (duration > 0) {
-      setTimeout(() => {
-        statusElement.classList.add('hidden');
-      }, duration);
-    }
-  }
-}
+// showColorModeStatus は colorModeStatus.js に移動（循環依存解消）
 
 /**
  * モデル読み込み後にデフォルトの色付けモードを適用する

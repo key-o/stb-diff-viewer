@@ -64,19 +64,32 @@ const KIND_TO_STB = {
 export function serializeCalDataToXml(doc, calData) {
   if (!doc || !calData) return null;
 
-  const { loadCondition, loadCases, memberLoads, loadArrangements, slabFinishDefs } = calData;
+  const {
+    loadCondition,
+    loadCases,
+    memberLoads,
+    addedWeights,
+    pointLoads,
+    loadArrangements,
+    slabFinishDefs,
+  } = calData;
   const hasLiveloads = loadCondition?.liveloads?.length > 0;
   const hasSlabFinishes = slabFinishDefs?.length > 0;
+  const hasMemberLoads = memberLoads?.length > 0;
+  const hasPointLoads = pointLoads?.length > 0;
+  const hasAddedWeights = addedWeights?.length > 0;
   if (
     !hasLiveloads &&
     !hasSlabFinishes &&
     (!loadCases || loadCases.length === 0) &&
-    (!memberLoads || memberLoads.length === 0)
+    !hasMemberLoads &&
+    !hasPointLoads &&
+    !hasAddedWeights
   ) {
     return null;
   }
 
-  const idMap = _buildIdMap(loadCases, memberLoads);
+  const idMap = _buildIdMap(loadCases, memberLoads, addedWeights, pointLoads);
 
   const calDataEl = _createNsEl(doc, 'StbCalData');
 
@@ -103,9 +116,16 @@ export function serializeCalDataToXml(doc, calData) {
     hasContent = true;
   }
 
-  if (memberLoads && memberLoads.length > 0) {
-    const additionalEl = _serializeMemberLoads(doc, memberLoads, idMap);
+  // StbCalAdditionalLoads（部材荷重 → 集中荷重 の順。スキーマ: MemberLoad > AreaLoad > PointLoad）
+  if (hasMemberLoads || hasPointLoads) {
+    const additionalEl = _serializeAdditionalLoads(doc, memberLoads, pointLoads, idMap);
     calLoadEl.appendChild(additionalEl);
+    hasContent = true;
+  }
+
+  // StbCalAddedWeights（節点付加重量）。スキーマ: StbCalAdditionalLoads の後
+  if (hasAddedWeights) {
+    calLoadEl.appendChild(_serializeAddedWeights(doc, addedWeights, idMap));
     hasContent = true;
   }
 
@@ -208,24 +228,23 @@ function _nonNegativeIntegerType(type) {
  * 譁・ｭ怜・ ID 竊・豁｣縺ｮ謨ｴ謨ｰ ID 縺ｮ繝槭ャ繝斐Φ繧ｰ繧呈ｧ狗ｯ・
  * @returns {{ caseId: Map<string, number>, loadId: Map<string, number> }}
  */
-function _buildIdMap(loadCases, memberLoads) {
-  const caseId = new Map();
-  let caseCounter = 1;
-  for (const lc of loadCases || []) {
-    if (!caseId.has(lc.id)) {
-      caseId.set(lc.id, caseCounter++);
+function _buildIdMap(loadCases, memberLoads, addedWeights, pointLoads) {
+  const _numberById = (items) => {
+    const map = new Map();
+    let counter = 1;
+    for (const item of items || []) {
+      if (!map.has(item.id)) map.set(item.id, counter++);
     }
-  }
+    return map;
+  };
 
-  const loadId = new Map();
-  let loadCounter = 1;
-  for (const ml of memberLoads || []) {
-    if (!loadId.has(ml.id)) {
-      loadId.set(ml.id, loadCounter++);
-    }
-  }
-
-  return { caseId, loadId };
+  // 各要素型は独立した ID 空間を持つ（配置リストはそれぞれの型の id を参照する）
+  return {
+    caseId: _numberById(loadCases),
+    loadId: _numberById(memberLoads),
+    weightId: _numberById(addedWeights),
+    pointId: _numberById(pointLoads),
+  };
 }
 
 // 笏笏 StbCalLoadCases 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
@@ -248,10 +267,10 @@ function _serializeLoadCases(doc, loadCases, idMap) {
 
 // 笏笏 StbCalAdditionalLoads 竊・StbCalMemberLoad 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 
-function _serializeMemberLoads(doc, memberLoads, idMap) {
+function _serializeAdditionalLoads(doc, memberLoads, pointLoads, idMap) {
   const additionalEl = _createNsEl(doc, 'StbCalAdditionalLoads');
 
-  for (const ml of memberLoads) {
+  for (const ml of memberLoads || []) {
     const el = _createNsEl(doc, 'StbCalMemberLoad');
 
     el.setAttribute('id', String(idMap.loadId.get(ml.id)));
@@ -294,21 +313,82 @@ function _serializeMemberLoads(doc, memberLoads, idMap) {
     additionalEl.appendChild(el);
   }
 
+  // 集中荷重（節点方向力など）。スキーマ順: StbCalAdditionalLoads 内で StbCalMemberLoad の後
+  for (const pl of pointLoads || []) {
+    const resolvedCaseId = idMap.caseId.get(pl.loadCaseId);
+    if (resolvedCaseId == null) {
+      log.warn(
+        `[StbCalDataSerializer] load case ID "${pl.loadCaseId}" が見つからないため、集中荷重 "${pl.id}" のシリアライズをスキップします`,
+      );
+      continue;
+    }
+    const el = _createNsEl(doc, 'StbCalPointLoad');
+    el.setAttribute('id', String(idMap.pointId.get(pl.id)));
+    el.setAttribute('id_loadcase', String(resolvedCaseId));
+    if (pl.loadCaseName) el.setAttribute('loadcase', pl.loadCaseName);
+    // P1..P6 は既定 0.0。非ゼロのみ明示出力する
+    for (const key of ['P1', 'P2', 'P3', 'P4', 'P5', 'P6']) {
+      if (pl[key] != null && pl[key] !== 0) el.setAttribute(key, String(pl[key]));
+    }
+    if (pl.description) el.setAttribute('description', pl.description);
+    additionalEl.appendChild(el);
+  }
+
   return additionalEl;
+}
+
+/**
+ * StbCalAddedWeights > StbCalNodeAddedWeight をシリアライズ（節点付加重量）
+ * @param {XMLDocument} doc
+ * @param {Array<{id, loadCaseId, loadCaseName, weight, description}>} addedWeights
+ * @param {{caseId: Map, weightId: Map}} idMap
+ */
+function _serializeAddedWeights(doc, addedWeights, idMap) {
+  const weightsEl = _createNsEl(doc, 'StbCalAddedWeights');
+  for (const aw of addedWeights) {
+    const resolvedCaseId = idMap.caseId.get(aw.loadCaseId);
+    if (resolvedCaseId == null) {
+      log.warn(
+        `[StbCalDataSerializer] load case ID "${aw.loadCaseId}" が見つからないため、付加重量 "${aw.id}" のシリアライズをスキップします`,
+      );
+      continue;
+    }
+    const el = _createNsEl(doc, 'StbCalNodeAddedWeight');
+    el.setAttribute('id', String(idMap.weightId.get(aw.id)));
+    el.setAttribute('id_loadcase', String(resolvedCaseId));
+    if (aw.loadCaseName) el.setAttribute('loadcase', aw.loadCaseName);
+    el.setAttribute('weight', String(aw.weight));
+    if (aw.description) el.setAttribute('description', aw.description);
+    weightsEl.appendChild(el);
+  }
+  return weightsEl;
 }
 
 // 笏笏 StbCalLoadArrangements 笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏笏
 
 function _serializeLoadArrangements(doc, arrangements, idMap) {
-  const { columns, girders, beams, slabFinishes, slabLiveloads } = arrangements;
+  const { columns, girders, beams, slabFinishes, slabLiveloads, nodeWeights, nodePointLoads } =
+    arrangements;
 
   const hasColumns = columns && columns.size > 0;
   const hasGirders = girders && girders.size > 0;
   const hasBeams = beams && beams.size > 0;
   const hasSlabLiveloads = slabLiveloads && slabLiveloads.size > 0;
   const hasSlabFinishes = slabFinishes && slabFinishes.size > 0;
+  const hasNodeWeights = nodeWeights && nodeWeights.size > 0;
+  const hasNodePointLoads = nodePointLoads && nodePointLoads.size > 0;
 
-  if (!hasColumns && !hasGirders && !hasBeams && !hasSlabLiveloads && !hasSlabFinishes) return null;
+  if (
+    !hasColumns &&
+    !hasGirders &&
+    !hasBeams &&
+    !hasSlabLiveloads &&
+    !hasSlabFinishes &&
+    !hasNodeWeights &&
+    !hasNodePointLoads
+  ) {
+    return null;
+  }
 
   const arrEl = _createNsEl(doc, 'StbCalLoadArrangements');
 
@@ -328,8 +408,65 @@ function _serializeLoadArrangements(doc, arrangements, idMap) {
   if (hasSlabFinishes) {
     _serializeSlabFinishArrangements(doc, arrEl, slabFinishes);
   }
+  // スキーマ順: 節点系は末尾（StbCalNodeWeightArr → StbCalNodePointLoadArr）
+  // 注意: 要素名は不規則。NodeWeight は "...WeightLoadList"、NodePointLoad は "...PointLoadList"（"Load" 重複なし）
+  if (hasNodeWeights) {
+    _serializeNodeArrangements(doc, arrEl, nodeWeights, idMap.weightId, {
+      arr: 'StbCalNodeWeightArr',
+      loadList: 'StbCalNodeWeightLoadList',
+      nodeList: 'StbCalNodeWeightNodeList',
+    });
+  }
+  if (hasNodePointLoads) {
+    _serializeNodeArrangements(doc, arrEl, nodePointLoads, idMap.pointId, {
+      arr: 'StbCalNodePointLoadArr',
+      loadList: 'StbCalNodePointLoadList',
+      nodeList: 'StbCalNodePointLoadNodeList',
+    });
+  }
 
   return arrEl;
+}
+
+/**
+ * 節点荷重配置をシリアライズ（StbCalNodeWeightArr / StbCalNodePointLoadArr）。
+ * 同一 loadId セットを持つ節点をグループ化して 1 Arr にまとめる。
+ * @param {XMLDocument} doc
+ * @param {Element} parentEl
+ * @param {Map<string, string[]>} arrangementMap - nodeId → loadId[]
+ * @param {Map<string, number>} loadIdMap - 荷重文字列ID → 数値ID
+ * @param {{arr: string, loadList: string, nodeList: string}} names - 出力する要素名（スキーマ準拠）
+ */
+function _serializeNodeArrangements(doc, parentEl, arrangementMap, loadIdMap, names) {
+  const groupMap = new Map(); // loadIdsKey → { loadIds: number[], nodeIds: string[] }
+
+  for (const [nodeId, loadIds] of arrangementMap) {
+    const numericLoadIds = loadIds
+      .map((lid) => loadIdMap.get(lid))
+      .filter((v) => v != null)
+      .sort((a, b) => a - b);
+    if (numericLoadIds.length === 0) continue;
+
+    const key = numericLoadIds.join(' ');
+    if (!groupMap.has(key)) {
+      groupMap.set(key, { loadIds: numericLoadIds, nodeIds: [] });
+    }
+    groupMap.get(key).nodeIds.push(nodeId);
+  }
+
+  for (const { loadIds, nodeIds } of groupMap.values()) {
+    const arrEl = _createNsEl(doc, names.arr);
+
+    const loadListEl = _createNsEl(doc, names.loadList);
+    loadListEl.textContent = loadIds.join(' ');
+    arrEl.appendChild(loadListEl);
+
+    const nodeListEl = _createNsEl(doc, names.nodeList);
+    nodeListEl.textContent = nodeIds.join(' ');
+    arrEl.appendChild(nodeListEl);
+
+    parentEl.appendChild(arrEl);
+  }
 }
 
 /**

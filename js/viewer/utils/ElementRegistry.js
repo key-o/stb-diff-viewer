@@ -32,6 +32,16 @@ function normalizeModelSource(modelSource) {
   return modelSource;
 }
 
+function getElementIds(userData) {
+  return [
+    ...new Set(
+      [userData.elementId, userData.elementIdA, userData.elementIdB].filter(
+        (id) => id != null && String(id) !== '',
+      ),
+    ),
+  ];
+}
+
 /**
  * 要素レジストリクラス
  * HashMapを使用して要素を管理し、高速な検索を提供
@@ -60,20 +70,28 @@ class ElementRegistry {
       return;
     }
 
+    // モデルBオーバーレイは装飾用メッシュ。実要素と同じ elementIdA + modelSource
+    // を持つため、登録すると複合キーが衝突して実要素を上書きし、ツリー選択・
+    // カメラフォーカスが誤ったメッシュに向く。登録対象から除外する。
+    if (element.userData.isOverlayModelB) {
+      return;
+    }
+
     const { userData } = element;
     const elementType = userData.elementType;
     const modelSource = userData.modelSource;
 
-    // IDを取得（複数の可能性がある）
-    const elementId = userData.elementIdA || userData.elementIdB || userData.elementId;
+    const elementIds = getElementIds(userData);
 
-    if (!elementId || !elementType) {
+    if (elementIds.length === 0 || !elementType) {
       return;
     }
 
     // 複合キーで登録
-    const compositeKey = createCompositeKey(elementId, modelSource);
-    this.byCompositeKey.set(compositeKey, element);
+    for (const elementId of elementIds) {
+      const compositeKey = createCompositeKey(elementId, modelSource);
+      this.byCompositeKey.set(compositeKey, element);
+    }
 
     // タイプ別に登録
     if (!this.byType.has(elementType)) {
@@ -169,7 +187,7 @@ class ElementRegistry {
    * @returns {THREE.Object3D[]}
    */
   getAll() {
-    return Array.from(this.byCompositeKey.values());
+    return [...new Set(this.byCompositeKey.values())];
   }
 
   /**
@@ -179,16 +197,24 @@ class ElementRegistry {
   unregister(element) {
     if (!element || !element.userData) return;
 
+    // register() と対称に、オーバーレイは未登録なので削除処理も行わない。
+    // 実要素と同一の複合キーを持つため、誤って実要素の登録を消さないための防御。
+    if (element.userData.isOverlayModelB) {
+      return;
+    }
+
     const { userData } = element;
     const elementType = userData.elementType;
     const modelSource = userData.modelSource;
-    const elementId = userData.elementIdA || userData.elementIdB || userData.elementId;
+    const elementIds = getElementIds(userData);
 
-    if (!elementId) return;
+    if (elementIds.length === 0) return;
 
     // 複合キーから削除
-    const compositeKey = createCompositeKey(elementId, modelSource);
-    this.byCompositeKey.delete(compositeKey);
+    for (const elementId of elementIds) {
+      const compositeKey = createCompositeKey(elementId, modelSource);
+      this.byCompositeKey.delete(compositeKey);
+    }
 
     // タイプ別から削除
     const typeElements = this.byType.get(elementType);

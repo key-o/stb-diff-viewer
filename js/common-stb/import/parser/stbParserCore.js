@@ -15,12 +15,12 @@
 // --- 定数 ---
 const STB_NAMESPACE = 'https://www.building-smart.or.jp/dl';
 
-import { createLogger } from '../../../utils/logger.js';
-import { parseStbExtensions } from '../../stbExtensions.js';
+import { createKernelLogger } from '../config/kernelConfig.js';
+import { parseStbExtensions } from './stbExtensions.js';
 
 export { parseStbExtensions };
 
-const _log = createLogger('common-stb:parser:stbXmlParser');
+const _log = createKernelLogger('common-stb:parser:stbXmlParser');
 
 // --- ロガー設定 ---
 // デフォルトはcreateLogger、外部から差し替え可能
@@ -409,6 +409,67 @@ export function parseAxes(doc, options = {}) {
   );
 
   return { xAxes, yAxes, arcAxes, radialAxes };
+}
+
+/**
+ * 通り芯要素（StbParallelAxis / StbArcAxis / StbRadialAxis）から、幾何位置ベースの
+ * 対応キー成分を算出する。親 *Axes の原点(X/Y)・角度と自身の距離/半径/角度から、
+ * parseAxes と同じ式で実座標・実角度を求め、名称に依存しないキー文字列を返す。
+ *
+ * 別ソフト/別モデルで通り芯の符号（name）が異なっても、原点＋距離が整合していれば
+ * 同一とみなすための比較キーに用いる（STORY_AXIS_MATCH_CRITERION.GEOMETRY）。
+ *
+ * 座標・半径は toleranceConfig の位置許容差（basePoint=10mm）と同オーダーの
+ * 10mm グリッド、角度は方向角許容差（1度）と同オーダーの 1度 グリッドに量子化して
+ * キー化する。別ソフトの座標丸め・浮動小数点誤差を吸収する目的のため、1mm/1度の
+ * 素の丸めより粗い粒度を採用している。
+ *
+ * @param {Element} axisEl - 通り芯要素の DOM ノード
+ * @returns {string|null} 幾何位置キー成分（算出不能時は null）
+ */
+export function computeAxisGeometryKey(axisEl) {
+  if (!axisEl || typeof axisEl.getAttribute !== 'function') return null;
+  const tag = axisEl.tagName || axisEl.nodeName || '';
+  const parent = axisEl.parentElement || axisEl.parentNode;
+  const getParentAttr = (attr) =>
+    parent && typeof parent.getAttribute === 'function' ? parent.getAttribute(attr) : null;
+  const originX = parseFloat(getParentAttr('X')) || 0;
+  const originY = parseFloat(getParentAttr('Y')) || 0;
+  // 座標は 10mm、角度は 1度 グリッドへ量子化（toleranceConfig と同オーダー）
+  const COORD_QUANTUM_MM = 10;
+  const ANGLE_QUANTUM_DEG = 1;
+  const qCoord = (v) => Math.round(v / COORD_QUANTUM_MM);
+  const qAngle = (v) => Math.round(v / ANGLE_QUANTUM_DEG);
+
+  if (tag === 'StbParallelAxis') {
+    const distance = parseFloat(axisEl.getAttribute('distance'));
+    if (!Number.isFinite(distance)) return null;
+    const angle = parseFloat(getParentAttr('angle')) || 0;
+    // 距離は角度に垂直な方向のオフセット（parseAxes と同一式）
+    const perpAngleRad = (angle * Math.PI) / 180 + Math.PI / 2;
+    const x = originX + distance * Math.cos(perpAngleRad);
+    const y = originY + distance * Math.sin(perpAngleRad);
+    return `parallel:${qCoord(x)}:${qCoord(y)}`;
+  }
+
+  if (tag === 'StbArcAxis') {
+    const radius = parseFloat(axisEl.getAttribute('radius'));
+    if (!Number.isFinite(radius)) return null;
+    // 円弧は原点・半径・角度範囲で同定する。角度範囲は欠落と 0度 を区別するため
+    // Number.isFinite で検証し、無効なら算出不能（null）とする（parseAxes と同基準）。
+    const startAngle = parseFloat(getParentAttr('start_angle'));
+    const endAngle = parseFloat(getParentAttr('end_angle'));
+    if (!Number.isFinite(startAngle) || !Number.isFinite(endAngle)) return null;
+    return `arc:${qCoord(originX)}:${qCoord(originY)}:${qCoord(radius)}:${qAngle(startAngle)}:${qAngle(endAngle)}`;
+  }
+
+  if (tag === 'StbRadialAxis') {
+    const angle = parseFloat(axisEl.getAttribute('angle'));
+    if (!Number.isFinite(angle)) return null;
+    return `radial:${qCoord(originX)}:${qCoord(originY)}:${qAngle(angle)}`;
+  }
+
+  return null;
 }
 
 // --- ノード所属情報ルックアップ構築関数 ---

@@ -74,12 +74,13 @@ export class BaseFilter {
       let totalElements = 0;
       let visibleElements = 0;
 
-      Object.values(sceneController.getElementGroups()).forEach((group) => {
+      Object.entries(sceneController.getElementGroups()).forEach(([groupType, group]) => {
         if (!group || !group.children) return;
+        const typeVisible = this._isElementTypeVisible(groupType);
         group.children.forEach((element) => {
           totalElements++;
           const filterValue = this._getFilterValueFromElement(element);
-          const shouldBeVisible = this.shouldElementBeVisible(filterValue);
+          const shouldBeVisible = typeVisible && this.shouldElementBeVisible(filterValue);
           element.visible = shouldBeVisible;
           if (shouldBeVisible) {
             visibleElements++;
@@ -107,6 +108,15 @@ export class BaseFilter {
    */
   _getFilterValueFromElement(_element) {
     throw new Error('_getFilterValueFromElement must be implemented');
+  }
+
+  /**
+   * 要素タイプ（グループ）単位の可視判定（サブクラスでオーバーライド可）
+   * @param {string} _groupType - 要素グループのタイプ名（'Column' 等）
+   * @returns {boolean}
+   */
+  _isElementTypeVisible(_groupType) {
+    return true;
   }
 
   /**

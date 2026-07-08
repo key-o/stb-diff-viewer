@@ -8,6 +8,7 @@
  */
 
 import { getLogger, parseElements, parseStbExtensions } from './stbParserCore.js';
+import { STB_TAG_NAMES } from '../constants/stbTagNames.js';
 
 // --- 柱要素データ抽出関数 ---
 /**
@@ -19,7 +20,7 @@ import { getLogger, parseElements, parseStbExtensions } from './stbParserCore.js
 export function extractColumnElements(xmlDoc) {
   const logger = getLogger();
   const columnElementsData = [];
-  const columnElements = parseElements(xmlDoc, 'StbColumn');
+  const columnElements = parseElements(xmlDoc, STB_TAG_NAMES.COLUMN);
 
   for (const colEl of columnElements) {
     const id = colEl.getAttribute('id');
@@ -193,7 +194,7 @@ function extractBeamLikeElements(xmlDoc, elementType) {
  * @return {Array} 梁要素データの配列
  */
 export function extractBeamElements(xmlDoc) {
-  return extractBeamLikeElements(xmlDoc, 'StbBeam');
+  return extractBeamLikeElements(xmlDoc, STB_TAG_NAMES.BEAM);
 }
 
 /**
@@ -202,7 +203,7 @@ export function extractBeamElements(xmlDoc) {
  * @return {Array} 大梁要素データの配列
  */
 export function extractGirderElements(xmlDoc) {
-  return extractBeamLikeElements(xmlDoc, 'StbGirder');
+  return extractBeamLikeElements(xmlDoc, STB_TAG_NAMES.GIRDER);
 }
 
 /**
@@ -211,7 +212,7 @@ export function extractGirderElements(xmlDoc) {
  * @return {Array} ブレース要素データの配列
  */
 export function extractBraceElements(xmlDoc) {
-  return extractBeamLikeElements(xmlDoc, 'StbBrace');
+  return extractBeamLikeElements(xmlDoc, STB_TAG_NAMES.BRACE);
 }
 
 /**
@@ -220,7 +221,7 @@ export function extractBraceElements(xmlDoc) {
  * @return {Array} 免震装置要素データの配列
  */
 export function extractIsolatingDeviceElements(xmlDoc) {
-  return extractBeamLikeElements(xmlDoc, 'StbIsolatingDevice');
+  return extractBeamLikeElements(xmlDoc, STB_TAG_NAMES.ISOLATING_DEVICE);
 }
 
 /**
@@ -229,7 +230,7 @@ export function extractIsolatingDeviceElements(xmlDoc) {
  * @return {Array} 制振装置要素データの配列
  */
 export function extractDampingDeviceElements(xmlDoc) {
-  return extractBeamLikeElements(xmlDoc, 'StbDampingDevice');
+  return extractBeamLikeElements(xmlDoc, STB_TAG_NAMES.DAMPING_DEVICE);
 }
 
 /**
@@ -240,7 +241,7 @@ export function extractDampingDeviceElements(xmlDoc) {
 export function extractFrameDampingDeviceElements(xmlDoc) {
   const logger = getLogger();
   const frameDampingDeviceElementsData = [];
-  const frameDampingDeviceElements = parseElements(xmlDoc, 'StbFrameDampingDevice');
+  const frameDampingDeviceElements = parseElements(xmlDoc, STB_TAG_NAMES.FRAME_DAMPING_DEVICE);
 
   for (const deviceEl of frameDampingDeviceElements) {
     const id = deviceEl.getAttribute('id');
@@ -344,7 +345,7 @@ export function extractFrameDampingDeviceElements(xmlDoc) {
 export function extractPostElements(xmlDoc) {
   const logger = getLogger();
   const postElementsData = [];
-  const postElements = parseElements(xmlDoc, 'StbPost');
+  const postElements = parseElements(xmlDoc, STB_TAG_NAMES.POST);
 
   for (const postEl of postElements) {
     const id = postEl.getAttribute('id');

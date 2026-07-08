@@ -9,7 +9,11 @@
  * @module data/extractors/beamSectionListExtractor
  */
 
-import { isVersion210, isVersion202 } from '../../constants/stbVersionDetection.js';
+import {
+  isVersion210,
+  isVersion202,
+} from '../../common-stb/import/parser/utils/stbVersionDetection.js';
+import { STB_TAG_NAMES } from '../../constants/elementTypes.js';
 import {
   extractBeamMainBar,
   extractStirrupInfo as extractStirrupInfoFromBar,
@@ -34,7 +38,7 @@ const log = createLogger('data:extractors:beamSectionListExtractor');
  */
 function extractGirders(xmlDoc) {
   const girders = [];
-  const girderElements = querySelectorAll(xmlDoc, 'StbGirder');
+  const girderElements = querySelectorAll(xmlDoc, STB_TAG_NAMES.GIRDER);
 
   girderElements.forEach((el) => {
     const id = el.getAttribute('id');

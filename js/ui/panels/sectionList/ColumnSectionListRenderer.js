@@ -19,7 +19,7 @@ export class ColumnSectionListRenderer extends BaseSectionListRenderer {
       maxWidth: options.svgWidth || 120,
       maxHeight: options.svgHeight || 120,
       padding: options.svgPadding || 20,
-      barScale: options.barScale || 0.8,
+      barScale: options.barScale || 0.5,
       showDimensions: false,
     });
 

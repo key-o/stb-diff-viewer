@@ -18,7 +18,7 @@ import {
   mapToIFCProfileType,
   createIFCProfileFromSTB,
 } from '../../data/accessors/profileExtractor.js';
-import { normalizeProfileTypeToken } from '../../common-stb/section/sectionTypeUtil.js';
+import { normalizeProfileTypeToken } from '../../common-stb/import/section/sectionTypeUtil.js';
 import {
   calculate2LBackToBackProfile,
   calculate2LFaceToFaceProfile,
